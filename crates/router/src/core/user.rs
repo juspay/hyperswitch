@@ -1,7 +1,5 @@
 use api_models::user as user_api;
-#[cfg(feature = "email")]
-use diesel_models::user_role::UserRoleNew;
-use diesel_models::{enums::UserStatus, user as storage_user};
+use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
 use error_stack::ResultExt;
@@ -342,7 +340,6 @@ pub async fn reset_password(
     Ok(ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "email")]
 pub async fn invite_user(
     state: AppState,
     request: user_api::InviteUserRequest,
@@ -395,6 +392,7 @@ pub async fn invite_user(
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
             is_email_sent: false,
+            password: None,
         }))
     } else if invitee_user
         .as_ref()
@@ -432,25 +430,37 @@ pub async fn invite_user(
                 }
             })?;
 
-        let email_contents = email_types::InviteUser {
-            recipient_email: invitee_email,
-            user_name: domain::UserName::new(new_user.get_name())?,
-            settings: state.conf.clone(),
-            subject: "You have been invited to join Hyperswitch Community!",
-        };
-
-        let send_email_result = state
-            .email_client
-            .compose_and_send_email(
-                Box::new(email_contents),
-                state.conf.proxy.https_url.as_ref(),
-            )
-            .await;
-
-        logger::info!(?send_email_result);
+        let is_email_sent;
+        #[cfg(feature = "email")]
+        {
+            let email_contents = email_types::InviteUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(new_user.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+            };
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+            logger::info!(?send_email_result);
+            is_email_sent = send_email_result.is_ok();
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            is_email_sent = false;
+        }
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-            is_email_sent: send_email_result.is_ok(),
+            is_email_sent,
+            password: if cfg!(not(feature = "email")) {
+                Some(new_user.get_password().get_secret())
+            } else {
+                None
+            },
         }))
     } else {
         Err(UserErrors::InternalServerError.into())
