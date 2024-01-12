@@ -1,8 +1,6 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
-#[cfg(not(feature = "aws_kms"))]
+use external_services::kms::Decrypted;
 use masking::PeekInterface;
 
 use crate::settings::Database;
@@ -11,7 +9,7 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(
-    conf: &crate::settings::Settings,
+    conf: &crate::settings::Settings<Decrypted>,
 ) -> redis_interface::RedisConnectionPool {
     redis_interface::RedisConnectionPool::new(&conf.redis)
         .await
@@ -23,20 +21,8 @@ pub async fn redis_connection(
 ///
 /// Will panic if could not create a db pool
 #[allow(clippy::expect_used)]
-pub async fn diesel_make_pg_pool(
-    database: &Database,
-    _test_transaction: bool,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::AwsKmsClient,
-) -> PgPool {
-    #[cfg(feature = "aws_kms")]
-    let password = database
-        .password
-        .decrypt_inner(aws_kms_client)
-        .await
-        .expect("Failed to decrypt password");
-
-    #[cfg(not(feature = "aws_kms"))]
-    let password = &database.password.peek();
+pub async fn diesel_make_pg_pool(database: &Database, _test_transaction: bool) -> PgPool {
+    let password = database.password.peek();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

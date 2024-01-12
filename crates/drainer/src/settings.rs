@@ -1,20 +1,21 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+use external_services::kms::aws_kms;
+use external_services::kms::{
+    no_encryption::NoEncryption, Decryptable, Decrypted, Encrypted, EncryptionScheme,
+    EncryptionState, KmsConfig,
+};
+use masking::Secret;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::errors;
-
-#[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
-#[cfg(not(feature = "aws_kms"))]
-pub type Password = masking::Secret<String>;
+use crate::{errors, kms};
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -27,20 +28,47 @@ pub struct CmdLineConf {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct Settings {
-    pub master_database: Database,
+pub struct Settings<S: EncryptionState> {
+    pub master_database: Decryptable<Database, S>,
     pub redis: redis::RedisSettings,
     pub log: Log,
     pub drainer: DrainerSettings,
-    #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: KmsConfig,
+}
+
+#[derive(Clone, Debug)]
+pub struct AppState {
+    pub conf: Arc<Settings<Decrypted>>,
+    pub secret_management_client: Arc<EncryptionScheme>,
+}
+
+impl AppState {
+    pub async fn new(conf: Settings<Encrypted>) -> Self {
+        let kms_client = Self::get_kms_client(&conf).await;
+        let conf = kms::kms_decryption(conf, &kms_client).await;
+
+        Self {
+            conf: Arc::new(conf),
+            secret_management_client: Arc::new(kms_client),
+        }
+    }
+
+    async fn get_kms_client(conf: &Settings<Encrypted>) -> EncryptionScheme {
+        match &conf.kms {
+            #[cfg(feature = "aws_kms")]
+            KmsConfig::AwsKms { aws_kms } => EncryptionScheme::AwsKms {
+                client: aws_kms::get_aws_kms_client(aws_kms).await,
+            },
+            KmsConfig::NoEncryption => EncryptionScheme::None(NoEncryption),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    pub password: Password,
+    pub password: Secret<String>,
     pub host: String,
     pub port: u16,
     pub dbname: String,
@@ -62,7 +90,7 @@ impl Default for Database {
     fn default() -> Self {
         Self {
             username: String::new(),
-            password: Password::default(),
+            password: Secret::<String>::default(),
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
@@ -124,12 +152,14 @@ impl DrainerSettings {
     }
 }
 
-impl Settings {
-    pub fn new() -> Result<Self, errors::DrainerError> {
+impl<S: EncryptionState> Settings<S> {
+    pub fn new() -> Result<Settings<Encrypted>, errors::DrainerError> {
         Self::with_config_path(None)
     }
 
-    pub fn with_config_path(config_path: Option<PathBuf>) -> Result<Self, errors::DrainerError> {
+    pub fn with_config_path(
+        config_path: Option<PathBuf>,
+    ) -> Result<Settings<Encrypted>, errors::DrainerError> {
         // Configuration values are picked up in the following priority order (1 being least
         // priority):
         // 1. Defaults from the implementation of the `Default` trait.
@@ -165,7 +195,7 @@ impl Settings {
     }
 
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
-        self.master_database.validate()?;
+        self.master_database.into_inner().validate()?;
         self.redis.validate().map_err(|error| {
             println!("{error}");
             errors::DrainerError::ConfigParsingError("invalid Redis configuration".into())
