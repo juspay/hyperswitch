@@ -23,7 +23,7 @@ use crate::{
     types::{
         self, api,
         storage::enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils::{Encode, OptionExt},
 };
