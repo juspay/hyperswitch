@@ -298,7 +298,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     }
                 }?,
                 Some(item.request.currency),
-                item.request.order_category.clone(),
+                Some(item.request.order_category.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_category",
+                    },
+                )?),
             ),
         };
 
@@ -334,7 +338,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
 
         let (subscription, tokenize_c_c) = match item.request.setup_future_usage.is_some() {
             true => {
-                let mandate_data = item.request.get_setup_mandate_details().clone().ok_or(
+                let mandate_data = item.request.get_setup_mandate_details().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_mandate_details",
                     },
@@ -347,12 +351,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         mandate.amount.to_string()
                     }
 
-                    _ => {
-                        crate::logger::debug!("aaaaaaaaa{:?}", mandate_data.mandate_type.clone());
-                        Err(errors::ConnectorError::NotImplemented(
-                            item.connector.clone(),
-                        ))?
-                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        item.connector.clone(),
+                    ))?,
                 };
 
                 (
