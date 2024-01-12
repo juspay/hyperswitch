@@ -287,6 +287,15 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+    pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
