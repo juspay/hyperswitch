@@ -44,7 +44,7 @@ use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
-    configs::settings::PaymentMethodTypeTokenFilter,
+    configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::PaymentMethodRetrieve,
@@ -509,8 +509,7 @@ where
         let raw_card_key = payment_data
             .payment_method_data
             .as_ref()
-            .map(get_key_params_for_surcharge_details)
-            .transpose()?
+            .and_then(get_key_params_for_surcharge_details)
             .map(|(payment_method, payment_method_type, card_network)| {
                 types::SurchargeKey::PaymentMethodData(
                     payment_method,
@@ -1490,6 +1489,22 @@ where
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 (router_data, false)
+            } else if connector.connector_name == router_types::Connector::Cybersource
+                && is_operation_complete_authorize(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                let should_continue = matches!(
+                    router_data.response,
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        redirection_data: None,
+                        ..
+                    })
+                ) && router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed;
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -1583,6 +1598,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     connector_name: &str,
     payment_method: &storage::enums::PaymentMethod,
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -1596,13 +1612,35 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     payment_method_type,
                     connector_filter.payment_method_type.clone(),
                 )
+                && is_apple_pay_pre_decrypt_type_connector_tokenization(
+                    payment_method_type,
+                    apple_pay_flow,
+                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
+                )
         })
         .unwrap_or(false))
 }
 
+fn is_apple_pay_pre_decrypt_type_connector_tokenization(
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
+) -> bool {
+    match (payment_method_type, apple_pay_flow) {
+        (
+            Some(storage::enums::PaymentMethodType::ApplePay),
+            Some(enums::ApplePayFlow::Simplified),
+        ) => !matches!(
+            apple_pay_pre_decrypt_flow_filter,
+            Some(ApplePayPreDecryptFlow::NetworkTokenization)
+        ),
+        _ => true,
+    }
+}
+
 fn decide_apple_pay_flow(
     payment_method_type: &Option<api_models::enums::PaymentMethodType>,
-    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+    merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<enums::ApplePayFlow> {
     payment_method_type.and_then(|pmt| match pmt {
         api_models::enums::PaymentMethodType::ApplePay => {
@@ -1613,9 +1651,9 @@ fn decide_apple_pay_flow(
 }
 
 fn check_apple_pay_metadata(
-    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+    merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<enums::ApplePayFlow> {
-    merchant_connector_account.clone().and_then(|mca| {
+    merchant_connector_account.and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
             let parsed_metadata = apple_pay_metadata
@@ -1786,18 +1824,17 @@ where
                 .get_required_value("payment_method")?;
             let payment_method_type = &payment_data.payment_attempt.payment_method_type;
 
+            let apple_pay_flow =
+                decide_apple_pay_flow(payment_method_type, Some(merchant_connector_account));
+
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
                     &connector,
                     payment_method,
                     payment_method_type,
+                    &apple_pay_flow,
                 )?;
-
-            let apple_pay_flow = decide_apple_pay_flow(
-                payment_method_type,
-                &Some(merchant_connector_account.clone()),
-            );
 
             add_apple_pay_flow_metrics(
                 &apple_pay_flow,
@@ -2083,6 +2120,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+}
+
+pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
 #[cfg(feature = "olap")]
