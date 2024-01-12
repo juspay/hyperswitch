@@ -1505,6 +1505,22 @@ where
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
+            } else if connector.connector_name == router_types::Connector::Bankofamerica
+                && is_operation_complete_authorize(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                let should_continue = matches!(
+                    router_data.response,
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        redirection_data: None,
+                        ..
+                    })
+                ) && router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed;
+                (router_data, should_continue)
             } else {
                 (router_data, should_continue_payment)
             }
