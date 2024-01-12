@@ -5,7 +5,7 @@ use actix_web::{web, Scope};
 use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-#[cfg(feature = "hashicorp-vault")]
+#[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
@@ -144,7 +144,7 @@ impl AppState {
         Box::pin(async move {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
-            #[cfg(feature = "hashicorp-vault")]
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
             #[allow(clippy::expect_used)]
             let hc_client =
                 external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)

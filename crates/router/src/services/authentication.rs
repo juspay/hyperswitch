@@ -319,8 +319,6 @@ where
         )
         .await?;
 
-        println!("{:?} {:?}", admin_api_key.peek(), request_admin_api_key);
-
         if request_admin_api_key != admin_api_key.peek() {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
