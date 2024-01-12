@@ -913,6 +913,117 @@
         ]
       }
     },
+    "/blocklist": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List Blocked fingerprints of a particular kind",
+        "parameters": [
+          {
+            "name": "data_kind",
+            "in": "query",
+            "description": "Kind of the fingerprint list requested",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked Fingerprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Block a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Unblock a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Unblocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [

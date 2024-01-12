@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+pub mod blocklist;
 pub mod business_profile;
 pub mod customers;
 pub mod disputes;

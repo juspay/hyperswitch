@@ -145,6 +145,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
+
+        // Routes for blocklist
+        routes::blocklist::remove_entry_from_blocklist,
+        routes::blocklist::list_blocked_payment_methods,
+        routes::blocklist::add_entry_to_blocklist
     ),
     components(schemas(
         api_models::refunds::RefundRequest,
