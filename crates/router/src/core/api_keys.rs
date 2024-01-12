@@ -270,6 +270,14 @@ pub async fn add_api_key_expiry_task(
                 api_key_expiry_tracker.key_id
             )
         })?;
+    metrics::TASKS_ADDED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "api_key_expiry",
+            format!("{:#?}", expiry_reminder_days.to_owned()),
+        )],
+    );
 
     Ok(())
 }

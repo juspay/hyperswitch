@@ -987,7 +987,14 @@ where
             Some(stime) => {
                 if !requeue {
                     // Increment the count of added tasks every time a payment has been confirmed or PSync has been called
-                    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::TASKS_ADDED_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "operation",
+                            format!("{:#?}", operation),
+                        )],
+                    );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
@@ -995,7 +1002,14 @@ where
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
-                    metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::TASKS_RESET_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "operation",
+                            format!("{:#?}", operation),
+                        )],
+                    );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
