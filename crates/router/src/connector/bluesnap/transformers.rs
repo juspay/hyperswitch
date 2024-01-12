@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 use api_models::{enums as api_enums, payments};
 use base64::Engine;
