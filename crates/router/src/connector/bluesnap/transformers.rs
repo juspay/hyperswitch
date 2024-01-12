@@ -20,6 +20,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
+    routes::metrics,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
@@ -75,12 +76,13 @@ pub struct BluesnapMetadata {
     meta_data: Vec<RequestMetadata>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestMetadata {
-    meta_key: String,
-    meta_value: String,
-    is_visible: String, //Property controlling whether the transaction metadata is visible in the invoice (Y) or hidden (N).
+    meta_key: Option<String>,
+    meta_value: Option<String>,
+    meta_description: Option<String>,
+    is_visible: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,9 +262,9 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             _ => BluesnapTxnType::AuthCapture,
         };
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some(BluesnapMetadata {
-                meta_data: Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())?,
-            }),
+            Some(metadata) => Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())
+                .ok()
+                .map(|meta_data| BluesnapMetadata { meta_data }),
             None => None,
         };
 
@@ -618,9 +620,9 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some(BluesnapMetadata {
-                meta_data: Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())?,
-            }),
+            Some(metadata) => Vec::<RequestMetadata>::foreign_try_from(metadata.peek().to_owned())
+                .ok()
+                .map(|meta_data| BluesnapMetadata { meta_data }),
             None => None,
         };
 
@@ -1157,19 +1159,20 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
 impl ForeignTryFrom<Value> for Vec<RequestMetadata> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(metadata: Value) -> Result<Self, Self::Error> {
-        let hashmap: HashMap<String, String> = serde_json::from_str(&metadata.to_string())
-            .ok()
-            .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "Metadata is not in the expected format".to_string(),
-            ))?;
-        let mut vector: Self = Self::new();
-        for (key, value) in hashmap {
-            vector.push(RequestMetadata {
-                meta_key: key,
-                meta_value: value,
-                is_visible: "Y".to_owned(),
-            });
+        let merchant_metadata: Result<Vec<RequestMetadata>, _> =
+            serde_json::from_str(&metadata.to_string());
+        match merchant_metadata {
+            Ok(metadata_vector) => Ok(metadata_vector),
+            Err(_) => {
+                metrics::REQUEST_BUILD_FAILURE.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes("connector", "bluesnap")],
+                );
+                Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "Metadata is not in the expected format",
+                })?
+            }
         }
-        Ok(vector)
     }
 }
