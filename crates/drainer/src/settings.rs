@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, u32};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -32,8 +32,17 @@ pub struct Settings {
     pub redis: redis::RedisSettings,
     pub log: Log,
     pub drainer: DrainerSettings,
+    pub cache: CacheSettings,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct CacheSettings {
+    pub ttl: u32,
+    pub tti: u32,
+    pub max_capacity: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -56,6 +65,16 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
+}
+
+impl Default for CacheSettings {
+    fn default() -> Self {
+        Self {
+            ttl: 30 * 60,
+            tti: 10 * 60,
+            max_capacity: 30,
+        }
+    }
 }
 
 impl Default for Database {
