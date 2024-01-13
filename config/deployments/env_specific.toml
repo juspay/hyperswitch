@@ -100,12 +100,6 @@ fallback_api_key        = "YOUR API KEY" # Api key for the fallback service
 redis_lock_timeout      = 26000 # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
 
 [jwekey] # 4 priv/pub key pair
-locker_key_identifier1     = "" # key identifier for key rotation , should be same as basilisk
-locker_key_identifier2     = "" # key identifier for key rotation , should be same as basilisk
-locker_encryption_key1     = "" # public key 1 in pem format, corresponding private key in basilisk
-locker_encryption_key2     = "" # public key 2 in pem format, corresponding private key in basilisk
-locker_decryption_key1     = "" # private key 1 in pem format, corresponding public key in basilisk
-locker_decryption_key2     = "" # private key 2 in pem format, corresponding public key in basilisk
 vault_encryption_key       = "" # public key in pem format, corresponding private key in basilisk-hs
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key          = "" # private key in pem format, corresponding public key in basilisk-hs
@@ -158,7 +152,7 @@ connection_timeout = 10 # Timeout for database connection in seconds
 queue_strategy     = "Fifo" # Add the queue strategy used by the database bb8 client
 
 [payment_link]
-sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
 
 [payment_method_auth]
 pm_auth_key  = "pm_auth_key"

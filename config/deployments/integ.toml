@@ -265,6 +265,7 @@ bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
 shift4.payment_method = "card"
 stripe.payment_method = "bank_transfer"
+cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 
 [tokenization]
