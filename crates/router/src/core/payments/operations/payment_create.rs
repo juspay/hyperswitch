@@ -245,6 +245,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
                 payment_intent.amount,
+                false,
             )?;
         }
 
@@ -824,6 +825,7 @@ impl PaymentCreate {
             request_incremental_authorization,
             incremental_authorization_allowed: None,
             authorization_count: None,
+            fingerprint_id: None,
             session_expiry: Some(session_expiry),
         })
     }
