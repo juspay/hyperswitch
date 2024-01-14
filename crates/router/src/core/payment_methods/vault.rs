@@ -988,8 +988,8 @@ pub async fn start_tokenize_data_workflow(
                 &metrics::CONTEXT,
                 1,
                 &[metrics::request::add_attributes(
-                    "delete_tokenize_data",
-                    "DELETE_TOKENIZE_DATA",
+                    "flow",
+                    "DeleteTokenizeData",
                 )],
             );
         }
@@ -1040,8 +1040,8 @@ pub async fn retry_delete_tokenize(
                 &metrics::CONTEXT,
                 1,
                 &[metrics::request::add_attributes(
-                    "delete_tokenize_data",
-                    "DELETE_TOKENIZE_DATA",
+                    "flow",
+                    "DeleteTokenizeData",
                 )],
             );
             retry_schedule

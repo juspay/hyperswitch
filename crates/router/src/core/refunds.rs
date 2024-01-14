@@ -1091,7 +1091,7 @@ pub async fn add_refund_sync_task(
     metrics::TASKS_ADDED_COUNT.add(
         &metrics::CONTEXT,
         1,
-        &[metrics::request::add_attributes("refund", "REFUND")],
+        &[metrics::request::add_attributes("flow", "Refund")],
     );
 
     Ok(response)
@@ -1181,7 +1181,7 @@ pub async fn retry_refund_sync_task(
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes("refund", "REFUND")],
+                &[metrics::request::add_attributes("flow", "Refund")],
             );
             retry_schedule
         }

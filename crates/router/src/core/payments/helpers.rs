@@ -991,7 +991,7 @@ where
                         &metrics::CONTEXT,
                         1,
                         &[metrics::request::add_attributes(
-                            "operation",
+                            "flow",
                             format!("{:#?}", operation),
                         )],
                     );
@@ -1006,7 +1006,7 @@ where
                         &metrics::CONTEXT,
                         1,
                         &[metrics::request::add_attributes(
-                            "operation",
+                            "flow",
                             format!("{:#?}", operation),
                         )],
                     );

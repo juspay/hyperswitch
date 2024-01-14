@@ -119,10 +119,7 @@ Team Hyperswitch"),
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
-                &[metrics::request::add_attributes(
-                    "api_key_expiry",
-                    format!("API KEY EXPIRY"),
-                )],
+                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
             );
         }
 
