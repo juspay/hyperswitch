@@ -106,7 +106,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
-    pub meta_data: HashMap<String, Value>,
+    pub meta_data: HashMap<String, String>,
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<Secret<String>>,
@@ -220,7 +220,7 @@ pub struct ChargesRequest {
     pub customer: Secret<String>,
     pub source: Secret<String>,
     #[serde(flatten)]
-    pub meta_data: Option<HashMap<String, Value>>,
+    pub meta_data: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -1869,17 +1869,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             });
 
         let meta_data = item.request.metadata.clone().map_or(
-            HashMap::from([(
-                "metadata[order_id]".to_string(),
-                serde_json::Value::String(order_id.clone()),
-            )]),
+            HashMap::from([("metadata[order_id]".to_string(), order_id.clone())]),
             |metadata| {
                 let mut merchant_defined_metadata =
                     get_merchant_defined_metadata(metadata.peek().to_owned());
-                merchant_defined_metadata.insert(
-                    "metadata[order_id]".to_string(),
-                    serde_json::Value::String(order_id),
-                );
+                merchant_defined_metadata
+                    .insert("metadata[order_id]".to_string(), order_id.clone());
                 merchant_defined_metadata
             },
         );
@@ -3814,13 +3809,13 @@ mod test_validate_shipping_address_against_payment_method {
     }
 }
 
-fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, Value> {
+fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, String> {
     let hashmap: HashMap<String, Value> =
         serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
     let mut request_hash_map = HashMap::new();
 
     for (key, value) in hashmap {
-        request_hash_map.insert(format!("metadata[{}]", key), value);
+        request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
     }
 
     request_hash_map
