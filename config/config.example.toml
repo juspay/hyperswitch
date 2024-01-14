@@ -528,3 +528,11 @@ refund_analytics_topic = "topic"          # Kafka topic to be used for Refund ev
 api_logs_topic = "topic"                  # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"            # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events
+
+# File storage configuration
+[file_storage_config]
+file_storage_scheme = "aws_s3"            # File storage scheme to be used
+
+[file_storage_config.aws_s3]
+region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
+bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage

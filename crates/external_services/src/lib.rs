@@ -9,6 +9,8 @@ pub mod email;
 #[cfg(feature = "kms")]
 pub mod kms;
 
+pub mod file_storage;
+
 /// Crate specific constants
 #[cfg(feature = "kms")]
 pub mod consts {
