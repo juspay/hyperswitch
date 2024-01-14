@@ -1,6 +1,8 @@
 pub mod admin;
 pub mod api_keys;
 pub mod app;
+#[cfg(feature = "olap")]
+pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
@@ -42,14 +44,15 @@ pub mod webhooks;
 pub mod locker_migration;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod pm_auth;
+#[cfg(feature = "olap")]
+pub use app::{Blocklist, Routing};
+
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
-#[cfg(feature = "olap")]
-pub use self::app::Routing;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub use self::app::Verify;
 pub use self::app::{

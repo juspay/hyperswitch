@@ -64,6 +64,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
                 payment_intent.amount,
+                false,
             )?;
         }
 
@@ -616,6 +617,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
+                    fingerprint_id: None,
                     session_expiry,
                 },
                 storage_scheme,

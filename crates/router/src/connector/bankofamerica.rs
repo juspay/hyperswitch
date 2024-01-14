@@ -205,7 +205,7 @@ impl ConnectorCommon for Bankofamerica {
         };
         match response {
             transformers::BankOfAmericaErrorResponse::StandardError(response) => {
-                let (code, message) = match response.error_information {
+                let (code, connector_reason) = match response.error_information {
                     Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
                     None => (
                         response
@@ -218,13 +218,13 @@ impl ConnectorCommon for Bankofamerica {
                             .map_or(error_message.to_string(), |message| message),
                     ),
                 };
-                let connector_reason = match response.details {
+                let message = match response.details {
                     Some(details) => details
                         .iter()
                         .map(|det| format!("{} : {}", det.field, det.reason))
                         .collect::<Vec<_>>()
                         .join(", "),
-                    None => message.clone(),
+                    None => connector_reason.clone(),
                 };
 
                 Ok(ErrorResponse {
