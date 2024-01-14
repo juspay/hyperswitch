@@ -2,14 +2,15 @@
 //! Module for managing file storage operations with support for multiple storage schemes.
 //!
 
-#[cfg(feature = "aws_s3")]
-use crate::file_storage::aws_s3::{AwsFileStorageClient, AwsFileStorageConfig};
 use common_utils::{
     errors::{CustomResult, FileStorageError},
     fs_utils,
 };
 use error_stack::ResultExt;
 use storage_impl::errors::ApplicationError;
+
+#[cfg(feature = "aws_s3")]
+use crate::file_storage::aws_s3::{AwsFileStorageClient, AwsFileStorageConfig};
 
 /// When the "aws_s3" feature is enabled, the module includes functionality for AWS S3 storage.
 #[cfg(feature = "aws_s3")]

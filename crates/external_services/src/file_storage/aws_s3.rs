@@ -6,10 +6,9 @@ use aws_sdk_s3::{
     Client,
 };
 use aws_sdk_sts::config::Region;
-use futures::TryStreamExt;
-
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
 use error_stack::{IntoReport, ResultExt};
+use futures::TryStreamExt;
 use storage_impl::errors::ApplicationError;
 
 static AWS_FILE_STORAGE_CLIENT: tokio::sync::OnceCell<AwsFileStorageClient> =
