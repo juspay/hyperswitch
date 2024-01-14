@@ -1,9 +1,4 @@
 pub mod helpers;
-#[cfg(feature = "aws_s3")]
-pub mod s3_utils;
-
-#[cfg(not(feature = "aws_s3"))]
-pub mod fs_utils;
 
 use api_models::files;
 use error_stack::{IntoReport, ResultExt};

@@ -127,25 +127,6 @@ impl super::settings::DrainerSettings {
     }
 }
 
-#[cfg(feature = "aws_s3")]
-impl super::settings::FileUploadConfig {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "s3 region must not be empty".into(),
-            ))
-        })?;
-
-        when(self.bucket_name.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "s3 bucket name must not be empty".into(),
-            ))
-        })
-    }
-}
-
 impl super::settings::ApiKeys {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

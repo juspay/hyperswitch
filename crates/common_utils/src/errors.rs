@@ -142,3 +142,19 @@ where
         T::switch_from(self)
     }
 }
+
+/// Represents errors that can occur during file storage operations.
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum FileStorageError {
+    /// Indicates that the file upload operation failed.
+    #[error("Failed to upload file")]
+    UploadFailed,
+
+    /// Indicates that the file retrieval operation failed.
+    #[error("Failed to retrieve file")]
+    RetrieveFailed,
+
+    /// Indicates that the file deletion operation failed.
+    #[error("Failed to delete file")]
+    DeleteFailed,
+}

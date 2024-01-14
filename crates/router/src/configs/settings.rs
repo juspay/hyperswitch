@@ -11,6 +11,7 @@ use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+use external_services::file_storage::FileStorageConfig;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -88,8 +89,7 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
-    #[cfg(feature = "aws_s3")]
-    pub file_upload_config: FileUploadConfig,
+    pub file_storage_config: FileStorageConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
@@ -716,16 +716,6 @@ pub struct ApiKeys {
     pub expiry_reminder_days: Vec<u8>,
 }
 
-#[cfg(feature = "aws_s3")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct FileUploadConfig {
-    /// The AWS region to send file uploads
-    pub region: String,
-    /// The AWS s3 bucket to send file uploads
-    pub bucket_name: String,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "deser_to_get_connectors")]
@@ -848,8 +838,8 @@ impl Settings {
         self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
-        #[cfg(feature = "aws_s3")]
-        self.file_upload_config.validate()?;
+
+        self.file_storage_config.validate()?;
         self.lock_settings.validate()?;
         self.events.validate()?;
         Ok(())
