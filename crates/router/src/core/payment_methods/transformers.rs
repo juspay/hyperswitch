@@ -564,7 +564,7 @@ pub fn get_card_detail(
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
     let mut last4_digits = card_number.peek().to_owned();
-    //fetch form card bin or a seperate flow for manadates retrieve
+    //fetch form card bin or a separate flow for manadates retrieve
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
