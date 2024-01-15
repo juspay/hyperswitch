@@ -25,6 +25,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -182,7 +183,7 @@ where
     }
 }
 
-pub async fn not_save_in_locker_for_mandate_flow(
+async fn not_save_in_locker_for_mandate_flow(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
     state: &AppState,
@@ -265,7 +266,7 @@ pub async fn not_save_in_locker_for_mandate_flow(
             card_network: None,
             card_type: None,
         });
-    println!("card_dets{:?}", card_detail);
+
     let pm_resp = api::PaymentMethodResponse {
         merchant_id: merchant_id.to_string(),
         customer_id: Some(customer_id),
@@ -282,6 +283,7 @@ pub async fn not_save_in_locker_for_mandate_flow(
 
     Ok((pm_resp, false))
 }
+
 pub async fn save_in_locker(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,

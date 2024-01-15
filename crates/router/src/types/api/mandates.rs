@@ -1,6 +1,7 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use error_stack::ResultExt;
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     newtype,
     routes::AppState,
     types::{
-        api,
+        api, domain,
         storage::{self, enums as storage_enums},
     },
 };
@@ -23,12 +24,20 @@ newtype!(
 
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self>;
+    async fn from_db_mandate(
+        state: &AppState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+    ) -> RouterResult<Self>;
 }
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self> {
+    async fn from_db_mandate(
+        state: &AppState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+    ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
@@ -36,19 +45,29 @@ impl MandateResponseExt for MandateResponse {
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            //if not from locker then decrypt the pmt data and get it , key in key_store
-            let card = payment_methods::cards::get_card_from_locker(
-                state,
-                &payment_method.customer_id,
-                &payment_method.merchant_id,
-                &payment_method.payment_method_id,
-            )
-            .await?;
+            //if locker is disabled , decrypt the payment method data
+            let card_details = if !state.conf.locker.locker_enabled {
+                payment_methods::cards::get_card_details(
+                    &payment_method,
+                    key_store.key.get_inner().peek(),
+                    state,
+                )
+                .await?
+            } else {
+                let card = payment_methods::cards::get_card_from_locker(
+                    state,
+                    &payment_method.customer_id,
+                    &payment_method.merchant_id,
+                    &payment_method.payment_method_id,
+                )
+                .await?;
 
-            let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting card details")?;
-            Some(MandateCardDetails::from(card_detail).into_inner())
+                payment_methods::transformers::get_card_detail(&payment_method, card)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while getting card details")?
+            };
+
+            Some(MandateCardDetails::from(card_details).into_inner())
         } else {
             None
         };
