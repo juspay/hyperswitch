@@ -91,8 +91,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .to_payment_failed_response()?;
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                                                                   //call 1
+            let is_mandate = resp.request.setup_mandate_details.clone().is_some();
 
-            if resp.request.setup_mandate_details.clone().is_some() {
+            if is_mandate {
                 let payment_method_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -101,6 +103,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     merchant_account,
                     self.request.payment_method_type,
                     key_store,
+                    is_mandate,
                 ))
                 .await?;
                 Ok(mandate::mandate_procedure(
@@ -132,6 +135,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
+                        is_mandate,
                     ))
                     .await;
 

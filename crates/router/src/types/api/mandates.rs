@@ -36,6 +36,7 @@ impl MandateResponseExt for MandateResponse {
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
+            //if not from locker then decrypt the pmt data and get it , key in key_store
             let card = payment_methods::cards::get_card_from_locker(
                 state,
                 &payment_method.customer_id,
@@ -43,6 +44,7 @@ impl MandateResponseExt for MandateResponse {
                 &payment_method.payment_method_id,
             )
             .await?;
+
             let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details")?;
