@@ -28,6 +28,8 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(feature = "recon")]
+pub mod recon;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -53,6 +55,8 @@ pub use self::app::DummyConnector;
 pub use self::app::Forex;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
+#[cfg(all(feature = "olap", feature = "recon"))]
+pub use self::app::Recon;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub use self::app::Verify;
 pub use self::app::{
