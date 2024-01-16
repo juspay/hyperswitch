@@ -385,7 +385,7 @@ where
                             Err(Arc::clone(&err)),
                         );
                         return Err(GraphError::AnalysisError(Arc::downgrade(&err)));
-                    } else {
+                    } else if resolved_strength != vald.strength {
                         vald.cycle_map.remove(&vald.node_id);
                         self.context_analysis(
                             vald.node_id,

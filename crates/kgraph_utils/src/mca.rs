@@ -160,7 +160,7 @@ fn compile_request_pm_types(
                     &nodes,
                     Some("amount_constraint_aggregator"),
                     None::<()>,
-                    Some(DOMAIN_IDENTIFIER),
+                    None,
                 )
                 .map_err(KgraphError::GraphConstructionError)?
         };
@@ -173,7 +173,7 @@ fn compile_request_pm_types(
                 ],
                 Some("zero_plus_limits_amount_aggregator"),
                 None::<()>,
-                Some(DOMAIN_IDENTIFIER),
+                None,
             )
             .map_err(KgraphError::GraphConstructionError)?;
 
