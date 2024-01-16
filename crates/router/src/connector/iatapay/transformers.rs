@@ -480,16 +480,27 @@ pub struct IatapayAccessTokenErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IatapayWebhookResponse {
+pub struct IatapayPaymentWebhookBody {
     pub status: IatapayWebhookStatus,
-    pub iata_payment_id: Option<String>,
-    pub iata_refund_id: Option<String>,
+    pub iata_payment_id: String,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IatapayRefundWebhookBody {
+    pub status: IatapayWebhookStatus,
+    pub iata_refund_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum IatapayWebhookResponse {
+    IatapayPaymentWebhookBody(IatapayPaymentWebhookBody),
+    IatapayRefundWebhookBody(IatapayRefundWebhookBody),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IatapayWebhookStatus {
-    #[default]
     Created,
     Initiated,
     Authorized,
