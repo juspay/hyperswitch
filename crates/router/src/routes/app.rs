@@ -961,5 +961,6 @@ impl ConnectorOnboarding {
             .app_data(web::Data::new(state))
             .service(web::resource("/action_url").route(web::post().to(get_action_url)))
             .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
+            .service(web::resource("/reset_tracking_id").route(web::post().to(reset_tracking_id)))
     }
 }
