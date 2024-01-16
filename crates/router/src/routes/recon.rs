@@ -3,7 +3,7 @@ use api_models::recon as recon_api;
 use common_enums::ReconStatus;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{logger, Flow};
+use router_env::Flow;
 
 use super::AppState;
 use crate::{
@@ -120,10 +120,7 @@ pub async fn send_recon_request(
         )
         .await
         .change_context(UserErrors::InternalServerError)
-        .map_err(|error| {
-            logger::error!("Failed to compose and send email for ProFeatureRequest. ERR - {error}");
-            error
-        })
+        .attach_printable("Failed to compose and send email for ProFeatureRequest")
         .is_ok();
 
     if is_email_sent {
@@ -207,12 +204,7 @@ pub async fn recon_merchant_account_update(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .map_err(|error| {
-                logger::error!(
-                    "Failed to compose and send email for ReconActivation. ERR - {error}"
-                );
-                error
-            })
+            .attach_printable("Failed to compose and send email for ReconActivation")
             .is_ok();
     }
 
