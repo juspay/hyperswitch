@@ -93,7 +93,7 @@ pub struct NoonSubscription {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCard {
-    name_on_card: Secret<String>,
+    name_on_card: Option<Secret<String>>,
     number_plain: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -160,7 +160,7 @@ pub struct NoonPayPal {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "data")]
+#[serde(tag = "type", content = "data", rename_all = "UPPERCASE")]
 pub enum NoonPaymentData {
     Card(NoonCard),
     Subscription(NoonSubscription),
@@ -202,10 +202,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card
-                            .card_holder_name
-                            .clone()
-                            .unwrap_or(Secret::new("".to_string())),
+                        name_on_card: req_card.card_holder_name.clone(),
+                        // .unwrap_or(Secret::new("".to_string())),
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),
