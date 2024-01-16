@@ -135,7 +135,9 @@ pub async fn send_recon_request(
             .update_merchant(merchant_account, updated_merchant_account, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| format!("Failed while updating merchant's recon status: {merchant_id}"))?;
+            .attach_printable_lazy(|| {
+                format!("Failed while updating merchant's recon status: {merchant_id}")
+            })?;
 
         Ok(service_api::ApplicationResponse::Json(
             recon_api::ReconStatusResponse {
@@ -181,7 +183,9 @@ pub async fn recon_merchant_account_update(
         .update_merchant(merchant_account, updated_merchant_account, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed while updating merchant's recon status: {merchant_id}"))?;
+        .attach_printable_lazy(|| {
+            format!("Failed while updating merchant's recon status: {merchant_id}")
+        })?;
 
     let email_contents = email_types::ReconActivation {
         recipient_email: UserEmail::from_pii_email(user_email.clone())
@@ -204,7 +208,9 @@ pub async fn recon_merchant_account_update(
             .await
             .change_context(UserErrors::InternalServerError)
             .map_err(|error| {
-                logger::error!("Failed to compose and send email for ReconActivation. ERR - {error}");
+                logger::error!(
+                    "Failed to compose and send email for ReconActivation. ERR - {error}"
+                );
                 error
             })
             .is_ok();
