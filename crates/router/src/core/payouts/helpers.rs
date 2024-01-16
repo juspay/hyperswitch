@@ -260,26 +260,28 @@ pub async fn save_payout_data_to_locker(
                 },
             )
         })
-        .unwrap_or(api::payment_methods::PaymentMethodsData::Card(
-            api::payment_methods::CardDetailsPaymentMethod {
-                last4_digits: card_details
-                    .as_ref()
-                    .map(|c| c.card_number.clone().get_last4()),
-                issuer_country: None,
-                expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
-                expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
-                nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
-                card_holder_name: card_details
-                    .as_ref()
-                    .and_then(|c| c.card_holder_name.clone()),
+        .unwrap_or_else(|| {
+            api::payment_methods::PaymentMethodsData::Card(
+                api::payment_methods::CardDetailsPaymentMethod {
+                    last4_digits: card_details
+                        .as_ref()
+                        .map(|c| c.card_number.clone().get_last4()),
+                    issuer_country: None,
+                    expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+                    expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+                    nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+                    card_holder_name: card_details
+                        .as_ref()
+                        .and_then(|c| c.card_holder_name.clone()),
 
-                card_isin: card_isin.clone(),
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                save_to_locker: true,
-            },
-        ));
+                    card_isin: card_isin.clone(),
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    save_to_locker: true,
+                },
+            )
+        });
 
     let card_details_encrypted =
         cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await;

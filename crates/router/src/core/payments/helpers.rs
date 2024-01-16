@@ -3348,21 +3348,23 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     });
-                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card(Box::new(
-                    api_models::payments::AdditionalCardInfo {
-                        card_issuer: None,
-                        card_network: None,
-                        bank_code: None,
-                        card_type: None,
-                        card_issuing_country: None,
-                        last4,
-                        card_isin,
-                        card_extended_bin,
-                        card_exp_month: Some(card_data.card_exp_month.clone()),
-                        card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.card_holder_name.clone(),
-                    },
-                )))
+                card_info.unwrap_or_else(|| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: None,
+                            card_network: None,
+                            bank_code: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            last4,
+                            card_isin,
+                            card_extended_bin,
+                            card_exp_month: Some(card_data.card_exp_month.clone()),
+                            card_exp_year: Some(card_data.card_exp_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                        },
+                    ))
+                })
             }
         }
         api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {

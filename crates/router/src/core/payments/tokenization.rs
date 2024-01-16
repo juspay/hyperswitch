@@ -243,7 +243,7 @@ async fn skip_saving_card_in_locker(
             card_type: card_info.card_type,
             saved_to_locker: false,
         })
-        .unwrap_or(CardDetailFromLocker {
+        .unwrap_or_else(|| CardDetailFromLocker {
             scheme: None,
             issuer_country: None,
             last4_digits,
