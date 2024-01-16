@@ -12,6 +12,7 @@ use self::{
 pub use crate::payments::TimeRange;
 
 pub mod api_event;
+pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
