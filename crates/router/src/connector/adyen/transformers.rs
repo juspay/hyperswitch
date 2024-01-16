@@ -4013,10 +4013,10 @@ pub struct AdyenPayoutEligibilityRequest {
 pub struct PayoutCardDetails {
     #[serde(rename = "type")]
     payment_method_type: String,
-    number: String,
-    expiry_month: String,
-    expiry_year: String,
-    holder_name: String,
+    number: CardNumber,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    holder_name: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -4078,18 +4078,16 @@ impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
         match item {
             PayoutMethodData::Card(card) => Ok(Self {
                 payment_method_type: "scheme".to_string(), // FIXME: Remove hardcoding
-                number: card.card_number.peek().to_string(),
-                expiry_month: card.expiry_month.peek().to_string(),
-                expiry_year: card.expiry_year.peek().to_string(),
+                number: card.card_number.clone(),
+                expiry_month: card.expiry_month.clone(),
+                expiry_year: card.expiry_year.clone(),
                 holder_name: card
                     .card_holder_name
                     .clone()
                     .get_required_value("card_holder_name")
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data.card.holder_name",
-                    })?
-                    .peek()
-                    .to_string(),
+                    })?,
             }),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payout_method_data.card",
