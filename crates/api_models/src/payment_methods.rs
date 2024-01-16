@@ -222,6 +222,7 @@ pub struct CardDetailFromLocker {
 
     pub card_issuer: Option<String>,
 
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     pub saved_to_locker: bool,

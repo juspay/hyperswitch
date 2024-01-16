@@ -4418,6 +4418,9 @@
       },
       "CardDetailFromLocker": {
         "type": "object",
+        "required": [
+          "saved_to_locker"
+        ],
         "properties": {
           "scheme": {
             "type": "string",
@@ -4454,6 +4457,29 @@
           "nick_name": {
             "type": "string",
             "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
           }
         }
       },
@@ -6875,6 +6901,29 @@
           "card_fingerprint": {
             "type": "string",
             "description": "A unique identifier alias to identify a particular card",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The first 6 digits of card",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The bank that issue the card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the payment card",
             "nullable": true
           }
         }
