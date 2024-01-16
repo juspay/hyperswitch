@@ -41,7 +41,7 @@ pub struct ApiEvent {
     #[serde(flatten)]
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
-    http_method: Option<String>,
+    http_method: String,
 }
 
 impl ApiEvent {
@@ -59,7 +59,7 @@ impl ApiEvent {
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
-        http_method: Option<String>,
+        http_method: &http::Method,
     ) -> Self {
         Self {
             merchant_id,
@@ -83,7 +83,7 @@ impl ApiEvent {
             url_path: http_req.path().to_string(),
             event_type,
             hs_latency,
-            http_method,
+            http_method: http_method.to_string(),
         }
     }
 }
@@ -116,7 +116,6 @@ impl_misc_api_event_type!(
     AttachEvidenceRequest,
     DisputeId,
     PaymentLinkFormData,
-    PaymentsRedirectResponseData,
     ConfigUpdate
 );
 
@@ -131,3 +130,15 @@ impl_misc_api_event_type!(
     DummyConnectorRefundResponse,
     DummyConnectorRefundRequest
 );
+
+impl ApiEventMetric for PaymentsRedirectResponseData {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentRedirectionResponse {
+            connector: self.connector.clone(),
+            payment_id: match &self.resource_id {
+                api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
+                _ => None,
+            },
+        })
+    }
+}

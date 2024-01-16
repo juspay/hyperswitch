@@ -28,7 +28,7 @@ pub use fred::interfaces::PubsubInterface;
 use fred::{interfaces::ClientLike, prelude::EventInterface};
 use router_env::logger;
 
-pub use self::{commands::*, types::*};
+pub use self::types::*;
 
 pub struct RedisConnectionPool {
     pub pool: fred::prelude::RedisPool,
