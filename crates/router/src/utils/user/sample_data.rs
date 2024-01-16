@@ -52,18 +52,19 @@ pub async fn generate_sample_data(
 
     let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
-        business_country_default,
-        business_label_default.as_ref(),
-        &merchant_from_db,
-        req.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(SampleDataError::InternalServerError)
-    .attach_printable("Failed to get business profile")?;
+    let business_profile = match state
+        .store
+        .list_business_profile_by_merchant_id(&merchant_id)
+        .await
+        .change_context(SampleDataError::InternalServerError)
+        .attach_printable("Failed to get business profile")
+        .map(|profiles| profiles.first().cloned())?
+    {
+        Some(profile) => profile,
+        None => return Err(SampleDataError::InternalServerError.into()),
+    };
 
+    let profile_id = business_profile.profile_id;
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
     let failure_attempts = usize::try_from((sample_data_size as f32 / 10.0).round() as i64)
