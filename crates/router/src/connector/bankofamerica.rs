@@ -432,13 +432,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         if req.is_three_ds() && req.request.is_card() {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
-                api::ConnectorCommon::base_url(self, connectors)
+                self.base_url(connectors)
             ))
         } else {
-            Ok(format!(
-                "{}pts/v2/payments/",
-                api::ConnectorCommon::base_url(self, connectors)
-            ))
+            Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
         }
     }
 
@@ -571,10 +568,7 @@ impl
         _req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}pts/v2/payments/",
-            api::ConnectorCommon::base_url(self, connectors)
-        ))
+        Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
     }
     fn get_request_body(
         &self,
