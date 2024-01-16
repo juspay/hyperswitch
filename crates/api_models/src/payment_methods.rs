@@ -166,7 +166,7 @@ pub struct CardDetailsPaymentMethod {
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
-    pub save_to_locker: bool,
+    pub saved_to_locker: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -250,7 +250,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type,
-            saved_to_locker: item.save_to_locker,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
@@ -268,7 +268,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type,
-            save_to_locker: item.saved_to_locker,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
