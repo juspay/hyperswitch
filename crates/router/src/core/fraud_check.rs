@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -167,10 +167,9 @@ where
                     match frm_configs_option {
                         Some(frm_configs_value) => {
                             let frm_configs_struct: Vec<FrmConfigs> = frm_configs_value
-                                .iter()
+                                .into_iter()
                                 .map(|config| { config
-                                    .peek()
-                                    .clone()
+                                    .expose()
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                                         field_name: "frm_configs".to_string(),
