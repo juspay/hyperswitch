@@ -52,21 +52,17 @@ pub async fn generate_sample_data(
 
     let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = if let Some(profile_id) =
-        crate::core::utils::get_profile_id_from_business_details(
-            business_country_default,
-            business_label_default.as_ref(),
-            &merchant_from_db,
-            req.profile_id.as_ref(),
-            &*state.store,
-            false,
-        )
-        .await
-        .map(|id| id.clone())
-        .ok()
-    {
-        profile_id
-    } else {
+    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        business_country_default,
+        business_label_default.as_ref(),
+        &merchant_from_db,
+        req.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .map(|id| id.clone())
+    .unwrap_or(
         state
             .store
             .list_business_profile_by_merchant_id(&merchant_id)
@@ -76,8 +72,8 @@ pub async fn generate_sample_data(
             .first()
             .ok_or(SampleDataError::InternalServerError)?
             .profile_id
-            .clone()
-    };
+            .clone(),
+    );
 
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
