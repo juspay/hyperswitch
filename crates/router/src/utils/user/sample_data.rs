@@ -52,19 +52,17 @@ pub async fn generate_sample_data(
 
     let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let business_profile = match state
+    let profile_id = state
         .store
         .list_business_profile_by_merchant_id(&merchant_id)
         .await
         .change_context(SampleDataError::InternalServerError)
-        .attach_printable("Failed to get business profile")
-        .map(|profiles| profiles.first().cloned())?
-    {
-        Some(profile) => profile,
-        None => return Err(SampleDataError::InternalServerError.into()),
-    };
+        .attach_printable("Failed to get business profile")?
+        .first()
+        .ok_or(SampleDataError::InternalServerError)?
+        .profile_id
+        .clone();
 
-    let profile_id = business_profile.profile_id;
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
     let failure_attempts = usize::try_from((sample_data_size as f32 / 10.0).round() as i64)
