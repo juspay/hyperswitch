@@ -1,7 +1,7 @@
 use api_models::admin as admin_types;
 use common_utils::{
     consts::{
-        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
         DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
@@ -85,6 +85,7 @@ pub async fn intiate_payment_link_flow(
             theme: DEFAULT_BACKGROUND_COLOR.to_string(),
             logo: DEFAULT_MERCHANT_LOGO.to_string(),
             seller_name: merchant_name_from_merchant_account,
+            sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
         }
     };
 
@@ -180,6 +181,7 @@ pub async fn intiate_payment_link_flow(
         max_items_visible_after_collapse: 3,
         theme: payment_link_config.clone().theme,
         merchant_description: payment_intent.description,
+        sdk_layout: payment_link_config.clone().sdk_layout,
     };
 
     let js_script = get_js_script(api_models::payments::PaymentLinkData::PaymentLinkDetails(
@@ -384,10 +386,21 @@ pub fn get_payment_link_config_based_on_priority(
         })
         .unwrap_or(merchant_name.clone());
 
+    let sdk_layout = payment_create_link_config
+        .as_ref()
+        .and_then(|pc_config| pc_config.config.sdk_layout.clone())
+        .or_else(|| {
+            business_config
+                .as_ref()
+                .and_then(|business_config| business_config.sdk_layout.clone())
+        })
+        .unwrap_or(DEFAULT_SDK_LAYOUT.to_owned());
+
     let payment_link_config = admin_types::PaymentLinkConfig {
         theme,
         logo,
         seller_name,
+        sdk_layout,
     };
 
     Ok((payment_link_config, domain_name))
