@@ -68,9 +68,9 @@ pub struct MandateCardDetails {
     pub card_fingerprint: Option<Secret<String>>,
     /// The first 6 digits of card
     pub card_isin: Option<String>,
-    /// The bank that issue the card
+    /// The bank that issued the card
     pub card_issuer: Option<String>,
-    /// The network that facilitates payment card transactions\
+    /// The network that facilitates payment card transactions
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     /// The type of the payment card
