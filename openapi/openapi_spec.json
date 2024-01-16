@@ -382,6 +382,117 @@
         ]
       }
     },
+    "/blocklist": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List Blocked fingerprints of a particular kind",
+        "parameters": [
+          {
+            "name": "data_kind",
+            "in": "query",
+            "description": "Kind of the fingerprint list requested",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked Fingerprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Block a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Unblock a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Unblocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -4035,6 +4146,95 @@
           }
         ]
       },
+      "BlocklistDataKind": {
+        "type": "string",
+        "enum": [
+          "payment_method",
+          "card_bin",
+          "extended_card_bin"
+        ]
+      },
+      "BlocklistRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_bin"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fingerprint"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "extended_card_bin"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "BlocklistResponse": {
+        "type": "object",
+        "required": [
+          "fingerprint_id",
+          "data_kind",
+          "created_at"
+        ],
+        "properties": {
+          "fingerprint_id": {
+            "type": "string"
+          },
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "BoletoVoucherData": {
         "type": "object",
         "properties": {
@@ -6573,6 +6773,27 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
+          }
+        }
+      },
+      "ListBlocklistQuery": {
+        "type": "object",
+        "required": [
+          "data_kind"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },

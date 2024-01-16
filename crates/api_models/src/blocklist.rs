@@ -1,7 +1,8 @@
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum BlocklistRequest {
     CardBin(String),
@@ -12,9 +13,10 @@ pub enum BlocklistRequest {
 pub type AddToBlocklistRequest = BlocklistRequest;
 pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BlocklistResponse {
     pub fingerprint_id: String,
+    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
@@ -23,8 +25,9 @@ pub struct BlocklistResponse {
 pub type AddToBlocklistResponse = BlocklistResponse;
 pub type DeleteFromBlocklistResponse = BlocklistResponse;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ListBlocklistQuery {
+    #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
     #[serde(default = "default_list_limit")]
     pub limit: u16,
