@@ -325,6 +325,8 @@ pub enum Flow {
     GetActionUrl,
     /// Sync connector onboarding status
     SyncOnboardingStatus,
+    /// Reset tracking id
+    ResetTrackingId,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
