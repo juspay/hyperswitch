@@ -69,7 +69,7 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
-locker_enabled= true
+locker_enabled = false
 
 
 [forex_api]
