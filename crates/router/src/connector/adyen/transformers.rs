@@ -345,6 +345,7 @@ pub struct QrCodeResponseResponse {
     action: AdyenQrCodeAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    additional_data: Option<QrCodeAdditionalData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -356,6 +357,13 @@ pub struct AdyenQrCodeAction {
     #[serde(rename = "url")]
     qr_code_url: Option<Url>,
     qr_code_data: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QrCodeAdditionalData {
+    #[serde(rename = "pix.expirationDate")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pix_expiration_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3304,13 +3312,19 @@ pub fn get_qr_metadata(
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
+    let display_to_timestamp = response
+        .additional_data
+        .clone()
+        .and_then(|additional_data| additional_data.pix_expiration_date)
+        .map(|t| t.assume_utc().unix_timestamp());
+
     if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
     {
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrCodeUrl {
                 image_data_url,
                 qr_code_url,
-                display_to_timestamp: None,
+                display_to_timestamp,
             },
         );
         Some(common_utils::ext_traits::Encode::<
@@ -3322,7 +3336,7 @@ pub fn get_qr_metadata(
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrCodeImageUrl {
                 qr_code_url,
-                display_to_timestamp: None,
+                display_to_timestamp,
             },
         );
         Some(common_utils::ext_traits::Encode::<
@@ -3334,7 +3348,7 @@ pub fn get_qr_metadata(
         let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
             payments::QrCodeInformation::QrDataUrl {
                 image_data_url,
-                display_to_timestamp: None,
+                display_to_timestamp,
             },
         );
 
