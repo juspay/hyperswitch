@@ -367,6 +367,7 @@ pub fn mk_add_card_response(
         card_issuer: None,
         card_network: None,
         card_type: None,
+        saved_to_locker: true,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -564,7 +565,8 @@ pub fn get_card_detail(
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
     let mut last4_digits = card_number.peek().to_owned();
-    //fetch form card bin or a separate flow for manadates retrieve
+    //fetch form card bin
+
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
@@ -580,6 +582,7 @@ pub fn get_card_detail(
         card_issuer: None,
         card_network: None,
         card_type: None,
+        saved_to_locker: true,
     };
     Ok(card_detail)
 }

@@ -25,7 +25,6 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -34,7 +33,6 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-    is_mandate: bool,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -79,8 +77,8 @@ where
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
 
-                let locker_response = if is_mandate && !state.conf.locker.locker_enabled {
-                    not_save_in_locker_for_mandate_flow(
+                let locker_response = if !state.conf.locker.locker_enabled {
+                    skip_saving_card_in_locker(
                         merchant_account,
                         payment_method_create_request.to_owned(),
                         state,
@@ -183,7 +181,7 @@ where
     }
 }
 
-async fn not_save_in_locker_for_mandate_flow(
+async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
     state: &AppState,
@@ -243,6 +241,7 @@ async fn not_save_in_locker_for_mandate_flow(
             card_issuer: card_info.card_issuer,
             card_network: card_info.card_network,
             card_type: card_info.card_type,
+            saved_to_locker: false,
         })
         .unwrap_or(CardDetailFromLocker {
             scheme: None,
@@ -265,6 +264,7 @@ async fn not_save_in_locker_for_mandate_flow(
             card_issuer: None,
             card_network: None,
             card_type: None,
+            saved_to_locker: false,
         });
 
     let pm_resp = api::PaymentMethodResponse {

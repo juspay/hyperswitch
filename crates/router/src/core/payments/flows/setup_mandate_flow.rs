@@ -74,8 +74,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         )
         .await
         .to_setup_mandate_failed_response()?;
-        //in setup_mandate we call this check when (call 3)
-        let is_mandate = resp.request.setup_mandate_details.clone().is_some();
 
         let pm_id = Box::pin(tokenization::save_payment_method(
             state,
@@ -85,7 +83,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             merchant_account,
             self.request.payment_method_type,
             key_store,
-            is_mandate,
         ))
         .await?;
 
@@ -181,7 +178,6 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
 }
 
 #[allow(clippy::too_many_arguments)]
-
 impl types::SetupMandateRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
@@ -210,10 +206,9 @@ impl types::SetupMandateRouterData {
                 )
                 .await
                 .to_setup_mandate_failed_response()?;
-                let is_mandate = resp.request.setup_mandate_details.clone().is_some();
 
                 let payment_method_type = self.request.payment_method_type;
-                //in setup flow no call is being made to this fn
+
                 let pm_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -222,7 +217,6 @@ impl types::SetupMandateRouterData {
                     merchant_account,
                     payment_method_type,
                     key_store,
-                    is_mandate,
                 ))
                 .await?;
 

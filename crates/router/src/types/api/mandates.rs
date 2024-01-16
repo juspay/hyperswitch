@@ -45,9 +45,9 @@ impl MandateResponseExt for MandateResponse {
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            //if locker is disabled , decrypt the payment method data
+            // if locker is disabled , decrypt the payment method data
             let card_details = if !state.conf.locker.locker_enabled {
-                payment_methods::cards::get_card_details(
+                payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
                     key_store.key.get_inner().peek(),
                     state,
@@ -105,6 +105,10 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             scheme: card_details_from_locker.scheme,
             issuer_country: card_details_from_locker.issuer_country,
             card_fingerprint: card_details_from_locker.card_fingerprint,
+            card_isin: card_details_from_locker.card_isin,
+            card_issuer: card_details_from_locker.card_issuer,
+            card_network: card_details_from_locker.card_network,
+            card_type: card_details_from_locker.card_type,
         }
         .into()
     }

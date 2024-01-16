@@ -456,7 +456,7 @@ pub async fn add_card_hs(
     let store_card_payload =
         call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
 
-    //fetch card_bin from db
+    // fetch card_bin from db
 
     let mut card_number = card.card_number.peek().to_owned();
     let card_isin = req.card.clone().map(|c| c.card_number.get_card_isin());
@@ -476,20 +476,21 @@ pub async fn add_card_hs(
         .map(|card_info| api::CardDetailFromLocker {
             scheme: None,
             last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-            issuer_country: None, // [#256] bin mapping
+            issuer_country: None,
             card_number: Some(card.card_number.clone()),
             expiry_month: Some(card.card_exp_month.clone()),
             expiry_year: Some(card.card_exp_year.clone()),
-            card_token: None,       // [#256]
-            card_fingerprint: None, // fingerprint not send by basilisk-hs need to have this feature in case we need it in future
+            card_token: None,
+            card_fingerprint: None,
             card_holder_name: card.card_holder_name.clone(),
             nick_name: card.nick_name.clone(),
             card_isin: card_isin.clone(),
             card_issuer: card_info.card_issuer,
             card_network: card_info.card_network,
             card_type: card_info.card_type,
+            saved_to_locker: true,
         })
-        .unwrap_or(api::CardDetailFromLocker {
+        .unwrap_or_else(|| api::CardDetailFromLocker {
             scheme: None,
             issuer_country: None,
             last4_digits: Some(card_number.split_off(card_number.len() - 4)),
@@ -504,6 +505,7 @@ pub async fn add_card_hs(
             card_issuer: None,
             card_network: None,
             card_type: None,
+            saved_to_locker: true,
         });
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         Some(card_detail),
@@ -2462,11 +2464,19 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
         let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
-            enums::PaymentMethod::Card => (
-                Some(get_card_details(&pm, key, state).await?),
-                None,
-                PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
-            ),
+            enums::PaymentMethod::Card => {
+                let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
+
+                if card_details.is_some() {
+                    (
+                        card_details,
+                        None,
+                        PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
+                    )
+                } else {
+                    continue;
+                }
+            }
 
             #[cfg(feature = "payouts")]
             enums::PaymentMethod::BankTransfer => {
@@ -2515,6 +2525,7 @@ pub async fn list_customer_payment_method(
         };
 
         //Need validation for enabled payment method ,querying MCA
+
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
@@ -2644,7 +2655,38 @@ pub async fn list_customer_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-pub async fn get_card_details(
+pub async fn get_card_details_with_locker_fallback(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+    state: &routes::AppState,
+) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
+    let card_decrypted =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt card details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
+            });
+
+    Ok(if let Some(mut crd) = card_decrypted {
+        if crd.saved_to_locker {
+            crd.scheme = pm.scheme.clone();
+            Some(crd)
+        } else {
+            None
+        }
+    } else {
+        Some(get_card_details_from_locker(state, pm).await?)
+    })
+}
+
+pub async fn get_card_details_without_locker_fallback(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
     state: &routes::AppState,

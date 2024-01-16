@@ -1493,7 +1493,7 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::UnprocessableEntity {
             message: "no customer id provided for the payment".to_string(),
         })?;
-    //call to locker
+
     let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, token)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

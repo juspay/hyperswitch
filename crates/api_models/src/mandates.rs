@@ -66,6 +66,14 @@ pub struct MandateCardDetails {
     #[schema(value_type = Option<String>)]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
+    /// The first 6 digits of card
+    pub card_isin: Option<String>,
+    /// The bank that issue the card
+    pub card_issuer: Option<String>,
+    /// The network that facilitates payment card transactions
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// The type of the payment card
+    pub card_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
