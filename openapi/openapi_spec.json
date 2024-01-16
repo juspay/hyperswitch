@@ -4458,20 +4458,20 @@
             "type": "string",
             "nullable": true
           },
-          "card_isin": {
-            "type": "string",
-            "nullable": true
-          },
-          "card_issuer": {
-            "type": "string",
-            "nullable": true
-          },
           "card_network": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardNetwork"
               }
             ],
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
             "nullable": true
           },
           "card_type": {
