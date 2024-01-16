@@ -1,4 +1,5 @@
 use common_utils::pii;
+use masking::Secret;
 
 use crate::enums;
 
@@ -11,7 +12,7 @@ pub struct ReconUpdateMerchantRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ReconTokenResponse {
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
