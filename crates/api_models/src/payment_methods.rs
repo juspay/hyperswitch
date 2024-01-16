@@ -224,7 +224,13 @@ pub struct CardDetailFromLocker {
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_type: Option<String>,
+
+    #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+}
+
+fn saved_in_locker_default() -> bool {
+    true
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
