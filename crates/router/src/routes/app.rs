@@ -40,6 +40,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(all(feature = "recon", feature = "olap"))]
+use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -565,6 +567,26 @@ impl PaymentMethods {
             )
             .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
             .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+pub struct Recon;
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+impl Recon {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/recon")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/update_merchant")
+                    .route(web::post().to(recon_routes::update_merchant)),
+            )
+            .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
+            .service(
+                web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
+            )
+            .service(web::resource("/verify_token").route(web::get().to(verify_recon_token)))
     }
 }
 
