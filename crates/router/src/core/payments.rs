@@ -1489,7 +1489,8 @@ where
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 (router_data, false)
-            } else if connector.connector_name == router_types::Connector::Cybersource
+            } else if (connector.connector_name == router_types::Connector::Cybersource
+                || connector.connector_name == router_types::Connector::Bankofamerica)
                 && is_operation_complete_authorize(&operation)
                 && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
             {
