@@ -14,6 +14,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(feature = "olap")]
+use super::blocklist;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
@@ -38,6 +40,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(all(feature = "recon", feature = "olap"))]
+use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -566,6 +570,43 @@ impl PaymentMethods {
     }
 }
 
+#[cfg(all(feature = "olap", feature = "recon"))]
+pub struct Recon;
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+impl Recon {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/recon")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/update_merchant")
+                    .route(web::post().to(recon_routes::update_merchant)),
+            )
+            .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
+            .service(
+                web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
+            )
+            .service(web::resource("/verify_token").route(web::get().to(verify_recon_token)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Blocklist;
+
+#[cfg(feature = "olap")]
+impl Blocklist {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/blocklist")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::get().to(blocklist::list_blocked_payment_methods))
+                    .route(web::post().to(blocklist::add_entry_to_blocklist))
+                    .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
+            )
+    }
+}
+
 pub struct MerchantAccount;
 
 #[cfg(feature = "olap")]
@@ -879,6 +920,7 @@ impl User {
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
@@ -901,7 +943,6 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
@@ -942,5 +983,6 @@ impl ConnectorOnboarding {
             .app_data(web::Data::new(state))
             .service(web::resource("/action_url").route(web::post().to(get_action_url)))
             .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
+            .service(web::resource("/reset_tracking_id").route(web::post().to(reset_tracking_id)))
     }
 }

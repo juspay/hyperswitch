@@ -10,9 +10,11 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
+use diesel_models::configs;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
+use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
@@ -139,6 +141,17 @@ pub async fn create_merchant_account(
         })
         .transpose()?
         .map(Secret::new);
+
+    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
+    if let Some(fingerprint) = fingerprint {
+        db.insert_config(configs::ConfigNew {
+            key: format!("fingerprint_secret_{}", req.merchant_id),
+            config: fingerprint,
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Mot able to generate Merchant fingerprint")?;
+    };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
@@ -1830,8 +1843,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             riskified::transformers::RiskifiedAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Plaid => Err(report!(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable(format!("invalid connector name: {connector_name}"))),
+        api_enums::Connector::Plaid => {
+            PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
+        }
     }
 }
 

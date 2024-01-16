@@ -244,12 +244,6 @@ impl TryFrom<String> for Email {
     }
 }
 
-impl From<Secret<String, EmailStrategy>> for Email {
-    fn from(value: Secret<String, EmailStrategy>) -> Self {
-        Self(value)
-    }
-}
-
 impl ops::Deref for Email {
     type Target = Secret<String, EmailStrategy>;
 
