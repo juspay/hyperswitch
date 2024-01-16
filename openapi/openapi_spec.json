@@ -6910,7 +6910,7 @@
           },
           "card_issuer": {
             "type": "string",
-            "description": "The bank that issue the card",
+            "description": "The bank that issued the card",
             "nullable": true
           },
           "card_network": {
