@@ -119,6 +119,7 @@ pub enum RoutableConnectors {
     Braintree,
     Cashtocode,
     Checkout,
+    Cielo,
     Coinbase,
     Cryptopay,
     Cybersource,

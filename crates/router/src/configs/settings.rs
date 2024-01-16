@@ -591,6 +591,7 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub cielo: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cryptopay: ConnectorParams,
     pub cybersource: ConnectorParams,

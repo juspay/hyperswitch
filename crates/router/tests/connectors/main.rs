@@ -18,6 +18,7 @@ mod bluesnap;
 mod boku;
 mod cashtocode;
 mod checkout;
+mod cielo;
 mod coinbase;
 mod cryptopay;
 mod cybersource;

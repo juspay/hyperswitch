@@ -145,6 +145,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Bankofamerica,
@@ -211,6 +212,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -293,6 +295,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -375,6 +378,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -427,6 +431,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -511,6 +516,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -615,6 +621,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -696,6 +703,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -777,6 +785,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -859,6 +868,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -918,6 +928,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1000,6 +1011,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1085,6 +1097,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1167,6 +1180,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1249,6 +1263,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Cielo,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1331,6 +1346,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1414,6 +1430,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1496,6 +1513,7 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1579,6 +1597,7 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1646,6 +1665,7 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1729,6 +1749,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1812,6 +1833,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1895,6 +1917,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1978,6 +2001,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2061,6 +2085,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2142,6 +2167,7 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2222,6 +2248,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Cielo,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

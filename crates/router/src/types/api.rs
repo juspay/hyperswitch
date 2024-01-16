@@ -368,6 +368,7 @@ impl ConnectorData {
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                // enums::Connector::Cielo => Ok(Box::new(&connector::Cielo)), it is added as template code for future usage
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cryptopay => Ok(Box::new(&connector::Cryptopay)),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),

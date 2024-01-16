@@ -85,6 +85,7 @@ pub enum Connector {
     Braintree,
     Cashtocode,
     Checkout,
+    // Cielo, added as template code for future usage
     Coinbase,
     Cryptopay,
     Cybersource,

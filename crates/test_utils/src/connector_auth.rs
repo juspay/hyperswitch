@@ -23,6 +23,7 @@ pub struct ConnectorAuthentication {
     pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
+    pub cielo: Option<BodyKey>,
     pub coinbase: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
