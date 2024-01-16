@@ -1063,7 +1063,7 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(services::RedirectForm::BankOfAmericaAuthSetup {
+                    redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
                             .access_token,
@@ -1426,7 +1426,7 @@ impl<F>
                             .step_up_url,
                     ) {
                         (Some(access_token), Some(step_up_url)) => {
-                            Some(services::RedirectForm::BankOfAmericaConsumerAuth {
+                            Some(services::RedirectForm::CybersourceConsumerAuth {
                                 access_token,
                                 step_up_url,
                             })
