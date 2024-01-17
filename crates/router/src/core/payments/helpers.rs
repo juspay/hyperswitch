@@ -978,7 +978,6 @@ pub fn payment_intent_status_fsm(
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
-
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
@@ -1624,7 +1623,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
     };
 
-    // card.andle case where payment method and token both are present in request properly.
+    // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
             let payment_method_details = Ctx::retrieve_payment_method_with_token(

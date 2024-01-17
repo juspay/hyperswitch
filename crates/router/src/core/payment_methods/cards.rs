@@ -2904,25 +2904,32 @@ impl TempLockerCardSupport {
 pub async fn retrieve_payment_method(
     state: routes::AppState,
     pm: api::PaymentMethodId,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let key = key_store.key.peek();
     let card = if pm.payment_method == enums::PaymentMethod::Card {
-        let card = get_card_from_locker(
-            &state,
-            &pm.customer_id,
-            &pm.merchant_id,
-            &pm.payment_method_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting card from card vault")?;
-        let card_detail = payment_methods::get_card_detail(&pm, card)
+        let card_detail = if state.conf.locker.locker_enabled {
+            let card = get_card_from_locker(
+                &state,
+                &pm.customer_id,
+                &pm.merchant_id,
+                &pm.payment_method_id,
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card details from locker")?;
+            .attach_printable("Error getting card from card vault")?;
+            payment_methods::get_card_detail(&pm, card)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card details from locker")?
+        } else {
+            get_card_details_without_locker_fallback(&pm, key, &state).await?
+        };
         Some(card_detail)
     } else {
         None
