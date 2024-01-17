@@ -382,6 +382,117 @@
         ]
       }
     },
+    "/blocklist": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List Blocked fingerprints of a particular kind",
+        "parameters": [
+          {
+            "name": "data_kind",
+            "in": "query",
+            "description": "Kind of the fingerprint list requested",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocked Fingerprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Block a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Blocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Unblock a Fingerprint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlocklistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fingerprint Unblocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -2430,9 +2541,6 @@
       "AchBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_routing_number"
         ],
@@ -2440,15 +2548,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -2882,9 +2997,6 @@
       "BacsBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_sort_code"
         ],
@@ -2892,15 +3004,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -4034,6 +4153,95 @@
             }
           }
         ]
+      },
+      "BlocklistDataKind": {
+        "type": "string",
+        "enum": [
+          "payment_method",
+          "card_bin",
+          "extended_card_bin"
+        ]
+      },
+      "BlocklistRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card_bin"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fingerprint"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "extended_card_bin"
+                ]
+              },
+              "data": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "BlocklistResponse": {
+        "type": "object",
+        "required": [
+          "fingerprint_id",
+          "data_kind",
+          "created_at"
+        ],
+        "properties": {
+          "fingerprint_id": {
+            "type": "string"
+          },
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "BoletoVoucherData": {
         "type": "object",
@@ -6576,6 +6784,27 @@
           }
         }
       },
+      "ListBlocklistQuery": {
+        "type": "object",
+        "required": [
+          "data_kind"
+        ],
+        "properties": {
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "MandateAmountData": {
         "type": "object",
         "required": [
@@ -8918,6 +9147,14 @@
             "description": "The card network",
             "example": "Visa",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9254,6 +9491,14 @@
             "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9360,6 +9605,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
               }
             ],
             "nullable": true
@@ -10727,6 +10980,13 @@
             "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date Time expiry of the payment",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
           "fingerprint": {
             "type": "string",
             "description": "Payment Fingerprint",
@@ -12066,9 +12326,6 @@
       "SepaBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "iban",
           "bic"
         ],
@@ -12076,15 +12333,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "iban": {
             "type": "string",

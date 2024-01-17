@@ -1041,6 +1041,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
+                        bank_transfer: None,
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: Some(customer_id),
@@ -1057,6 +1058,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
+                        bank_transfer: None,
                         card: None,
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
@@ -3290,6 +3292,7 @@ pub async fn get_additional_payment_data(
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let card_extended_bin = Some(card_data.card_number.clone().get_card_extended_bin());
             let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
@@ -3309,6 +3312,7 @@ pub async fn get_additional_payment_data(
                         card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
+                        card_extended_bin: card_extended_bin.clone(),
                     },
                 ))
             } else {
@@ -3332,6 +3336,7 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
+                                card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
@@ -3347,6 +3352,7 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
+                        card_extended_bin,
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
                         card_holder_name: card_data.card_holder_name.clone(),
