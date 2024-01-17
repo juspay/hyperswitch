@@ -70,6 +70,7 @@ jobs:
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.event.repository.owner.login }}
 
       - name: Verify PR contains one or more linked issues
         if: ${{ github.event_name == 'pull_request' }}
