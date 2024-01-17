@@ -110,10 +110,6 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6
 [frm]
 enabled = true
 
-[lock_settings]
-delay_between_retries_in_milliseconds = 500
-redis_lock_expiry_seconds = 180
-
 [mandates.supported_payment_methods]
 bank_debit.ach.connector_list = "gocardless"
 bank_debit.becs.connector_list = "gocardless"
