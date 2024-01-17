@@ -496,7 +496,7 @@ pub async fn delete_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-  match user_roles
+    match user_roles
         .iter()
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
