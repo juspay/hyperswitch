@@ -93,7 +93,7 @@ pub async fn signup(
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, &user_from_db, &user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -120,7 +120,7 @@ pub async fn signin(
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, &user_from_db, &user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -711,7 +711,7 @@ pub async fn verify_email(
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, &user_from_db, &user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
