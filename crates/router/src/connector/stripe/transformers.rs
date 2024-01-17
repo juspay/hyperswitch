@@ -3567,6 +3567,40 @@ pub struct Evidence {
     pub submit: bool,
 }
 
+fn get_stripe_sepa_dd_mandate_billing_details(
+    billing_details: &Option<payments::BankRedirectBilling>,
+    is_customer_initiated_mandate_payment: Option<bool>,
+) -> Result<StripeBillingAddress, errors::ConnectorError> {
+    let billing_name = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.billing_name.clone());
+
+    let billing_email = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.email.clone());
+    match is_customer_initiated_mandate_payment {
+        Some(true) => Ok(StripeBillingAddress {
+            name: Some(
+                billing_name.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                })?,
+            ),
+
+            email: Some(
+                billing_email.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_email",
+                })?,
+            ),
+            ..StripeBillingAddress::default()
+        }),
+        Some(false) | None => Ok(StripeBillingAddress {
+            name: billing_name,
+            email: billing_email,
+            ..StripeBillingAddress::default()
+        }),
+    }
+}
+
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
@@ -3804,36 +3838,3 @@ mod test_validate_shipping_address_against_payment_method {
     }
 }
 
-fn get_stripe_sepa_dd_mandate_billing_details(
-    billing_details: &Option<payments::BankRedirectBilling>,
-    is_customer_initiated_mandate_payment: Option<bool>,
-) -> Result<StripeBillingAddress, errors::ConnectorError> {
-    let billing_name = billing_details
-        .clone()
-        .and_then(|billing_data| billing_data.billing_name.clone());
-
-    let billing_email = billing_details
-        .clone()
-        .and_then(|billing_data| billing_data.email.clone());
-    match is_customer_initiated_mandate_payment {
-        Some(true) => Ok(StripeBillingAddress {
-            name: Some(
-                billing_name.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                })?,
-            ),
-
-            email: Some(
-                billing_email.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_email",
-                })?,
-            ),
-            ..StripeBillingAddress::default()
-        }),
-        Some(false) | None => Ok(StripeBillingAddress {
-            name: billing_name,
-            email: billing_email,
-            ..StripeBillingAddress::default()
-        }),
-    }
-}
