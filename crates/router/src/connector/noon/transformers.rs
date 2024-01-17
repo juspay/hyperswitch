@@ -343,7 +343,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
                     }
                     _ => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "mandate_data",
+                        field_name: "setup_future_usage.mandate_data.mandate_type",
                     })
                     .into_report(),
                 }?;
