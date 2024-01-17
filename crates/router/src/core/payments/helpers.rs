@@ -3728,7 +3728,7 @@ pub async fn get_gsm_record(
                 connector_name.clone(),
                 flow.clone(),
                 "sub_flow".to_string(),
-                error_code.clone().unwrap_or_default(), // card.ake changes in connector to get a mandatory code in case of success or error response
+                error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
             .await
