@@ -342,9 +342,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
                         conn_utils::to_currency_base_unit(mandate.amount, item.request.currency)
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        item.connector.clone(),
-                    ))
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "mandate_data",
+                    })
                     .into_report(),
                 }?;
 
