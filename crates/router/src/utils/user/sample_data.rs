@@ -63,9 +63,9 @@ pub async fn generate_sample_data(
     .await
     {
         Ok(id) => id.clone(),
-        Err(_) => {
+        Err(error) => {
             router_env::logger::error!(
-                "Profile ID not found in business details. Attempting to fetch from the database."
+                "Profile ID not found in business details. Attempting to fetch from the database : {error:?}"
             );
 
             state
