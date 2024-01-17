@@ -301,11 +301,11 @@ pub async fn get_admin_api_key(
 }
 
 #[derive(Debug)]
-pub struct UserJWTAuth;
+pub struct UserWithoutMerchantJWTAuth;
 
 #[cfg(feature = "olap")]
 #[async_trait]
-impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserJWTAuth
+impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
 where
     A: AppStateInfo + Sync,
 {

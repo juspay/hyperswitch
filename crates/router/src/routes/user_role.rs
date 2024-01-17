@@ -96,7 +96,7 @@ pub async fn accept_invitation(
         &req,
         payload,
         user_role_core::accept_invitation,
-        &auth::UserJWTAuth,
+        &auth::UserWithoutMerchantJWTAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
