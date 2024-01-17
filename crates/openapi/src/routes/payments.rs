@@ -271,7 +271,15 @@ pub fn payments_update() {}
 
 /// Payments - Confirm
 ///
-/// **Use this API to confirm the payment and forward the payment to the payment processor.**\n\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\n\n1. fail with `failed` status or\n\n2. transition to a `requires_customer_action` status with a `next_action` block or\n\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture
+/// **Use this API to confirm the payment and forward the payment to the payment processor.**
+///
+/// Alternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:
+///
+/// 1. fail with `failed` status or
+///
+/// 2. transition to a `requires_customer_action` status with a `next_action` block or
+///
+/// 3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",

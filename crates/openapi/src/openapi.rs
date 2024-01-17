@@ -77,6 +77,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_cancel,
         routes::payments::payments_list,
         routes::payments::payments_incremental_authorization,
+        routes::payment_link::payment_link_retrieve,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -149,7 +150,14 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
         routes::blocklist::list_blocked_payment_methods,
-        routes::blocklist::add_entry_to_blocklist
+        routes::blocklist::add_entry_to_blocklist,
+
+        // Routes for payouts
+        routes::payouts::payouts_create,
+        routes::payouts::payouts_retrieve,
+        routes::payouts::payouts_update,
+        routes::payouts::payouts_cancel,
+        routes::payouts::payouts_fulfill
     ),
     components(schemas(
         api_models::refunds::RefundRequest,

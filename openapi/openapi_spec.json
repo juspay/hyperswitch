@@ -1898,6 +1898,60 @@
         ]
       }
     },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payment_methods": {
       "post": {
         "tags": [
@@ -2679,7 +2733,7 @@
           "Payments"
         ],
         "summary": "Payments - Confirm",
-        "description": "Payments - Confirm\n\n**Use this API to confirm the payment and forward the payment to the payment processor.**\\n\\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\\n\\n1. fail with `failed` status or\\n\\n2. transition to a `requires_customer_action` status with a `next_action` block or\\n\\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture",
+        "description": "Payments - Confirm\n\n**Use this API to confirm the payment and forward the payment to the payment processor.**\n\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\n\n1. fail with `failed` status or\n\n2. transition to a `requires_customer_action` status with a `next_action` block or\n\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -2786,6 +2840,238 @@
           },
           "400": {
             "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/create": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Create",
+        "description": "Payouts - Create",
+        "operationId": "Create a Payout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}": {
+      "get": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Retrieve",
+        "description": "Payouts - Retrieve",
+        "operationId": "Retrieve a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payout does not exist in our records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Update",
+        "description": "Payouts - Update",
+        "operationId": "Update a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/cancel": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Cancel",
+        "description": "Payouts - Cancel",
+        "operationId": "Cancel a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/fulfill": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Fulfill",
+        "description": "Payouts - Fulfill",
+        "operationId": "Fulfill a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payout fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Mandatory fields"
           }
         },
         "security": [
