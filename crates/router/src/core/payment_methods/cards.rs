@@ -105,6 +105,29 @@ pub async fn create_payment_method(
     Ok(response)
 }
 
+pub fn store_default_payment_method(
+    req: &api::PaymentMethodCreate,
+    customer_id: &str,
+    merchant_id: &String,
+) -> (api::PaymentMethodResponse, bool) {
+    let pm_id = generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_response = api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_string(),
+        customer_id: Some(customer_id.to_owned()),
+        payment_method_id: pm_id,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata.clone(),
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           //[#219]
+        installment_payment_enabled: false, //[#219]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+    };
+    (payment_method_response, false)
+}
+
 #[instrument(skip_all)]
 pub async fn add_payment_method(
     state: routes::AppState,
@@ -115,30 +138,44 @@ pub async fn add_payment_method(
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
-    let response = match req.card.clone() {
-        Some(card) => {
-            add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Add Card Failed")
-        }
-        None => {
-            let pm_id = generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id.clone()),
-                payment_method_id: pm_id,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                card: None,
-                metadata: req.metadata.clone(),
-                created: Some(common_utils::date_time::now()),
-                recurring_enabled: false,           //[#219]
-                installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-            };
-            Ok((payment_method_response, false))
-        }
+
+    let response = match req.payment_method {
+        api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
+            Some(bank) => add_bank_to_locker(
+                &state,
+                req.clone(),
+                merchant_account,
+                key_store,
+                &bank,
+                &customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add PaymentMethod Failed"),
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
+        },
+        api_enums::PaymentMethod::Card => match req.card.clone() {
+            Some(card) => {
+                add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Add Card Failed")
+            }
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
+        },
+        _ => Ok(store_default_payment_method(
+            &req,
+            &customer_id,
+            merchant_id,
+        )),
     };
 
     let (resp, is_duplicate) = response?;
@@ -199,6 +236,7 @@ pub async fn update_customer_payment_method(
         payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
         payment_method_issuer_code: pm.payment_method_issuer_code,
+        bank_transfer: req.bank_transfer,
         card: req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
@@ -211,6 +249,64 @@ pub async fn update_customer_payment_method(
 }
 
 // Wrapper function to switch lockers
+
+pub async fn add_bank_to_locker(
+    state: &routes::AppState,
+    req: api::PaymentMethodCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    bank: &api::BankPayout,
+    customer_id: &String,
+) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
+    let key = key_store.key.get_inner().peek();
+    let payout_method_data = api::PayoutMethodData::Bank(bank.clone());
+    let enc_data = async {
+        serde_json::to_value(payout_method_data.to_owned())
+            .map_err(|err| {
+                logger::error!("Error while encoding payout method data: {}", err);
+                errors::VaultError::SavePaymentMethodFailed
+            })
+            .into_report()
+            .change_context(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("Unable to encode payout method data")
+            .ok()
+            .map(|v| {
+                let secret: Secret<String> = Secret::new(v.to_string());
+                secret
+            })
+            .async_lift(|inner| encrypt_optional(inner, key))
+            .await
+    }
+    .await
+    .change_context(errors::VaultError::SavePaymentMethodFailed)
+    .attach_printable("Failed to encrypt payout method data")?
+    .map(Encryption::from)
+    .map(|e| e.into_inner())
+    .map_or(Err(errors::VaultError::SavePaymentMethodFailed), |e| {
+        Ok(hex::encode(e.peek()))
+    })?;
+
+    let payload =
+        payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
+            merchant_id: &merchant_account.merchant_id,
+            merchant_customer_id: customer_id.to_owned(),
+            enc_data,
+        });
+    let store_resp = call_to_locker_hs(
+        state,
+        &payload,
+        customer_id,
+        api_enums::LockerChoice::Basilisk,
+    )
+    .await?;
+    let payment_method_resp = payment_methods::mk_add_bank_response_hs(
+        bank.clone(),
+        store_resp.card_reference,
+        req,
+        &merchant_account.merchant_id,
+    );
+    Ok((payment_method_resp, store_resp.duplicate.unwrap_or(false)))
+}
 
 /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
 pub async fn add_card_to_locker(
@@ -2424,7 +2520,17 @@ pub async fn list_customer_payment_method(
                 let token_data = PaymentTokenData::temporary_generic(token.clone());
                 (
                     None,
-                    Some(get_lookup_key_for_payout_method(state, &key_store, &token, &pm).await?),
+                    Some(
+                        get_bank_from_hs_locker(
+                            state,
+                            &key_store,
+                            &token,
+                            &pm.customer_id,
+                            &pm.customer_id,
+                            &pm.payment_method_id,
+                        )
+                        .await?,
+                    ),
                     token_data,
                 )
             }
@@ -2738,18 +2844,20 @@ async fn get_bank_account_connector_details(
 }
 
 #[cfg(feature = "payouts")]
-pub async fn get_lookup_key_for_payout_method(
+pub async fn get_bank_from_hs_locker(
     state: &routes::AppState,
     key_store: &domain::MerchantKeyStore,
-    payout_token: &str,
-    pm: &storage::PaymentMethod,
+    temp_token: &str,
+    customer_id: &str,
+    merchant_id: &str,
+    token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
     let payment_method = get_payment_method_from_hs_locker(
         state,
         key_store,
-        &pm.customer_id,
-        &pm.merchant_id,
-        &pm.payment_method_id,
+        customer_id,
+        merchant_id,
+        token_ref,
         None,
     )
     .await
@@ -2764,9 +2872,9 @@ pub async fn get_lookup_key_for_payout_method(
         api::PayoutMethodData::Bank(bank) => {
             vault::Vault::store_payout_method_data_in_locker(
                 state,
-                Some(payout_token.to_string()),
+                Some(temp_token.to_string()),
                 &pm_parsed,
-                Some(pm.customer_id.to_owned()),
+                Some(customer_id.to_owned()),
                 key_store,
             )
             .await
@@ -2893,6 +3001,7 @@ pub async fn retrieve_payment_method(
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
+            bank_transfer: None,
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),
