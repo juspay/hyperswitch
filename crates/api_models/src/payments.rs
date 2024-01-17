@@ -1913,15 +1913,6 @@ pub enum NextActionData {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum NextActionFromConnectorMetaData {
-    DisplayBankTransferInformation {
-        bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
-    },
-    QrCodeInformation(QrCodeInformation),
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 // the enum order shouldn't be changed as this is being used during serialization and deserialization
 pub enum QrCodeInformation {

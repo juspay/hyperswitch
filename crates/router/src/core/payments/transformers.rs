@@ -492,6 +492,9 @@ where
             } else {
                 let mut next_action_response = None;
 
+                let bank_transfer_next_steps =
+                    bank_transfer_next_steps_check(payment_attempt.clone())?;
+
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
                 let next_action_other_than_redirection =
@@ -504,23 +507,21 @@ where
                     wait_screen_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
+                    || bank_transfer_next_steps.is_some()
                     || next_action_other_than_redirection.is_some()
                     || next_action_voucher.is_some()
                     || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
                 {
-                    next_action_response = next_action_other_than_redirection
-                        .map(|next_action| match next_action {
-                            api_models::payments::NextActionFromConnectorMetaData::DisplayBankTransferInformation {
-                                bank_transfer_steps_and_charges_details } => {
-                                    api_models::payments::NextActionData::DisplayBankTransferInformation {
-                                        bank_transfer_steps_and_charges_details,
-                                    }
-                                },
-                                api_models::payments::NextActionFromConnectorMetaData::QrCodeInformation (qr_info) => {
-                                    api_models::payments::NextActionData::foreign_from(qr_info)
-                               },
-                               })
+                    next_action_response = bank_transfer_next_steps
+                        .map(|bank_transfer| {
+                            api_models::payments::NextActionData::DisplayBankTransferInformation {
+                                bank_transfer_steps_and_charges_details: bank_transfer,
+                            }
+                        })
+                        .or(next_action_other_than_redirection.map(|qr_info| {
+                            api_models::payments::NextActionData::foreign_from(qr_info)
+                        }))
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
@@ -846,11 +847,10 @@ pub fn qr_code_next_steps_check(
 
 pub fn other_next_action_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::NextActionFromConnectorMetaData>> {
-    let next_action: Option<Result<api_models::payments::NextActionFromConnectorMetaData, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("NextActionFromConnectorMetaData"));
+) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
+    let next_action: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
     let next_action_steps = next_action.transpose().ok().flatten();
     Ok(next_action_steps)
@@ -912,6 +912,36 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
             secret: from.secret,
         }
     }
+}
+
+pub fn bank_transfer_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
+    let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
+        payment_attempt.payment_method
+    {
+        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        {
+            let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
+                payment_attempt
+                    .connector_metadata
+                    .map(|metadata| {
+                        metadata
+                            .parse_value("NextStepsRequirements")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse the Value to NextRequirements struct",
+                            )
+                    })
+                    .transpose()?;
+            bank_transfer_next_steps
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    Ok(bank_transfer_next_step)
 }
 
 pub fn voucher_next_steps_check(

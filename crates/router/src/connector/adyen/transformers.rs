@@ -3320,40 +3320,34 @@ pub fn get_qr_metadata(
 
     if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
     {
-        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
-            payments::QrCodeInformation::QrCodeUrl {
-                image_data_url,
-                qr_code_url,
-                display_to_timestamp,
-            },
-        );
+        let qr_code_info = payments::QrCodeInformation::QrCodeUrl {
+            image_data_url,
+            qr_code_url,
+            display_to_timestamp,
+        };
         Some(common_utils::ext_traits::Encode::<
-            payments::NextActionFromConnectorMetaData,
+            payments::QrCodeInformation,
         >::encode_to_value(&qr_code_info))
         .transpose()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
-        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
-            payments::QrCodeInformation::QrCodeImageUrl {
-                qr_code_url,
-                display_to_timestamp,
-            },
-        );
+        let qr_code_info = payments::QrCodeInformation::QrCodeImageUrl {
+            qr_code_url,
+            display_to_timestamp,
+        };
         Some(common_utils::ext_traits::Encode::<
-            payments::NextActionFromConnectorMetaData,
+            payments::QrCodeInformation,
         >::encode_to_value(&qr_code_info))
         .transpose()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
-        let qr_code_info = payments::NextActionFromConnectorMetaData::QrCodeInformation(
-            payments::QrCodeInformation::QrDataUrl {
-                image_data_url,
-                display_to_timestamp,
-            },
-        );
+        let qr_code_info = payments::QrCodeInformation::QrDataUrl {
+            image_data_url,
+            display_to_timestamp,
+        };
 
         Some(common_utils::ext_traits::Encode::<
-            payments::NextActionFromConnectorMetaData,
+            payments::QrCodeInformation,
         >::encode_to_value(&qr_code_info))
         .transpose()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
