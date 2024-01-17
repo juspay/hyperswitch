@@ -107,7 +107,7 @@ jobs:
               --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number)"'
           )"
 
-          if [ -z "${linked_issues}" ]; then
+          if [[ -z "${linked_issues}" ]]; then
             echo "::error::PR does not contain any linked issues"
             exit 1
           else
