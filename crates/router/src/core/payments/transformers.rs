@@ -498,7 +498,7 @@ where
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
                 let next_action_other_than_redirection =
-                    other_next_action_check(payment_attempt.to_owned())?;
+                    qr_code_next_action_check(payment_attempt.to_owned())?;
 
                 let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
@@ -845,15 +845,25 @@ pub fn qr_code_next_steps_check(
     Ok(qr_code_instructions)
 }
 
-pub fn other_next_action_check(
+pub fn qr_code_next_action_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
-    let next_action: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
-        .connector_metadata
-        .map(|metadata| metadata.parse_value("QrCodeInformation"));
+    if let Some(diesel_models::enums::PaymentMethod::BankTransfer) = payment_attempt.payment_method
+    {
+        if payment_attempt.payment_method_type == Some(diesel_models::enums::PaymentMethodType::Pix)
+        {
+            let next_action: Option<Result<api_models::payments::QrCodeInformation, _>> =
+                payment_attempt
+                    .connector_metadata
+                    .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
-    let next_action_steps = next_action.transpose().ok().flatten();
-    Ok(next_action_steps)
+            Ok(next_action.transpose().ok().flatten())
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn wait_screen_next_steps_check(
