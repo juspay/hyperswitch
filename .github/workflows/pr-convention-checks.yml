@@ -52,3 +52,64 @@ jobs:
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cog verify '${{ github.event.merge_group.head_commit.message }}'
+
+  pr_linked_issues_check:
+    name: Verify PR contains one or more linked issues
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skip check for merge queue
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: echo "Skipping PR linked issues check for merge queue"
+
+      - name: Generate GitHub app token
+        id: generate_app_token
+        if: ${{ github.event_name == 'pull_request_target' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Verify PR contains one or more linked issues
+        if: ${{ github.event_name == 'pull_request_target' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+        run: |
+          # GitHub does not provide information about linked issues for a pull request via the REST API.
+          # This information is available only within the GraphQL API.
+
+          # Obtain issue number and repository name with owner (in the `owner/repo` format) for all linked issues
+          query='query ($owner: String!, $repository: String!, $prNumber: Int!) {
+              repository(owner: $owner, name: $repository) {
+                pullRequest(number: $prNumber) {
+                  closingIssuesReferences(first: 10) {
+                    nodes {
+                      number
+                      repository {
+                        nameWithOwner
+                      }
+                    }
+                  }
+                }
+              }
+            }'
+
+          # Obtain linked issues in the `owner/repo#issue_number` format, one issue per line.
+          # The variable contains an empty string if the pull request has no linked issues.
+          linked_issues="$(
+            gh api graphql \
+              --raw-field "query=${query}" \
+              --field 'owner=${{ github.event.repository.owner.login }}' \
+              --field 'repository=${{ github.event.repository.name }}' \
+              --field 'prNumber=${{ github.event.pull_request.number }}' \
+              --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number)"'
+          )"
+
+          if [ -z "${linked_issues}" ]; then
+            echo "::error::PR does not contain any linked issues"
+            exit 1
+          else
+            echo "PR contains at least one linked issue"
+          fi
