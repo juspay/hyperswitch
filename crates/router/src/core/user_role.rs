@@ -129,16 +129,19 @@ pub async fn accept_invitation(
     .flatten()
     .ok_or(UserErrors::MerchantIdNotFound)?;
 
-    let user_from_db = state
-        .store
-        .find_user_by_id(user_token.user_id.as_str())
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into();
+    if let Some(true) = req.need_dashboard_entry_response {
+        let user_from_db = state
+            .store
+            .find_user_by_id(user_token.user_id.as_str())
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into();
 
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+        let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+        return Ok(ApplicationResponse::Json(
+            utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+        ));
+    }
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-    ))
+    Ok(ApplicationResponse::StatusOk)
 }
