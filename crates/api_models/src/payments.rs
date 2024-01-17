@@ -1965,6 +1965,7 @@ pub struct VoucherNextStepData {
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
     pub display_to_timestamp: Option<i64>,
+    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

@@ -497,12 +497,16 @@ where
                 let next_action_other_than_redirection =
                     other_next_action_check(payment_attempt.to_owned())?;
 
+                let next_action_containing_qr_code_url =
+                    qr_code_next_steps_check(payment_attempt.clone())?;
+
                 let next_action_containing_wait_screen =
                     wait_screen_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || next_action_other_than_redirection.is_some()
                     || next_action_voucher.is_some()
+                    || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = next_action_other_than_redirection
@@ -520,6 +524,13 @@ where
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_containing_qr_code_url.map(|qr_code_data| {
+                            api_models::payments::NextActionData::QrCodeInformation {
+                                image_data_url: Some(qr_code_data.image_data_url),
+                                display_to_timestamp: qr_code_data.display_to_timestamp,
+                                qr_code_url: qr_code_data.qr_code_url,
                             }
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
@@ -819,6 +830,18 @@ where
     } else {
         false
     }
+}
+
+pub fn qr_code_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+
+    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_instructions)
 }
 
 pub fn other_next_action_check(
