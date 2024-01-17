@@ -108,6 +108,7 @@ pub fn get_dashboard_entry_response(
     })
 }
 
+#[allow(unused_variables)]
 pub fn get_verification_days_left(
     state: &AppState,
     user: &UserFromStorage,
