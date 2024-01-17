@@ -497,9 +497,6 @@ where
 
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
-                let next_action_other_than_redirection =
-                    qr_code_next_action_check(payment_attempt.to_owned())?;
-
                 let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
@@ -508,7 +505,6 @@ where
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
-                    || next_action_other_than_redirection.is_some()
                     || next_action_voucher.is_some()
                     || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
@@ -519,20 +515,13 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
-                        .or(next_action_other_than_redirection.map(|qr_info| {
-                            api_models::payments::NextActionData::foreign_from(qr_info)
-                        }))
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                            api_models::payments::NextActionData::QrCodeInformation {
-                                image_data_url: Some(qr_code_data.image_data_url),
-                                display_to_timestamp: qr_code_data.display_to_timestamp,
-                                qr_code_url: qr_code_data.qr_code_url,
-                            }
+                            api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -835,35 +824,13 @@ where
 
 pub fn qr_code_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
-    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
-}
-
-pub fn qr_code_next_action_check(
-    payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
-    if let Some(diesel_models::enums::PaymentMethod::BankTransfer) = payment_attempt.payment_method
-    {
-        if payment_attempt.payment_method_type == Some(diesel_models::enums::PaymentMethodType::Pix)
-        {
-            let next_action: Option<Result<api_models::payments::QrCodeInformation, _>> =
-                payment_attempt
-                    .connector_metadata
-                    .map(|metadata| metadata.parse_value("QrCodeInformation"));
-
-            Ok(next_action.transpose().ok().flatten())
-        } else {
-            Ok(None)
-        }
-    } else {
-        Ok(None)
-    }
 }
 
 pub fn wait_screen_next_steps_check(
