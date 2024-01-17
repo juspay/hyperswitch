@@ -340,7 +340,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 let max_amount = match &mandate_data.mandate_type {
                     Some(data_models::mandates::MandateDataType::SingleUse(mandate))
                     | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
-                        conn_utils::to_currency_base_unit(mandate.amount, item.request.currency)
+                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
                     }
                     _ => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "mandate_data",
