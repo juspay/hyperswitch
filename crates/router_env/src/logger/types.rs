@@ -331,6 +331,8 @@ pub enum Flow {
     VerifyEmail,
     /// Send verify email
     VerifyEmailRequest,
+    /// Accept user invitation
+    AcceptInvitation,
 }
 
 ///

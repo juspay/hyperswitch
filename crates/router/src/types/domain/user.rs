@@ -739,7 +739,7 @@ impl UserFromStorage {
     }
 
     #[cfg(feature = "email")]
-    pub fn get_verification_days_left(&self, state: AppState) -> UserResult<Option<i64>> {
+    pub fn get_verification_days_left(&self, state: &AppState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
             return Ok(None);
         }
