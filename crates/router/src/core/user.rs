@@ -467,6 +467,88 @@ pub async fn invite_user(
     }
 }
 
+pub async fn delete_user(
+    state: AppState,
+    request: user_api::DeleteUserRequest,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<()> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(request.email.to_owned().expose().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::UserNotFound)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    if user_from_db.get_user_id() == user_from_token.user_id {
+        return Err(UserErrors::InvalidDeleteOperation.into())
+            .attach_printable("User deleting himself");
+    }
+
+    let user_roles = state
+        .store
+        .list_user_roles_by_user_id(user_from_db.get_user_id())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+  match user_roles
+        .iter()
+        .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
+    {
+        Some(user_role) => {
+            if user_role.role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
+                || user_role.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN
+                || user_role.role_id == consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+            {
+                return Err(UserErrors::InvalidDeleteOperation.into())
+                    .attach_printable("Cannot delete");
+            }
+        }
+        None => {
+            return Err(UserErrors::InvalidDeleteOperation.into())
+                .attach_printable("User not found");
+        }
+    };
+
+    if user_roles.len() > 1 {
+        let _ = state
+            .store
+            .delete_user_role_by_user_id_merchant_id(
+                user_from_db.get_user_id(),
+                user_from_token.merchant_id.as_str(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role");
+
+        return Ok(ApplicationResponse::StatusOk);
+    } else {
+        let _ = state
+            .store
+            .delete_user_by_user_id(user_from_db.get_user_id())
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user entry");
+
+        let _ = state
+            .store
+            .delete_user_role_by_user_id_merchant_id(
+                user_from_db.get_user_id(),
+                user_from_token.merchant_id.as_str(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role");
+
+        return Ok(ApplicationResponse::StatusOk);
+    }
+}
+
 pub async fn create_internal_user(
     state: AppState,
     request: user_api::CreateInternalUserRequest,
