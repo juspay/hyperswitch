@@ -198,6 +198,7 @@ pub async fn save_in_locker(
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
+                bank_transfer: None,
                 card: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
