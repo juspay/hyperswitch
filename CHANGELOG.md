@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.17.0
+
+### Features
+
+- **connector:** [BANKOFAMERICA] Implement 3DS flow for cards ([#3343](https://github.com/juspay/hyperswitch/pull/3343)) ([`d533c98`](https://github.com/juspay/hyperswitch/commit/d533c98b5107fb6876c11b183eb9bc382a77a2f1))
+- **recon:** Add recon APIs ([#3345](https://github.com/juspay/hyperswitch/pull/3345)) ([`8678f8d`](https://github.com/juspay/hyperswitch/commit/8678f8d1448b5ce430931bfbbc269ef979d9eea7))
+
+### Bug Fixes
+
+- **connector_onboarding:** Check if connector exists for the merchant account and add reset tracking id API ([#3229](https://github.com/juspay/hyperswitch/pull/3229)) ([`58cc8d6`](https://github.com/juspay/hyperswitch/commit/58cc8d6109ce49d385b06c762ab3f6670f5094eb))
+- **payment_link:** Added expires_on in payment response ([#3332](https://github.com/juspay/hyperswitch/pull/3332)) ([`5ad3f89`](https://github.com/juspay/hyperswitch/commit/5ad3f8939afafce3eec39704dcaa92270b384dcd))
+
+**Full Changelog:** [`2024.01.12.1...2024.01.17.0`](https://github.com/juspay/hyperswitch/compare/2024.01.12.1...2024.01.17.0)
+
+- - -
+
+## 2024.01.12.1
+
+### Miscellaneous Tasks
+
+- **config:** Add merchant_secret config for webhooks for cashtocode and volt in wasm dashboard ([#3333](https://github.com/juspay/hyperswitch/pull/3333)) ([`57f2cff`](https://github.com/juspay/hyperswitch/commit/57f2cff75e58b0a7811492a1fdb636f59dcefbd0))
+- Add api reference for blocklist ([#3336](https://github.com/juspay/hyperswitch/pull/3336)) ([`f381d86`](https://github.com/juspay/hyperswitch/commit/f381d86b7c9fa79d632991c74cab53d0181231c6))
+
+**Full Changelog:** [`2024.01.12.0...2024.01.12.1`](https://github.com/juspay/hyperswitch/compare/2024.01.12.0...2024.01.12.1)
+
+- - -
+
 ## 2024.01.12.0
 
 ### Features
