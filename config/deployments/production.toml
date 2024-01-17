@@ -71,7 +71,6 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
-supported.wallets = "klarna,braintree,applepay"
 trustpay.base_url = "https://tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://gateway.transit-pass.com/"
@@ -107,6 +106,10 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6
 
 [frm]
 enabled = false
+
+[lock_settings]
+delay_between_retries_in_milliseconds = 500
+redis_lock_expiry_seconds = 180
 
 [mandates.supported_payment_methods]
 bank_debit.ach.connector_list = "gocardless"
@@ -275,6 +278,7 @@ bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
 shift4.payment_method = "card"
 stripe.payment_method = "bank_transfer"
+bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
 
@@ -293,45 +297,3 @@ outgoing_enabled = true
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
-
-##########################################
-# [analytics]
-# source = "sqlx"
-
-# [analytics.sqlx]
-# username = "db_user"
-# password = "db_pass"
-# host = "localhost"
-# port = 5432
-# dbname = "hyperswitch_db"
-# pool_size = 5
-# connection_timeout = 10
-# queue_strategy = "Fifo"
-
-# [master_database]
-# username = "db_user"
-# password = "db_pass"
-# host = "localhost"
-# port = 5432
-# dbname = "hyperswitch_db"
-# pool_size = 5
-# connection_timeout = 10
-# min_idle = 2
-
-# [replica_database]
-# username = "db_user"
-# password = "db_pass"
-# host = "localhost"
-# port = 5432
-# dbname = "hyperswitch_db"
-# pool_size = 5
-# connection_timeout = 10
-
-# [secrets]
-# admin_api_key = "test_admin"
-# master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
-# jwt_secret = "secret"
-# recon_admin_api_key = "recon_test_admin"
-
-# [api_keys]
-# hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

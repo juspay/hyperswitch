@@ -7,21 +7,22 @@ This directory contains the configs for deployments of hyperswitch in different 
 Hyperswitch has **3** components namely,
 
 - router
-  - integration_test
-  - sandbox
-  - production
 - drainer
 - scheduler
   - consumer
   - producer
 
-Hyperswitch maintains configs for 3 different environments.
+Hyperswitch maintains 3 different environments for deployments under the `router` component, namely,
+
+- Integration Test
+- Sandbox
+- Production
 
 To learn about what "router", "drainer" and "scheduler" is, please refer to the [Hyperswitch architecture][architecture] documentation.
 
 ### Tree structure
 
-```tree
+```text
 config/deployments      # Root directory for the deployment configs
 ├── README.md           # This file
 ├── drainer.toml        # Config specific to drainer
@@ -36,7 +37,7 @@ config/deployments      # Root directory for the deployment configs
 
 ## Router
 
-The `integ.toml`, `sandbox.toml`, and `production.toml` files are configuration files for the different environments `integration_test`, `sandbox`, and `production`, respectively. These files contain the default values recommended by Hyperswitch.
+The `integration_test.toml`, `sandbox.toml`, and `production.toml` files are configuration files for the environments `integration_test`, `sandbox`, and `production`, respectively. These files maintain a 1:1 mapping with the environment names, and it is recommended to use the same name for the environment throughout this document.
 
 ### Generating a Config File for the Router
 
@@ -46,17 +47,25 @@ For example, to build and deploy Hyperswitch in the **sandbox environment**, you
 
 The environment-specific `sandbox.toml` file, which contains the Hyperswitch recommended defaults, is merged with the `sandbox_config.toml` file to create the final configuration file called `sandbox_release.toml`. This file is marked as ready for deploying on the sandbox environment.
 
-```zsh
-# Example for sandbox environment
-# To duplicate the file
+1. Duplicate the `env_specific.toml` file and rename it as `sandbox_config.toml`:
+
+```shell
 cp config/deployments/env_specific.toml config/deployments/sandbox_config.toml
-# To edit the file, you can use any editor of your choice
+```
+
+2. Update the values in the `sandbox_config.toml` file with the proper values for the sandbox environment:
+
+```shell
 vi config/deployments/sandbox_config.toml
-# To merge the files you can use `cat`
+```
+
+3. To merge the files you can use `cat`:
+
+```shell
 cat config/deployments/sandbox.toml config/deployments/sandbox_config.toml > config/deployments/sandbox_release.toml
 ```
 
-> Note: You can refer to the [`config.example.toml`][config_example] file to understand the variables that are in the env_specific.toml file.
+> Note: You can refer to the [`config.example.toml`][config_example] file to understand the variables that used are in the `env_specific.toml` file.
 
 ## Scheduler
 
@@ -66,23 +75,25 @@ The `consumer.toml` and `producer.toml` files are the configuration files for th
 
 ### Generating a Config File for the Scheduler
 
-Scheduler configuration files are built on top of the router files. So, the `sandbox_release.toml` file is merged with the `consumer.toml` or `producer.toml` file to create the final configuration file for the scheduler.
+Scheduler configuration files are built on top of the router configuration files. So, the `sandbox_release.toml` file is merged with the `consumer.toml` or `producer.toml` file to create the final configuration file for the scheduler.
 
 You can use `cat` to merge the files in the terminal.
 
-```zsh
-# Example for consumer in sandbox environment
+- Below is an example for consumer in sandbox environment:
+
+```shell
 cat config/deployments/scheduler/consumer.toml config/deployments/sandbox_release.toml > config/deployments/consumer_sandbox_release.toml
 ```
 
-```zsh
-# Example for producer in sandbox environment
+Below is an example for producer in sandbox environment:
+
+```shell
 cat config/deployments/scheduler/producer.toml config/deployments/sandbox_release.toml > config/deployments/producer_sandbox_release.toml
 ```
 
 ## Drainer
 
-Drainer is a separate component, and since it is independent, the drainer configs can be used directly provided that the user updates the `drainer.toml` file with proper values before using.
+Drainer is an independent component, and hence, the drainer configs can be used directly provided that the user updates the `drainer.toml` file with proper values before using.
 
 ## Running Hyperswitch through Docker Compose
 
@@ -91,7 +102,7 @@ To run the router, you can use the following snippet in the `docker-compose.yml`
 ```yaml
 ### Application services
 hyperswitch-server:
-  image: juspaydotin/hyperswitch-router:latest # This pulls the latest image from Docker Hub. If you wish to use a version without added features, you can replace `latest` with `standalone`. However, please note that the standalone version is not recommended for production use.
+  image: juspaydotin/hyperswitch-router:latest # This pulls the latest image from Docker Hub. If you wish to use a version without added features (like KMS), you can replace `latest` with `standalone`. However, please note that the standalone version is not recommended for production use.
   command: /local/bin/router --config-path /local/config/deployments/sandbox_release.toml # <--- Change this to the config file that is generated for the environment.
   ports:
     - "8080:8080"
@@ -137,7 +148,7 @@ hyperswitch-drainer:
 
 You can verify that the server is up and running by hitting the health check endpoint:
 
-```zsh
+```shell
 curl --head --request GET 'http://localhost:8080/health'
 ```
 

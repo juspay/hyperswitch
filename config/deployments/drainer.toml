@@ -1,6 +1,3 @@
-[drainer_redis]
-pool_size = 5
-
 [drainer]
 loop_interval = 500
 max_read_count = 100
@@ -19,11 +16,11 @@ log_format = "json"
 
 [log.telemetry]
 metrics_enabled = true
-otel_exporter_otlp_endpoint = "http://otel_exporter_otlp_endpoint_uri"
+otel_exporter_otlp_endpoint = "http://localhost:4317"
 
 [master_database]
 dbname = "master_database_name"
-host = "master_database_host"
+host = "http://localhost:4000"
 password = "master_database_password"
 pool_size = 3
 port = 5432
@@ -31,9 +28,10 @@ username = "username"
 
 [redis]
 cluster_enabled = false
-cluster_urls = "cluster_uri"
+cluster_urls = ["redis.cluster.uri-1:8080", "redis.cluster.uri-2:4115"] # List of redis cluster urls
 default_ttl = 300
-host = "redis_host_uri"
+host = "http://localhost:4000"
+pool_size = 5
 port = 6379
 reconnect_delay = 5
 reconnect_max_attempts = 5
