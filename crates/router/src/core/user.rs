@@ -757,3 +757,32 @@ pub async fn send_verification_mail(
 
     Ok(ApplicationResponse::StatusOk)
 }
+
+#[cfg(feature = "recon")]
+pub async fn verify_token(
+    state: AppState,
+    req: auth::ReconUser,
+) -> UserResponse<user_api::VerifyTokenResponse> {
+    let user = state
+        .store
+        .find_user_by_id(&req.user_id)
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::UserNotFound)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?;
+    let merchant_id = state
+        .store
+        .find_user_role_by_user_id(&req.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .merchant_id;
+
+    Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
+        merchant_id: merchant_id.to_string(),
+        user_email: user.email,
+    }))
+}
