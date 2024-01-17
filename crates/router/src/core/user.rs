@@ -253,6 +253,7 @@ pub async fn change_password(
                 name: None,
                 password: Some(new_password_hash),
                 is_verified: None,
+                preferred_merchant_id: None,
             },
         )
         .await
@@ -330,6 +331,7 @@ pub async fn reset_password(
                 name: None,
                 password: Some(hash_password),
                 is_verified: Some(true),
+                preferred_merchant_id: None,
             },
         )
         .await
@@ -785,4 +787,42 @@ pub async fn verify_token(
         merchant_id: merchant_id.to_string(),
         user_email: user.email,
     }))
+}
+
+pub async fn update_user_details(
+    state: AppState,
+    user_token: auth::UserFromToken,
+    req: user_api::UpdateUserAccountDetailsRequest,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let name = req.name.map(|x| domain::UserName::new(x)).transpose()?;
+
+    if let Some(ref preferred_merchant_id) = req.preferred_merchant_id {
+        let user_merchant_accounts =
+            utils::user_role::get_merchant_ids_for_user(&state, &user.get_user_id()).await?;
+        if !user_merchant_accounts.contains(preferred_merchant_id) {
+            return Err(UserErrors::MerchantIdNotFound.into());
+        }
+    }
+
+    let user_update = storage_user::UserUpdate::AccountUpdate {
+        name: name.map(|x| x.get_secret().expose()),
+        password: None,
+        is_verified: None,
+        preferred_merchant_id: req.preferred_merchant_id,
+    };
+
+    state
+        .store
+        .update_user_by_user_id(user.get_user_id(), user_update)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
