@@ -62,6 +62,14 @@ services:
       retries: 3
       start_period: 5s
       timeout: 10s
+    # Enable this for fluentd based setup
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: httpd.access
 
   hyperswitch-producer:
     image: juspaydotin/hyperswitch-producer:standalone
@@ -332,3 +340,44 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+
+  fluentd:
+    build: ./config/fluentd
+    networks:
+      - router_net
+    volumes:
+      - ./config/fluentd/conf:/fluentd/etc
+    profiles:
+      - kibana
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    networks:
+      - router_net
+    profiles:
+      - kibana
+    depends_on:
+      - fluentd
+    environment:
+      - "discovery.type=single-node"
+      - xpack.security.enabled=false
+    expose:
+      - "9200"
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    networks:
+      - router_net
+    profiles:
+      - kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
