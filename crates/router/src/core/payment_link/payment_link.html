@@ -595,6 +595,10 @@
       #payment-form {
         max-width: 560px;
         width: 100%;
+        min-height: 500px;
+        max-height: 90vh;
+        height: 100%;
+        overflow: scroll;
         margin: 0 auto;
         text-align: center;
       }
@@ -1269,14 +1273,17 @@
           appearance: appearance,
           clientSecret: client_secret,
         });
-        var type = (paymentDetails.sdk_layout === "spaced_accordion" || paymentDetails.sdk_layout === "accordion")
-              ? "accordion"
-              : paymentDetails.sdk_layout;
+        var type =
+          paymentDetails.sdk_layout === "spaced_accordion" ||
+          paymentDetails.sdk_layout === "accordion"
+            ? "accordion"
+            : paymentDetails.sdk_layout;
 
         var unifiedCheckoutOptions = {
           layout: {
             type: type, //accordion , tabs, spaced accordion
-            spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion"
+            spacedAccordionItems:
+              paymentDetails.sdk_layout === "spaced_accordion",
           },
           branding: "never",
           wallets: {
