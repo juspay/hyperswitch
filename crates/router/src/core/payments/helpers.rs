@@ -1041,6 +1041,10 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: card.card_holder_name.clone(),
                         nick_name: card.nick_name.clone(),
+                        card_issuing_country: card.card_issuing_country.clone(),
+                        card_network: card.card_network.clone(),
+                        card_issuer: card.card_issuer.clone(),
+                        card_type: card.card_type.clone(),
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
@@ -1620,7 +1624,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
     };
 
-    // TODO: Handle case where payment method and token both are present in request properly.
+    // card.andle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
             let payment_method_details = Ctx::retrieve_payment_method_with_token(
@@ -3724,7 +3728,7 @@ pub async fn get_gsm_record(
                 connector_name.clone(),
                 flow.clone(),
                 "sub_flow".to_string(),
-                error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
+                error_code.clone().unwrap_or_default(), // card.ake changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
             )
             .await

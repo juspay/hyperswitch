@@ -456,59 +456,8 @@ pub async fn add_card_hs(
     let store_card_payload =
         call_to_locker_hs(state, &payload, &customer_id, locker_choice).await?;
 
-    // fetch card_bin from db
-
-    let mut card_number = card.card_number.peek().to_owned();
-    let card_isin = req.card.clone().map(|c| c.card_number.get_card_isin());
-    let card = card.clone();
-    let card_detail = card_isin
-        .clone()
-        .async_and_then(|card_isin| async move {
-            state
-                .store
-                .get_card_info(&card_isin)
-                .await
-                .map_err(|error| services::logger::warn!(card_info_error=?error))
-                .ok()
-        })
-        .await
-        .flatten()
-        .map(|card_info| api::CardDetailFromLocker {
-            scheme: None,
-            last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-            issuer_country: None,
-            card_number: Some(card.card_number.clone()),
-            expiry_month: Some(card.card_exp_month.clone()),
-            expiry_year: Some(card.card_exp_year.clone()),
-            card_token: None,
-            card_fingerprint: None,
-            card_holder_name: card.card_holder_name.clone(),
-            nick_name: card.nick_name.clone(),
-            card_isin: card_isin.clone(),
-            card_issuer: card_info.card_issuer,
-            card_network: card_info.card_network,
-            card_type: card_info.card_type,
-            saved_to_locker: true,
-        })
-        .unwrap_or_else(|| api::CardDetailFromLocker {
-            scheme: None,
-            issuer_country: None,
-            last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-            card_number: Some(card.card_number),
-            expiry_month: Some(card.card_exp_month.clone()),
-            expiry_year: Some(card.card_exp_year),
-            card_token: None,
-            card_holder_name: card.card_holder_name,
-            card_fingerprint: None,
-            nick_name: card.nick_name,
-            card_isin: card_isin.clone(),
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            saved_to_locker: true,
-        });
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
-        Some(card_detail),
+        card.clone(),
         store_card_payload.card_reference,
         req,
         &merchant_account.merchant_id,

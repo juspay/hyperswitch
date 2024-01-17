@@ -143,6 +143,10 @@ pub async fn save_payout_data_to_locker(
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
                 nick_name: None,
+                card_issuing_country: None,
+                card_network: None,
+                card_issuer: None,
+                card_type: None,
             };
             let payload = StoreLockerReq::LockerCard(StoreCardReq {
                 merchant_id: &merchant_account.merchant_id,
@@ -224,6 +228,7 @@ pub async fn save_payout_data_to_locker(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error updating payouts in saved payout method")?;
 
+    // fetch card info from db
     let card_isin = card_details
         .as_ref()
         .map(|c| c.card_number.clone().get_card_isin());

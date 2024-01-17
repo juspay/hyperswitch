@@ -1,7 +1,4 @@
-use common_utils::{
-    ext_traits::{AsyncExt, ValueExt},
-    pii,
-};
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -81,7 +78,6 @@ where
                     skip_saving_card_in_locker(
                         merchant_account,
                         payment_method_create_request.to_owned(),
-                        state,
                     )
                     .await?
                 } else {
@@ -184,7 +180,6 @@ where
 async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
-    state: &AppState,
 ) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = payment_method_request
@@ -193,95 +188,70 @@ async fn skip_saving_card_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+
     let last4_digits = payment_method_request
         .card
         .clone()
         .map(|c| c.card_number.get_last4());
-
-    let expiry_month = payment_method_request
-        .card
-        .clone()
-        .map(|c| c.card_exp_month);
 
     let card_isin = payment_method_request
         .card
         .clone()
         .map(|c: api_models::payment_methods::CardDetail| c.card_number.get_card_isin());
 
-    let card_detail = card_isin
-        .clone()
-        .async_and_then(|card_isin| async move {
-            state
-                .store
-                .get_card_info(&card_isin)
-                .await
-                .map_err(|error| services::logger::warn!(card_info_error=?error))
-                .ok()
-        })
-        .await
-        .flatten()
-        .map(|card_info| CardDetailFromLocker {
-            scheme: None,
-            issuer_country: card_info.card_issuing_country,
-            last4_digits: last4_digits.clone(),
-            card_number: None,
-            expiry_month: expiry_month.clone(),
-            expiry_year: payment_method_request
-                .card
-                .as_ref()
-                .map(|c| c.card_exp_year.clone()),
-            card_token: None,
-            card_holder_name: payment_method_request
-                .card
-                .as_ref()
-                .and_then(|c| c.card_holder_name.clone()),
-            card_fingerprint: None,
-            nick_name: None,
-            card_isin: card_isin.clone(),
-            card_issuer: card_info.card_issuer,
-            card_network: card_info.card_network,
-            card_type: card_info.card_type,
-            saved_to_locker: false,
-        })
-        .unwrap_or_else(|| CardDetailFromLocker {
-            scheme: None,
-            issuer_country: None,
-            last4_digits,
-            card_number: None,
-            expiry_month,
-            expiry_year: payment_method_request
-                .card
-                .as_ref()
-                .map(|c| c.card_exp_year.clone()),
-            card_token: None,
-            card_holder_name: payment_method_request
-                .card
-                .as_ref()
-                .and_then(|c| c.card_holder_name.clone()),
-            card_fingerprint: None,
-            nick_name: None,
-            card_isin,
-            card_issuer: None,
-            card_network: None,
-            card_type: None,
-            saved_to_locker: false,
-        });
+    match payment_method_request.card.clone() {
+        Some(card) => {
+            let card_detail = CardDetailFromLocker {
+                scheme: None,
+                issuer_country: card.card_issuing_country.clone(),
+                last4_digits: last4_digits.clone(),
+                card_number: None,
+                expiry_month: Some(card.card_exp_month.clone()),
+                expiry_year: Some(card.card_exp_year),
+                card_token: None,
+                card_holder_name: card.card_holder_name.clone(),
+                card_fingerprint: None,
+                nick_name: None,
+                card_isin: card_isin.clone(),
+                card_issuer: card.card_issuer.clone(),
+                card_network: card.card_network.clone(),
+                card_type: card.card_type.clone(),
+                saved_to_locker: false,
+            };
+            let pm_resp = api::PaymentMethodResponse {
+                merchant_id: merchant_id.to_string(),
+                customer_id: Some(customer_id),
+                payment_method_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                card: Some(card_detail),
+                recurring_enabled: false,
+                installment_payment_enabled: false,
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+            };
 
-    let pm_resp = api::PaymentMethodResponse {
-        merchant_id: merchant_id.to_string(),
-        customer_id: Some(customer_id),
-        payment_method_id,
-        payment_method: payment_method_request.payment_method,
-        payment_method_type: payment_method_request.payment_method_type,
-        card: Some(card_detail),
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
-        metadata: None,
-        created: Some(common_utils::date_time::now()),
-    };
-
-    Ok((pm_resp, false))
+            Ok((pm_resp, false))
+        }
+        None => {
+            let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+            let payment_method_response = api::PaymentMethodResponse {
+                merchant_id: merchant_id.to_string(),
+                customer_id: Some(customer_id),
+                payment_method_id: pm_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                card: None,
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+                recurring_enabled: false,
+                installment_payment_enabled: false,
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+            };
+            Ok((payment_method_response, false))
+        }
+    }
 }
 
 pub async fn save_in_locker(

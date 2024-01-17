@@ -325,18 +325,39 @@ pub async fn mk_add_locker_request_hs<'a>(
 }
 
 pub fn mk_add_card_response_hs(
-    card: Option<api::CardDetailFromLocker>,
+    card: api::CardDetail,
     card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
+    let card_number = card.card_number.clone();
+    let last4_digits = card_number.clone().get_last4();
+    let card_isin = card_number.get_card_isin();
+
+    let card = api::CardDetailFromLocker {
+        scheme: None,
+        last4_digits: Some(last4_digits),
+        issuer_country: None,
+        card_number: Some(card.card_number.clone()),
+        expiry_month: Some(card.card_exp_month.clone()),
+        expiry_year: Some(card.card_exp_year.clone()),
+        card_token: None,
+        card_fingerprint: None,
+        card_holder_name: card.card_holder_name.clone(),
+        nick_name: card.nick_name.clone(),
+        card_isin: Some(card_isin),
+        card_issuer: card.card_issuer,
+        card_network: card.card_network,
+        card_type: card.card_type,
+        saved_to_locker: true,
+    };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        card,
+        card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]
