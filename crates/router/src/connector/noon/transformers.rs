@@ -1,5 +1,5 @@
 use common_utils::pii;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -334,37 +334,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let (subscription, tokenize_c_c) = match item.request.setup_future_usage.is_some() {
-            true => {
-                let mandate_data = item.request.get_setup_mandate_details().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_mandate_details",
-                    },
-                )?;
+        let subscription = item
+            .request
+            .get_setup_mandate_details()
+            .map(|mandate_data| {
                 let max_amount = match &mandate_data.mandate_type {
-                    Some(data_models::mandates::MandateDataType::SingleUse(mandate)) => {
-                        mandate.amount.to_string()
+                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        conn_utils::to_currency_base_unit(mandate.amount, item.request.currency)
                     }
-                    Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
-                        mandate.amount.to_string()
-                    }
-
                     _ => Err(errors::ConnectorError::NotImplemented(
                         item.connector.clone(),
-                    ))?,
-                };
+                    ))
+                    .into_report(),
+                }?;
 
-                (
-                    Some(NoonSubscriptionData {
+                Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(
+                    NoonSubscriptionData {
                         subscription_type: NoonSubscriptionType::Unscheduled,
                         name: name.clone(),
                         max_amount,
-                    }),
-                    Some(true),
+                    },
                 )
-            }
-            false => (None, None),
-        };
+            })
+            .transpose()?;
+
+        let tokenize_c_c = subscription.is_some().then_some(true);
+
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
