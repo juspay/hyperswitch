@@ -57,6 +57,7 @@ pub struct RedisSettings {
     pub max_in_flight_commands: u64,
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
+    pub unresponsive_timeout: u64,
 }
 
 impl RedisSettings {
@@ -76,7 +77,17 @@ impl RedisSettings {
                 "Redis `cluster_urls` must be specified if `cluster_enabled` is `true`".into(),
             ))
             .into_report()
-        })
+        })?;
+
+        when(
+            self.default_command_timeout < self.unresponsive_timeout,
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Unresponsive timeout cannot be greater than the command timeout".into(),
+                ))
+                .into_report()
+            },
+        )
     }
 }
 
@@ -97,8 +108,9 @@ impl Default for RedisSettings {
             auto_pipeline: true,
             disable_auto_backpressure: false,
             max_in_flight_commands: 5000,
-            default_command_timeout: 0,
+            default_command_timeout: 30,
             max_feed_count: 200,
+            unresponsive_timeout: 10,
         }
     }
 }

@@ -132,6 +132,11 @@ impl RedisConnectionPool {
             },
         };
 
+        let connection_config = fred::types::ConnectionConfig {
+            unresponsive_timeout: std::time::Duration::from_secs(conf.unresponsive_timeout),
+            ..fred::types::ConnectionConfig::default()
+        };
+
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
@@ -151,7 +156,7 @@ impl RedisConnectionPool {
         let pool = fred::prelude::RedisPool::new(
             config,
             Some(perf),
-            None,
+            Some(connection_config),
             Some(reconnect_policy),
             conf.pool_size,
         )
@@ -200,6 +205,15 @@ impl RedisConnectionPool {
                 }
             }
         }
+    }
+
+    pub async fn on_unresponsive(&self) {
+        let _ = self.pool.clients().iter().map(|client| {
+            client.on_unresponsive(|server| {
+                logger::warn!(redis_server =?server.host, "Redis server is unresponsive");
+                Ok(())
+            })
+        });
     }
 }
 
