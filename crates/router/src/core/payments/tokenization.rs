@@ -230,6 +230,7 @@ async fn skip_saving_card_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
+                bank_transfer: None,
             };
 
             Ok((pm_resp, false))
@@ -248,6 +249,7 @@ async fn skip_saving_card_in_locker(
                 recurring_enabled: false,
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                bank_transfer: None,
             };
             Ok((payment_method_response, false))
         }
