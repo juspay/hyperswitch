@@ -7,7 +7,7 @@ on:
   # pull request whenever this trigger is used.
   # Since we do not have a checkout step in this workflow, this is an
   # acceptable use of this trigger.
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
@@ -42,7 +42,7 @@ jobs:
           crate: cocogitto
 
       - name: Verify PR title follows conventional commit standards
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
           TITLE: ${{ github.event.pull_request.title }}
@@ -65,7 +65,7 @@ jobs:
 
       - name: Generate GitHub app token
         id: generate_app_token
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
@@ -73,7 +73,7 @@ jobs:
           owner: ${{ github.event.repository.owner.login }}
 
       - name: Verify PR contains one or more linked issues
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
