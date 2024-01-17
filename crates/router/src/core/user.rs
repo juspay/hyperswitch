@@ -801,11 +801,11 @@ pub async fn update_user_details(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let name = req.name.map(|x| domain::UserName::new(x)).transpose()?;
+    let name = req.name.map(domain::UserName::new).transpose()?;
 
     if let Some(ref preferred_merchant_id) = req.preferred_merchant_id {
         let user_merchant_accounts =
-            utils::user_role::get_merchant_ids_for_user(&state, &user.get_user_id()).await?;
+            utils::user_role::get_merchant_ids_for_user(&state, user.get_user_id()).await?;
         if !user_merchant_accounts.contains(preferred_merchant_id) {
             return Err(UserErrors::MerchantIdNotFound.into());
         }
