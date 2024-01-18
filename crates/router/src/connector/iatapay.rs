@@ -638,16 +638,36 @@ impl api::IncomingWebhook for Iatapay {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         match notif {
             iatapay::IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        wh_body.iata_payment_id,
-                    ),
-                ))
+                match wh_body.merchant_payment_id {
+                    Some(merchant_payment_id) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                            api_models::payments::PaymentIdType::PaymentAttemptId(
+                                merchant_payment_id,
+                            ),
+                        ))
+                    }
+                    None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            wh_body.iata_payment_id,
+                        ),
+                    )),
+                }
             }
             iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => {
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(wh_body.iata_refund_id),
-                ))
+                match wh_body.merchant_refund_id {
+                    Some(merchant_refund_id) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                            api_models::payments::PaymentIdType::PaymentAttemptId(
+                                merchant_refund_id,
+                            ),
+                        ))
+                    }
+                    None => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::ConnectorRefundId(
+                            wh_body.iata_refund_id,
+                        ),
+                    )),
+                }
             }
         }
     }
@@ -660,52 +680,7 @@ impl api::IncomingWebhook for Iatapay {
             .body
             .parse_struct("IatapayWebhookResponse")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        match notif {
-            iatapay::IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => {
-                match wh_body.status {
-                    iatapay::IatapayWebhookStatus::Authorized
-                    | iatapay::IatapayWebhookStatus::Settled => {
-                        Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
-                    }
-                    iatapay::IatapayWebhookStatus::Initiated => {
-                        Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
-                    }
-                    iatapay::IatapayWebhookStatus::Failed => {
-                        Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
-                    }
-                    iatapay::IatapayWebhookStatus::Created
-                    | iatapay::IatapayWebhookStatus::Cleared
-                    | iatapay::IatapayWebhookStatus::Tobeinvestigated
-                    | iatapay::IatapayWebhookStatus::Blocked
-                    | iatapay::IatapayWebhookStatus::Locked
-                    | iatapay::IatapayWebhookStatus::UnexpectedSettled
-                    | iatapay::IatapayWebhookStatus::Unknown => {
-                        Ok(api::IncomingWebhookEvent::EventNotSupported)
-                    }
-                }
-            }
-            iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => {
-                match wh_body.status {
-                    iatapay::IatapayWebhookStatus::Authorized => {
-                        Ok(api::IncomingWebhookEvent::RefundSuccess)
-                    }
-                    iatapay::IatapayWebhookStatus::Failed => {
-                        Ok(api::IncomingWebhookEvent::RefundFailure)
-                    }
-                    iatapay::IatapayWebhookStatus::Created
-                    | iatapay::IatapayWebhookStatus::Cleared
-                    | iatapay::IatapayWebhookStatus::Tobeinvestigated
-                    | iatapay::IatapayWebhookStatus::Blocked
-                    | iatapay::IatapayWebhookStatus::Locked
-                    | iatapay::IatapayWebhookStatus::Settled
-                    | iatapay::IatapayWebhookStatus::Initiated
-                    | iatapay::IatapayWebhookStatus::UnexpectedSettled
-                    | iatapay::IatapayWebhookStatus::Unknown => {
-                        Ok(api::IncomingWebhookEvent::EventNotSupported)
-                    }
-                }
-            }
-        }
+        api::IncomingWebhookEvent::try_from(notif)
     }
 
     fn get_webhook_resource_object(

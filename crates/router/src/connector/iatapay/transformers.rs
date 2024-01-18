@@ -483,6 +483,9 @@ pub struct IatapayAccessTokenErrorResponse {
 pub struct IatapayPaymentWebhookBody {
     pub status: IatapayWebhookStatus,
     pub iata_payment_id: String,
+    pub merchant_payment_id: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_details: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -490,12 +493,50 @@ pub struct IatapayPaymentWebhookBody {
 pub struct IatapayRefundWebhookBody {
     pub status: IatapayWebhookStatus,
     pub iata_refund_id: String,
+    pub merchant_refund_id: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_details: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum IatapayWebhookResponse {
     IatapayPaymentWebhookBody(IatapayPaymentWebhookBody),
     IatapayRefundWebhookBody(IatapayRefundWebhookBody),
+}
+
+impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payload: IatapayWebhookResponse) -> CustomResult<Self, errors::ConnectorError> {
+        match payload {
+            IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => match wh_body.status {
+                IatapayWebhookStatus::Authorized | IatapayWebhookStatus::Settled => {
+                    Ok(Self::PaymentIntentSuccess)
+                }
+                IatapayWebhookStatus::Initiated => Ok(Self::PaymentIntentProcessing),
+                IatapayWebhookStatus::Failed => Ok(Self::PaymentIntentFailure),
+                IatapayWebhookStatus::Created
+                | IatapayWebhookStatus::Cleared
+                | IatapayWebhookStatus::Tobeinvestigated
+                | IatapayWebhookStatus::Blocked
+                | IatapayWebhookStatus::Locked
+                | IatapayWebhookStatus::UnexpectedSettled
+                | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
+            },
+            IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => match wh_body.status {
+                IatapayWebhookStatus::Authorized => Ok(Self::RefundSuccess),
+                IatapayWebhookStatus::Failed => Ok(Self::RefundFailure),
+                IatapayWebhookStatus::Created
+                | IatapayWebhookStatus::Cleared
+                | IatapayWebhookStatus::Tobeinvestigated
+                | IatapayWebhookStatus::Blocked
+                | IatapayWebhookStatus::Locked
+                | IatapayWebhookStatus::Settled
+                | IatapayWebhookStatus::Initiated
+                | IatapayWebhookStatus::UnexpectedSettled
+                | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
