@@ -18,7 +18,8 @@ use uuid::Uuid;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
-        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData, BankRedirectBillingData,
+        self as connector_util, ApplePay, ApplePayDecrypt, BankRedirectBillingData,
+        PaymentsPreProcessingData, RouterData,
     },
     core::errors,
     services,
@@ -1110,13 +1111,15 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "giropay.billing_details",
-                    })?
-                    .get_billing_name()?),
-                    ..Self::default()
+                name: Some(
+                    billing_details
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "giropay.billing_details",
+                        })?
+                        .get_billing_name()?,
+                ),
+                ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, CardData, BankRedirectBillingData},
+    connector::utils::{self, BankRedirectBillingData, CardData},
     core::errors,
     services,
     types::{
