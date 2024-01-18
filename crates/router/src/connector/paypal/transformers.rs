@@ -367,7 +367,7 @@ fn get_payment_source(
                 })?
                 .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "sofort.billing_details.country",
+                field_name: "sofort.country",
             })?,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),

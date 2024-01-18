@@ -292,7 +292,7 @@ pub struct StripeSofort {
     #[serde(rename = "payment_method_options[sofort][preferred_language]")]
     preferred_language: Option<String>,
     #[serde(rename = "payment_method_data[sofort][country]")]
-    country: Option<api_enums::CountryAlpha2>,
+    country: api_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1648,7 +1648,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: *country,
+                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "sofort.country",
+                    })?,
                     preferred_language: preferred_language.clone(),
                 }),
             ))),

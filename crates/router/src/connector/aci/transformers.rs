@@ -204,7 +204,7 @@ impl
                     payment_brand: PaymentBrand::Sofortueberweisung,
                     bank_account_country: Some(country.to_owned().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "country",
+                            field_name: "sofort.country",
                         },
                     )?),
                     bank_account_bank_name: None,
