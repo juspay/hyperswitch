@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.18.0
+
+### Features
+
+- **connector_events:** Added api to fetch connector event logs ([#3319](https://github.com/juspay/hyperswitch/pull/3319)) ([`68a3a28`](https://github.com/juspay/hyperswitch/commit/68a3a280676c8309f9becffae545b134b5e1f2ea))
+- **payment_method:** Add capability to store bank details using /payment_methods endpoint ([#3113](https://github.com/juspay/hyperswitch/pull/3113)) ([`01c2de2`](https://github.com/juspay/hyperswitch/commit/01c2de223f60595d77c06a59a40dfe041e02cfee))
+
+### Bug Fixes
+
+- **core:** Add validation for authtype and metadata in update payment connector ([#3305](https://github.com/juspay/hyperswitch/pull/3305)) ([`52f38d3`](https://github.com/juspay/hyperswitch/commit/52f38d3d5a7d035e8211e1f51c8f982232e2d7ab))
+- **events:** Fix event generation for paymentmethods list ([#3337](https://github.com/juspay/hyperswitch/pull/3337)) ([`ac8d81b`](https://github.com/juspay/hyperswitch/commit/ac8d81b32b3d91b875113d32782a8c62e39ba2a8))
+
+### Refactors
+
+- **connector:** [cybersource] recurring mandate flow ([#3354](https://github.com/juspay/hyperswitch/pull/3354)) ([`387c1c4`](https://github.com/juspay/hyperswitch/commit/387c1c491bdc413ae361d04f0be25eaa58e72fa9))
+- [Noon] adding new field max_amount to mandate request ([#3209](https://github.com/juspay/hyperswitch/pull/3209)) ([`eb2a61d`](https://github.com/juspay/hyperswitch/commit/eb2a61d8597995838f21b8233653c691118b2191))
+
+### Miscellaneous Tasks
+
+- **router:** Remove recon from default features ([#3370](https://github.com/juspay/hyperswitch/pull/3370)) ([`928beec`](https://github.com/juspay/hyperswitch/commit/928beecdd7fe9e09b38ffe750627ca4af94ffc93))
+
+**Full Changelog:** [`2024.01.17.0...2024.01.18.0`](https://github.com/juspay/hyperswitch/compare/2024.01.17.0...2024.01.18.0)
+
+- - -
+
 ## 2024.01.17.0
 
 ### Features
