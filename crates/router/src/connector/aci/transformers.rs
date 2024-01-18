@@ -146,10 +146,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            api_models::payments::BankRedirectData::Eps { .. } => {
+            api_models::payments::BankRedirectData::Eps { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
+                    bank_account_country: Some(country.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "eps.country",
+                        },
+                    )?),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -174,19 +178,27 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
-                Self::BankRedirect(Box::new(BankRedirectionPMData {
-                    payment_brand: PaymentBrand::Ideal,
-                    bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
-                    bank_account_bank_name: bank_name.to_owned(),
-                    bank_account_bic: None,
-                    bank_account_iban: None,
-                    billing_country: None,
-                    merchant_customer_id: None,
-                    merchant_transaction_id: None,
-                    customer_email: None,
-                }))
-            }
+            api_models::payments::BankRedirectData::Ideal {
+                bank_name, country, ..
+            } => Self::BankRedirect(Box::new(BankRedirectionPMData {
+                payment_brand: PaymentBrand::Ideal,
+                bank_account_country: Some(country.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "ideal.country",
+                    },
+                )?),
+                bank_account_bank_name: Some(bank_name.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "ideal.bank_name",
+                    },
+                )?),
+                bank_account_bic: None,
+                bank_account_iban: None,
+                billing_country: None,
+                merchant_customer_id: None,
+                merchant_transaction_id: None,
+                customer_email: None,
+            })),
             api_models::payments::BankRedirectData::Sofort { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Sofortueberweisung,

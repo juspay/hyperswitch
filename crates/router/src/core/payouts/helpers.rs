@@ -1,4 +1,7 @@
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{StringExt, ValueExt},
+};
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -40,28 +43,50 @@ pub async fn make_payout_method_data<'a>(
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
+    let certain_payout_type = payout_type.get_required_value("payout_type")?.to_owned();
     let hyperswitch_token = if let Some(payout_token) = payout_token {
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            payout_token,
-            api_enums::PaymentMethod::foreign_from(
-                payout_type.get_required_value("payout_type")?.to_owned()
-            )
-        );
+        if payout_token.starts_with("temporary_token_") {
+            Some(payout_token.to_string())
+        } else {
+            let key = format!(
+                "pm_token_{}_{}_hyperswitch",
+                payout_token,
+                api_enums::PaymentMethod::foreign_from(certain_payout_type)
+            );
 
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
 
-        let hyperswitch_token_option = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?;
+            let hyperswitch_token = redis_conn
+                .get_key::<Option<String>>(&key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the token from redis")?
+                .ok_or(error_stack::Report::new(
+                    errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "Token is invalid or expired".to_owned(),
+                    },
+                ))?;
+            let payment_token_data = hyperswitch_token
+                .clone()
+                .parse_struct("PaymentTokenData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to deserialize hyperswitch token data")?;
 
-        hyperswitch_token_option.or(Some(payout_token.to_string()))
+            let payment_token = match payment_token_data {
+                storage::PaymentTokenData::PermanentCard(storage::CardTokenData { token }) => {
+                    Some(token)
+                }
+                storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
+                    token,
+                }) => Some(token),
+                _ => None,
+            };
+            payment_token.or(Some(payout_token.to_string()))
+        }
     } else {
         None
     };
@@ -69,8 +94,10 @@ pub async fn make_payout_method_data<'a>(
     match (payout_method_data.to_owned(), hyperswitch_token) {
         // Get operation
         (None, Some(payout_token)) => {
-            let (pm, supplementary_data) =
-                vault::Vault::get_payout_method_data_from_temporary_locker(
+            if payout_token.starts_with("temporary_token_")
+                || certain_payout_type == api_enums::PayoutType::Bank
+            {
+                let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
                     state,
                     &payout_token,
                     merchant_key_store,
@@ -79,15 +106,33 @@ pub async fn make_payout_method_data<'a>(
                 .attach_printable(
                     "Payout method for given token not found or there was a problem fetching it",
                 )?;
-            utils::when(
-                supplementary_data
-                    .customer_id
-                    .ne(&Some(customer_id.to_owned())),
-                || {
-                    Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
-                },
-            )?;
-            Ok(pm)
+                utils::when(
+                    supplementary_data
+                        .customer_id
+                        .ne(&Some(customer_id.to_owned())),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                    },
+                )?;
+                Ok(pm)
+            } else {
+                let resp = cards::get_card_from_locker(
+                    state,
+                    customer_id,
+                    merchant_id,
+                    payout_token.as_ref(),
+                )
+                .await
+                .attach_printable("Payout method [card] could not be fetched from HS locker")?;
+                Ok(Some({
+                    api::PayoutMethodData::Card(api::CardPayout {
+                        card_number: resp.card_number,
+                        expiry_month: resp.card_exp_month,
+                        expiry_year: resp.card_exp_year,
+                        card_holder_name: resp.name_on_card,
+                    })
+                }))
+            }
         }
 
         // Create / Update operation
@@ -131,11 +176,11 @@ pub async fn save_payout_data_to_locker(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let (locker_req, card_details, payment_method_type) = match payout_method_data {
+    let (locker_req, card_details, bank_details, payment_method_type) = match payout_method_data {
         api_models::payouts::PayoutMethodData::Card(card) => {
             let card_detail = api::CardDetail {
                 card_number: card.card_number.to_owned(),
-                card_holder_name: Some(card.card_holder_name.to_owned()),
+                card_holder_name: card.card_holder_name.to_owned(),
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
                 nick_name: None,
@@ -145,7 +190,7 @@ pub async fn save_payout_data_to_locker(
                 merchant_customer_id: payout_attempt.customer_id.to_owned(),
                 card: transformers::Card {
                     card_number: card.card_number.to_owned(),
-                    name_on_card: Some(card.card_holder_name.to_owned()),
+                    name_on_card: card.card_holder_name.to_owned(),
                     card_exp_month: card.expiry_month.to_owned(),
                     card_exp_year: card.expiry_year.to_owned(),
                     card_brand: None,
@@ -157,6 +202,7 @@ pub async fn save_payout_data_to_locker(
             (
                 payload,
                 Some(card_detail),
+                None,
                 api_enums::PaymentMethodType::Debit,
             )
         }
@@ -191,6 +237,7 @@ pub async fn save_payout_data_to_locker(
             (
                 payload,
                 None,
+                Some(bank.to_owned()),
                 api_enums::PaymentMethodType::foreign_from(bank.to_owned()),
             )
         }
@@ -244,6 +291,7 @@ pub async fn save_payout_data_to_locker(
         payment_method_type: Some(payment_method_type),
         payment_method_issuer: None,
         payment_method_issuer_code: None,
+        bank_transfer: bank_details,
         card: card_details,
         metadata: None,
         customer_id: Some(payout_attempt.customer_id.to_owned()),

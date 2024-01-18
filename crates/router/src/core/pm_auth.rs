@@ -52,6 +52,7 @@ use crate::{
         storage,
         transformers::ForeignTryFrom,
     },
+    utils::ext_traits::OptionExt,
 };
 
 pub async fn create_link_token(
@@ -637,6 +638,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     key_store: &domain::MerchantKeyStore,
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
@@ -730,9 +732,15 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
     });
 
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(common_utils::pii::Email::from)
+        .get_required_value("email")?;
+
     let billing_details = BankDebitBilling {
         name: name.unwrap_or_default(),
-        email: common_utils::pii::Email::from(masking::Secret::new("".to_string())),
+        email: email,
         address: address_details,
     };
 
