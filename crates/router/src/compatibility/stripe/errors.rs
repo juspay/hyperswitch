@@ -206,7 +206,7 @@ pub enum StripeErrorCode {
         connector: String,
         status_code: u16,
     },
-    
+
     #[error(error_type = StripeErrorType::CardError, code = "", message = "{code}: {message}")]
     PaymentBlockedError {
         code: u16,

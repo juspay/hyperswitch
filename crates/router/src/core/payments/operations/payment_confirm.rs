@@ -853,7 +853,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         // Block the payment if the entry was present in the Blocklist
         if is_pm_blocklisted {
-            return Err(errors::ApiErrorResponse::PaymentBlockedError { code: 200, message: "The specified Payment failed".to_string(), status: "Failed".to_string(), reason: "Blocked".to_string() }.into());
+            return Err(errors::ApiErrorResponse::PaymentBlockedError {
+                code: 200,
+                message: "The specified Payment failed".to_string(),
+                status: "Failed".to_string(),
+                reason: "Blocked".to_string(),
+            }
+            .into());
         }
 
         Ok((Box::new(self), payment_data))

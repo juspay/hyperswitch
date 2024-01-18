@@ -187,7 +187,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "The specified merchant connector account is disabled")]
     MerchantConnectorAccountDisabled,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "{code}: {message}")]
-    PaymentBlockedError{
+    PaymentBlockedError {
         code: u16,
         message: String,
         status: String,
