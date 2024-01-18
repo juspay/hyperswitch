@@ -4421,11 +4421,37 @@
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
             "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
           }
         }
       },
       "CardDetailFromLocker": {
         "type": "object",
+        "required": [
+          "saved_to_locker"
+        ],
         "properties": {
           "scheme": {
             "type": "string",
@@ -4462,6 +4488,29 @@
           "nick_name": {
             "type": "string",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
           }
         }
       },
@@ -6884,6 +6933,29 @@
             "type": "string",
             "description": "A unique identifier alias to identify a particular card",
             "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The first 6 digits of card",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The bank that issued the card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the payment card",
+            "nullable": true
           }
         }
       },
@@ -6931,6 +7003,11 @@
           "payment_method": {
             "type": "string",
             "description": "The payment method"
+          },
+          "payment_method_type": {
+            "type": "string",
+            "description": "The payment method type",
+            "nullable": true
           },
           "card": {
             "allOf": [
