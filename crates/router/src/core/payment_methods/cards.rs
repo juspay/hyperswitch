@@ -558,6 +558,7 @@ pub async fn add_card_hs(
         req,
         &merchant_account.merchant_id,
     );
+
     Ok((
         payment_method_resp,
         store_card_payload.duplicate.unwrap_or(false),
@@ -2508,11 +2509,19 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
         let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
-            enums::PaymentMethod::Card => (
-                Some(get_card_details(&pm, key, state).await?),
-                None,
-                PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
-            ),
+            enums::PaymentMethod::Card => {
+                let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
+
+                if card_details.is_some() {
+                    (
+                        card_details,
+                        None,
+                        PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
+                    )
+                } else {
+                    continue;
+                }
+            }
 
             #[cfg(feature = "payouts")]
             enums::PaymentMethod::BankTransfer => {
@@ -2571,6 +2580,7 @@ pub async fn list_customer_payment_method(
         };
 
         //Need validation for enabled payment method ,querying MCA
+
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
@@ -2700,7 +2710,38 @@ pub async fn list_customer_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-async fn get_card_details(
+pub async fn get_card_details_with_locker_fallback(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+    state: &routes::AppState,
+) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
+    let card_decrypted =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt card details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
+            });
+
+    Ok(if let Some(mut crd) = card_decrypted {
+        if crd.saved_to_locker {
+            crd.scheme = pm.scheme.clone();
+            Some(crd)
+        } else {
+            None
+        }
+    } else {
+        Some(get_card_details_from_locker(state, pm).await?)
+    })
+}
+
+pub async fn get_card_details_without_locker_fallback(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
     state: &routes::AppState,
@@ -2979,25 +3020,32 @@ impl TempLockerCardSupport {
 pub async fn retrieve_payment_method(
     state: routes::AppState,
     pm: api::PaymentMethodId,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let key = key_store.key.peek();
     let card = if pm.payment_method == enums::PaymentMethod::Card {
-        let card = get_card_from_locker(
-            &state,
-            &pm.customer_id,
-            &pm.merchant_id,
-            &pm.payment_method_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting card from card vault")?;
-        let card_detail = payment_methods::get_card_detail(&pm, card)
+        let card_detail = if state.conf.locker.locker_enabled {
+            let card = get_card_from_locker(
+                &state,
+                &pm.customer_id,
+                &pm.merchant_id,
+                &pm.payment_method_id,
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card details from locker")?;
+            .attach_printable("Error getting card from card vault")?;
+            payment_methods::get_card_detail(&pm, card)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card details from locker")?
+        } else {
+            get_card_details_without_locker_fallback(&pm, key, &state).await?
+        };
         Some(card_detail)
     } else {
         None
