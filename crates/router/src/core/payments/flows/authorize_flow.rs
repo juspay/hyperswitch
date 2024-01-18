@@ -412,6 +412,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
+            redirect_response: None,
         })
     }
 }
@@ -431,10 +432,11 @@ impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData 
             order_details: None,
             router_return_url: None,
             webhook_url: None,
-            complete_authorize_url: None,
+            complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
+            redirect_response: data.redirect_response,
         })
     }
 }
