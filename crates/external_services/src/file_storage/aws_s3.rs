@@ -129,7 +129,7 @@ pub enum AwsS3StorageError {
     #[error("Invalid file data received from S3")]
     InvalidFileRetrieved,
 
-    /// Unknown error occured.
-    #[error("Unknown error occured: {0:?}")]
+    /// Unknown error occurred.
+    #[error("Unknown error occurred: {0:?}")]
     UnknownError(aws_sdk_s3::primitives::ByteStreamError),
 }

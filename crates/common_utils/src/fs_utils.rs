@@ -19,7 +19,8 @@ fn get_file_path(file_key: impl AsRef<str>) -> PathBuf {
     #[cfg(feature = "logs")]
     file_path.push(router_env::env::workspace_path());
     #[cfg(not(feature = "logs"))]
-    file_path.push(std::env::current_dir());
+    file_path.push(std::env::current_dir().unwrap_or(".".into()));
+
     file_path.push("files");
     file_path.push(file_key.as_ref());
     file_path
@@ -36,7 +37,17 @@ impl FileSystem {
         file_key: impl AsRef<str>,
         file_data: Vec<u8>,
     ) -> CustomResult<(), FileSystemStorageError> {
-        let file_path = get_file_path(file_key);
+        let file_path = get_file_path(&file_key);
+
+        // Ignore the file name and create directories in the `file_path` if not exists
+        std::fs::create_dir_all(
+            file_path
+                .parent()
+                .ok_or(FileSystemStorageError::CreateDirFailed)?,
+        )
+        .into_report()
+        .change_context(FileSystemStorageError::CreateDirFailed)?;
+
         let mut file = File::create(file_path)
             .into_report()
             .change_context(FileSystemStorageError::CreateFailure)?;
@@ -97,4 +108,8 @@ pub enum FileSystemStorageError {
     /// Error indicating file deletion failed.
     #[error("Failed while deleting the file")]
     DeleteFailure,
+
+    /// Error indicating directory creation failed
+    #[error("Failed while creating a directory")]
+    CreateDirFailed,
 }
