@@ -206,33 +206,29 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match (
+        if let (api::PaymentMethodData::Card { .. }, enums::AuthenticationType::ThreeDs) = (
             &router_data.request.payment_method_data,
             &router_data.auth_type,
         ) {
-            (api::PaymentMethodData::Card { .. }, enums::AuthenticationType::ThreeDs) => {
-                let types::RouterData { response, .. } =
-                    services::execute_connector_processing_step(
-                        app_state,
-                        Box::new(self),
-                        router_data,
-                        payments::CallConnectorAction::Trigger,
-                        None,
-                    )
-                    .await?;
-                let response: types::PaymentsResponseData = response.map_err(|err| {
-                    errors::ConnectorError::UnexpectedResponseError(err.message.into())
-                })?;
+            let types::RouterData { response, .. } = services::execute_connector_processing_step(
+                app_state,
+                Box::new(self),
+                router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+            )
+            .await?;
+            let response: types::PaymentsResponseData = response.map_err(|err| {
+                errors::ConnectorError::UnexpectedResponseError(err.message.into())
+            })?;
 
-                if let types::PaymentsResponseData::ThreeDSEnrollmentResponse {
-                    enrolled_v2: three_ds_enrolled,
-                    ..
-                } = response
-                {
-                    router_data.request.enrolled_for_3ds = three_ds_enrolled;
-                }
+            if let types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2: three_ds_enrolled,
+                ..
+            } = response
+            {
+                router_data.request.enrolled_for_3ds = three_ds_enrolled;
             }
-            _ => (),
         }
 
         Ok(())
@@ -250,11 +246,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let req_obj = CreatePaymentRequest::try_from(&connector_router_data)?;
-        // let stancer_req = types::RequestBody::log_and_get_request_body(
-        //     &req_obj,
-        //     utils::Encode::<CreatePaymentRequest>::encode_to_string_of_json,
-        // )
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 

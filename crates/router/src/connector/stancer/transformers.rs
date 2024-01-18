@@ -722,7 +722,7 @@ pub mod sepa {
 pub use self::sepa::Sepa;
 pub mod update_payment_request {
     use super::*;
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
     pub struct UpdatePaymentRequest {
         #[serde(rename = "amount", skip_serializing_if = "Option::is_none")]
         pub amount: Option<i32>,
@@ -739,19 +739,7 @@ pub mod update_payment_request {
         #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
         pub status: Option<Status>,
     }
-    impl UpdatePaymentRequest {
-        pub fn new() -> Self {
-            Self {
-                amount: None,
-                currency: None,
-                order_id: None,
-                description: None,
-                sepa: None,
-                card: None,
-                status: None,
-            }
-        }
-    }
+
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
     pub enum Status {
         #[serde(rename = "authorize")]
@@ -769,7 +757,7 @@ pub mod update_payment_request {
 pub use self::update_payment_request::UpdatePaymentRequest;
 pub mod update_sepa_request {
     use super::*;
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
     pub struct UpdateSepaRequest {
         #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
         pub name: Option<String>,
@@ -777,15 +765,6 @@ pub mod update_sepa_request {
         pub mandate: Option<String>,
         #[serde(rename = "date_mandate", skip_serializing_if = "Option::is_none")]
         pub date_mandate: Option<i32>,
-    }
-    impl UpdateSepaRequest {
-        pub fn new() -> Self {
-            Self {
-                name: None,
-                mandate: None,
-                date_mandate: None,
-            }
-        }
     }
 }
 pub use self::update_sepa_request::UpdateSepaRequest;
@@ -881,7 +860,7 @@ impl TryFrom<&StancerRouterData<&types::PaymentsCaptureRouterData>> for UpdatePa
         Ok(Self {
             amount: Some(*amount),
             status: Some(update_payment_request::Status::Capture),
-            ..Self::new()
+            ..Self::default()
         })
     }
 }
