@@ -59,7 +59,7 @@ impl PermissionModule {
             Self::Files => "Permissions for uploading, deleting and viewing files for disputes",
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
             Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant",
-            Self::AccountCreate => "Create new account within you organisation"
+            Self::AccountCreate => "Create new account within your organisation"
         }
     }
 }
