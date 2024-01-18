@@ -807,7 +807,7 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
                     status: value.order_status,
                     id: value.order_id,
                     //For successful payments Noon Always populates error_code as 0.
-                    error_code: 0,
+                    error_code: Some(0),
                     error_message: None,
                     reference: None,
                 },
