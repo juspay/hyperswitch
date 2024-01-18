@@ -38,15 +38,23 @@ pub async fn create_payment_method_api(
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsCreate;
+    let payload = json_payload.into_inner();
+
+    let auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth, req| async move {
             cards::add_payment_method(state, req, &auth.merchant_account, &auth.key_store).await
         },
-        &auth::ApiKeyAuth,
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

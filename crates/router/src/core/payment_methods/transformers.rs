@@ -332,7 +332,7 @@ pub fn mk_add_bank_response_hs(
 ) -> api::PaymentMethodResponse {
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
-        customer_id: req.customer_id,
+        customer_id: Some(req.customer_id),
         payment_method_id: bank_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
@@ -367,7 +367,7 @@ pub fn mk_add_card_response_hs(
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
-        customer_id: req.customer_id,
+        customer_id: Some(req.customer_id),
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
@@ -402,7 +402,7 @@ pub fn mk_add_card_response(
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
-        customer_id: req.customer_id,
+        customer_id: Some(req.customer_id),
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
