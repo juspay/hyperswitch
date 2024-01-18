@@ -491,6 +491,7 @@ pub struct VoltRefundWebhookBodyReference {
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum WebhookResponse {
+    // the enum order shouldn't be changed as this is being used during serialization and deserialization
     Refund(VoltRefundWebhookBodyReference),
     Payment(VoltPaymentWebhookBodyReference),
 }
