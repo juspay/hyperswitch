@@ -4914,7 +4914,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_redirect.sofort.billing_details.billing_name".to_string(),
                                                 display_name: "billing_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
+                                                field_type: enums::FieldType::UserBillingName,
                                                 value: None,
                                             }
                                         )
