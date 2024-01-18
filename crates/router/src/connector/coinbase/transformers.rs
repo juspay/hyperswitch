@@ -270,7 +270,10 @@ fn get_crypto_specific_payment_data(
     let name =
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
     let description = item.get_description().ok();
-    let connector_meta = CoinbaseConnectorMeta::try_from(&item.connector_meta_data)?;
+    let connector_meta = CoinbaseConnectorMeta::try_from(&item.connector_meta_data)
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "Merchant connector account metadata",
+        })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;
