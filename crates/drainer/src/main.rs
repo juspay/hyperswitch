@@ -1,4 +1,6 @@
-use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
+use drainer::{
+    errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
+};
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -23,6 +25,13 @@ async fn main() -> DrainerResult<()> {
         router_env::service_name!(),
         [router_env::service_name!()],
     );
+
+    #[allow(clippy::expect_used)]
+    let web_server = Box::pin(start_web_server(conf.clone(), store.clone()))
+        .await
+        .expect("Failed to create the server");
+
+    tokio::spawn(web_server);
 
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);

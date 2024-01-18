@@ -15,6 +15,14 @@ pub enum DrainerError {
     ParsingError(error_stack::Report<common_utils::errors::ParsingError>),
     #[error("Unexpected error occurred: {0}")]
     UnexpectedError(String),
+    #[error("I/O: {0}")]
+    IoError(std::io::Error),
+}
+
+impl From<std::io::Error> for DrainerError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
