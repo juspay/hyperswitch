@@ -297,6 +297,8 @@ pub enum Flow {
     ListRoles,
     /// Get role
     GetRole,
+    /// Get role from token
+    GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org

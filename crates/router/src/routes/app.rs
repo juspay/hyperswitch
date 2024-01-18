@@ -919,6 +919,7 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
+            .service(web::resource("/role").route(web::get().to(get_role_from_token)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
             .service(web::resource("/user/invite").route(web::post().to(invite_user)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
