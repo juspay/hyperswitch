@@ -344,10 +344,8 @@ impl NewUserMerchant {
                 merchant_details: None,
                 routing_algorithm: None,
                 parent_merchant_id: None,
-                payment_link_config: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
-                intent_fulfillment_time: None,
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -491,6 +489,10 @@ impl NewUser {
         self.new_merchant.clone()
     }
 
+    pub fn get_password(&self) -> UserPassword {
+        self.password.clone()
+    }
+
     pub async fn insert_user_in_db(
         &self,
         db: &dyn StorageInterface,
@@ -556,7 +558,7 @@ impl NewUser {
                 user_id,
                 role_id,
                 created_at: now,
-                last_modified_at: now,
+                last_modified: now,
                 org_id: self
                     .get_new_merchant()
                     .get_new_organization()
@@ -685,8 +687,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = password::generate_password_hash(uuid::Uuid::new_v4().to_string().into())?;
-        let password = UserPassword::new(password)?;
+        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -788,6 +789,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Routing => Self::Routing,
             info::PermissionModule::Analytics => Self::Analytics,
             info::PermissionModule::Mandates => Self::Mandates,
+            info::PermissionModule::Customer => Self::Customer,
             info::PermissionModule::Disputes => Self::Disputes,
             info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
@@ -829,7 +831,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_id,
             status,
             role_name,
-            last_modified_at: user_and_role.1.last_modified_at,
+            last_modified_at: user_and_role.0.last_modified_at,
         })
     }
 }

@@ -40,12 +40,16 @@ pub enum ApiEventsType {
     },
     Routing,
     ResourceListAPI,
-    PaymentRedirectionResponse,
+    PaymentRedirectionResponse {
+        connector: Option<String>,
+        payment_id: Option<String>,
+    },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
     RustLocker,
     FraudCheck,
+    Recon,
 }
 
 impl ApiEventMetric for serde_json::Value {}

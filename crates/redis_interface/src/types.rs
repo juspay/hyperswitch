@@ -52,6 +52,11 @@ pub struct RedisSettings {
     /// TTL for hash-tables in seconds
     pub default_hash_ttl: u32,
     pub stream_read_count: u64,
+    pub auto_pipeline: bool,
+    pub disable_auto_backpressure: bool,
+    pub max_in_flight_commands: u64,
+    pub default_command_timeout: u64,
+    pub max_feed_count: u64,
 }
 
 impl RedisSettings {
@@ -89,6 +94,11 @@ impl Default for RedisSettings {
             default_ttl: 300,
             stream_read_count: 1,
             default_hash_ttl: 900,
+            auto_pipeline: true,
+            disable_auto_backpressure: false,
+            max_in_flight_commands: 5000,
+            default_command_timeout: 0,
+            max_feed_count: 200,
         }
     }
 }

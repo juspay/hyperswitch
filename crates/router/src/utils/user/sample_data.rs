@@ -48,11 +48,11 @@ pub async fn generate_sample_data(
             .change_context(SampleDataError::InternalServerError)
             .attach_printable("Error while parsing primary business details")?;
 
-    let business_country_default = merchant_parsed_details.get(0).map(|x| x.country);
+    let business_country_default = merchant_parsed_details.first().map(|x| x.country);
 
-    let business_label_default = merchant_parsed_details.get(0).map(|x| x.business.clone());
+    let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+    let profile_id = match crate::core::utils::get_profile_id_from_business_details(
         business_country_default,
         business_label_default.as_ref(),
         &merchant_from_db,
@@ -61,8 +61,25 @@ pub async fn generate_sample_data(
         false,
     )
     .await
-    .change_context(SampleDataError::InternalServerError)
-    .attach_printable("Failed to get business profile")?;
+    {
+        Ok(id) => id.clone(),
+        Err(error) => {
+            router_env::logger::error!(
+                "Profile ID not found in business details. Attempting to fetch from the database {error:?}"
+            );
+
+            state
+                .store
+                .list_business_profile_by_merchant_id(&merchant_id)
+                .await
+                .change_context(SampleDataError::InternalServerError)
+                .attach_printable("Failed to get business profile")?
+                .first()
+                .ok_or(SampleDataError::InternalServerError)?
+                .profile_id
+                .clone()
+        }
+    };
 
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
@@ -146,6 +163,8 @@ pub async fn generate_sample_data(
                         common_utils::date_time::now() - time::Duration::days(7)
                     }),
                 );
+        let session_expiry =
+            created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
         let is_failed_payment =
@@ -197,6 +216,8 @@ pub async fn generate_sample_data(
             request_incremental_authorization: Default::default(),
             incremental_authorization_allowed: Default::default(),
             authorization_count: Default::default(),
+            fingerprint_id: None,
+            session_expiry: Some(session_expiry),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

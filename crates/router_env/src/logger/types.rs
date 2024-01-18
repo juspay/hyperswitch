@@ -165,6 +165,14 @@ pub enum Flow {
     RefundsList,
     // Retrieve forex flow.
     RetrieveForexFlow,
+    /// Toggles recon service for a merchant.
+    ReconMerchantUpdate,
+    /// Recon token request flow.
+    ReconTokenRequest,
+    /// Initial request for recon service.
+    ReconServiceRequest,
+    /// Recon token verification flow
+    ReconVerifyToken,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -185,6 +193,12 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Add record to blocklist
+    AddToBlocklist,
+    /// Delete record from blocklist
+    DeleteFromBlocklist,
+    /// List entries from blocklist
+    ListBlocklist,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -311,8 +325,12 @@ pub enum Flow {
     GetActionUrl,
     /// Sync connector onboarding status
     SyncOnboardingStatus,
+    /// Reset tracking id
+    ResetTrackingId,
     /// Verify email Token
     VerifyEmail,
+    /// Send verify email
+    VerifyEmailRequest,
 }
 
 ///

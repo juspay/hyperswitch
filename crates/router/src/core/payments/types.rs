@@ -3,6 +3,7 @@ use std::{collections::HashMap, num::TryFromIntError};
 use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
 use common_utils::{consts, errors::CustomResult, ext_traits::Encode, types as common_types};
 use data_models::payments::payment_attempt::PaymentAttempt;
+use diesel_models::business_profile::BusinessProfile;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -12,7 +13,6 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -178,6 +178,8 @@ impl MultipleCaptureData {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SurchargeDetails {
+    /// original_amount
+    pub original_amount: i64,
     /// surcharge value
     pub surcharge: common_types::Surcharge,
     /// tax on surcharge value
@@ -198,6 +200,7 @@ impl From<(&RequestSurchargeDetails, &PaymentAttempt)> for SurchargeDetails {
         let surcharge_amount = request_surcharge_details.surcharge_amount;
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or(0);
         Self {
+            original_amount: payment_attempt.amount,
             surcharge: common_types::Surcharge::Fixed(request_surcharge_details.surcharge_amount),
             tax_on_surcharge: None,
             surcharge_amount,
@@ -219,13 +222,15 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             currency.to_currency_base_unit_asf64(surcharge_details.tax_on_surcharge_amount)?;
         let display_final_amount =
             currency.to_currency_base_unit_asf64(surcharge_details.final_amount)?;
+        let display_total_surcharge_amount = currency.to_currency_base_unit_asf64(
+            surcharge_details.surcharge_amount + surcharge_details.tax_on_surcharge_amount,
+        )?;
         Ok(Self {
             surcharge: surcharge_details.surcharge.clone().into(),
             tax_on_surcharge: surcharge_details.tax_on_surcharge.clone().map(Into::into),
             display_surcharge_amount,
             display_tax_on_surcharge_amount,
-            display_total_surcharge_amount: display_surcharge_amount
-                + display_tax_on_surcharge_amount,
+            display_total_surcharge_amount,
             display_final_amount,
         })
     }
@@ -317,7 +322,7 @@ impl SurchargeMetadata {
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
         state: &AppState,
-        merchant_account: &domain::MerchantAccount,
+        business_profile: &BusinessProfile,
     ) -> RouterResult<()> {
         if !self.is_empty_result() {
             let redis_conn = state
@@ -336,7 +341,7 @@ impl SurchargeMetadata {
                         .attach_printable("Failed to encode to string of json")?,
                 ));
             }
-            let intent_fulfillment_time = merchant_account
+            let intent_fulfillment_time = business_profile
                 .intent_fulfillment_time
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn

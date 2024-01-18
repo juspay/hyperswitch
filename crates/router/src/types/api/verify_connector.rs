@@ -27,6 +27,7 @@ impl VerifyConnectorData {
             amount: 1000,
             confirm: true,
             currency: storage_enums::Currency::USD,
+            metadata: None,
             mandate_id: None,
             webhook_url: None,
             customer_id: None,
@@ -100,6 +101,7 @@ impl VerifyConnectorData {
             connector_http_status_code: None,
             external_latency: None,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

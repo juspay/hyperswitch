@@ -57,6 +57,21 @@ pub struct AuthorizationUpdateInternal {
     pub connector_authorization_id: Option<String>,
 }
 
+impl AuthorizationUpdateInternal {
+    pub fn create_authorization(self, source: Authorization) -> Authorization {
+        Authorization {
+            status: self.status.unwrap_or(source.status),
+            error_code: self.error_code.or(source.error_code),
+            error_message: self.error_message.or(source.error_message),
+            modified_at: self.modified_at.unwrap_or(common_utils::date_time::now()),
+            connector_authorization_id: self
+                .connector_authorization_id
+                .or(source.connector_authorization_id),
+            ..source
+        }
+    }
+}
+
 impl From<AuthorizationUpdate> for AuthorizationUpdateInternal {
     fn from(authorization_child_update: AuthorizationUpdate) -> Self {
         let now = Some(common_utils::date_time::now());

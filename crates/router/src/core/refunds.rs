@@ -610,7 +610,11 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.amount);
+
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
@@ -646,6 +650,7 @@ pub async fn validate_and_create_refund(
         .set_attempt_id(payment_attempt.attempt_id.clone())
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
+        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
         .to_owned();
 
     let refund = match db
@@ -772,6 +777,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
         }
     }
 }
@@ -929,7 +935,9 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
-        Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
+        Some("EXECUTE_REFUND") => {
+            Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
+        }
         Some("SYNC_REFUND") => {
             Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
         }

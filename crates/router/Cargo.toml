@@ -9,14 +9,13 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "profile_specific_fallback_routing", "retry", "frm"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
 s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config", "olap"]
 frm = []
-basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "basilisk", "s3", "email", "business_profile_routing", "accounts_cache", "kv_store", "profile_specific_fallback_routing"]
+release = ["kms", "stripe", "s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon"]
 olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
@@ -31,6 +30,7 @@ connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connect
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
+recon = ["email", "api_models/recon"]
 retry = []
 
 [dependencies]
@@ -79,12 +79,12 @@ ring = "0.16.20"
 roxmltree = "0.18.0"
 rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-serde_path_to_error = "0.1.11"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+serde_path_to_error = "0.1.14"
 serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
-serde_with = "3.0.0"
+serde_with = "3.4.0"
 sha-1 = { version = "0.9" }
 sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
 strum = { version = "0.25", features = ["derive"] }
@@ -121,6 +121,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 erased-serde = "0.3.31"
+quick-xml = { version = "0.31.0", features = ["serialize"] }
 rdkafka = "0.36.0"
 
 [build-dependencies]
@@ -134,7 +135,7 @@ rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
-wiremock = "0.5"
+wiremock = "0.5.18"
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }

@@ -96,11 +96,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            merchant_key_store,
+            customer,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -229,22 +237,12 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-        payment_intent.payment_link_id.clone(),
-        merchant_account.intent_fulfillment_time,
-        db,
-    )
-    .await?;
-    helpers::authenticate_client_secret(
-        request.client_secret.as_ref(),
-        &payment_intent,
-        intent_fulfillment_time,
-    )?;
+    helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
     let payment_id_str = payment_attempt.payment_id.clone();
 
     currency = payment_attempt.currency.get_required_value("currency")?;
-    amount = payment_attempt.amount.into();
+    amount = payment_attempt.get_total_amount().into();
 
     let shipping_address = helpers::get_address_by_id(
         db,
@@ -423,6 +421,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        frm_metadata: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

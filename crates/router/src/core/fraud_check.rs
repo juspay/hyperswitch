@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -17,7 +17,6 @@ use self::{
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
 use crate::{
-    connector::signifyd::transformers::FrmFullfillmentSignifydApiRequest,
     core::{
         errors::{self, RouterResult},
         payments::{
@@ -52,7 +51,7 @@ pub mod types;
 pub async fn call_frm_service<D: Clone, F, Req>(
     state: &AppState,
     payment_data: &mut payments::PaymentData<D>,
-    frm_data: FrmData,
+    frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
@@ -78,7 +77,12 @@ where
     )
     .await?;
 
-    let router_data = frm_data
+    frm_data.payment_attempt.connector_transaction_id = payment_data
+        .payment_attempt
+        .connector_transaction_id
+        .clone();
+
+    let mut router_data = frm_data
         .construct_router_data(
             state,
             &frm_data.connector_details.connector_name,
@@ -88,6 +92,9 @@ where
             &merchant_connector_account,
         )
         .await?;
+
+    router_data.status = payment_data.payment_attempt.status;
+
     let connector =
         FraudCheckConnectorData::get_connector_by_name(&frm_data.connector_details.connector_name)?;
     let router_data_res = router_data
@@ -160,10 +167,9 @@ where
                     match frm_configs_option {
                         Some(frm_configs_value) => {
                             let frm_configs_struct: Vec<FrmConfigs> = frm_configs_value
-                                .iter()
+                                .into_iter()
                                 .map(|config| { config
-                                    .peek()
-                                    .clone()
+                                    .expose()
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                                         field_name: "frm_configs".to_string(),
@@ -299,21 +305,21 @@ where
                             // Panic Safety: we are first checking if the object is present... only if present, we try to fetch index 0
                             let frm_configs_object = FrmConfigsObject {
                                 frm_enabled_gateway: filtered_frm_config
-                                    .get(0)
+                                    .first()
                                     .and_then(|c| c.gateway),
                                 frm_enabled_pm: filtered_payment_methods
-                                    .get(0)
+                                    .first()
                                     .and_then(|pm| pm.payment_method),
                                 frm_enabled_pm_type: filtered_payment_method_types
-                                    .get(0)
+                                    .first()
                                     .and_then(|pmt| pmt.payment_method_type),
                                 frm_action: filtered_payment_method_types
                                     // .clone()
-                                    .get(0)
+                                    .first()
                                     .map(|pmt| pmt.action.clone())
                                     .unwrap_or(api_enums::FrmAction::ManualReview),
                                 frm_preferred_flow_type: filtered_payment_method_types
-                                    .get(0)
+                                    .first()
                                     .map(|pmt| pmt.flow.clone())
                                     .unwrap_or(api_enums::FrmPreferredFlowTypes::Pre),
                             };
@@ -397,6 +403,7 @@ where
         address: payment_data.address.clone(),
         connector_details: frm_connector_details.clone(),
         order_details,
+        frm_metadata: payment_data.frm_metadata.clone(),
     };
 
     let fraud_check_operation: operation::BoxedFraudCheckOperation<F> =
@@ -722,15 +729,14 @@ pub async fn make_fulfillment_api_call(
         frm_types::FraudCheckFulfillmentData,
         frm_types::FraudCheckResponseData,
     > = connector_data.connector.get_connector_integration();
-    let modified_request_for_api_call = FrmFullfillmentSignifydApiRequest::from(req);
     let router_data = frm_flows::fulfillment_flow::construct_fulfillment_router_data(
         &state,
         &payment_intent,
         &payment_attempt,
         &merchant_account,
         &key_store,
-        "signifyd".to_string(),
-        modified_request_for_api_call,
+        fraud_check.frm_name.clone(),
+        req,
     )
     .await?;
     let response = services::execute_connector_processing_step(

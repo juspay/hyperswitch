@@ -56,6 +56,7 @@ pub struct FrmData {
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub refund: Option<RefundResponse>,
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -79,6 +80,7 @@ pub struct PaymentToFrmData {
     pub address: PaymentAddress,
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,6 +125,14 @@ pub struct FrmFulfillmentRequest {
     ///contains details of the fulfillment
     #[schema(value_type = Vec<Fulfillments>)]
     pub fulfillments: Vec<Fulfillments>,
+    //name of the tracking Company
+    #[schema(max_length = 255, example = "fedex")]
+    pub tracking_company: Option<String>,
+    //tracking ID of the product
+    #[schema(max_length = 255, example = "track_8327446667")]
+    pub tracking_number: Option<String>,
+    //tracking_url for tracking the product
+    pub tracking_url: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
