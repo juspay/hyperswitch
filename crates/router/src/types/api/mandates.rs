@@ -71,7 +71,9 @@ impl MandateResponseExt for MandateResponse {
         } else {
             None
         };
-
+        let payment_method_type = payment_method
+            .payment_method_type
+            .map(|pmt| pmt.to_string());
         Ok(Self {
             mandate_id: mandate.mandate_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
@@ -89,6 +91,7 @@ impl MandateResponseExt for MandateResponse {
             card,
             status: mandate.mandate_status,
             payment_method: payment_method.payment_method.to_string(),
+            payment_method_type,
             payment_method_id: mandate.payment_method_id,
         })
     }

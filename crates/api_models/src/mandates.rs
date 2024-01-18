@@ -36,6 +36,8 @@ pub struct MandateResponse {
     pub payment_method_id: String,
     /// The payment method
     pub payment_method: String,
+    /// The payment method type
+    pub payment_method_type: Option<String>,
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
