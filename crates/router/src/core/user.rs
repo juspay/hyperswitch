@@ -18,6 +18,7 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
     types::domain,
     utils,
+    utils::user::can_delete_user_role,
 };
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -478,7 +479,7 @@ pub async fn delete_user(
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
+                e.change_context(UserErrors::UserNotExist)
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
@@ -501,17 +502,11 @@ pub async fn delete_user(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            if user_role.role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
-                || user_role.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN
-                || user_role.role_id == consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
-            {
-                return Err(UserErrors::InvalidDeleteOperation.into())
-                    .attach_printable("Cannot delete");
-            }
+            let _ = can_delete_user_role(&user_role.role_id);
         }
         None => {
             return Err(UserErrors::InvalidDeleteOperation.into())
-                .attach_printable("User not found");
+                .attach_printable("User role not found");
         }
     };
 
@@ -526,7 +521,7 @@ pub async fn delete_user(
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user role");
 
-        return Ok(ApplicationResponse::StatusOk);
+        Ok(ApplicationResponse::StatusOk)
     } else {
         let _ = state
             .store
@@ -545,7 +540,7 @@ pub async fn delete_user(
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user role");
 
-        return Ok(ApplicationResponse::StatusOk);
+        Ok(ApplicationResponse::StatusOk)
     }
 }
 

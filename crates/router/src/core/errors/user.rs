@@ -54,6 +54,8 @@ pub enum UserErrors {
     MerchantIdParsingError,
     #[error("ChangePasswordError")]
     ChangePasswordError,
+    #[error("UserNotExist")]
+    UserNotExist,
     #[error("InvalidDeleteOperation")]
     InvalidDeleteOperation,
 }
@@ -159,9 +161,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "Old and new password cannot be same",
                 None,
             )),
-            Self::InvalidDeleteOperation => AER::BadRequest(ApiError::new(
+            Self::UserNotExist => AER::BadRequest(ApiError::new(
                 sub_code,
                 30,
+                "User does not exist in records",
+                None,
+            )),
+            Self::InvalidDeleteOperation => AER::BadRequest(ApiError::new(
+                sub_code,
+                31,
                 "Delete Operation Not Supported",
                 None,
             )),

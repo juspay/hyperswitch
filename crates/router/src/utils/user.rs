@@ -4,6 +4,7 @@ use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
+    consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
@@ -110,4 +111,16 @@ pub fn get_dashboard_entry_response(
         verification_days_left,
         user_role: user_role.role_id,
     })
+}
+
+pub fn can_delete_user_role(role_id: &str) -> UserResult<()> {
+    match role_id {
+        consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+        | consts::user_role::ROLE_ID_INTERNAL_ADMIN
+        | consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
+        | consts::user_role::INTERNAL_USER_MERCHANT_ID => {
+            Err(UserErrors::InvalidDeleteOperation.into()).attach_printable("Cannot delete")
+        }
+        _ => Ok(()),
+    }
 }
