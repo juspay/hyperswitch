@@ -114,3 +114,15 @@ jobs:
           else
             echo "PR contains at least one linked issue"
           fi
+
+          while IFS= read -r issue; do
+            # Split `${issue}` by `#` to obtain repository with owner (in `owner/repository` format) and issue number
+            IFS='#' read -r repository_with_owner issue_number <<< "${issue}"
+            issue_state="$(gh issue view --repo "${repository_with_owner}" --json 'state' "${issue_number}" --jq '.state')"
+
+            # Transform `${issue_state}` to lowercase for comparison
+            if [[ "${issue_state,,}" != 'open' ]]; then
+              echo "::error::At least one of the linked issues is not open"
+              exit 1
+            fi
+          done <<< "${linked_issues}"
