@@ -2963,6 +2963,14 @@ impl TempLockerCardSupport {
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASKS_ADDED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::request::add_attributes(
+                "flow",
+                "DeleteTokenizeData",
+            )],
+        );
         Ok(card)
     }
 }
