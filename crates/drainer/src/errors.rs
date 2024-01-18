@@ -11,6 +11,8 @@ pub enum DrainerError {
     ConfigurationError(config::ConfigError),
     #[error("Error while configuring signals: {0}")]
     SignalError(String),
+    #[error("Error while parsing data from the stream: {0:?}")]
+    ParsingError(error_stack::Report<common_utils::errors::ParsingError>),
     #[error("Unexpected error occurred: {0}")]
     UnexpectedError(String),
 }

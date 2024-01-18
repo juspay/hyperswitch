@@ -14,6 +14,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(feature = "olap")]
+use super::blocklist;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
@@ -253,9 +255,10 @@ pub struct Health;
 
 impl Health {
     pub fn server(state: AppState) -> Scope {
-        web::scope("")
+        web::scope("health")
             .app_data(web::Data::new(state))
-            .service(web::resource("/health").route(web::get().to(health)))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
     }
 }
 
@@ -562,6 +565,23 @@ impl PaymentMethods {
             )
             .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
             .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Blocklist;
+
+#[cfg(feature = "olap")]
+impl Blocklist {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/blocklist")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::get().to(blocklist::list_blocked_payment_methods))
+                    .route(web::post().to(blocklist::add_entry_to_blocklist))
+                    .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
+            )
     }
 }
 
@@ -878,6 +898,7 @@ impl User {
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
@@ -900,7 +921,6 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
