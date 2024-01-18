@@ -3569,6 +3569,7 @@ pub struct Evidence {
     pub submit: bool,
 }
 
+// Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe 
 fn get_stripe_sepa_dd_mandate_billing_details(
     billing_details: &Option<payments::BankRedirectBilling>,
     is_customer_initiated_mandate_payment: Option<bool>,
