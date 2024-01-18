@@ -1,4 +1,3 @@
-pub mod models;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -8,7 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as stancer;
 
-use self::models::{
+use self::transformers::{
     CreateCustomerRequest, CreatePaymentRequest, CreateRefundRequest, Customer, Payment, Refund,
     UpdatePaymentRequest,
 };
