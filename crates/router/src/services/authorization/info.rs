@@ -19,7 +19,7 @@ impl PermissionInfo {
             .iter()
             .map(|&per| Self {
                 description: Permission::get_permission_description(&per),
-                enum_name: per
+                enum_name: per,
             })
             .collect()
     }
