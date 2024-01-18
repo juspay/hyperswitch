@@ -921,6 +921,7 @@ impl User {
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
             .service(web::resource("/user/invite").route(web::post().to(invite_user)))
+            .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
