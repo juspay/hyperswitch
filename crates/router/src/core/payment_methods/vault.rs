@@ -984,14 +984,6 @@ pub async fn start_tokenize_data_workflow(
                 .clone()
                 .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?;
-            metrics::TASKS_ADDED_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes(
-                    "flow",
-                    "DeleteTokenizeData",
-                )],
-            );
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
