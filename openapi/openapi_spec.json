@@ -7004,6 +7004,11 @@
             "type": "string",
             "description": "The payment method"
           },
+          "payment_method_type": {
+            "type": "string",
+            "description": "The payment method type",
+            "nullable": true
+          },
           "card": {
             "allOf": [
               {
