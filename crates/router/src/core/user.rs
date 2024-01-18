@@ -804,11 +804,17 @@ pub async fn update_user_details(
     let name = req.name.map(domain::UserName::new).transpose()?;
 
     if let Some(ref preferred_merchant_id) = req.preferred_merchant_id {
-        let user_merchant_accounts =
-            utils::user_role::get_merchant_ids_for_user(&state, user.get_user_id()).await?;
-        if !user_merchant_accounts.contains(preferred_merchant_id) {
-            return Err(UserErrors::MerchantIdNotFound.into());
-        }
+        let _ = state
+            .store
+            .find_user_role_by_user_id_merchant_id(user.get_user_id(), preferred_merchant_id)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
     }
 
     let user_update = storage_user::UserUpdate::AccountUpdate {
