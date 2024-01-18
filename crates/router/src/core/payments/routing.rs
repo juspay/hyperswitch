@@ -227,7 +227,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 
         return Ok(fallback_config);
     };
-    let key = ensure_algorithm_cached_v1(
+    let cached_algorithm = ensure_algorithm_cached_v1(
         state,
         merchant_id,
         &algorithm_id,
@@ -235,12 +235,6 @@ pub async fn perform_static_routing_v1<F: Clone>(
         payment_data.payment_intent.profile_id.clone(),
     )
     .await?;
-    let cached_algorithm: Arc<CachedAlgorithm> = ROUTING_CACHE
-        .get_val(key.as_str())
-        .await
-        .ok_or(errors::RoutingError::CacheMiss)
-        .into_report()
-        .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
 
     Ok(match cached_algorithm.as_ref() {
         CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
@@ -263,7 +257,7 @@ async fn ensure_algorithm_cached_v1(
     merchant_id: &str,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
-) -> RoutingResult<String> {
+) -> RoutingResult<Arc<CachedAlgorithm>> {
     #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
@@ -277,9 +271,13 @@ async fn ensure_algorithm_cached_v1(
     #[cfg(not(feature = "business_profile_routing"))]
     let key = format!("dsl_{merchant_id}");
 
-    let present = ROUTING_CACHE.exists(key.as_str()).await;
+    let cached_algorithm = ROUTING_CACHE
+        .get_val::<Arc<CachedAlgorithm>>(key.as_str())
+        .await;
 
-    if !present {
+    let algorithm = if let Some(algo) = cached_algorithm {
+        algo
+    } else {
         refresh_routing_cache_v1(
             state,
             key.clone(),
@@ -288,9 +286,16 @@ async fn ensure_algorithm_cached_v1(
             profile_id,
         )
         .await?;
+
+        ROUTING_CACHE
+            .get_val(key.as_str())
+            .await
+            .ok_or(errors::RoutingError::CacheMiss)
+            .into_report()
+            .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?
     };
 
-    Ok(key)
+    Ok(algorithm)
 }
 
 pub fn perform_straight_through_routing<F: Clone>(
@@ -452,9 +457,11 @@ pub async fn get_merchant_kgraph<'a>(
     #[cfg(not(feature = "business_profile_routing"))]
     let key = format!("kgraph_{}", key_store.merchant_id);
 
-    let kgraph_present = KGRAPH_CACHE.exists(key.as_str()).await;
+    let cached_kgraph = KGRAPH_CACHE.get_val(key.as_str()).await;
 
-    if !kgraph_present {
+    let kgraph = if let Some(graph) = cached_kgraph {
+        graph
+    } else {
         refresh_kgraph_cache(
             state,
             key_store,
@@ -463,16 +470,16 @@ pub async fn get_merchant_kgraph<'a>(
             profile_id,
         )
         .await?;
-    }
 
-    let cached_kgraph = KGRAPH_CACHE
-        .get_val(key.as_str())
-        .await
-        .ok_or(errors::RoutingError::CacheMiss)
-        .into_report()
-        .attach_printable("when retrieving kgraph")?;
+        KGRAPH_CACHE
+            .get_val(key.as_str())
+            .await
+            .ok_or(errors::RoutingError::CacheMiss)
+            .into_report()
+            .attach_printable("when retrieving kgraph")?
+    };
 
-    Ok(cached_kgraph)
+    Ok(kgraph)
 }
 
 pub async fn refresh_kgraph_cache(
@@ -831,7 +838,7 @@ async fn perform_session_routing_for_pm_type(
     let chosen_connectors = match session_pm_input.routing_algorithm {
         MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => {
             if let Some(ref algorithm_id) = algorithm_ref.algorithm_id {
-                let key = ensure_algorithm_cached_v1(
+                let cached_algorithm = ensure_algorithm_cached_v1(
                     &session_pm_input.state.clone(),
                     merchant_id,
                     algorithm_id,
@@ -839,13 +846,6 @@ async fn perform_session_routing_for_pm_type(
                     session_pm_input.profile_id.clone(),
                 )
                 .await?;
-
-                let cached_algorithm: Arc<CachedAlgorithm> = ROUTING_CACHE
-                    .get_val(key.as_str())
-                    .await
-                    .ok_or(errors::RoutingError::CacheMiss)
-                    .into_report()
-                    .attach_printable("unable to retrieve cached routing algorithm")?;
 
                 match cached_algorithm.as_ref() {
                     CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
