@@ -704,31 +704,7 @@ impl api::IncomingWebhook for Iatapay {
                         Ok(api::IncomingWebhookEvent::EventNotSupported)
                     }
                 }
-            } // match notif.status {
-              //     iatapay::IatapayWebhookStatus::Authorized => match notif.iata_payment_id.is_some() {
-              //         true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
-              //         false => Ok(api::IncomingWebhookEvent::RefundSuccess),
-              //     },
-              //     iatapay::IatapayWebhookStatus::Failed => match notif.iata_payment_id.is_some() {
-              //         true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
-              //         false => Ok(api::IncomingWebhookEvent::RefundFailure),
-              //     },
-              //     iatapay::IatapayWebhookStatus::Settled => {
-              //         Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
-              //     }
-              //     iatapay::IatapayWebhookStatus::Initiated => {
-              //         Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
-              //     }
-              //     iatapay::IatapayWebhookStatus::Created
-              //     | iatapay::IatapayWebhookStatus::Cleared
-              //     | iatapay::IatapayWebhookStatus::Tobeinvestigated
-              //     | iatapay::IatapayWebhookStatus::Blocked
-              //     | iatapay::IatapayWebhookStatus::Locked
-              //     | iatapay::IatapayWebhookStatus::UnexpectedSettled
-              //     | iatapay::IatapayWebhookStatus::Unknown => {
-              //         Ok(api::IncomingWebhookEvent::EventNotSupported)
-              //     }
-              // }
+            }
         }
     }
 
