@@ -258,6 +258,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        crate::logger::debug!("aaaaaaaaaaaaaaaaaaa{:?}", res);
         let response: noon::NoonPaymentsResponse = res
             .response
             .parse_struct("Noon PaymentsAuthorizeResponse")

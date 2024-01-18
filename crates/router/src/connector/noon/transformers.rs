@@ -478,7 +478,7 @@ pub struct NoonSubscriptionResponse {
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
     id: u64,
-    error_code: u64,
+    error_code: Option<u64>,
     error_message: Option<String>,
     reference: Option<String>,
 }
@@ -526,32 +526,36 @@ impl<F, T>
                     payment_method_id: None,
                 });
         let order = item.response.result.order;
+        let status = enums::AttemptStatus::foreign_from((order.status, item.data.status));
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((order.status, item.data.status)),
-            response: match order.error_message {
-                Some(error_message) => Err(ErrorResponse {
-                    code: order.error_code.to_string(),
-                    message: error_message.clone(),
-                    reason: Some(error_message),
+            status,
+            response: if conn_utils::is_payment_failure(status) {
+                Err(ErrorResponse {
+                    code: order.error_code.map_or_else(
+                        || crate::consts::NO_ERROR_CODE.to_string(),
+                        |err_code| err_code.to_string(),
+                    ),
+                    message: order
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| crate::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: order.error_message.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                _ => {
-                    let connector_response_reference_id =
-                        order.reference.or(Some(order.id.to_string()));
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            order.id.to_string(),
-                        ),
-                        redirection_data,
-                        mandate_reference,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id,
-                        incremental_authorization_allowed: None,
-                    })
-                }
+                    connector_transaction_id: Some(order.id.to_string()),
+                })
+            } else {
+                let connector_response_reference_id =
+                    order.reference.or(Some(order.id.to_string()));
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                })
             },
             ..item.data
         })
