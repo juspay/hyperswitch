@@ -740,7 +740,7 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     let billing_details = BankDebitBilling {
         name: name.unwrap_or_default(),
-        email: email,
+        email,
         address: address_details,
     };
 
