@@ -6,8 +6,6 @@ global_meter!(PT_METER, "PROCESS_TRACKER");
 histogram_metric!(CONSUMER_STATS, PT_METER, "CONSUMER_OPS");
 
 counter_metric!(PAYMENT_COUNT, PT_METER); // No. of payments created
-counter_metric!(TASKS_ADDED_COUNT, PT_METER); // Tasks added to process tracker
-counter_metric!(TASKS_RESET_COUNT, PT_METER); // Tasks reset in process tracker for requeue flow
 counter_metric!(TASKS_PICKED_COUNT, PT_METER); // Tasks picked by
 counter_metric!(BATCHES_CREATED, PT_METER); // Batches added to stream
 counter_metric!(BATCHES_CONSUMED, PT_METER); // Batches consumed by consumer

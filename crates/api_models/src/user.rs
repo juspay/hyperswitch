@@ -140,3 +140,16 @@ pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
 }
+
+#[cfg(feature = "recon")]
+#[derive(serde::Serialize, Debug)]
+pub struct VerifyTokenResponse {
+    pub merchant_id: String,
+    pub user_email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateUserAccountDetailsRequest {
+    pub name: Option<Secret<String>>,
+    pub preferred_merchant_id: Option<String>,
+}

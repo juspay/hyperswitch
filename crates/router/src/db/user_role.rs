@@ -14,16 +14,25 @@ pub trait UserRoleInterface {
         &self,
         user_role: storage::UserRoleNew,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
         update: storage::UserRoleUpdate,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
     async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError>;
 
     async fn list_user_roles_by_user_id(
@@ -55,6 +64,22 @@ impl UserRoleInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
+    }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::UserRole::find_by_user_id_merchant_id(
+            &conn,
+            user_id.to_owned(),
+            merchant_id.to_owned(),
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn update_user_role_by_user_id_merchant_id(
@@ -143,6 +168,24 @@ impl UserRoleInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No user role available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+        user_roles
+            .iter()
+            .find(|user_role| user_role.user_id == user_id && user_role.merchant_id == merchant_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No user role available for user_id = {user_id} and merchant_id = {merchant_id}"
                 ))
                 .into(),
             )

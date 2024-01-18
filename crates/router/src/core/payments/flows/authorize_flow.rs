@@ -92,7 +92,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            if resp.request.setup_mandate_details.clone().is_some() {
+            let is_mandate = resp.request.setup_mandate_details.is_some();
+
+            if is_mandate {
                 let payment_method_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
