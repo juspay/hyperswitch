@@ -54,7 +54,7 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Create
             amount,
             router_data,
         } = item;
-        let request = CreatePaymentRequest {
+        let request = Self {
             description: router_data.description.to_owned(),
             order_id: Some(router_data.connector_request_reference_id.to_owned()),
             unique_id: Some(router_data.payment_id.to_owned()),
@@ -67,7 +67,7 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Create
                 },
             ),
             customer: router_data.connector_customer.to_owned(),
-            ..CreatePaymentRequest::new(
+            ..Self::new(
                 *amount,
                 router_data.request.currency.to_string().to_lowercase(),
             )
@@ -78,7 +78,7 @@ impl TryFrom<&StancerRouterData<&types::PaymentsAuthorizeRouterData>> for Create
         );
 
         match &router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(card) => Ok(CreatePaymentRequest {
+            api::PaymentMethodData::Card(card) => Ok(Self {
                 card: Some(
                     CreatePaymentRequestCard {
                         number: card.card_number.to_owned(),
@@ -135,7 +135,7 @@ impl TryFrom<&StancerRouterData<&types::PaymentsCaptureRouterData>> for UpdatePa
         Ok(Self {
             amount: Some(*amount),
             status: Some(update_payment_request::Status::Capture),
-            ..UpdatePaymentRequest::new()
+            ..Self::new()
         })
     }
 }
@@ -230,6 +230,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(id),
+                    incremental_authorization_allowed: None,
                 })
             },
             ..data

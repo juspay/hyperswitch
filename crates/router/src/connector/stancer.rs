@@ -8,6 +8,11 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as stancer;
 
+use self::models::{
+    CreateCustomerRequest, CreatePaymentRequest, CreateRefundRequest, Customer, Payment, Refund,
+    UpdatePaymentRequest,
+};
+use super::utils::{PaymentsSyncRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -25,17 +30,10 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         storage::enums,
-        ErrorResponse, Response,
+        ErrorResponse, RequestContent, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
-
-use self::models::{
-    CreateCustomerRequest, CreatePaymentRequest, CreateRefundRequest, Customer, Payment, Refund,
-    UpdatePaymentRequest,
-};
-
-use super::utils::{PaymentsSyncRequestData, RefundsRequestData};
 
 #[derive(Debug, Clone)]
 pub struct Stancer;
@@ -136,6 +134,7 @@ impl ConnectorCommon for Stancer {
             message: message.to_string(),
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -244,7 +243,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stancer::StancerRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -252,12 +251,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let req_obj = CreatePaymentRequest::try_from(&connector_router_data)?;
-        let stancer_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<CreatePaymentRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stancer_req))
+        // let stancer_req = types::RequestBody::log_and_get_request_body(
+        //     &req_obj,
+        //     utils::Encode::<CreatePaymentRequest>::encode_to_string_of_json,
+        // )
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -275,7 +274,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -405,7 +404,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stancer::StancerRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -413,12 +412,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req,
         ))?;
         let req_obj = UpdatePaymentRequest::try_from(&connector_router_data)?;
-        let stancer_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<UpdatePaymentRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stancer_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -434,7 +428,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -497,7 +491,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stancer::StancerRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -505,12 +499,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req,
         ))?;
         let req_obj = CreateRefundRequest::try_from(&connector_router_data)?;
-        let stancer_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<CreateRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stancer_req))
+        Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
     fn build_request(
@@ -525,7 +514,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -593,7 +582,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(
+                .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -655,14 +644,9 @@ impl
         &self,
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_request = CreateCustomerRequest::try_from(req)?;
-        let stancer_req = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<CreateCustomerRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(stancer_req))
+        Ok(RequestContent::Json(Box::new(connector_request)))
     }
 
     fn build_request(
@@ -679,7 +663,7 @@ impl
             .headers(types::ConnectorCustomerType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::ConnectorCustomerType::get_request_body(
+            .set_body(types::ConnectorCustomerType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

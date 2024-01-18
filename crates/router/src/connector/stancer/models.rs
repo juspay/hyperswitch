@@ -39,8 +39,8 @@ pub mod card {
             exp_month: i32,
             exp_year: i32,
             created: i32,
-        ) -> Card {
-            Card {
+        ) -> Self {
+            Self {
                 id,
                 last4,
                 brand,
@@ -72,7 +72,7 @@ pub mod card {
         Deferred,
     }
     impl Default for Funding {
-        fn default() -> Funding {
+        fn default() -> Self {
             Self::Credit
         }
     }
@@ -86,7 +86,7 @@ pub mod card {
         Corporate,
     }
     impl Default for Nature {
-        fn default() -> Nature {
+        fn default() -> Self {
             Self::Personal
         }
     }
@@ -100,7 +100,7 @@ pub mod card {
         Visa,
     }
     impl Default for Network {
-        fn default() -> Network {
+        fn default() -> Self {
             Self::National
         }
     }
@@ -108,7 +108,7 @@ pub mod card {
 pub use self::card::Card;
 pub mod create_customer_request {
     use super::*;
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
     pub struct CreateCustomerRequest {
         #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
         pub name: Option<String>,
@@ -162,8 +162,8 @@ pub mod create_payment_request {
         pub capture: Option<bool>,
     }
     impl CreatePaymentRequest {
-        pub fn new(amount: i32, currency: String) -> CreatePaymentRequest {
-            CreatePaymentRequest {
+        pub fn new(amount: i32, currency: String) -> Self {
+            Self {
                 amount,
                 currency,
                 description: None,
@@ -189,7 +189,7 @@ pub mod create_payment_request {
         Capture,
     }
     impl Default for Status {
-        fn default() -> Status {
+        fn default() -> Self {
             Self::Authorize
         }
     }
@@ -201,7 +201,7 @@ pub mod create_payment_request {
         Sepa,
     }
     impl Default for MethodsAllowed {
-        fn default() -> MethodsAllowed {
+        fn default() -> Self {
             Self::Card
         }
     }
@@ -215,8 +215,8 @@ pub mod create_payment_request_auth {
         pub return_url: String,
     }
     impl CreatePaymentRequestAuth {
-        pub fn new(return_url: String) -> CreatePaymentRequestAuth {
-            CreatePaymentRequestAuth { return_url }
+        pub fn new(return_url: String) -> Self {
+            Self { return_url }
         }
     }
 }
@@ -240,8 +240,8 @@ pub mod create_payment_request_card {
             cvc: Secret<String>,
             exp_year: Secret<String>,
             exp_month: Secret<String>,
-        ) -> CreatePaymentRequestCard {
-            CreatePaymentRequestCard {
+        ) -> Self {
+            Self {
                 number,
                 cvc,
                 exp_year,
@@ -267,8 +267,8 @@ pub mod create_payment_request_device {
         pub languages: Option<String>,
     }
     impl CreatePaymentRequestDevice {
-        pub fn new(ip: String) -> CreatePaymentRequestDevice {
-            CreatePaymentRequestDevice {
+        pub fn new(ip: String) -> Self {
+            Self {
                 ip,
                 port: None,
                 user_agent: None,
@@ -289,8 +289,8 @@ pub mod create_refund_request {
         pub amount: i32,
     }
     impl CreateRefundRequest {
-        pub fn new(payment: String, amount: i32) -> CreateRefundRequest {
-            CreateRefundRequest { payment, amount }
+        pub fn new(payment: String, amount: i32) -> Self {
+            Self { payment, amount }
         }
     }
 }
@@ -303,8 +303,8 @@ pub mod create_sepa_409_response {
         pub error: Box<CreateSepa409ResponseError>,
     }
     impl CreateSepa409Response {
-        pub fn new(error: CreateSepa409ResponseError) -> CreateSepa409Response {
-            CreateSepa409Response {
+        pub fn new(error: CreateSepa409ResponseError) -> Self {
+            Self {
                 error: Box::new(error),
             }
         }
@@ -321,11 +321,8 @@ pub mod create_sepa_409_response_error {
         pub r#type: String,
     }
     impl CreateSepa409ResponseError {
-        pub fn new(
-            message: CreateSepa409ResponseErrorMessage,
-            r#type: String,
-        ) -> CreateSepa409ResponseError {
-            CreateSepa409ResponseError {
+        pub fn new(message: CreateSepa409ResponseErrorMessage, r#type: String) -> Self {
+            Self {
                 message: Box::new(message),
                 r#type,
             }
@@ -343,8 +340,8 @@ pub mod create_sepa_409_response_error_message {
         pub id: String,
     }
     impl CreateSepa409ResponseErrorMessage {
-        pub fn new(error: String, id: String) -> CreateSepa409ResponseErrorMessage {
-            CreateSepa409ResponseErrorMessage { error, id }
+        pub fn new(error: String, id: String) -> Self {
+            Self { error, id }
         }
     }
 }
@@ -359,8 +356,8 @@ pub mod create_sepa_ibanonly_request {
         pub name: String,
     }
     impl CreateSepaIbanonlyRequest {
-        pub fn new(iban: String, name: String) -> CreateSepaIbanonlyRequest {
-            CreateSepaIbanonlyRequest { iban, name }
+        pub fn new(iban: String, name: String) -> Self {
+            Self { iban, name }
         }
     }
 }
@@ -381,8 +378,8 @@ pub mod create_sepa_request {
         pub date_mandate: Option<i32>,
     }
     impl CreateSepaRequest {
-        pub fn new(name: String, iban: String) -> CreateSepaRequest {
-            CreateSepaRequest {
+        pub fn new(name: String, iban: String) -> Self {
+            Self {
                 name,
                 iban,
                 bic: None,
@@ -407,8 +404,8 @@ pub mod customer {
         pub mobile: Option<String>,
     }
     impl Customer {
-        pub fn new(id: String) -> Customer {
-            Customer {
+        pub fn new(id: String) -> Self {
+            Self {
                 id,
                 name: None,
                 email: None,
@@ -447,8 +444,8 @@ pub mod dispute {
             date_bank: i32,
             payment: String,
             r#type: String,
-        ) -> Dispute {
-            Dispute {
+        ) -> Self {
+            Self {
                 id,
                 amount,
                 created,
@@ -472,11 +469,8 @@ pub mod get_disputes_200_response {
         pub range: Box<GetDisputes200ResponseRange>,
     }
     impl GetDisputes200Response {
-        pub fn new(
-            disputes: Vec<Dispute>,
-            range: GetDisputes200ResponseRange,
-        ) -> GetDisputes200Response {
-            GetDisputes200Response {
+        pub fn new(disputes: Vec<Dispute>, range: GetDisputes200ResponseRange) -> Self {
+            Self {
                 disputes,
                 range: Box::new(range),
             }
@@ -504,14 +498,8 @@ pub mod get_disputes_200_response_range {
         pub unique_id: Option<String>,
     }
     impl GetDisputes200ResponseRange {
-        pub fn new(
-            created: i32,
-            start: i32,
-            end: i32,
-            limit: i32,
-            has_more: bool,
-        ) -> GetDisputes200ResponseRange {
-            GetDisputes200ResponseRange {
+        pub fn new(created: i32, start: i32, end: i32, limit: i32, has_more: bool) -> Self {
+            Self {
                 created,
                 start,
                 end,
@@ -532,8 +520,8 @@ pub mod get_disputes_404_response {
         pub error: Box<GetDisputes404ResponseError>,
     }
     impl GetDisputes404Response {
-        pub fn new(error: GetDisputes404ResponseError) -> GetDisputes404Response {
-            GetDisputes404Response {
+        pub fn new(error: GetDisputes404ResponseError) -> Self {
+            Self {
                 error: Box::new(error),
             }
         }
@@ -550,11 +538,8 @@ pub mod get_disputes_404_response_error {
         pub r#type: String,
     }
     impl GetDisputes404ResponseError {
-        pub fn new(
-            message: GetDisputes404ResponseErrorMessage,
-            r#type: String,
-        ) -> GetDisputes404ResponseError {
-            GetDisputes404ResponseError {
+        pub fn new(message: GetDisputes404ResponseErrorMessage, r#type: String) -> Self {
+            Self {
                 message: Box::new(message),
                 r#type,
             }
@@ -570,8 +555,8 @@ pub mod get_disputes_404_response_error_message {
         pub id: String,
     }
     impl GetDisputes404ResponseErrorMessage {
-        pub fn new(id: String) -> GetDisputes404ResponseErrorMessage {
-            GetDisputes404ResponseErrorMessage { id }
+        pub fn new(id: String) -> Self {
+            Self { id }
         }
     }
 }
@@ -592,8 +577,8 @@ pub mod list_payments_200_response {
             live_mode: bool,
             payments: Vec<Payment>,
             range: ListPayments200ResponseRange,
-        ) -> ListPayments200Response {
-            ListPayments200Response {
+        ) -> Self {
+            Self {
                 live_mode,
                 payments,
                 range: Box::new(range),
@@ -622,14 +607,8 @@ pub mod list_payments_200_response_range {
         pub unique_id: Option<String>,
     }
     impl ListPayments200ResponseRange {
-        pub fn new(
-            created: i32,
-            start: i32,
-            end: i32,
-            has_more: bool,
-            limit: i32,
-        ) -> ListPayments200ResponseRange {
-            ListPayments200ResponseRange {
+        pub fn new(created: i32, start: i32, end: i32, has_more: bool, limit: i32) -> Self {
+            Self {
                 created,
                 start,
                 end,
@@ -684,8 +663,8 @@ pub mod payment {
         pub customer: Option<Box<Customer>>,
     }
     impl Payment {
-        pub fn new(id: String, amount: i32, currency: String, created: i32) -> Payment {
-            Payment {
+        pub fn new(id: String, amount: i32, currency: String, created: i32) -> Self {
+            Self {
                 id,
                 amount,
                 currency,
@@ -715,7 +694,7 @@ pub mod payment {
         Card,
     }
     impl Default for Method {
-        fn default() -> Method {
+        fn default() -> Self {
             Self::Sepa
         }
     }
@@ -741,7 +720,7 @@ pub mod payment {
         ToCapture,
     }
     impl Default for Status {
-        fn default() -> Status {
+        fn default() -> Self {
             Self::Authorized
         }
     }
@@ -753,7 +732,7 @@ pub mod payment {
         Sepa,
     }
     impl Default for MethodsAllowed {
-        fn default() -> MethodsAllowed {
+        fn default() -> Self {
             Self::Card
         }
     }
@@ -771,8 +750,8 @@ pub mod payment_auth {
         pub status: Status,
     }
     impl PaymentAuth {
-        pub fn new(redirect_url: String, return_url: String, status: Status) -> PaymentAuth {
-            PaymentAuth {
+        pub fn new(redirect_url: String, return_url: String, status: Status) -> Self {
+            Self {
                 redirect_url,
                 return_url,
                 status,
@@ -799,7 +778,7 @@ pub mod payment_auth {
         Unavailable,
     }
     impl Default for Status {
-        fn default() -> Status {
+        fn default() -> Self {
             Self::Attempted
         }
     }
@@ -825,8 +804,8 @@ pub mod payment_device {
         pub country: Option<String>,
     }
     impl PaymentDevice {
-        pub fn new(ip: String) -> PaymentDevice {
-            PaymentDevice {
+        pub fn new(ip: String) -> Self {
+            Self {
                 ip,
                 port: None,
                 user_agent: None,
@@ -870,8 +849,8 @@ pub mod refund {
             currency: String,
             status: Status,
             created: i32,
-        ) -> Refund {
-            Refund {
+        ) -> Self {
+            Self {
                 id,
                 payment,
                 amount,
@@ -898,7 +877,7 @@ pub mod refund {
         ToRefund,
     }
     impl Default for Status {
-        fn default() -> Status {
+        fn default() -> Self {
             Self::Failed
         }
     }
@@ -926,8 +905,8 @@ pub mod sepa {
         pub date_mandate: Option<i32>,
     }
     impl Sepa {
-        pub fn new(id: String, name: String, created: i32, last4: String) -> Sepa {
-            Sepa {
+        pub fn new(id: String, name: String, created: i32, last4: String) -> Self {
+            Self {
                 id,
                 name,
                 created,
@@ -961,8 +940,8 @@ pub mod update_payment_request {
         pub status: Option<Status>,
     }
     impl UpdatePaymentRequest {
-        pub fn new() -> UpdatePaymentRequest {
-            UpdatePaymentRequest {
+        pub fn new() -> Self {
+            Self {
                 amount: None,
                 currency: None,
                 order_id: None,
@@ -981,7 +960,7 @@ pub mod update_payment_request {
         Capture,
     }
     impl Default for Status {
-        fn default() -> Status {
+        fn default() -> Self {
             Self::Authorize
         }
     }
@@ -999,8 +978,8 @@ pub mod update_sepa_request {
         pub date_mandate: Option<i32>,
     }
     impl UpdateSepaRequest {
-        pub fn new() -> UpdateSepaRequest {
-            UpdateSepaRequest {
+        pub fn new() -> Self {
+            Self {
                 name: None,
                 mandate: None,
                 date_mandate: None,
