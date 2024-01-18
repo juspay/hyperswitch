@@ -17,9 +17,9 @@ impl PermissionInfo {
     pub fn new(permissions: &[Permission]) -> Vec<Self> {
         permissions
             .iter()
-            .map(|per| Self {
-                description: Permission::get_permission_description(per),
-                enum_name: per.clone(),
+            .map(|&per| Self {
+                description: Permission::get_permission_description(&per),
+                enum_name: per
             })
             .collect()
     }

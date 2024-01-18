@@ -74,7 +74,7 @@ pub async fn get_role_from_token(
             .attach_printable("Invalid Role Id in JWT")?
             .get_permissions()
             .iter()
-            .map(Into::into)
+            .map(|&per| per.into())
             .collect(),
     ))
 }

@@ -43,17 +43,20 @@ pub fn validate_role_id(role_id: &str) -> UserResult<()> {
 pub fn get_role_name_and_permission_response(
     role_info: &RoleInfo,
 ) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
-    role_info
-        .get_permissions()
-        .iter()
-        .map(TryInto::try_into)
-        .collect::<Result<Vec<user_role_api::Permission>, _>>()
-        .ok()
-        .zip(role_info.get_name())
+    role_info.get_name().map(|name| {
+        (
+            role_info
+                .get_permissions()
+                .iter()
+                .map(|&per| per.into())
+                .collect::<Vec<user_role_api::Permission>>(),
+            name,
+        )
+    })
 }
 
-impl From<&Permission> for user_role_api::Permission {
-    fn from(value: &Permission) -> Self {
+impl From<Permission> for user_role_api::Permission {
+    fn from(value: Permission) -> Self {
         match value {
             Permission::PaymentRead => Self::PaymentRead,
             Permission::PaymentWrite => Self::PaymentWrite,
