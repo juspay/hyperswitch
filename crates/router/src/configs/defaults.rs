@@ -4953,8 +4953,26 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             )
                                         ]),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        non_mandate : HashMap::from([
+                                            ("payment_method_data.bank_redirect.sofort.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.sofort.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserCountry {
+                                                    options: vec![
+                                                            "ES".to_string(),
+                                                            "AT".to_string(),
+                                                            "NL".to_string(),
+                                                            "DE".to_string(),
+                                                            "BE".to_string(),
+                                                        ]
+                                                },
+                                                value: None,
+                                            }
+                                        )]),
+                                        common: HashMap::new(
+
+                                        ),
                                     }
                                 ),
                                 (
