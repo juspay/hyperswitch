@@ -105,7 +105,7 @@ impl DashboardMetadata {
         .await
     }
 
-    pub async fn delete_user_scoped_dashboard_metadata(
+    pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
         conn: &PgPooledConn,
         user_id: String,
         merchant_id: String,

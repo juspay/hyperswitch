@@ -18,7 +18,6 @@ use crate::{
     services::{authentication as auth, ApplicationResponse},
     types::domain,
     utils,
-    utils::user::can_delete_user_role,
 };
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -479,7 +478,8 @@ pub async fn delete_user(
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotExist)
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User not found in records")
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
@@ -502,16 +502,16 @@ pub async fn delete_user(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            let _ = can_delete_user_role(&user_role.role_id);
+            utils::user::validate_deletion_permission_for_role_id(&user_role.role_id)?;
         }
         None => {
             return Err(UserErrors::InvalidDeleteOperation.into())
-                .attach_printable("User role not found");
+                .attach_printable("User is not associated with the merchant");
         }
     };
 
     if user_roles.len() > 1 {
-        let _ = state
+        state
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
@@ -519,18 +519,18 @@ pub async fn delete_user(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role");
+            .attach_printable("Error while deleting user role")?;
 
         Ok(ApplicationResponse::StatusOk)
     } else {
-        let _ = state
+        state
             .store
             .delete_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user entry");
+            .attach_printable("Error while deleting user entry")?;
 
-        let _ = state
+        state
             .store
             .delete_user_role_by_user_id_merchant_id(
                 user_from_db.get_user_id(),
@@ -538,7 +538,7 @@ pub async fn delete_user(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role");
+            .attach_printable("Error while deleting user role")?;
 
         Ok(ApplicationResponse::StatusOk)
     }
