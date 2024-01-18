@@ -72,7 +72,7 @@ pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, user: UserFromToken, _| user_role_core::get_role_from_token(state, user),
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
