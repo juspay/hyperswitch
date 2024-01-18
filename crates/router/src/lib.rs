@@ -1,8 +1,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
-#[cfg(feature = "olap")]
-pub mod analytics;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
@@ -17,6 +15,8 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+#[cfg(feature = "olap")]
+pub mod analytics;
 pub mod events;
 pub mod middleware;
 pub mod openapi;
@@ -35,10 +35,8 @@ use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
-use crate::{
-    configs::settings,
-    core::errors::{self},
-};
+pub(crate) use self::macros::*;
+use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -122,6 +120,7 @@ pub fn mk_app(
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
+            .service(routes::Forex::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
@@ -130,9 +129,9 @@ pub fn mk_app(
     #[cfg(feature = "oltp")]
     {
         server_app = server_app
-            .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
+            .service(routes::PaymentMethods::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -144,10 +143,12 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::Blocklist::server(state.clone()))
             .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
+            .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]
@@ -164,6 +165,12 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
+
+    #[cfg(feature = "recon")]
+    {
+        server_app = server_app.service(routes::Recon::server(state.clone()));
+    }
+
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));

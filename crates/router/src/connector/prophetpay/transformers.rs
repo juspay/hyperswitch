@@ -8,6 +8,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{self, to_connector_meta},
+    consts as const_val,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -218,6 +219,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -291,10 +293,19 @@ fn get_card_token(
             let values = param.peek().split('&').collect::<Vec<&str>>();
             for value in values {
                 let pair = value.split('=').collect::<Vec<&str>>();
-                queries.insert(pair[0].to_string(), pair[1].to_string());
+                queries.insert(
+                    pair.first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                    pair.get(1)
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                );
             }
-            queries
+            Ok(queries)
         })
+        .transpose()
+        .into_report()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
@@ -305,8 +316,8 @@ fn get_card_token(
 
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "card_token",
-    })
-    .into_report()
+    }
+    .into())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -406,6 +417,7 @@ impl<F>
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -418,6 +430,7 @@ impl<F>
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -432,7 +445,6 @@ pub struct ProphetpaySyncResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
-    pub response_code: String,
 }
 
 impl<F, T>
@@ -455,6 +467,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -462,11 +475,12 @@ impl<F, T>
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -481,7 +495,6 @@ pub struct ProphetpayVoidResponse {
     pub response_text: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: String,
-    pub response_code: String,
 }
 
 impl<F, T>
@@ -504,6 +517,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -511,11 +525,12 @@ impl<F, T>
             Ok(Self {
                 status: enums::AttemptStatus::VoidFailed,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -576,15 +591,12 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
                 amount: item.amount.to_owned(),
                 card_token: card_token_data.card_token,
                 profile: auth_data.profile_id,
-                ref_info: item.router_data.connector_request_reference_id.to_owned(),
-                inquiry_reference: item.router_data.connector_request_reference_id.clone(),
+                ref_info: item.router_data.request.refund_id.to_owned(),
+                inquiry_reference: item.router_data.request.refund_id.clone(),
                 action_type: ProphetpayActionType::get_action_type(&ProphetpayActionType::Refund),
             })
         } else {
-            Err(errors::ConnectorError::NotImplemented(
-                "Partial Refund is Not Supported".to_string(),
-            )
-            .into())
+            Err(errors::ConnectorError::NotImplemented("Partial Refund".to_string()).into())
         }
     }
 }
@@ -594,8 +606,7 @@ impl<F> TryFrom<&ProphetpayRouterData<&types::RefundsRouterData<F>>> for Prophet
 pub struct ProphetpayRefundResponse {
     pub success: bool,
     pub response_text: String,
-    pub tran_seq_number: String,
-    pub response_code: String,
+    pub tran_seq_number: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
@@ -609,7 +620,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
             Ok(Self {
                 response: Ok(types::RefundsResponseData {
                     // no refund id is generated, tranSeqNumber is kept for future usage
-                    connector_refund_id: item.response.tran_seq_number,
+                    connector_refund_id: item.response.tran_seq_number.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "tran_seq_number",
+                        },
+                    )?,
                     refund_status: enums::RefundStatus::Success,
                 }),
                 ..item.data
@@ -618,11 +633,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })
@@ -635,7 +651,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
 pub struct ProphetpayRefundSyncResponse {
     pub success: bool,
     pub response_text: String,
-    pub response_code: String,
 }
 
 impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
@@ -658,11 +673,12 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
                 response: Err(types::ErrorResponse {
-                    code: item.response.response_code,
+                    code: const_val::NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             })

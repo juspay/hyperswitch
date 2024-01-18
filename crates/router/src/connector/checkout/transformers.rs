@@ -1,12 +1,15 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
+    connector::utils::{
+        self, to_connector_meta, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData,
+        WalletData,
+    },
     consts,
     core::errors,
     services,
@@ -138,7 +141,8 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -240,6 +244,17 @@ pub struct PaymentsRequest {
     pub reference: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutMeta {
+    pub psync_flow: CheckoutPaymentIntent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum CheckoutPaymentIntent {
+    Capture,
+    Authorize,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CheckoutThreeDS {
     enabled: bool,
@@ -303,24 +318,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiry_year_4_digit = Secret::new(format!(
-                                "20{}",
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(0..2)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                            ));
-                            let exp_month = Secret::new(
-                                decrypt_data
-                                    .clone()
-                                    .application_expiration_date
-                                    .peek()
-                                    .get(2..4)
-                                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                                    .to_owned(),
-                            );
+                            let exp_month = decrypt_data.get_expiry_month()?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {
                                     token: decrypt_data.application_primary_account_number,
@@ -375,11 +374,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("checkout"),
-                ))
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+            )),
         }?;
 
         let three_ds = match item.router_data.auth_type {
@@ -477,7 +475,27 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    Self::Charged
+                    Self::Pending
+                } else {
+                    Self::Authorized
+                }
+            }
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
+        }
+    }
+}
+
+impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, CheckoutPaymentIntent)) -> Self {
+        let (status, psync_flow) = item;
+
+        match status {
+            CheckoutPaymentStatus::Authorized => {
+                if psync_flow == CheckoutPaymentIntent::Capture {
+                    Self::Pending
                 } else {
                     Self::Authorized
                 }
@@ -549,6 +567,24 @@ pub struct Balances {
     available_to_capture: i32,
 }
 
+fn get_connector_meta(
+    capture_method: enums::CaptureMethod,
+) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    match capture_method {
+        enums::CaptureMethod::Automatic => Ok(serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        })),
+        enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
+            Ok(serde_json::json!(CheckoutMeta {
+                psync_flow: CheckoutPaymentIntent::Authorize,
+            }))
+        }
+        enums::CaptureMethod::Scheduled => {
+            Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+        }
+    }
+}
+
 impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     for types::PaymentsAuthorizeRouterData
 {
@@ -556,6 +592,9 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta =
+            get_connector_meta(item.data.request.capture_method.unwrap_or_default())?;
+
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
@@ -577,6 +616,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None
@@ -585,11 +625,12 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data,
             mandate_reference: None,
-            connector_metadata: None,
+            connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -609,8 +650,10 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+        let checkout_meta: CheckoutMeta =
+            to_connector_meta(item.data.request.connector_meta.clone())?;
         let status =
-            enums::AttemptStatus::foreign_from((item.response.status, item.response.balances));
+            enums::AttemptStatus::foreign_from((item.response.status, checkout_meta.psync_flow));
         let error_response = if status == enums::AttemptStatus::Failure {
             Some(types::ErrorResponse {
                 status_code: item.http_code,
@@ -625,6 +668,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         } else {
             None
@@ -638,6 +682,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            incremental_authorization_allowed: None,
         };
         Ok(Self {
             status,
@@ -712,6 +757,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             status: response.into(),
             ..item.data
@@ -783,6 +829,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_meta = serde_json::json!(CheckoutMeta {
+            psync_flow: CheckoutPaymentIntent::Capture,
+        });
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 enums::AttemptStatus::Charged,
@@ -805,9 +854,10 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
+                incremental_authorization_allowed: None,
             }),
             status,
             amount_captured,
@@ -976,10 +1026,7 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
         self.status == CheckoutPaymentStatus::Captured
     }
     fn get_amount_captured(&self) -> Option<i64> {
-        match self.amount {
-            Some(amount) => amount.try_into().ok(),
-            None => None,
-        }
+        self.amount.map(Into::into)
     }
 }
 

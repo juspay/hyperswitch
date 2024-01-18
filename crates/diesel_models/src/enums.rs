@@ -2,9 +2,10 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
+        DbCaptureStatus as CaptureStatus, DbConnectorStatus as ConnectorStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
@@ -15,7 +16,8 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind,
+        DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbUserStatus as UserStatus,
     };
 }
 pub use common_enums::*;
@@ -417,11 +419,50 @@ pub enum FraudCheckLastStep {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[diesel_enum(storage_type = "text")]
+#[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum UserStatus {
     Active,
     #[default]
     InvitationSent,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DashboardMetadata {
+    ProductionAgreement,
+    SetupProcessor,
+    ConfigureEndpoint,
+    SetupComplete,
+    FirstProcessorConnected,
+    SecondProcessorConnected,
+    ConfiguredRouting,
+    TestPayment,
+    IntegrationMethod,
+    ConfigurationType,
+    IntegrationCompleted,
+    StripeConnected,
+    PaypalConnected,
+    SpRoutingConfigured,
+    Feedback,
+    ProdIntent,
+    SpTestPayment,
+    DownloadWoocom,
+    ConfigureWoocom,
+    SetupWoocomWebhook,
+    IsMultipleConfiguration,
 }

@@ -97,7 +97,7 @@ impl PaymentAttemptInterface for MockDb {
         #[allow(clippy::as_conversions)]
         let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
-
+        let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
             id,
             payment_id: payment_attempt.payment_id,
@@ -105,6 +105,7 @@ impl PaymentAttemptInterface for MockDb {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
             amount: payment_attempt.amount,
+            net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
@@ -201,6 +202,26 @@ impl PaymentAttemptInterface for MockDb {
             .find(|payment_attempt| {
                 payment_attempt.payment_id == payment_id
                     && payment_attempt.merchant_id == merchant_id
+            })
+            .cloned()
+            .unwrap())
+    }
+    #[allow(clippy::unwrap_used)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        let payment_attempts = self.payment_attempts.lock().await;
+
+        Ok(payment_attempts
+            .iter()
+            .find(|payment_attempt| {
+                payment_attempt.payment_id == payment_id
+                    && payment_attempt.merchant_id == merchant_id
+                    && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                        || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })
             .cloned()
             .unwrap())

@@ -257,7 +257,8 @@ impl
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldline"),
             ))?,
         };
@@ -341,16 +342,21 @@ fn make_card_request(
     req: &PaymentsAuthorizeData,
     ccard: &payments::Card,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
-    let expiry_year = ccard.card_exp_year.peek().clone();
+    let expiry_year = ccard.card_exp_year.peek();
     let secret_value = format!(
         "{}{}",
         ccard.card_exp_month.peek(),
-        &expiry_year[expiry_year.len() - 2..]
+        &expiry_year
+            .get(expiry_year.len() - 2..)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
         card_number: ccard.card_number.clone(),
-        cardholder_name: ccard.card_holder_name.clone(),
+        cardholder_name: ccard
+            .card_holder_name
+            .clone()
+            .unwrap_or(Secret::new("".to_string())),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
@@ -593,6 +599,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -646,6 +653,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
