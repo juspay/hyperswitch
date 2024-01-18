@@ -102,7 +102,8 @@ host = ""                                                             # Locker h
 host_rs = ""                                                          # Rust Locker host
 mock_locker = true                                                    # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"                                           # Key_id to sign basilisk hs locker
-redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key"
+locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
+redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encryption key for redis temp locker
 
 [log.console]
 enabled = true
