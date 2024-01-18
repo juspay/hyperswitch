@@ -509,14 +509,6 @@ client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
 partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
 enabled = true # Switch to enable or disable PayPal onboarding
 
-[frm]
-enabled = true
-
-[paypal_onboarding]
-client_id = "paypal_client_id" # Client ID for PayPal onboarding
-client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
-partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
-enabled = true # Switch to enable or disable PayPal onboarding
 
 [events]
 source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
@@ -531,9 +523,9 @@ connector_logs_topic = "topic"            # Kafka topic to be used for connector
 outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events
 
 # File storage configuration
-[file_storage_config]
-file_storage_scheme = "aws_s3"            # File storage scheme to be used
+[file_storage]
+file_storage_backend = "aws_s3"            # File storage backend to be used
 
-[file_storage_config.aws_s3]
+[file_storage.aws_s3]
 region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage

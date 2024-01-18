@@ -2,12 +2,13 @@
 //! Module for managing file storage operations with support for multiple storage schemes.
 //!
 
+use std::fmt::{Display, Formatter};
+
 use common_utils::{
     errors::{CustomResult, FileStorageError},
     fs_utils,
 };
 use error_stack::ResultExt;
-use storage_impl::errors::ApplicationError;
 
 #[cfg(feature = "aws_s3")]
 use crate::file_storage::aws_s3::{AwsFileStorageClient, AwsFileStorageConfig};
@@ -18,7 +19,7 @@ pub mod aws_s3;
 
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
-#[serde(tag = "file_storage_scheme")]
+#[serde(tag = "file_storage_backend")]
 #[serde(rename_all = "snake_case")]
 pub enum FileStorageConfig {
     /// AWS S3 storage configuration.
@@ -34,22 +35,11 @@ pub enum FileStorageConfig {
 
 impl FileStorageConfig {
     /// Validates the file storage configuration.
-    pub fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => aws_s3.validate(),
             Self::FileSystem => Ok(()),
-        }
-    }
-
-    /// Retrieves the appropriate file storage client based on the configuration.
-    pub async fn get_file_storage_client(&self) -> FileStorageScheme {
-        match self {
-            #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => FileStorageScheme::AwsS3 {
-                client: aws_s3.get_aws_file_storage_client().await,
-            },
-            Self::FileSystem => FileStorageScheme::FileSystem(fs_utils::FileSystem),
         }
     }
 }
@@ -61,7 +51,7 @@ pub enum FileStorageScheme {
     #[cfg(feature = "aws_s3")]
     AwsS3 {
         /// AWS S3 file storage client.
-        client: &'static AwsFileStorageClient,
+        client: AwsFileStorageClient,
     },
     /// Local file system storage client.
     FileSystem(fs_utils::FileSystem),
@@ -71,7 +61,7 @@ impl FileStorageScheme {
     /// Uploads a file to the selected storage scheme.
     pub async fn upload_file(
         &self,
-        file_key: String,
+        file_key: impl AsRef<str>,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError> {
         match self {
@@ -87,7 +77,10 @@ impl FileStorageScheme {
     }
 
     /// Deletes a file from the selected storage scheme.
-    pub async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError> {
+    pub async fn delete_file(
+        &self,
+        file_key: impl AsRef<str>,
+    ) -> CustomResult<(), FileStorageError> {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { client } => client
@@ -101,7 +94,10 @@ impl FileStorageScheme {
     }
 
     /// Retrieves a file from the selected storage scheme.
-    pub async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError> {
+    pub async fn retrieve_file(
+        &self,
+        file_key: impl AsRef<str>,
+    ) -> CustomResult<Vec<u8>, FileStorageError> {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { client } => client
@@ -112,5 +108,17 @@ impl FileStorageScheme {
                 .retrieve_file_from_fs(file_key)
                 .change_context(FileStorageError::RetrieveFailed),
         }
+    }
+}
+
+/// Error thrown when the file storage config is invalid
+#[derive(Debug, Clone)]
+pub struct InvalidFileStorageConfig(&'static str);
+
+impl std::error::Error for InvalidFileStorageConfig {}
+
+impl Display for InvalidFileStorageConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "file_storage: {}", self.0)
     }
 }

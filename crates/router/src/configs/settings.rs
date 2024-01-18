@@ -89,7 +89,7 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
-    pub file_storage_config: FileStorageConfig,
+    pub file_storage: FileStorageConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
@@ -839,7 +839,10 @@ impl Settings {
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
-        self.file_storage_config.validate()?;
+        self.file_storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         self.lock_settings.validate()?;
         self.events.validate()?;
         Ok(())
