@@ -449,9 +449,9 @@ impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
         let (item, current_status) = data;
         match item {
             NoonPaymentStatus::Authorized => Self::Authorized,
+            NoonPaymentStatus::PartiallyCaptured
+            | NoonPaymentStatus::PartiallyRefunded => Self::PartialChargedAndChargeable,
             NoonPaymentStatus::Captured
-            | NoonPaymentStatus::PartiallyCaptured
-            | NoonPaymentStatus::PartiallyRefunded
             | NoonPaymentStatus::Refunded => Self::Charged,
             NoonPaymentStatus::Reversed | NoonPaymentStatus::PartiallyReversed => Self::Voided,
             NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
