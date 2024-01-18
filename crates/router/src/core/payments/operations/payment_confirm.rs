@@ -855,7 +855,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         if is_pm_blocklisted {
             return Err(errors::ApiErrorResponse::PaymentBlockedError {
                 code: 200,
-                message: "The specified Payment failed".to_string(),
+                message: "This payment was blocked".to_string(),
                 status: "Failed".to_string(),
                 reason: "Blocked".to_string(),
             }
