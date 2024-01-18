@@ -46,14 +46,7 @@ impl MandateResponseExt for MandateResponse {
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data
-            let card_details = if !state.conf.locker.locker_enabled {
-                payment_methods::cards::get_card_details_without_locker_fallback(
-                    &payment_method,
-                    key_store.key.get_inner().peek(),
-                    state,
-                )
-                .await?
-            } else {
+            let card_details = if state.conf.locker.locker_enabled {
                 let card = payment_methods::cards::get_card_from_locker(
                     state,
                     &payment_method.customer_id,
@@ -65,6 +58,13 @@ impl MandateResponseExt for MandateResponse {
                 payment_methods::transformers::get_card_detail(&payment_method, card)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while getting card details")?
+            } else {
+                payment_methods::cards::get_card_details_without_locker_fallback(
+                    &payment_method,
+                    key_store.key.get_inner().peek(),
+                    state,
+                )
+                .await?
             };
 
             Some(MandateCardDetails::from(card_details).into_inner())
