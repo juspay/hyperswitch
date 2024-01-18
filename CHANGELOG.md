@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.18.1
+
+### Bug Fixes
+
+- **connector:**
+  - Trustpay zen error mapping ([#3255](https://github.com/juspay/hyperswitch/pull/3255)) ([`e816ccf`](https://github.com/juspay/hyperswitch/commit/e816ccfbdd7b0e24464aa93421e399d63f23b17c))
+  - [Cashtocode] update amount from i64 to f64 in webhook payload ([#3382](https://github.com/juspay/hyperswitch/pull/3382)) ([`059e866`](https://github.com/juspay/hyperswitch/commit/059e86607dc271c25bb3d23f5adfc7d5f21f62fb))
+- **metrics:** Add TASKS_ADDED_COUNT and TASKS_RESET_COUNT metrics in router scheduler flow ([#3189](https://github.com/juspay/hyperswitch/pull/3189)) ([`b4df40d`](https://github.com/juspay/hyperswitch/commit/b4df40db25f6ea743c7a25db47e8f1d8e0d544e3))
+- **user:** Fetch profile_id for sample data ([#3358](https://github.com/juspay/hyperswitch/pull/3358)) ([`2f693ad`](https://github.com/juspay/hyperswitch/commit/2f693ad1fd857280ef30c6cc0297fb926f0e79e8))
+
+### Refactors
+
+- **connector:** [Volt] Refactor Payments and Refunds Webhooks ([#3377](https://github.com/juspay/hyperswitch/pull/3377)) ([`acb3296`](https://github.com/juspay/hyperswitch/commit/acb329672297cd7337d0b0239e4c662257812e8a))
+- **core:** Add locker config to enable or disable locker ([#3352](https://github.com/juspay/hyperswitch/pull/3352)) ([`bd5356e`](https://github.com/juspay/hyperswitch/commit/bd5356e7e7cf61f9d07fe9b67c9c5bb38fddf9c7))
+
+**Full Changelog:** [`2024.01.18.0...2024.01.18.1`](https://github.com/juspay/hyperswitch/compare/2024.01.18.0...2024.01.18.1)
+
+- - -
+
 ## 2024.01.18.0
 
 ### Features
