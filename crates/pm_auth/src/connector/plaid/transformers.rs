@@ -247,7 +247,7 @@ impl<F, T>
                 };
 
             let account_details =
-                types::PaymentMethodTypeDetails::ACH(types::BankAccountDetailsACH {
+                types::PaymentMethodTypeDetails::Ach(types::BankAccountDetailsAch {
                     account_number: Secret::new(ach.account),
                     routing_number: Secret::new(ach.routing),
                 });
@@ -272,7 +272,7 @@ impl<F, T>
                 };
 
             let account_details =
-                types::PaymentMethodTypeDetails::BACS(types::BankAccountDetailsBACS {
+                types::PaymentMethodTypeDetails::Bacs(types::BankAccountDetailsBacs {
                     account_number: Secret::new(bacs.account),
                     sort_code: Secret::new(bacs.sort_code),
                 });
@@ -297,7 +297,7 @@ impl<F, T>
                 };
 
             let account_details =
-                types::PaymentMethodTypeDetails::SEPA(types::BankAccountDetailsSEPA {
+                types::PaymentMethodTypeDetails::Sepa(types::BankAccountDetailsSepa {
                     iban: Secret::new(sepa.iban),
                     bic: Secret::new(sepa.bic),
                 });

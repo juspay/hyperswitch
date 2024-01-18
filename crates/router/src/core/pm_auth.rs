@@ -361,7 +361,7 @@ async fn store_bank_details_in_payment_methods(
 
     for creds in bank_account_details_resp.credentials {
         let (account_number, hash_string) = match creds.account_details {
-            pm_auth_types::PaymentMethodTypeDetails::ACH(ach) => (
+            pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => (
                 ach.account_number.clone(),
                 format!(
                     "{}-{}",
@@ -369,11 +369,11 @@ async fn store_bank_details_in_payment_methods(
                     ach.routing_number.peek()
                 ),
             ),
-            pm_auth_types::PaymentMethodTypeDetails::BACS(bacs) => (
+            pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => (
                 bacs.account_number.clone(),
                 format!("{}-{}", bacs.account_number.peek(), bacs.sort_code.peek()),
             ),
-            pm_auth_types::PaymentMethodTypeDetails::SEPA(sepa) => {
+            pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
                 (sepa.iban.clone(), sepa.iban.expose())
             }
         };
@@ -745,7 +745,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     };
 
     let payment_method_data = match &bank_account.account_details {
-        pm_auth_types::PaymentMethodTypeDetails::ACH(ach) => {
+        pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                 billing_details,
                 account_number: ach.account_number.clone(),
@@ -757,7 +757,7 @@ pub async fn retrieve_payment_method_from_auth_service(
                 bank_holder_type: None,
             })
         }
-        pm_auth_types::PaymentMethodTypeDetails::BACS(bacs) => {
+        pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
             PaymentMethodData::BankDebit(BankDebitData::BacsBankDebit {
                 billing_details,
                 account_number: bacs.account_number.clone(),
@@ -765,7 +765,7 @@ pub async fn retrieve_payment_method_from_auth_service(
                 bank_account_holder_name: None,
             })
         }
-        pm_auth_types::PaymentMethodTypeDetails::SEPA(sepa) => {
+        pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
             PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
                 billing_details,
                 iban: sepa.iban.clone(),

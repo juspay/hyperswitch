@@ -80,24 +80,24 @@ pub struct BankAccountDetails {
 
 #[derive(Debug, Clone)]
 pub enum PaymentMethodTypeDetails {
-    ACH(BankAccountDetailsACH),
-    BACS(BankAccountDetailsBACS),
-    SEPA(BankAccountDetailsSEPA),
+    Ach(BankAccountDetailsAch),
+    Bacs(BankAccountDetailsBacs),
+    Sepa(BankAccountDetailsSepa),
 }
 #[derive(Debug, Clone)]
-pub struct BankAccountDetailsACH {
+pub struct BankAccountDetailsAch {
     pub account_number: Secret<String>,
     pub routing_number: Secret<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct BankAccountDetailsBACS {
+pub struct BankAccountDetailsBacs {
     pub account_number: Secret<String>,
     pub sort_code: Secret<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct BankAccountDetailsSEPA {
+pub struct BankAccountDetailsSepa {
     pub iban: Secret<String>,
     pub bic: Secret<String>,
 }
