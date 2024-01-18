@@ -4451,6 +4451,18 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::Text,
                                                     value: None,
                                                 }
+                                            ),
+                                            (
+                                                "payment_method_data.bank_redirect.giropay.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.giropay.country".to_string(),
+                                                    display_name: "bank_account_iban".to_string(),
+                                                    field_type: enums::FieldType::UserCountry {
+                                                        options: vec![
+                                                                "DE".to_string(),
+                                                        ]},
+                                                    value: None,
+                                                }
                                             )
                                         ]),
                                         common: HashMap::new(),
@@ -4564,7 +4576,7 @@ impl Default for super::settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_redirect.giropay.billing_details.billing_name".to_string(),
                                                 display_name: "billing_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
+                                                field_type: enums::FieldType::UserBillingName,
                                                 value: None,
                                             }
                                         )

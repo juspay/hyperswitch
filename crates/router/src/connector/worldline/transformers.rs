@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, CardData, BankRedirectBillingData},
     core::errors,
     services,
     types::{
@@ -388,11 +388,7 @@ fn make_bank_redirect_request(
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "giropay.billing_details",
                             })?
-                            .billing_name
-                            .clone()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_details.billing_name",
-                            })?,
+                            .get_billing_name()?,
                         iban: bank_account_iban.clone(),
                     },
                 }))
