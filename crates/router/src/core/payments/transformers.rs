@@ -709,6 +709,7 @@ where
                         .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
+                        .set_expires_on(payment_intent.session_expiry)
                         .to_owned(),
                     headers,
                 ))
@@ -775,6 +776,7 @@ where
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 authorization_count: payment_intent.authorization_count,
                 incremental_authorizations: incremental_authorizations_response,
+                expires_on: payment_intent.session_expiry,
                 ..Default::default()
             },
             headers,

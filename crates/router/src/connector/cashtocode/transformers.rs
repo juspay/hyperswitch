@@ -193,7 +193,7 @@ pub struct CashtocodePaymentsResponseData {
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: i64,
+    pub amount: f64,
 }
 
 fn get_redirect_form_data(
@@ -314,7 +314,6 @@ impl<F, T>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(item.response.amount),
             ..item.data
         })
     }
@@ -330,7 +329,7 @@ pub struct CashtocodeErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
-    pub amount: i64,
+    pub amount: f64,
     pub currency: String,
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]

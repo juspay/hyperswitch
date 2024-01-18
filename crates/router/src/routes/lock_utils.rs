@@ -31,6 +31,7 @@ pub enum ApiIdentifier {
     User,
     UserRole,
     ConnectorOnboarding,
+    Recon,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -184,7 +185,14 @@ impl From<Flow> for ApiIdentifier {
                 Self::UserRole
             }
 
-            Flow::GetActionUrl | Flow::SyncOnboardingStatus => Self::ConnectorOnboarding,
+            Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
+                Self::ConnectorOnboarding
+            }
+
+            Flow::ReconMerchantUpdate
+            | Flow::ReconTokenRequest
+            | Flow::ReconServiceRequest
+            | Flow::ReconVerifyToken => Self::Recon,
         }
     }
 }
