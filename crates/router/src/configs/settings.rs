@@ -287,6 +287,15 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+    pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -481,6 +490,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
+    pub locker_enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -499,12 +509,6 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    pub locker_key_identifier1: String,
-    pub locker_key_identifier2: String,
-    pub locker_encryption_key1: String,
-    pub locker_encryption_key2: String,
-    pub locker_decryption_key1: String,
-    pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub rust_locker_encryption_key: String,
     pub vault_private_key: String,

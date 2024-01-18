@@ -344,10 +344,8 @@ impl NewUserMerchant {
                 merchant_details: None,
                 routing_algorithm: None,
                 parent_merchant_id: None,
-                payment_link_config: None,
                 sub_merchants_enabled: None,
                 frm_routing_algorithm: None,
-                intent_fulfillment_time: None,
                 payout_routing_algorithm: None,
                 primary_business_details: None,
                 payment_response_hash_key: None,
@@ -489,6 +487,10 @@ impl NewUser {
 
     pub fn get_new_merchant(&self) -> NewUserMerchant {
         self.new_merchant.clone()
+    }
+
+    pub fn get_password(&self) -> UserPassword {
+        self.password.clone()
     }
 
     pub async fn insert_user_in_db(
@@ -685,8 +687,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = password::generate_password_hash(uuid::Uuid::new_v4().to_string().into())?;
-        let password = UserPassword::new(password)?;
+        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {

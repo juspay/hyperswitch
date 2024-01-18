@@ -126,6 +126,15 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(
+            self.outgoing_webhook_logs_topic.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Kafka Outgoing Webhook Logs topic must not be empty".into(),
+                ))
+            },
+        )?;
+
         Ok(())
     }
 }
