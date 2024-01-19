@@ -7,7 +7,7 @@ use crate::{
     core::{api_locking, user_role as user_role_core},
     services::{
         api,
-        authentication::{self as auth},
+        authentication::{self as auth, UserFromToken},
         authorization::permissions::Permission,
     },
 };
@@ -59,6 +59,20 @@ pub async fn get_role(
         request_payload,
         |state, _: (), req| user_role_core::get_role(state, req),
         &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetRoleFromToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user: UserFromToken, _| user_role_core::get_role_from_token(state, user),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
