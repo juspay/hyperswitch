@@ -49,21 +49,21 @@ The environment-specific `sandbox.toml` file, which contains the Hyperswitch rec
 
 1. Duplicate the `env_specific.toml` file and rename it as `sandbox_config.toml`:
 
-  ```shell
-  cp config/deployments/env_specific.toml config/deployments/sandbox_config.toml
-  ```
+   ```shell
+   cp config/deployments/env_specific.toml config/deployments/sandbox_config.toml
+   ```
 
 2. Update the values in the `sandbox_config.toml` file with the proper values for the sandbox environment:
 
-  ```shell
-  vi config/deployments/sandbox_config.toml
-  ```
+   ```shell
+   vi config/deployments/sandbox_config.toml
+   ```
 
 3. To merge the files you can use `cat`:
 
-  ```shell
-  cat config/deployments/sandbox.toml config/deployments/sandbox_config.toml > config/deployments/sandbox_release.toml
-  ```
+   ```shell
+   cat config/deployments/sandbox.toml config/deployments/sandbox_config.toml > config/deployments/sandbox_release.toml
+   ```
 
 > [!NOTE]
 > You can refer to the [`config.example.toml`][config_example] file to understand the variables that used are in the `env_specific.toml` file.

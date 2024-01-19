@@ -149,8 +149,8 @@ pm_auth_key = "pm_auth_key" # Payment method auth key used for authorization
 redis_expiry = 900          # Redis expiry time in milliseconds
 
 [proxy]
-http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the http traffic which is also used by SES for sending emails
-https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the http traffic which is also used by SES for sending emails
+http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the HTTP traffic
+https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HTTPS traffic
 
 # Redis credentials
 [redis]
