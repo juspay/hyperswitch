@@ -181,9 +181,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails => Self::User,
 
-            Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
-                Self::UserRole
-            }
+            Flow::ListRoles
+            | Flow::GetRole
+            | Flow::GetRoleFromToken
+            | Flow::UpdateUserRole
+            | Flow::GetAuthorizationInfo => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
