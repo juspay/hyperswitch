@@ -112,15 +112,3 @@ pub fn get_dashboard_entry_response(
         user_role: user_role.role_id,
     })
 }
-
-pub fn validate_deletion_permission_for_role_id(role_id: &str) -> UserResult<()> {
-    match role_id {
-        consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
-        | consts::user_role::ROLE_ID_INTERNAL_ADMIN
-        | consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER => {
-            Err(UserErrors::InvalidDeleteOperation.into())
-                .attach_printable("Deletion not allowed for users with specific role id")
-        }
-        _ => Ok(()),
-    }
-}

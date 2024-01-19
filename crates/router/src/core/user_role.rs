@@ -158,7 +158,10 @@ pub async fn delete_user_role(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            utils::user::validate_deletion_permission_for_role_id(&user_role.role_id)?;
+            if !predefined_permissions::is_role_deletable(&user_role.role_id) {
+                return Err(UserErrors::InvalidRoleId.into())
+                    .attach_printable("Deletion not allowed for users with specific role id");
+            }
         }
         None => {
             return Err(UserErrors::InvalidDeleteOperation.into())
