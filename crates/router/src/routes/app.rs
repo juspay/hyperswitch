@@ -841,6 +841,12 @@ impl PaymentLink {
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
             )
+            .service(
+                web::resource("status/{merchant_id}/{payment_id}")
+                    .route(web::get().to(payment_link_status)),
+            )
+        
+            
     }
 }
 
