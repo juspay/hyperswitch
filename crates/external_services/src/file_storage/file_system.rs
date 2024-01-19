@@ -8,9 +8,8 @@ use std::{
     path::PathBuf,
 };
 
-use error_stack::{IntoReport, ResultExt};
-
 use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
 
 /// Constructs the file path for a given file key within the file system.
 /// The file path is generated based on the workspace path and the provided file key.
