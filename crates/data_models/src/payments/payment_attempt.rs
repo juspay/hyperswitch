@@ -194,6 +194,14 @@ impl AttemptAmount {
         self.amount = amount;
         self.net_amount = self.amount + self.get_total_surcharge_amount().unwrap_or(0);
     }
+    pub fn set_surcharge_amount(&mut self, surcharge_amount: i64) {
+        self.surcharge_amount = Some(surcharge_amount);
+        self.net_amount = self.amount + self.get_total_surcharge_amount().unwrap_or(0);
+    }
+    pub fn set_tax_amount(&mut self, tax_amount: i64) {
+        self.tax_amount = Some(tax_amount);
+        self.net_amount = self.amount + self.get_total_surcharge_amount().unwrap_or(0);
+    }
     pub fn get_authorize_amount(&self) -> i64 {
         self.net_amount
     }

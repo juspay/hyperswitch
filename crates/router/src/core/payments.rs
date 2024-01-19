@@ -173,6 +173,10 @@ where
     let mut connector_http_status_code = None;
     let mut external_latency = None;
     if let Some(connector_details) = connector {
+        operation
+            .to_domain()?
+            .populate_payment_data(state, &mut payment_data, &merchant_account)
+            .await?;
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
         let mut frm_info = None;
@@ -1030,11 +1034,6 @@ where
         payment_data.payment_attempt.merchant_connector_id =
             merchant_connector_account.get_mca_id();
     }
-
-    operation
-        .to_domain()?
-        .populate_payment_data(state, payment_data, merchant_account)
-        .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,

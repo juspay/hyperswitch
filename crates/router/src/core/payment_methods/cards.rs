@@ -1088,8 +1088,14 @@ pub async fn list_payment_methods(
     )
     .await?;
 
-    // filter out connectors based on the business country
-    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
+    // filter out connectors based on the business profile and connector types
+    let filtered_mcas = {
+        let filter_list = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
+        filter_list
+            .into_iter()
+            .filter(|mca| mca.connector_type == common_enums::ConnectorType::FizOperations)
+            .collect::<Vec<_>>()
+    };
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
