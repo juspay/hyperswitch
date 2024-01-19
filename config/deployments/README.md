@@ -23,16 +23,16 @@ To learn about what "router", "drainer" and "scheduler" is, please refer to the 
 ### Tree structure
 
 ```text
-config/deployments      # Root directory for the deployment configs
-├── README.md           # This file
-├── drainer.toml        # Config specific to drainer
-├── env_specific.toml   # Config for environment specific values which are meant to be sensitive (to be set by the user)
-├── integration_test.toml          # Config specific to integration_test environment
-├── production.toml     # Config specific to production environment
-├── sandbox.toml        # Config specific to sandbox environment
-└── scheduler           # Directory for scheduler configs
-    ├── consumer.toml   # Config specific to consumer
-    └── producer.toml   # Config specific to producer
+config/deployments            # Root directory for the deployment configs
+├── README.md                 # This file
+├── drainer.toml              # Config specific to drainer
+├── env_specific.toml         # Config for environment specific values which are meant to be sensitive (to be set by the user)
+├── integration_test.toml     # Config specific to integration_test environment
+├── production.toml           # Config specific to production environment
+├── sandbox.toml              # Config specific to sandbox environment
+└── scheduler                 # Directory for scheduler configs
+    ├── consumer.toml         # Config specific to consumer
+    └── producer.toml         # Config specific to producer
 ```
 
 ## Router
