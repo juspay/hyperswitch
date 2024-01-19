@@ -74,13 +74,21 @@ impl ConnectorCommon for Nmi {
             .response
             .parse_struct("StandardResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        // if transaction id is zero(default case), dont fill the connector_transaction_id
+        let connector_transaction_id = if response.transactionid.as_str() == "0" {
+            None
+        } else {
+            Some(response.transactionid)
+        };
+
         Ok(ErrorResponse {
             message: response.responsetext.to_owned(),
             status_code: res.status_code,
             reason: Some(response.responsetext),
             code: response.response_code,
             attempt_status: None,
-            connector_transaction_id: Some(response.transactionid),
+            connector_transaction_id,
         })
     }
 }
