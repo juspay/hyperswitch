@@ -6,7 +6,9 @@ use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{
+        self as connector_util, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
@@ -53,7 +55,7 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(_amount, _currency)?,
+            amount: connector_util::to_currency_base_unit_asf64(_amount, _currency)?,
             router_data: item,
         })
     }
@@ -280,7 +282,7 @@ fn get_iatpay_response(
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
-    let error = if status == enums::AttemptStatus::Failure {
+    let error = if connector_util::is_payment_failure(status) {
         Some(types::ErrorResponse {
             code: response
                 .failure_code
@@ -437,11 +439,31 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+            response: if connector_util::is_refund_failure(refund_status) {
+                Err(types::ErrorResponse {
+                    code: item
+                        .response
+                        .failure_code
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: item
+                        .response
+                        .failure_details
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: item.response.failure_details,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+                })
+            } else {
+                Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.iata_refund_id.to_string(),
+                    refund_status,
+                })
+            },
             ..item.data
         })
     }
