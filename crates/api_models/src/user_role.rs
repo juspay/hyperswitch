@@ -1,3 +1,5 @@
+use crate::user::DashboardEntryResponse;
+
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -91,3 +93,11 @@ pub enum UserStatus {
     Active,
     InvitationSent,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AcceptInvitationRequest {
+    pub merchant_ids: Vec<String>,
+    pub need_dashboard_entry_response: Option<bool>,
+}
+
+pub type AcceptInvitationResponse = DashboardEntryResponse;
