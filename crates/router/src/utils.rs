@@ -712,7 +712,6 @@ where
         enums::IntentStatus::Succeeded
             | enums::IntentStatus::Failed
             | enums::IntentStatus::PartiallyCaptured
-            | enums::IntentStatus::RequiresCapture
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             req,
