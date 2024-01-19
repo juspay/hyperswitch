@@ -474,7 +474,12 @@ pub async fn delete_user(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .store
-        .find_user_by_email(request.email.to_owned().expose().expose().as_str())
+        .find_user_by_email(
+            domain::UserEmail::from_pii_email(request.email)?
+                .get_secret()
+                .expose()
+                .as_str(),
+        )
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
