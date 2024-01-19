@@ -476,11 +476,30 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+            response: if connector_util::is_refund_failure(refund_status) {
+                Err(types::ErrorResponse {
+                    code: item
+                        .response
+                        .failure_code
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: item
+                        .response
+                        .failure_details
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: item.response.failure_details,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+                })
+            } else {
+                Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.iata_refund_id.to_string(),
+                    refund_status,
+                })
+            },
             ..item.data
         })
     }
