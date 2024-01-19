@@ -20,7 +20,7 @@ pub async fn get_authorization_info(
         user_role_api::AuthorizationInfoResponse(
             info::get_authorization_info()
                 .into_iter()
-                .filter_map(|module| module.try_into().ok())
+                .map(Into::into)
                 .collect(),
         ),
     ))
@@ -61,6 +61,22 @@ pub async fn get_role(
         .ok_or(UserErrors::InvalidRoleId)?;
 
     Ok(ApplicationResponse::Json(info))
+}
+
+pub async fn get_role_from_token(
+    _state: AppState,
+    user: auth::UserFromToken,
+) -> UserResponse<Vec<user_role_api::Permission>> {
+    Ok(ApplicationResponse::Json(
+        predefined_permissions::PREDEFINED_PERMISSIONS
+            .get(user.role_id.as_str())
+            .ok_or(UserErrors::InternalServerError.into())
+            .attach_printable("Invalid Role Id in JWT")?
+            .get_permissions()
+            .iter()
+            .map(|&per| per.into())
+            .collect(),
+    ))
 }
 
 pub async fn update_user_role(
