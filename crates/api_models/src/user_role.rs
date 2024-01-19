@@ -1,3 +1,5 @@
+use common_utils::pii;
+
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -88,4 +90,9 @@ pub struct UpdateUserRoleRequest {
 pub enum UserStatus {
     Active,
     InvitationSent,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
 }

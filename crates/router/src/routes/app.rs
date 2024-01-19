@@ -926,7 +926,7 @@ impl User {
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
             )
-            .service(web::resource("/user/delete").route(web::delete().to(delete_user)));
+            .service(web::resource("/user/delete").route(web::delete().to(delete_user_role)));
 
         #[cfg(feature = "dummy_connector")]
         {

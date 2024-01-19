@@ -350,23 +350,6 @@ pub async fn invite_user(
     ))
     .await
 }
-pub async fn delete_user(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    payload: web::Json<user_api::DeleteUserRequest>,
-) -> HttpResponse {
-    let flow = Flow::DeleteUser;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        payload.into_inner(),
-        |state, user, payload| user_core::delete_user(state, payload, user),
-        &auth::JWTAuth(Permission::UsersWrite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
 
 #[cfg(feature = "email")]
 pub async fn verify_email(

@@ -1,6 +1,7 @@
 use api_models::user_role as user_role_api;
 use diesel_models::user_role::UserRoleUpdate;
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use crate::{
     core::errors::{UserErrors, UserResponse},
@@ -10,6 +11,7 @@ use crate::{
         authorization::{info, predefined_permissions},
         ApplicationResponse,
     },
+    types::domain,
     utils,
 };
 
@@ -98,4 +100,86 @@ pub async fn update_user_role(
         })?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn delete_user_role(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+    request: user_role_api::DeleteUserRoleRequest,
+) -> UserResponse<()> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(
+            domain::UserEmail::from_pii_email(request.email)?
+                .get_secret()
+                .expose()
+                .as_str(),
+        )
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User not found in records")
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    if user_from_db.get_user_id() == user_from_token.user_id {
+        return Err(UserErrors::InvalidDeleteOperation.into())
+            .attach_printable("User deleting himself");
+    }
+
+    let user_roles = state
+        .store
+        .list_user_roles_by_user_id(user_from_db.get_user_id())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    match user_roles
+        .iter()
+        .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
+    {
+        Some(user_role) => {
+            utils::user::validate_deletion_permission_for_role_id(&user_role.role_id)?;
+        }
+        None => {
+            return Err(UserErrors::InvalidDeleteOperation.into())
+                .attach_printable("User is not associated with the merchant");
+        }
+    };
+
+    if user_roles.len() > 1 {
+        state
+            .store
+            .delete_user_role_by_user_id_merchant_id(
+                user_from_db.get_user_id(),
+                user_from_token.merchant_id.as_str(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role")?;
+
+        Ok(ApplicationResponse::StatusOk)
+    } else {
+        state
+            .store
+            .delete_user_by_user_id(user_from_db.get_user_id())
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user entry")?;
+
+        state
+            .store
+            .delete_user_role_by_user_id_merchant_id(
+                user_from_db.get_user_id(),
+                user_from_token.merchant_id.as_str(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role")?;
+
+        Ok(ApplicationResponse::StatusOk)
+    }
 }

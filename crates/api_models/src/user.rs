@@ -90,11 +90,6 @@ pub struct InviteUserResponse {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct DeleteUserRequest {
-    pub email: pii::Email,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
