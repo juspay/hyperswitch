@@ -263,12 +263,14 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
-        let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some(BluesnapMetadata {
-                meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
-            }),
-            None => None,
-        };
+        let transaction_meta_data =
+            item.router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|metadata| BluesnapMetadata {
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                });
 
         let (payment_method, card_holder_info) = match item
             .router_data
@@ -621,13 +623,14 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let transaction_meta_data = match item.router_data.request.metadata.as_ref() {
-            Some(metadata) => Some(BluesnapMetadata {
-                meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
-            }),
-
-            None => None,
-        };
+        let transaction_meta_data =
+            item.router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|metadata| BluesnapMetadata {
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                });
 
         let pf_token = item
             .router_data
