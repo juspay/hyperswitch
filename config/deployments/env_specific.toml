@@ -21,8 +21,8 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
 [api_keys]
-# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
-kms_encrypted_hash_key = ""
+kms_encrypted_hash_key = "base64_encoded_ciphertext"                          # Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key. Only applicable when KMS is disabled.
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         # Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
@@ -37,9 +37,9 @@ merchant_cert_key = "apple_pay_merchant_certificate_key"
 applepay_endpoint = "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant"
 
 [connector_onboarding.paypal]
+enabled = true                         # boolean
 client_id = "paypal_client_id"
 client_secret = "paypal_client_secret"
-enabled = true                         # boolean
 partner_id = "paypal_partner_id"
 
 [connector_request_reference_id_config]
@@ -111,7 +111,7 @@ level = "DEBUG"
 log_format = "json"
 
 [log.file]
-enabled = true
+enabled = false
 level = "DEBUG"
 log_format = "json"
 
@@ -149,8 +149,8 @@ pm_auth_key = "pm_auth_key" # Payment method auth key used for authorization
 redis_expiry = 900          # Redis expiry time in milliseconds
 
 [proxy]
-http_url = "http://proxy_http_url"    # Outgoing proxy http URL used by SES for sending emails since SES isn't accessible inside the VPC
-https_url = "https://proxy_https_url" # Outgoing proxy https URL used by SES for sending emails since SES isn't accessible inside the VPC
+http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the http traffic which is also used by SES for sending emails
+https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the http traffic which is also used by SES for sending emails
 
 # Redis credentials
 [redis]
