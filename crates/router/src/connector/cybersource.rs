@@ -785,7 +785,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.is_three_ds() && req.request.is_card() {
+        if req.is_three_ds()
+            && req.request.is_card()
+            && req.request.connector_mandate_id().is_none()
+        {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
                 api::ConnectorCommon::base_url(self, connectors)
@@ -809,7 +812,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        if req.is_three_ds() && req.request.is_card() {
+        if req.is_three_ds()
+            && req.request.is_card()
+            && req.request.connector_mandate_id().is_none()
+        {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
@@ -845,7 +851,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.is_three_ds() && data.request.is_card() {
+        if data.is_three_ds()
+            && data.request.is_card()
+            && data.request.connector_mandate_id().is_none()
+        {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
