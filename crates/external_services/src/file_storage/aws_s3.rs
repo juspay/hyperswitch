@@ -15,9 +15,9 @@ use super::InvalidFileStorageConfig;
 #[serde(default)]
 pub struct AwsFileStorageConfig {
     /// The AWS region to send file uploads
-    pub region: String,
+    region: String,
     /// The AWS s3 bucket to send file uploads
-    pub bucket_name: String,
+    bucket_name: String,
 }
 
 impl AwsFileStorageConfig {
@@ -41,14 +41,14 @@ impl AwsFileStorageConfig {
 #[derive(Debug, Clone)]
 pub struct AwsFileStorageClient {
     /// AWS S3 client
-    pub inner_client: Client,
+    inner_client: Client,
     /// The name of the AWS S3 bucket.
-    pub bucket_name: String,
+    bucket_name: String,
 }
 
 impl AwsFileStorageClient {
     /// Creates a new AWS S3 file storage client.
-    pub async fn new(config: &AwsFileStorageConfig) -> Self {
+    pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
         let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
         Self {
@@ -112,7 +112,7 @@ impl AwsFileStorageClient {
 
 /// Enum representing errors that can occur during AWS S3 file storage operations.
 #[derive(Debug, thiserror::Error)]
-pub enum AwsS3StorageError {
+pub(super) enum AwsS3StorageError {
     /// Error indicating that file upload to S3 failed.
     #[error("File upload to S3 failed {0:?}")]
     UploadFailure(aws_smithy_client::SdkError<PutObjectError>),
@@ -124,10 +124,6 @@ pub enum AwsS3StorageError {
     /// Error indicating that file deletion from S3 failed.
     #[error("File delete from S3 failed {0:?}")]
     DeleteFailure(aws_smithy_client::SdkError<DeleteObjectError>),
-
-    /// Error indicating that invalid file data was received from S3.
-    #[error("Invalid file data received from S3")]
-    InvalidFileRetrieved,
 
     /// Unknown error occurred.
     #[error("Unknown error occurred: {0:?}")]

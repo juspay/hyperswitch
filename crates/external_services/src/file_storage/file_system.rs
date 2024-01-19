@@ -10,7 +10,7 @@ use std::{
 
 use error_stack::{IntoReport, ResultExt};
 
-use crate::errors::CustomResult;
+use common_utils::errors::CustomResult;
 
 /// Constructs the file path for a given file key within the file system.
 /// The file path is generated based on the workspace path and the provided file key.
@@ -43,7 +43,9 @@ impl FileSystem {
         std::fs::create_dir_all(
             file_path
                 .parent()
-                .ok_or(FileSystemStorageError::CreateDirFailed)?,
+                .ok_or(FileSystemStorageError::CreateDirFailed)
+                .into_report()
+                .attach_printable("Failed to obtain parent directory")?,
         )
         .into_report()
         .change_context(FileSystemStorageError::CreateDirFailed)?;

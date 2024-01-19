@@ -54,6 +54,7 @@ services:
       - router_net
     volumes:
       - ./config:/local/config
+      - ./files
     labels:
       logs: "promtail"
     healthcheck:
