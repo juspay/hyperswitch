@@ -10,7 +10,7 @@ use std::{
 
 use error_stack::{IntoReport, ResultExt};
 
-use crate::errors::CustomResult;
+use common_utils::errors::CustomResult;
 
 /// Constructs the file path for a given file key within the file system.
 /// The file path is generated based on the workspace path and the provided file key.
@@ -32,7 +32,7 @@ pub struct FileSystem;
 
 impl FileSystem {
     /// Saves the provided file data to the file system under the specified file key.
-    pub fn save_file_to_fs(
+    pub(super) fn save_file_to_fs(
         &self,
         file_key: impl AsRef<str>,
         file_data: Vec<u8>,
@@ -43,7 +43,9 @@ impl FileSystem {
         std::fs::create_dir_all(
             file_path
                 .parent()
-                .ok_or(FileSystemStorageError::CreateDirFailed)?,
+                .ok_or(FileSystemStorageError::CreateDirFailed)
+                .into_report()
+                .attach_printable("Failed to obtain parent directory")?,
         )
         .into_report()
         .change_context(FileSystemStorageError::CreateDirFailed)?;
@@ -58,7 +60,7 @@ impl FileSystem {
     }
 
     /// Deletes the file associated with the specified file key from the file system.
-    pub fn delete_file_from_fs(
+    pub(super) fn delete_file_from_fs(
         &self,
         file_key: impl AsRef<str>,
     ) -> CustomResult<(), FileSystemStorageError> {
@@ -70,7 +72,7 @@ impl FileSystem {
     }
 
     /// Retrieves the file content associated with the specified file key from the file system.
-    pub fn retrieve_file_from_fs(
+    pub(super) fn retrieve_file_from_fs(
         &self,
         file_key: impl AsRef<str>,
     ) -> CustomResult<Vec<u8>, FileSystemStorageError> {

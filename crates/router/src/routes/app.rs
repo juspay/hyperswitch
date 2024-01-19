@@ -3,12 +3,9 @@ use std::sync::Arc;
 use actix_web::{web, Scope};
 #[cfg(all(feature = "kms", feature = "olap"))]
 use analytics::AnalyticsConfig;
-use common_utils::fs_utils;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-#[cfg(feature = "aws_s3")]
-use external_services::file_storage::aws_s3::AwsFileStorageClient;
-use external_services::file_storage::{FileStorageConfig, FileStorageScheme};
+use external_services::file_storage::FileStorageBackend;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -70,7 +67,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
-    pub file_storage_client: Arc<FileStorageScheme>,
+    pub file_storage_client: Arc<FileStorageBackend>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -134,17 +131,6 @@ pub async fn create_email_client(settings: &settings::Settings) -> impl EmailSer
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
         }
-    }
-}
-
-/// Retrieves the appropriate file storage client based on the file storage configuration.
-async fn get_file_storage_client(file_storage_config: &FileStorageConfig) -> FileStorageScheme {
-    match file_storage_config {
-        #[cfg(feature = "aws_s3")]
-        FileStorageConfig::AwsS3 { aws_s3 } => FileStorageScheme::AwsS3 {
-            client: AwsFileStorageClient::new(aws_s3).await,
-        },
-        FileStorageConfig::FileSystem => FileStorageScheme::FileSystem(fs_utils::FileSystem),
     }
 }
 
@@ -236,7 +222,7 @@ impl AppState {
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
 
-            let file_storage_client = get_file_storage_client(&conf.file_storage).await;
+            let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
             Self {
                 flow_name: String::from("default"),

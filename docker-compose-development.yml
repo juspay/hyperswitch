@@ -61,6 +61,7 @@ services:
       - ./:/app
       - cargo_cache:/cargo_cache
       - router_build_cache:/cargo_build_cache
+      - ./files
     environment:
       - CARGO_HOME=/cargo_cache
       - CARGO_TARGET_DIR=/cargo_build_cache
