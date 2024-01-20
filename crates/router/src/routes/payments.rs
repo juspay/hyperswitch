@@ -8,7 +8,6 @@ use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::{report, IntoReport};
 use router_env::{env, instrument, tracing, types, Flow};
-use serde::de::DeserializeOwned;
 
 use crate::{
     self as app,
@@ -36,38 +35,6 @@ use crate::{
     },
 };
 
-
-#[derive(serde::Deserialize)]
-#[serde(try_from = "serde_json::Value")]
-struct ByteLogger<T>
-{
-    pub inner: T,
-}
-
-impl<'de, T> TryFrom<serde_json::Value> for ByteLogger<T> 
-where T: serde::Deserialize<'de>
-{
-    type Error = serde_json::error::Error;
-
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        let err_msg = format!("Failed to deserialize bytes: {:?}", value);
-        let ser = value.to_string().into_bytes();
-        match serde_json::from_slice(&ser) {
-            Ok(inner) => Ok(Self { inner }),
-            Err(err) => {
-                eprintln!("{}", err_msg);
-                Err(err)
-            },
-        }
-    }
-}
-
-// impl<T> Into<T> for ByteLogger<T>
-// where Self: serde::Deserialize<'static> {
-//     fn into(value: ByteLogger<T>) -> Self {
-//         value.inner
-//     }
-// }
 /// Payments - Create
 ///
 /// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
@@ -131,10 +98,10 @@ where T: serde::Deserialize<'de>
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<ByteLogger<payment_types::PaymentsRequest>>,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
-    let mut payload = json_payload.into_inner().inner;
+    let mut payload = json_payload.into_inner();
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
