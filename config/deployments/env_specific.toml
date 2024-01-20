@@ -151,7 +151,6 @@ redis_expiry = 900          # Redis expiry time in milliseconds
 [proxy]
 http_url = "http://proxy_http_url"    # Outgoing proxy http URL to proxy the HTTP traffic
 https_url = "https://proxy_https_url" # Outgoing proxy https URL to proxy the HTTPS traffic
-idle_pool_connection_timeout = 36000  # Idle pool connection timeout in milliseconds
 
 # Redis credentials
 [redis]
