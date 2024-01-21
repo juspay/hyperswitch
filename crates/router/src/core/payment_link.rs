@@ -154,7 +154,7 @@ pub async fn intiate_payment_link_flow(
             payment_link_status,
             error_code: payment_attempt.error_code,
             error_message: payment_attempt.error_message,
-            redirect:false,
+            redirect: false,
         };
         let js_script = get_js_script(
             api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
@@ -444,15 +444,15 @@ pub async fn get_payment_link_status(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
-        let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &merchant_id,
-                &attempt_id.clone(),
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_intent.payment_id,
+            &merchant_id,
+            &attempt_id.clone(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_link_id = payment_intent
         .payment_link_id
@@ -481,9 +481,12 @@ pub async fn get_payment_link_status(
         }
     };
 
-    let currency = payment_intent.currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "currency",
-    })?;
+    let currency =
+        payment_intent
+            .currency
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "currency",
+            })?;
 
     let amount = currency
         .to_currency_base_unit(payment_intent.amount)
@@ -512,7 +515,7 @@ pub async fn get_payment_link_status(
         payment_link_status,
         error_code: payment_attempt.error_code,
         error_message: payment_attempt.error_message,
-        redirect:true,
+        redirect: true,
     };
     let js_script = get_js_script(
         api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),

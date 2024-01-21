@@ -153,4 +153,3 @@ pub async fn payment_link_status(
     ))
     .await
 }
-

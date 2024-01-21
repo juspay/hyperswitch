@@ -3408,7 +3408,7 @@ pub struct PaymentLinkStatusDetails {
     pub payment_link_status: PaymentLinkStatus,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-    pub redirect: bool
+    pub redirect: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

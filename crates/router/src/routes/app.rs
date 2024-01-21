@@ -845,8 +845,6 @@ impl PaymentLink {
                 web::resource("status/{merchant_id}/{payment_id}")
                     .route(web::get().to(payment_link_status)),
             )
-        
-            
     }
 }
 
