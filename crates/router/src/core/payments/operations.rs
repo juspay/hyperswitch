@@ -10,6 +10,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
+pub mod payments_incremental_authorization;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -22,6 +23,7 @@ pub use self::{
     payment_create::PaymentCreate, payment_reject::PaymentReject,
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payments_incremental_authorization::PaymentIncrementalAuthorization,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -129,6 +131,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R, Ctx>,
         Option<api::PaymentMethodData>,
@@ -152,6 +155,15 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
+
+    async fn populate_payment_data<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -240,11 +252,19 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            merchant_key_store,
+            customer,
+        )
+        .await
     }
 }
 
@@ -290,6 +310,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -352,6 +373,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -404,6 +426,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest, Ctx>,
         Option<api::PaymentMethodData>,

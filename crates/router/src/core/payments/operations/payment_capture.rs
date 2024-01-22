@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "capture")]
+#[operation(operations = "all", flow = "capture")]
 pub struct PaymentCapture;
 
 #[async_trait]
@@ -124,7 +124,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
@@ -215,6 +215,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -251,20 +254,29 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
-        payment_data.payment_attempt = match &payment_data.multiple_capture_data {
-            Some(multiple_capture_data) => db
-                .store
+        payment_data.payment_attempt = if payment_data.multiple_capture_data.is_some()
+            || payment_data.payment_attempt.amount_to_capture.is_some()
+        {
+            let multiple_capture_count = payment_data
+                .multiple_capture_data
+                .as_ref()
+                .map(|multiple_capture_data| multiple_capture_data.get_captures_count())
+                .transpose()?;
+            let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
+            db.store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt,
-                    storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
-                        multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                    storage::PaymentAttemptUpdate::CaptureUpdate {
+                        amount_to_capture,
+                        multiple_capture_count,
                         updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            None => payment_data.payment_attempt,
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        } else {
+            payment_data.payment_attempt
         };
         Ok((Box::new(self), payment_data))
     }

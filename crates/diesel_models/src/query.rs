@@ -1,11 +1,16 @@
 pub mod address;
 pub mod api_keys;
+pub mod blocklist_lookup;
 pub mod business_profile;
 mod capture;
 pub mod cards_info;
 pub mod configs;
 
+pub mod authorization;
+pub mod blocklist;
+pub mod blocklist_fingerprint;
 pub mod customers;
+pub mod dashboard_metadata;
 pub mod dispute;
 pub mod events;
 pub mod file;

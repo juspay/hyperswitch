@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{api_keys, api_locking},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api as api_types,
 };
 
@@ -57,6 +57,7 @@ pub async fn api_key_create(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::ApiKeyWrite,
             },
             req.headers(),
         ),
@@ -101,6 +102,7 @@ pub async fn api_key_retrieve(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::ApiKeyRead,
             },
             req.headers(),
         ),
@@ -138,7 +140,7 @@ pub async fn api_key_update(
     let (merchant_id, key_id) = path.into_inner();
     let mut payload = json_payload.into_inner();
     payload.key_id = key_id;
-    payload.merchant_id = merchant_id;
+    payload.merchant_id = merchant_id.clone();
 
     api::server_wrap(
         flow,
@@ -146,7 +148,14 @@ pub async fn api_key_update(
         &req,
         payload,
         |state, _, payload| api_keys::update_api_key(state, payload),
-        &auth::AdminApiAuth,
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::ApiKeyWrite,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -189,6 +198,7 @@ pub async fn api_key_revoke(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::ApiKeyWrite,
             },
             req.headers(),
         ),
@@ -237,7 +247,10 @@ pub async fn api_key_list(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::ApiKeyRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

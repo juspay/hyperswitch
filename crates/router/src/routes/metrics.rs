@@ -6,7 +6,9 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 #[cfg(feature = "kms")]
-counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
+counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
+#[cfg(feature = "kms")]
+counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
@@ -85,6 +87,7 @@ counter_metric!(CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT, GLOBAL_METER);
 
 // Service Level
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
+counter_metric!(CARD_LOCKER_SUCCESSFUL_RESPONSE, GLOBAL_METER);
 counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
@@ -109,6 +112,9 @@ counter_metric!(AUTO_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_PAYMENT_COUNT, GLOBAL_METER);
+
+counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
+counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
 pub mod request;
 pub mod utils;

@@ -4,8 +4,6 @@ use common_utils::{
     generate_id_with_default_len,
 };
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "basilisk")]
-use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -23,11 +21,7 @@ use crate::{
     },
     utils::{self, StringExt},
 };
-#[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, settings};
 const VAULT_SERVICE_NAME: &str = "CARD";
-#[cfg(feature = "basilisk")]
-const VAULT_VERSION: &str = "0";
 
 pub struct SupplementaryVaultData {
     pub customer_id: Option<String>,
@@ -51,7 +45,10 @@ impl Vaultable for api::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            name_on_card: Some(self.card_holder_name.peek().clone()),
+            name_on_card: self
+                .card_holder_name
+                .as_ref()
+                .map(|name| name.peek().clone()),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -99,7 +96,7 @@ impl Vaultable for api::Card {
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
+            card_holder_name: value1.name_on_card.map(masking::Secret::new),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
@@ -354,7 +351,7 @@ impl Vaultable for api::CardPayout {
             card_number: self.card_number.peek().clone(),
             exp_year: self.expiry_year.peek().clone(),
             exp_month: self.expiry_month.peek().clone(),
-            name_on_card: Some(self.card_holder_name.peek().clone()),
+            name_on_card: self.card_holder_name.clone().map(|n| n.peek().to_string()),
             nickname: None,
             card_last_four: None,
             card_token: None,
@@ -400,7 +397,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.unwrap_or_default().into(),
+            card_holder_name: value1.name_on_card.map(masking::Secret::new),
         };
 
         let supp_data = SupplementaryVaultData {
@@ -424,9 +421,9 @@ pub struct TokenizedBankSensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankInsensitiveValues {
     pub customer_id: Option<String>,
-    pub bank_name: String,
-    pub bank_country_code: api::enums::CountryAlpha2,
-    pub bank_city: String,
+    pub bank_name: Option<String>,
+    pub bank_country_code: Option<api::enums::CountryAlpha2>,
+    pub bank_city: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -705,7 +702,8 @@ impl Vault {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting Value2 for locker")?;
 
-        let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
+        let lookup_key =
+            token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
         let lookup_key = create_tokenize(
             state,
@@ -803,11 +801,6 @@ pub async fn create_tokenize(
         }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
-
-            #[cfg(feature = "basilisk")]
-            return old_create_tokenize(state, value1, value2, lookup_key).await;
-
-            #[cfg(not(feature = "basilisk"))]
             Err(err)
         }
     }
@@ -871,11 +864,6 @@ pub async fn get_tokenized_data(
         }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
-
-            #[cfg(feature = "basilisk")]
-            return old_get_tokenized_data(state, lookup_key, _should_get_value2).await;
-
-            #[cfg(not(feature = "basilisk"))]
             Err(err)
         }
     }
@@ -922,11 +910,6 @@ pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -
         }
         Err(err) => {
             logger::error!("Redis Temp locker Failed: {:?}", err);
-
-            #[cfg(feature = "basilisk")]
-            return old_delete_tokenized_data(state, lookup_key).await;
-
-            #[cfg(not(feature = "basilisk"))]
             Err(err)
         }
     }
@@ -1044,7 +1027,18 @@ pub async fn retry_delete_tokenize(
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
+        Some(s_time) => {
+            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes(
+                    "flow",
+                    "DeleteTokenizeData",
+                )],
+            );
+            retry_schedule
+        }
         None => {
             pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
@@ -1053,246 +1047,3 @@ pub async fn retry_delete_tokenize(
 }
 
 // Fallback logic of old temp locker needs to be removed later
-
-#[cfg(feature = "basilisk")]
-async fn get_locker_jwe_keys(
-    keys: &settings::ActiveKmsSecrets,
-) -> CustomResult<(String, String), errors::EncryptionError> {
-    let keys = keys.jwekey.peek();
-    let key_id = get_key_id(keys);
-    let (public_key, private_key) = if key_id == keys.locker_key_identifier1 {
-        (&keys.locker_encryption_key1, &keys.locker_decryption_key1)
-    } else if key_id == keys.locker_key_identifier2 {
-        (&keys.locker_encryption_key2, &keys.locker_decryption_key2)
-    } else {
-        return Err(errors::EncryptionError.into());
-    };
-
-    Ok((public_key.to_string(), private_key.to_string()))
-}
-
-#[cfg(feature = "basilisk")]
-#[instrument(skip(state, value1, value2))]
-pub async fn old_create_tokenize(
-    state: &routes::AppState,
-    value1: String,
-    value2: Option<String>,
-    lookup_key: String,
-) -> RouterResult<String> {
-    let payload_to_be_encrypted = api::TokenizePayloadRequest {
-        value1,
-        value2: value2.unwrap_or_default(),
-        lookup_key,
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = utils::Encode::<api::TokenizePayloadRequest>::encode_to_string_of_json(
-        &payload_to_be_encrypted,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
-
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some(VAULT_VERSION.to_string()),
-    };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making tokenize request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    match response {
-        Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let alg = jwe::RSA_OAEP_256;
-            let decrypted_payload = services::decrypt_jwe(
-                &resp.payload,
-                services::KeyIdCheck::RequestResponseKeyId((
-                    get_key_id(&state.conf.jwekey),
-                    &resp.key_id,
-                )),
-                private_key,
-                alg,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
-            let get_response: api::GetTokenizePayloadResponse = decrypted_payload
-                .parse_struct("GetTokenizePayloadResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting GetTokenizePayloadResponse from tokenize response",
-                )?;
-            Ok(get_response.lookup_key)
-        }
-        Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
-        }
-    }
-}
-
-#[cfg(feature = "basilisk")]
-pub async fn old_get_tokenized_data(
-    state: &routes::AppState,
-    lookup_key: &str,
-    should_get_value2: bool,
-) -> RouterResult<api::TokenizePayloadRequest> {
-    metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-    let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
-        lookup_key: lookup_key.to_string(),
-        get_value2: should_get_value2,
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
-
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some("0".to_string()),
-    };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize/get",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making Get Tokenized request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    match response {
-        Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let alg = jwe::RSA_OAEP_256;
-            let decrypted_payload = services::decrypt_jwe(
-                &resp.payload,
-                services::KeyIdCheck::RequestResponseKeyId((
-                    get_key_id(&state.conf.jwekey),
-                    &resp.key_id,
-                )),
-                private_key,
-                alg,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted")?;
-            let get_response: api::TokenizePayloadRequest = decrypted_payload
-                .parse_struct("TokenizePayloadRequest")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
-            Ok(get_response)
-        }
-        Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            match err.status_code {
-                404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "Token is invalid or expired".into(),
-                }
-                .into()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable(format!("Got error from the basilisk locker: {err:?}")),
-            }
-        }
-    }
-}
-
-#[cfg(feature = "basilisk")]
-pub async fn old_delete_tokenized_data(
-    state: &routes::AppState,
-    lookup_key: &str,
-) -> RouterResult<()> {
-    metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
-    let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
-        lookup_key: lookup_key.to_string(),
-        service_name: VAULT_SERVICE_NAME.to_string(),
-    };
-    let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
-
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
-    let create_tokenize_request = api::TokenizePayloadEncrypted {
-        payload: encrypted_payload,
-        key_id: get_key_id(&state.conf.jwekey).to_string(),
-        version: Some("0".to_string()),
-    };
-    let request = payment_methods::mk_crud_locker_request(
-        &state.conf.locker,
-        "/tokenize/delete/token",
-        create_tokenize_request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Making Delete Tokenized request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while making /tokenize/delete/token call to the locker")?;
-    match response {
-        Ok(r) => {
-            let _delete_response = std::str::from_utf8(&r.response)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for basilisk delete response")?;
-            Ok(())
-        }
-        Err(err) => {
-            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
-        }
-    }
-}
-
-#[cfg(feature = "basilisk")]
-pub fn get_key_id(keys: &settings::Jwekey) -> &str {
-    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
-    if key_identifier == "1" {
-        &keys.locker_key_identifier1
-    } else {
-        &keys.locker_key_identifier2
-    }
-}

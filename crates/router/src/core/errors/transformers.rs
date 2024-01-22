@@ -65,7 +65,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
-                AER::BadRequest(ApiError::new("IR", 13, "Refund amount exceeds the payment amount", None))
+                AER::BadRequest(ApiError::new("IR", 13, "The refund amount exceeds the amount captured", None))
             }
             Self::PaymentUnexpectedState {
                 current_flow,
@@ -187,6 +187,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.clone()), ..Default::default() })))
             }
             Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 3, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
+            Self::PaymentBlocked => AER::BadRequest(ApiError::new("HE", 3, "The payment is blocked", None)),
             Self::SuccessfulPaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
             }
@@ -269,6 +270,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidConnectorConfiguration {config} => {
                 AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
+            }
+            Self::CurrencyConversionFailed => {
+                AER::Unprocessable(ApiError::new("HE", 2, "Failed to convert currency to minor unit", None))
             }
         }
     }

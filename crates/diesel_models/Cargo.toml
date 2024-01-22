@@ -17,8 +17,8 @@ diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }

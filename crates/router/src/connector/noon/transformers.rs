@@ -1,5 +1,5 @@
 use common_utils::pii;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{
         self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
-    core::errors,
+    core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
     utils,
@@ -30,11 +30,13 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -91,7 +93,7 @@ pub struct NoonSubscription {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCard {
-    name_on_card: Secret<String>,
+    name_on_card: Option<Secret<String>>,
     number_plain: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -158,7 +160,7 @@ pub struct NoonPayPal {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "data")]
+#[serde(tag = "type", content = "data", rename_all = "UPPERCASE")]
 pub enum NoonPaymentData {
     Card(NoonCard),
     Subscription(NoonSubscription),
@@ -284,7 +286,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Reward {}
                     | api::PaymentMethodData::Upi(_)
                     | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_) => {
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                             connector: "Noon",
@@ -292,7 +295,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     }
                 }?,
                 Some(item.request.currency),
-                item.request.order_category.clone(),
+                Some(item.request.order_category.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_category",
+                    },
+                )?),
             ),
         };
 
@@ -326,17 +333,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some((
-                NoonSubscriptionData {
-                    subscription_type: NoonSubscriptionType::Unscheduled,
-                    name: name.clone(),
-                },
-                true,
-            )) {
-                Some((a, b)) => (Some(a), Some(b)),
-                None => (None, None),
-            };
+        let subscription = item
+            .request
+            .get_setup_mandate_details()
+            .map(|mandate_data| {
+                let max_amount = match &mandate_data.mandate_type {
+                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
+                    }
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage.mandate_data.mandate_type",
+                    })
+                    .into_report(),
+                }?;
+
+                Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(
+                    NoonSubscriptionData {
+                        subscription_type: NoonSubscriptionType::Unscheduled,
+                        name: name.clone(),
+                        max_amount,
+                    },
+                )
+            })
+            .transpose()?;
+
+        let tokenize_c_c = subscription.is_some().then_some(true);
+
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
@@ -512,6 +535,7 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -525,6 +549,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
+                        incremental_authorization_allowed: None,
                     })
                 }
             },

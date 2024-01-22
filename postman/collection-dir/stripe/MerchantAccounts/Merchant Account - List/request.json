@@ -27,14 +27,18 @@
     }
   ],
   "url": {
-    "raw": "{{baseUrl}}/accounts/list",
-    "host": ["{{baseUrl}}"],
-    "path": ["accounts", "list"],
+    "raw": "{{baseUrl}}/accounts/list?organization_id={{organization_id}}",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "accounts",
+      "list"
+    ],
     "query": [
       {
         "key": "organization_id",
-        "value": "{{organization_id}}",
-        "disabled": false
+        "value": "{{organization_id}}"
       }
     ],
     "variable": [

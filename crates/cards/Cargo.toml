@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 error-stack = "0.3.1"
 luhn = "1.0.1"
-serde = { version = "1.0.163", features = ["derive"] }
+serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.40"
 time = "0.3.21"
 
@@ -20,5 +20,8 @@ time = "0.3.21"
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+
 [dev-dependencies]
-serde_json = "1.0.96"
+serde_json = "1.0.108"

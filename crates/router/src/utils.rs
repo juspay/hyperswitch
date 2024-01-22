@@ -1,11 +1,17 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
+pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
-#[cfg(feature = "olap")]
-pub mod user;
-
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+#[cfg(feature = "olap")]
+pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 use std::fmt::Debug;
 
@@ -187,16 +193,6 @@ impl QrImage {
         Ok(Self {
             data: image_data_source,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
     }
 }
 
@@ -405,6 +401,7 @@ pub fn handle_json_response_deserialization_failure(
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }
@@ -795,5 +792,15 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
     }
 }

@@ -42,7 +42,7 @@ fn get_payment_method_data() -> api::Card {
         card_number: cards::CardNumber::from_str("5424000000000015").unwrap(),
         card_exp_month: Secret::new("02".to_string()),
         card_exp_year: Secret::new("2035".to_string()),
-        card_holder_name: Secret::new("John Doe".to_string()),
+        card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
         card_cvc: Secret::new("123".to_string()),
         ..Default::default()
     }
