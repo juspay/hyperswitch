@@ -679,7 +679,8 @@ pub async fn list_merchant_ids_for_user(
     state: AppState,
     user: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
-    let merchant_ids = utils::user_role::get_merchant_ids_for_user(&state, &user.user_id).await?;
+    let merchant_ids =
+        utils::user_role::get_active_merchant_ids_for_user(&state, &user.user_id).await?;
 
     let merchant_accounts = state
         .store
@@ -693,6 +694,7 @@ pub async fn list_merchant_ids_for_user(
             .map(|acc| user_api::UserMerchantAccount {
                 merchant_id: acc.merchant_id,
                 merchant_name: acc.merchant_name,
+                is_active: true,
             })
             .collect(),
     ))

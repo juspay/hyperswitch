@@ -49,14 +49,7 @@ pub enum SignInResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct MerchantSelectResponse {
     pub token: Secret<String>,
-    pub merchants: Vec<MerchantDetails>,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct MerchantDetails {
-    pub merchant_id: String,
-    pub company_name: Option<Secret<String>>,
-    pub is_active: bool,
+    pub merchants: Vec<UserMerchantAccount>,
 }
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
@@ -157,6 +150,7 @@ pub struct SendVerifyEmailRequest {
 pub struct UserMerchantAccount {
     pub merchant_id: String,
     pub merchant_name: OptionalEncryptableName,
+    pub is_active: bool,
 }
 
 #[cfg(feature = "recon")]

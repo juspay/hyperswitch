@@ -870,7 +870,7 @@ impl SignInWithRoleStrategyType {
         if let Some(preferred_merchant_id) = user.get_preferred_merchant_id() {
             let user_role = state
                 .store
-                .find_user_role_by_user_id_merchant_id(&user.get_user_id(), &preferred_merchant_id)
+                .find_user_role_by_user_id_merchant_id(user.get_user_id(), &preferred_merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
@@ -933,10 +933,16 @@ pub struct SignInWithMultipleRolesStrategy {
 #[async_trait::async_trait]
 impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
     async fn get_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let user_roles = self
+            .user_roles
+            .into_iter()
+            .filter(|x| x.status == UserStatus::InvitationSent)
+            .collect::<Vec<_>>();
+
         let merchant_accounts = state
             .store
             .list_multiple_merchant_accounts(
-                self.user_roles
+                user_roles
                     .iter()
                     .map(|role| role.merchant_id.clone())
                     .collect(),
@@ -946,16 +952,10 @@ impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
 
         let merchant_details = merchant_accounts
             .into_iter()
-            .map(|account| user_api::MerchantDetails {
+            .map(|account| user_api::UserMerchantAccount {
                 merchant_id: account.merchant_id.clone(),
-                company_name: account.merchant_name.map(|name| name.into_inner()),
-                is_active: self
-                    .user_roles
-                    .iter()
-                    .find(|x| x.merchant_id == account.merchant_id)
-                    .unwrap()
-                    .status
-                    == UserStatus::Active,
+                merchant_name: account.merchant_name,
+                is_active: false,
             })
             .collect::<Vec<_>>();
 
@@ -963,7 +963,7 @@ impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
             user_api::MerchantSelectResponse {
                 token: auth::UserAuthToken::new_token(
                     self.user.get_user_id().to_string(),
-                    &*state.conf,
+                    &state.conf,
                 )
                 .await?
                 .into(),
