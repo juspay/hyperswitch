@@ -1254,6 +1254,7 @@ pub async fn get_connector_default(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     db: &dyn StorageInterface,
