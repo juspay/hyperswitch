@@ -43,6 +43,7 @@ pub trait PaymentMethodRetrieve {
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>>;
 }
 
@@ -126,6 +127,7 @@ impl PaymentMethodRetrieve for Oss {
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_token_data: Option<&CardToken>,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<(payments::PaymentMethodData, enums::PaymentMethod)>> {
         match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -178,6 +180,7 @@ impl PaymentMethodRetrieve for Oss {
                     merchant_key_store,
                     auth_token,
                     payment_intent,
+                    customer,
                 )
                 .await
             }

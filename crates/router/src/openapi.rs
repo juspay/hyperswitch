@@ -119,6 +119,9 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::gsm::get_gsm_rule,
         crate::routes::gsm::update_gsm_rule,
         crate::routes::gsm::delete_gsm_rule,
+        crate::routes::blocklist::add_entry_to_blocklist,
+        crate::routes::blocklist::list_blocked_payment_methods,
+        crate::routes::blocklist::remove_entry_from_blocklist
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -370,7 +373,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkStatus
+        api_models::payments::PaymentLinkStatus,
+        api_models::blocklist::BlocklistRequest,
+        api_models::blocklist::BlocklistResponse,
+        api_models::blocklist::ListBlocklistQuery,
+        common_enums::enums::BlocklistDataKind
     )),
     modifiers(&SecurityAddon)
 )]
