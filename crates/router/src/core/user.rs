@@ -570,7 +570,6 @@ async fn handle_new_user_invitation(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-
     let invitation_status = if cfg!(feature = "email") {
         UserStatus::InvitationSent
     } else {
