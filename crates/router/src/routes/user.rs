@@ -403,3 +403,21 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
     ))
     .await
 }
+
+pub async fn update_user_account_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UpdateUserAccountDetailsRequest>,
+) -> HttpResponse {
+    let flow = Flow::UpdateUserAccountDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        user_core::update_user_details,
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
