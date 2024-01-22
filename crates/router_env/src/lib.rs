@@ -52,6 +52,7 @@ pub enum AnalyticsFlow {
     GenerateRefundReport,
     GetApiEventMetrics,
     GetApiEventFilters,
+    GetConnectorEvents,
     GetOutgoingWebhookEvents,
 }
 
