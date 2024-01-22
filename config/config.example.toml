@@ -131,6 +131,7 @@ host_rs = ""                   # Rust Locker host
 mock_locker = true             # Emulate a locker locally using Postgres
 basilisk_host = ""             # Basilisk host
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
+locker_enabled = true         # Boolean to enable or disable saving cards in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -339,7 +340,7 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
@@ -351,6 +352,8 @@ stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
+bankofamerica = {payment_method = "card"}
+cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
 
 [dummy_connector]

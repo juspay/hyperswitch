@@ -145,6 +145,7 @@ impl UserInterface for MockDb {
             is_verified: user_data.is_verified,
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
+            preferred_merchant_id: user_data.preferred_merchant_id,
         };
         users.push(user.clone());
         Ok(user)
@@ -207,10 +208,14 @@ impl UserInterface for MockDb {
                         name,
                         password,
                         is_verified,
+                        preferred_merchant_id,
                     } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
                         password: password.clone().unwrap_or(user.password.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
+                        preferred_merchant_id: preferred_merchant_id
+                            .clone()
+                            .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
                 };
