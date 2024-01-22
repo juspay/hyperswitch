@@ -69,7 +69,8 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all, fields(payment_id, merchant_id))]
+#[instrument(skip_all, fields(payment_id, merchant_id, connector_name))]
+
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
@@ -113,6 +114,9 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
+    tracing::Span::current().record("merchant_connector", "dummy_test");
+    // tracing::Span::current().record("connector_name", &format!("{}",));
+    logger::debug!("-------------Test line------------asas-");
 
     let operations::GetTrackerResponse {
         operation,
@@ -145,7 +149,7 @@ where
         .attach_printable("Failed while fetching/creating customer")?;
 
     call_decision_manager(state, &merchant_account, &mut payment_data).await?;
-
+    
     let connector = get_connector_choice(
         &operation,
         state,
@@ -157,7 +161,9 @@ where
         eligible_connectors,
     )
     .await?;
-
+    logger::debug!("connector response");
+    logger::debug!(stringify!(connector));
+    // tracing::Span::current().record("connector_info", &format!("{:?}", connector));
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     payment_data = tokenize_in_router_when_confirm_false(
@@ -1012,7 +1018,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
-
+    tracing::Span::current().record("connector_info", &format!("{}", &connector.connector_name.to_string()));
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         merchant_account,
@@ -2072,6 +2078,8 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
+
+    
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
@@ -2368,7 +2376,8 @@ pub async fn get_connector_choice<F, Req, Ctx>(
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
-{
+{   
+    // tracing::Span::current().record("connector_name", &format!("{}",));
     let connector_choice = operation
         .to_domain()?
         .get_connector(
@@ -2483,6 +2492,7 @@ where
         eligible_connectors,
     )
     .await?;
+
 
     let encoded_info =
         Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
