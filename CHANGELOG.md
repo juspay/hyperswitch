@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.22.0
+
+### Features
+
+- **user_roles:** Add accept invitation API and `UserJWTAuth` ([#3365](https://github.com/juspay/hyperswitch/pull/3365)) ([`a47372a`](https://github.com/juspay/hyperswitch/commit/a47372a451b60defda35fa212565b889ed5b2d2b))
+
+### Documentation
+
+- Add link to api docs ([#3405](https://github.com/juspay/hyperswitch/pull/3405)) ([`4e1e78e`](https://github.com/juspay/hyperswitch/commit/4e1e78ecd962f4b34fa04f611f03e8e6f6e1bd7c))
+
+**Full Changelog:** [`2024.01.19.1...2024.01.22.0`](https://github.com/juspay/hyperswitch/compare/2024.01.19.1...2024.01.22.0)
+
+- - -
+
+## 2024.01.19.1
+
+### Bug Fixes
+
+- **connector:** [CRYPTOPAY] Fix header generation for PSYNC ([#3402](https://github.com/juspay/hyperswitch/pull/3402)) ([`ec16ed0`](https://github.com/juspay/hyperswitch/commit/ec16ed0f82f258c5699d54a386f67aff06c0d144))
+- **frm:** Update FRM manual review flow ([#3176](https://github.com/juspay/hyperswitch/pull/3176)) ([`5255ba9`](https://github.com/juspay/hyperswitch/commit/5255ba9170c633899cd4c3bbe24a44b429546f15))
+
+### Refactors
+
+- Rename `s3` feature flag to `aws_s3` ([#3341](https://github.com/juspay/hyperswitch/pull/3341)) ([`1c04ac7`](https://github.com/juspay/hyperswitch/commit/1c04ac751240f5c931df0f282af1e0ad745e9509))
+
+**Full Changelog:** [`2024.01.19.0...2024.01.19.1`](https://github.com/juspay/hyperswitch/compare/2024.01.19.0...2024.01.19.1)
+
+- - -
+
 ## 2024.01.19.0
 
 ### Features

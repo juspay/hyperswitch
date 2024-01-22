@@ -337,6 +337,8 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
+    /// Accept user invitation
+    AcceptInvitation,
 }
 
 ///
