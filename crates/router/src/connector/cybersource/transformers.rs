@@ -503,14 +503,14 @@ impl
                 let original_amount = item
                     .router_data
                     .get_recurring_mandate_payment_data()?
-                    .orignal_payment_authorized_amount
+                    .original_payment_authorized_amount
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "orignal_payment_authorized_amount",
                     })?;
                 let original_currency = item
                     .router_data
                     .get_recurring_mandate_payment_data()?
-                    .orignal_payment_authorized_currency
+                    .original_payment_authorized_currency
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "orignal_payment_authorized_currency",
                     })?;
@@ -1300,6 +1300,7 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
+    Accepted,
     Succeeded,
     Failed,
     Voided,
@@ -1330,7 +1331,8 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
     fn foreign_from((status, capture): (CybersourcePaymentStatus, bool)) -> Self {
         match status {
             CybersourcePaymentStatus::Authorized
-            | CybersourcePaymentStatus::AuthorizedPendingReview => {
+            | CybersourcePaymentStatus::AuthorizedPendingReview
+            | CybersourcePaymentStatus::Accepted => {
                 if capture {
                     // Because Cybersource will return Payment Status as Authorized even in AutoCapture Payment
                     Self::Charged
@@ -1369,18 +1371,6 @@ impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::Authoriza
             CybersourceIncrementalAuthorizationStatus::Authorized
             | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
-        }
-    }
-}
-
-impl From<CybersourcePaymentStatus> for enums::RefundStatus {
-    fn from(item: CybersourcePaymentStatus) -> Self {
-        match item {
-            CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
-                Self::Success
-            }
-            CybersourcePaymentStatus::Failed => Self::Failure,
-            _ => Self::Pending,
         }
     }
 }
@@ -1464,7 +1454,7 @@ pub struct ClientProcessorInformation {
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
     code: String,
-    code_raw: String,
+    code_raw: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

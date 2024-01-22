@@ -492,11 +492,9 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .flatten();
 
-    let orignal_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
-    let orignal_payment_authorized_currency = original_payment_intent
-        .clone()
-        .map(|pi| pi.currency)
-        .flatten();
+    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_currency =
+        original_payment_intent.clone().and_then(|pi| pi.currency);
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -559,8 +557,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
-                orignal_payment_authorized_amount,
-                orignal_payment_authorized_currency,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
@@ -571,8 +569,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
-                orignal_payment_authorized_amount,
-                orignal_payment_authorized_currency,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
