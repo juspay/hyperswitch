@@ -47,7 +47,7 @@ use crate::{
     AppState,
 };
 
-pub(super) enum CachedAlgorithm {
+pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),
     Priority(Vec<routing_types::RoutableConnectorChoice>),
     VolumeSplit(Vec<routing_types::ConnectorVolumeSplit>),
@@ -285,14 +285,7 @@ async fn ensure_algorithm_cached_v1(
             #[cfg(feature = "business_profile_routing")]
             profile_id,
         )
-        .await?;
-
-        ROUTING_CACHE
-            .get_val(key.as_str())
-            .await
-            .ok_or(errors::RoutingError::CacheMiss)
-            .into_report()
-            .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?
+        .await?
     };
 
     Ok(algorithm)
@@ -348,7 +341,7 @@ pub async fn refresh_routing_cache_v1(
     key: String,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
-) -> RoutingResult<()> {
+) -> RoutingResult<Arc<CachedAlgorithm>> {
     #[cfg(feature = "business_profile_routing")]
     let algorithm = {
         let algorithm = state
@@ -398,9 +391,11 @@ pub async fn refresh_routing_cache_v1(
         }
     };
 
-    ROUTING_CACHE.push(key, Arc::new(cached_algorithm)).await;
+    let arc_cached_algorithm = Arc::new(cached_algorithm);
 
-    Ok(())
+    ROUTING_CACHE.push(key, arc_cached_algorithm.clone()).await;
+
+    Ok(arc_cached_algorithm)
 }
 
 pub fn perform_volume_split(
@@ -457,7 +452,9 @@ pub async fn get_merchant_kgraph<'a>(
     #[cfg(not(feature = "business_profile_routing"))]
     let key = format!("kgraph_{}", key_store.merchant_id);
 
-    let cached_kgraph = KGRAPH_CACHE.get_val(key.as_str()).await;
+    let cached_kgraph = KGRAPH_CACHE
+        .get_val::<Arc<euclid_graph::KnowledgeGraph<'_>>>(key.as_str())
+        .await;
 
     let kgraph = if let Some(graph) = cached_kgraph {
         graph
@@ -469,25 +466,18 @@ pub async fn get_merchant_kgraph<'a>(
             #[cfg(feature = "business_profile_routing")]
             profile_id,
         )
-        .await?;
-
-        KGRAPH_CACHE
-            .get_val(key.as_str())
-            .await
-            .ok_or(errors::RoutingError::CacheMiss)
-            .into_report()
-            .attach_printable("when retrieving kgraph")?
+        .await?
     };
 
     Ok(kgraph)
 }
 
-pub async fn refresh_kgraph_cache(
+pub async fn refresh_kgraph_cache<'a>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     key: String,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
-) -> RoutingResult<()> {
+) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -515,14 +505,16 @@ pub async fn refresh_kgraph_cache(
         .collect::<Result<_, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
-    let kgraph = mca_graph::make_mca_graph(api_mcas)
-        .into_report()
-        .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
-        .attach_printable("when construction kgraph")?;
+    let kgraph = Arc::new(
+        mca_graph::make_mca_graph(api_mcas)
+            .into_report()
+            .change_context(errors::RoutingError::KgraphCacheRefreshFailed)
+            .attach_printable("when construction kgraph")?,
+    );
 
-    KGRAPH_CACHE.push(key, Arc::new(kgraph)).await;
+    KGRAPH_CACHE.push(key, kgraph.clone()).await;
 
-    Ok(())
+    Ok(kgraph)
 }
 
 async fn perform_kgraph_filtering(
