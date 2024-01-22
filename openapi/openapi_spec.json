@@ -3941,9 +3941,6 @@
       "AchBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_routing_number"
         ],
@@ -3951,15 +3948,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -4394,9 +4398,6 @@
       "BacsBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "bank_account_number",
           "bank_sort_code"
         ],
@@ -4404,15 +4405,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "bank_account_number": {
             "type": "string",
@@ -6088,11 +6096,37 @@
             "description": "Card Holder's Nick Name",
             "example": "John Doe",
             "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Card Issuing Country",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Issuer Bank for Card",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Card Type",
+            "nullable": true
           }
         }
       },
       "CardDetailFromLocker": {
         "type": "object",
+        "required": [
+          "saved_to_locker"
+        ],
         "properties": {
           "scheme": {
             "type": "string",
@@ -6129,6 +6163,29 @@
           "nick_name": {
             "type": "string",
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "saved_to_locker": {
+            "type": "boolean"
           }
         }
       },
@@ -8731,6 +8788,29 @@
             "type": "string",
             "description": "A unique identifier alias to identify a particular card",
             "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "The first 6 digits of card",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The bank that issued the card",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the payment card",
+            "nullable": true
           }
         }
       },
@@ -8778,6 +8858,11 @@
           "payment_method": {
             "type": "string",
             "description": "The payment method"
+          },
+          "payment_method_type": {
+            "type": "string",
+            "description": "The payment method type",
+            "nullable": true
           },
           "card": {
             "allOf": [
@@ -11061,6 +11146,14 @@
             "description": "The card network",
             "example": "Visa",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11411,6 +11504,14 @@
             "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11518,6 +11619,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Bank"
               }
             ],
             "nullable": true
@@ -13253,6 +13362,13 @@
               "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
             },
             "description": "List of incremental authorizations happened to the payment",
+            "nullable": true
+          },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date Time expiry of the payment",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "fingerprint": {
@@ -15283,9 +15399,6 @@
       "SepaBankTransfer": {
         "type": "object",
         "required": [
-          "bank_name",
-          "bank_country_code",
-          "bank_city",
           "iban",
           "bic"
         ],
@@ -15293,15 +15406,22 @@
           "bank_name": {
             "type": "string",
             "description": "Bank name",
-            "example": "Deutsche Bank"
+            "example": "Deutsche Bank",
+            "nullable": true
           },
           "bank_country_code": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "bank_city": {
             "type": "string",
             "description": "Bank city",
-            "example": "California"
+            "example": "California",
+            "nullable": true
           },
           "iban": {
             "type": "string",

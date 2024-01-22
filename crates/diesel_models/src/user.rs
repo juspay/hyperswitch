@@ -19,6 +19,7 @@ pub struct User {
     pub is_verified: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub preferred_merchant_id: Option<String>,
 }
 
 #[derive(
@@ -33,6 +34,7 @@ pub struct UserNew {
     pub is_verified: bool,
     pub created_at: Option<PrimitiveDateTime>,
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub preferred_merchant_id: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -42,6 +44,7 @@ pub struct UserUpdateInternal {
     password: Option<Secret<String>>,
     is_verified: Option<bool>,
     last_modified_at: PrimitiveDateTime,
+    preferred_merchant_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -51,6 +54,7 @@ pub enum UserUpdate {
         name: Option<String>,
         password: Option<Secret<String>>,
         is_verified: Option<bool>,
+        preferred_merchant_id: Option<String>,
     },
 }
 
@@ -63,16 +67,19 @@ impl From<UserUpdate> for UserUpdateInternal {
                 password: None,
                 is_verified: Some(true),
                 last_modified_at,
+                preferred_merchant_id: None,
             },
             UserUpdate::AccountUpdate {
                 name,
                 password,
                 is_verified,
+                preferred_merchant_id,
             } => Self {
                 name,
                 password,
                 is_verified,
                 last_modified_at,
+                preferred_merchant_id,
             },
         }
     }
