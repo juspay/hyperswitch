@@ -532,7 +532,7 @@ pub struct IatapayPaymentWebhookBody {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayRefundWebhookBody {
-    pub status: IatapayWebhookStatus,
+    pub status: IatapayRefundWebhookStatus,
     pub iata_refund_id: String,
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
@@ -559,22 +559,16 @@ impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
                 | IatapayWebhookStatus::Cleared
                 | IatapayWebhookStatus::Tobeinvestigated
                 | IatapayWebhookStatus::Blocked
-                | IatapayWebhookStatus::Locked
                 | IatapayWebhookStatus::UnexpectedSettled
                 | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
             },
             IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => match wh_body.status {
-                IatapayWebhookStatus::Authorized => Ok(Self::RefundSuccess),
-                IatapayWebhookStatus::Failed => Ok(Self::RefundFailure),
-                IatapayWebhookStatus::Created
-                | IatapayWebhookStatus::Cleared
-                | IatapayWebhookStatus::Tobeinvestigated
-                | IatapayWebhookStatus::Blocked
-                | IatapayWebhookStatus::Locked
-                | IatapayWebhookStatus::Settled
-                | IatapayWebhookStatus::Initiated
-                | IatapayWebhookStatus::UnexpectedSettled
-                | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
+                IatapayRefundWebhookStatus::Authorized | IatapayRefundWebhookStatus::Settled => Ok(Self::RefundSuccess),
+                IatapayRefundWebhookStatus::Failed => Ok(Self::RefundFailure),
+                IatapayRefundWebhookStatus::Created
+                | IatapayRefundWebhookStatus::Locked
+                | IatapayRefundWebhookStatus::Initiated
+                | IatapayRefundWebhookStatus::Unknown => Ok(Self::EventNotSupported),
             },
         }
     }
@@ -591,9 +585,21 @@ pub enum IatapayWebhookStatus {
     Failed,
     Tobeinvestigated,
     Blocked,
-    Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IatapayRefundWebhookStatus {
+    Created,
+    Initiated,
+    Authorized,
+    Settled,
+    Failed,
+    Locked,
     #[serde(other)]
     Unknown,
 }
