@@ -375,7 +375,7 @@ where
                     let status_code = response
                         .as_ref()
                         .map(|i| {
-                            i.clone()
+                            i.as_ref()
                                 .map_or_else(|value| value.status_code, |value| value.status_code)
                         })
                         .unwrap_or_default();
