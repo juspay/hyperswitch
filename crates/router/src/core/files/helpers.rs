@@ -31,33 +31,33 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
 }
 
 pub async fn upload_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
     file: Vec<u8>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::upload_file_to_s3(state, file_key, file).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::save_file_to_fs(file_key, file);
 }
 
 pub async fn delete_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::delete_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::delete_file_from_fs(file_key);
 }
 
 pub async fn retrieve_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::retrieve_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::retrieve_file_from_fs(file_key);
 }
 
@@ -134,7 +134,7 @@ pub async fn delete_file_using_file_id(
     match provider {
         diesel_models::enums::FileUploadProvider::Router => {
             delete_file(
-                #[cfg(feature = "s3")]
+                #[cfg(feature = "aws_s3")]
                 state,
                 provider_file_id,
             )
@@ -235,7 +235,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 diesel_models::enums::FileUploadProvider::Router => Ok((
                     Some(
                         retrieve_file(
-                            #[cfg(feature = "s3")]
+                            #[cfg(feature = "aws_s3")]
                             state,
                             provider_file_id.clone(),
                         )
@@ -365,7 +365,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 ))
             } else {
                 upload_file(
-                    #[cfg(feature = "s3")]
+                    #[cfg(feature = "aws_s3")]
                     state,
                     file_key.clone(),
                     create_file_request.file.clone(),
