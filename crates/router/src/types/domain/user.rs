@@ -1,6 +1,5 @@
 use std::{collections::HashSet, ops, str::FromStr};
 
-use crate::services::authentication as auth;
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
@@ -27,6 +26,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     services::{
+        authentication as auth,
         authentication::UserFromToken,
         authorization::{info, predefined_permissions},
     },

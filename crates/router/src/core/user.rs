@@ -1,4 +1,3 @@
-use crate::types::domain::SignInWithRoleStrategy;
 use api_models::user as user_api;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
@@ -17,7 +16,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{authentication as auth, ApplicationResponse},
-    types::domain,
+    types::{domain, domain::SignInWithRoleStrategy},
     utils,
 };
 pub mod dashboard_metadata;
