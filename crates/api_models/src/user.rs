@@ -39,7 +39,25 @@ pub struct DashboardEntryResponse {
 
 pub type SignInRequest = SignUpRequest;
 
-pub type SignInResponse = DashboardEntryResponse;
+#[derive(Debug, serde::Serialize)]
+#[serde(tag = "flow_type", rename_all = "snake_case")]
+pub enum SignInResponse {
+    MerchantSelect(MerchantSelectResponse),
+    DashboardEntry(DashboardEntryResponse),
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MerchantSelectResponse {
+    pub token: Secret<String>,
+    pub merchants: Vec<MerchantDetails>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MerchantDetails {
+    pub merchant_id: String,
+    pub company_name: Option<Secret<String>>,
+    pub is_active: bool,
+}
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct ConnectAccountRequest {
@@ -128,7 +146,7 @@ pub struct VerifyEmailRequest {
     pub token: Secret<String>,
 }
 
-pub type VerifyEmailResponse = DashboardEntryResponse;
+pub type VerifyEmailResponse = SignInResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {

@@ -58,6 +58,25 @@ pub async fn user_signup(
     .await
 }
 
+pub async fn user_signin_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignIn;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signin_without_invite_checks(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn user_signin(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -346,6 +365,25 @@ pub async fn invite_user(
         payload.into_inner(),
         |state, user, payload| user_core::invite_user(state, payload, user),
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmail;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_payload| user_core::verify_email_without_invite_checks(state, req_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

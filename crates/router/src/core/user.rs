@@ -1,3 +1,4 @@
+use crate::types::domain::SignInWithRoleStrategy;
 use api_models::user as user_api;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
@@ -97,10 +98,10 @@ pub async fn signup(
     ))
 }
 
-pub async fn signin(
+pub async fn signin_without_invite_checks(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInResponse> {
+) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(request.email.clone().expose().expose().as_str())
@@ -121,6 +122,34 @@ pub async fn signin(
 
     Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
+}
+
+pub async fn signin(
+    state: AppState,
+    request: user_api::SignInRequest,
+) -> UserResponse<user_api::SignInResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidCredentials)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+
+    let signin_strategy =
+        domain::SignInWithRoleStrategyType::decide_user_role_signin_strategy(&state, user_from_db)
+            .await?;
+
+    Ok(ApplicationResponse::Json(
+        signin_strategy.get_response(&state).await?,
     ))
 }
 
@@ -688,10 +717,37 @@ pub async fn get_users_for_merchant_account(
 }
 
 #[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: AppState,
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+    let user = state
+        .store
+        .find_user_by_email(token.get_email())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user = state
+        .store
+        .update_user_by_user_id(user.user_id.as_str(), storage_user::UserUpdate::VerifyUser)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user_from_db: domain::UserFromStorage = user.into();
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
+}
+
+#[cfg(feature = "email")]
 pub async fn verify_email(
     state: AppState,
     req: user_api::VerifyEmailRequest,
-) -> UserResponse<user_api::VerifyEmailResponse> {
+) -> UserResponse<user_api::SignInResponse> {
     let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
         .await
         .change_context(UserErrors::LinkInvalid)?;
@@ -709,11 +765,13 @@ pub async fn verify_email(
         .change_context(UserErrors::InternalServerError)?;
 
     let user_from_db: domain::UserFromStorage = user.into();
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    let signin_strategy =
+        domain::SignInWithRoleStrategyType::decide_user_role_signin_strategy(&state, user_from_db)
+            .await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+        signin_strategy.get_response(&state).await?,
     ))
 }
 

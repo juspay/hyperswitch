@@ -1,5 +1,6 @@
 use std::{collections::HashSet, ops, str::FromStr};
 
+use crate::services::authentication as auth;
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
@@ -30,7 +31,7 @@ use crate::{
         authorization::{info, predefined_permissions},
     },
     types::transformers::ForeignFrom,
-    utils::user::password,
+    utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
@@ -733,7 +734,15 @@ impl UserFromStorage {
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
         state
             .store
-            .find_user_role_by_user_id(self.get_user_id())
+            .find_user_role_by_user_id(&self.0.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+    }
+
+    pub async fn get_roles_from_db(&self, state: &AppState) -> UserResult<Vec<UserRole>> {
+        state
+            .store
+            .list_user_roles_by_user_id(&self.0.user_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -759,6 +768,10 @@ impl UserFromStorage {
 
         let days_left_for_verification = last_date_for_verification - today;
         Ok(Some(days_left_for_verification.whole_days()))
+    }
+
+    pub fn get_preferred_merchant_id(&self) -> Option<String> {
+        self.0.preferred_merchant_id.clone()
     }
 }
 
@@ -826,5 +839,136 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_name,
             last_modified_at: user_and_role.0.last_modified_at,
         })
+    }
+}
+
+#[async_trait::async_trait]
+pub trait SignInWithRoleStrategy {
+    async fn get_response(self, state: &AppState) -> UserResult<user_api::SignInResponse>;
+}
+
+pub enum SignInWithRoleStrategyType {
+    SingleRole(SignInWithSingleRoleStrategy),
+    MultipleRoles(SignInWithMultipleRolesStrategy),
+}
+
+#[async_trait::async_trait]
+impl SignInWithRoleStrategy for SignInWithRoleStrategyType {
+    async fn get_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        match self {
+            Self::SingleRole(strategy) => strategy.get_response(state).await,
+            Self::MultipleRoles(strategy) => strategy.get_response(state).await,
+        }
+    }
+}
+
+impl SignInWithRoleStrategyType {
+    pub async fn decide_user_role_signin_strategy(
+        state: &AppState,
+        user: UserFromStorage,
+    ) -> UserResult<Self> {
+        if let Some(preferred_merchant_id) = user.get_preferred_merchant_id() {
+            let user_role = state
+                .store
+                .find_user_role_by_user_id_merchant_id(&user.get_user_id(), &preferred_merchant_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            return Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
+                user,
+                user_role,
+            }));
+        }
+
+        let user_roles = user.get_roles_from_db(state).await?;
+
+        if user_roles.is_empty() {
+            return Err(UserErrors::InternalServerError.into());
+        }
+
+        let number_of_active_user_roles = user_roles
+            .iter()
+            .filter(|role| role.status == UserStatus::Active)
+            .count();
+
+        let strategy = if number_of_active_user_roles >= 1 {
+            let user_role = user_roles
+                .into_iter()
+                .find(|x| x.status == UserStatus::Active)
+                .ok_or(UserErrors::InternalServerError)
+                .into_report()?;
+
+            Self::SingleRole(SignInWithSingleRoleStrategy { user, user_role })
+        } else {
+            Self::MultipleRoles(SignInWithMultipleRolesStrategy { user, user_roles })
+        };
+
+        Ok(strategy)
+    }
+}
+
+pub struct SignInWithSingleRoleStrategy {
+    pub user: UserFromStorage,
+    pub user_role: UserRole,
+}
+
+#[async_trait::async_trait]
+impl SignInWithRoleStrategy for SignInWithSingleRoleStrategy {
+    async fn get_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let token =
+            utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        let dashboard_entry_response =
+            utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+        Ok(user_api::SignInResponse::DashboardEntry(
+            dashboard_entry_response,
+        ))
+    }
+}
+
+pub struct SignInWithMultipleRolesStrategy {
+    pub user: UserFromStorage,
+    pub user_roles: Vec<UserRole>,
+}
+
+#[async_trait::async_trait]
+impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
+    async fn get_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let merchant_accounts = state
+            .store
+            .list_multiple_merchant_accounts(
+                self.user_roles
+                    .iter()
+                    .map(|role| role.merchant_id.clone())
+                    .collect(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let merchant_details = merchant_accounts
+            .into_iter()
+            .map(|account| user_api::MerchantDetails {
+                merchant_id: account.merchant_id.clone(),
+                company_name: account.merchant_name.map(|name| name.into_inner()),
+                is_active: self
+                    .user_roles
+                    .iter()
+                    .find(|x| x.merchant_id == account.merchant_id)
+                    .unwrap()
+                    .status
+                    == UserStatus::Active,
+            })
+            .collect::<Vec<_>>();
+
+        return Ok(user_api::SignInResponse::MerchantSelect(
+            user_api::MerchantSelectResponse {
+                token: auth::UserAuthToken::new_token(
+                    self.user.get_user_id().to_string(),
+                    &*state.conf,
+                )
+                .await?
+                .into(),
+                merchants: merchant_details,
+            },
+        ));
     }
 }
