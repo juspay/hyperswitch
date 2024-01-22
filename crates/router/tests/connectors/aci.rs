@@ -38,7 +38,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -69,6 +69,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             complete_authorize_url: None,
             customer_id: None,
             surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -94,6 +96,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_http_status_code: None,
         apple_pay_flow: None,
         external_latency: None,
+        frm_metadata: None,
     }
 }
 
@@ -152,6 +155,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_http_status_code: None,
         apple_pay_flow: None,
         external_latency: None,
+        frm_metadata: None,
     }
 }
 
@@ -160,6 +164,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -173,6 +178,7 @@ async fn payments_create_success() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -203,6 +209,7 @@ async fn payments_create_failure() {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
+
         let state = routes::AppState::with_storage(
             conf,
             StorageImpl::PostgresqlTest,
@@ -214,6 +221,7 @@ async fn payments_create_failure() {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         };
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -227,7 +235,7 @@ async fn payments_create_failure() {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
+                card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
@@ -260,8 +268,10 @@ async fn refund_for_successful_payments() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -327,8 +337,10 @@ async fn refunds_create_failure() {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
+        merchant_connector_id: None,
     };
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,

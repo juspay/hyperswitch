@@ -120,7 +120,8 @@ fn fetch_payment_instrument(
         | api_models::payments::PaymentMethodData::Upi(_)
         | api_models::payments::PaymentMethodData::Voucher(_)
         | api_models::payments::PaymentMethodData::CardRedirect(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_) => {
+        | api_models::payments::PaymentMethodData::GiftCard(_)
+        | api_models::payments::PaymentMethodData::CardToken(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
@@ -167,10 +168,14 @@ impl
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.router_data.attempt_id.clone().replace('_', "-"),
+                entity: item
+                    .router_data
+                    .connector_request_reference_id
+                    .clone()
+                    .replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.router_data.attempt_id.clone(),
+            transaction_reference: item.router_data.connector_request_reference_id.clone(),
             channel: None,
             customer: None,
         })
@@ -213,7 +218,13 @@ impl From<EventType> for enums::AttemptStatus {
             EventType::CaptureFailed => Self::CaptureFailed,
             EventType::Refused => Self::Failure,
             EventType::Charged | EventType::SentForSettlement => Self::Charged,
-            _ => Self::Pending,
+            EventType::Cancelled
+            | EventType::SentForRefund
+            | EventType::RefundFailed
+            | EventType::Refunded
+            | EventType::Error
+            | EventType::Expired
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
@@ -223,7 +234,16 @@ impl From<EventType> for enums::RefundStatus {
         match value {
             EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
-            _ => Self::Pending,
+            EventType::Authorized
+            | EventType::Cancelled
+            | EventType::Charged
+            | EventType::SentForRefund
+            | EventType::Refused
+            | EventType::Error
+            | EventType::SentForSettlement
+            | EventType::Expired
+            | EventType::CaptureFailed
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
@@ -250,6 +270,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

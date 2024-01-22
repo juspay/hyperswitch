@@ -7,6 +7,7 @@ pub struct Store {
     pub master_pool: PgPool,
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     pub config: StoreConfig,
+    pub request_id: Option<String>,
 }
 
 #[derive(Clone)]
@@ -30,11 +31,7 @@ impl Store {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
             },
+            request_id: None,
         }
-    }
-
-    pub fn drainer_stream(&self, shard_key: &str) -> String {
-        // Example: {shard_5}_drainer_stream
-        format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
     }
 }

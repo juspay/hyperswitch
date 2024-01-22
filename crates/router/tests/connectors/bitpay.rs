@@ -17,6 +17,7 @@ impl utils::Connector for BitpayTest {
             connector: Box::new(&Bitpay),
             connector_name: types::Connector::Bitpay,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 
@@ -91,6 +92,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         capture_method: None,
         customer_id: None,
         surcharge_details: None,
+        request_incremental_authorization: false,
+        metadata: None,
     })
 }
 

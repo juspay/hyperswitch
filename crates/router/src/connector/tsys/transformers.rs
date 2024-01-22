@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
     core::errors,
     types::{
         self, api,
@@ -34,6 +34,7 @@ pub struct TsysPaymentAuthSaleRequest {
     cardholder_authentication_method: String,
     #[serde(rename = "developerID")]
     developer_id: Secret<String>,
+    order_number: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
@@ -51,12 +52,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     currency_code: item.request.currency,
                     card_number: ccard.card_number.clone(),
                     expiration_date: ccard
-                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv2: ccard.card_cvc,
                     terminal_capability: "ICC_CHIP_READ_ONLY".to_string(),
                     terminal_operating_environment: "ON_MERCHANT_PREMISES_ATTENDED".to_string(),
                     cardholder_authentication_method: "NOT_AUTHENTICATED".to_string(),
                     developer_id: connector_auth.developer_id,
+                    order_number: item.connector_request_reference_id.clone(),
                 };
                 if item.request.is_auto_capture()? {
                     Ok(Self::Sale(auth_data))
@@ -64,7 +66,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     Ok(Self::Auth(auth_data))
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("tsys"),
+            ))?,
         }
     }
 }
@@ -187,6 +203,8 @@ fn get_error_response(
         message: connector_error_response.response_message.clone(),
         reason: Some(connector_error_response.response_message),
         status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 
@@ -200,6 +218,7 @@ fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsRes
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
+        incremental_authorization_allowed: None,
     }
 }
 
@@ -223,6 +242,7 @@ fn get_payments_sync_response(
                 .transaction_id
                 .clone(),
         ),
+        incremental_authorization_allowed: None,
     }
 }
 

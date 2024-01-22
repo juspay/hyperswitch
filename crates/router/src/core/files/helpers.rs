@@ -31,33 +31,33 @@ pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
 }
 
 pub async fn upload_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
     file: Vec<u8>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::upload_file_to_s3(state, file_key, file).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::save_file_to_fs(file_key, file);
 }
 
 pub async fn delete_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::delete_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::delete_file_from_fs(file_key);
 }
 
 pub async fn retrieve_file(
-    #[cfg(feature = "s3")] state: &AppState,
+    #[cfg(feature = "aws_s3")] state: &AppState,
     file_key: String,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
-    #[cfg(feature = "s3")]
+    #[cfg(feature = "aws_s3")]
     return files::s3_utils::retrieve_file_from_s3(state, file_key).await;
-    #[cfg(not(feature = "s3"))]
+    #[cfg(not(feature = "aws_s3"))]
     return files::fs_utils::retrieve_file_from_fs(file_key);
 }
 
@@ -79,11 +79,14 @@ pub async fn validate_file_upload(
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
                     dispute_id: dispute_id.to_string(),
                 })?;
+            // Connector is not called for validating the file, connector_id can be passed as None safely
             let connector_data = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
+                None,
             )?;
+
             let validation = connector_data.connector.validate_file_upload(
                 create_file_request.purpose,
                 create_file_request.file_size,
@@ -131,7 +134,7 @@ pub async fn delete_file_using_file_id(
     match provider {
         diesel_models::enums::FileUploadProvider::Router => {
             delete_file(
-                #[cfg(feature = "s3")]
+                #[cfg(feature = "aws_s3")]
                 state,
                 provider_file_id,
             )
@@ -162,6 +165,7 @@ pub async fn retrieve_file_from_connector(
         &state.conf.connectors,
         connector,
         api::GetToken::Connector,
+        file_metadata.merchant_connector_id.clone(),
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
@@ -231,7 +235,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 diesel_models::enums::FileUploadProvider::Router => Ok((
                     Some(
                         retrieve_file(
-                            #[cfg(feature = "s3")]
+                            #[cfg(feature = "aws_s3")]
                             state,
                             provider_file_id.clone(),
                         )
@@ -271,6 +275,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
         String,
         api_models::enums::FileUploadProvider,
         Option<String>,
+        Option<String>,
     ),
     errors::ApiErrorResponse,
 > {
@@ -289,6 +294,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
+                dispute.merchant_connector_id.clone(),
             )?;
             if connector_data.connector_name.supports_file_storage_module() {
                 let payment_intent = state
@@ -339,6 +345,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while calling upload file connector api")?;
+
                 let upload_file_response = response.response.map_err(|err| {
                     errors::ApiErrorResponse::ExternalConnectorError {
                         code: err.code,
@@ -354,10 +361,11 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                         &connector_data.connector_name,
                     )?,
                     payment_intent.profile_id,
+                    payment_attempt.merchant_connector_id,
                 ))
             } else {
                 upload_file(
-                    #[cfg(feature = "s3")]
+                    #[cfg(feature = "aws_s3")]
                     state,
                     file_key.clone(),
                     create_file_request.file.clone(),
@@ -366,6 +374,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 Ok((
                     file_key,
                     api_models::enums::FileUploadProvider::Router,
+                    None,
                     None,
                 ))
             }

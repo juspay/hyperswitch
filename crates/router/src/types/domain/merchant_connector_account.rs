@@ -35,6 +35,7 @@ pub struct MerchantConnectorAccount {
     pub profile_id: Option<String>,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<serde_json::Value>,
+    pub status: enums::ConnectorStatus,
 }
 
 #[derive(Debug)]
@@ -53,6 +54,8 @@ pub enum MerchantConnectorAccountUpdate {
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Option<serde_json::Value>,
+        connector_label: Option<String>,
+        status: Option<enums::ConnectorStatus>,
     },
 }
 
@@ -88,6 +91,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 profile_id: self.profile_id,
                 applepay_verified_domains: self.applepay_verified_domains,
                 pm_auth_config: self.pm_auth_config,
+                status: self.status,
             },
         )
     }
@@ -127,6 +131,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             profile_id: other.profile_id,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
+            status: other.status,
         })
     }
 
@@ -154,6 +159,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             profile_id: self.profile_id,
             applepay_verified_domains: self.applepay_verified_domains,
             pm_auth_config: self.pm_auth_config,
+            status: self.status,
         })
     }
 }
@@ -175,6 +181,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config,
+                connector_label,
+                status,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -191,6 +199,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_webhook_details,
                 applepay_verified_domains,
                 pm_auth_config,
+                connector_label,
+                status,
             },
         }
     }

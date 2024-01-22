@@ -17,6 +17,7 @@ impl utils::Connector for Stripe {
             connector: Box::new(&Stripe),
             connector_name: types::Connector::Stripe,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

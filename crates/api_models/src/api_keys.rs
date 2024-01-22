@@ -5,7 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 /// The request body for creating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
@@ -111,7 +111,7 @@ pub struct RetrieveApiKeyResponse {
 }
 
 /// The request body for updating an API Key.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateApiKeyRequest {
     /// A unique name for the API Key to help you identify it.
@@ -129,6 +129,12 @@ pub struct UpdateApiKeyRequest {
     /// rotating your keys once every 6 months.
     #[schema(example = "2022-09-10T10:11:12Z")]
     pub expiration: Option<ApiKeyExpiration>,
+
+    #[serde(skip_deserializing)]
+    pub key_id: String,
+
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
 }
 
 /// The response body for revoking an API Key.

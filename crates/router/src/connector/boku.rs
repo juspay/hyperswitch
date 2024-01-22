@@ -1,8 +1,7 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
-use common_utils::ext_traits::XmlExt;
+use common_utils::{ext_traits::XmlExt, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -11,9 +10,9 @@ use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;
 
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -28,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -130,6 +129,8 @@ impl ConnectorCommon for Boku {
                 code: response.code,
                 message: response.message,
                 reason: response.reason,
+                attempt_status: None,
+                connector_transaction_id: None,
             }),
             Err(_) => get_xml_deserialized(res),
         }
@@ -169,6 +170,20 @@ impl
         types::PaymentsResponseData,
     > for Boku
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Boku".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -206,14 +221,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = boku::BokuPaymentsRequest::try_from(req)?;
-        let boku_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_xml,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(boku_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = boku::BokuPaymentsRequest::try_from(req)?;
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -231,7 +242,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -296,14 +309,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = boku::BokuPsyncRequest::try_from(req)?;
-        let boku_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<boku::BokuPsyncRequest>::encode_to_string_of_xml,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(boku_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = boku::BokuPsyncRequest::try_from(req)?;
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -317,7 +326,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -377,7 +388,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -394,7 +406,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .set_body(types::PaymentsCaptureType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -462,14 +476,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = boku::BokuRefundRequest::try_from(req)?;
-        let boku_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<boku::BokuRefundRequest>::encode_to_string_of_xml,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(boku_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = boku::BokuRefundRequest::try_from(req)?;
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -484,7 +494,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(self, req)?)
+            .set_body(types::RefundExecuteType::get_request_body(
+                self, req, connectors,
+            )?)
             .build();
         Ok(Some(request))
     }
@@ -542,14 +554,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = boku::BokuRsyncRequest::try_from(req)?;
-        let boku_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_xml,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(boku_req))
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = boku::BokuRsyncRequest::try_from(req)?;
+        Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -563,7 +571,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -611,7 +621,7 @@ impl api::IncomingWebhook for Boku {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
@@ -651,6 +661,8 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }

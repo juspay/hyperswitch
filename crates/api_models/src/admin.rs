@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use common_utils::{
     crypto::{Encryptable, OptionalEncryptableName},
     pii,
@@ -14,12 +16,12 @@ use crate::{
     payment_methods,
 };
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
@@ -93,15 +95,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
-
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
-
-    pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -111,7 +106,7 @@ pub struct MerchantAccountMetadata {
     #[serde(flatten)]
     pub data: Option<pii::SecretSerdeValue>,
 }
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
@@ -183,16 +178,10 @@ pub struct MerchantAccountUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<u32>,
-
     /// The default business profile that must be used for creating merchant accounts and payments
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -286,8 +275,6 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -357,7 +344,7 @@ pub mod payout_routing_algorithm {
         where
             A: de::MapAccess<'de>,
         {
-            let mut output = serde_json::Value::Object(Map::new());
+            let mut output = Map::new();
             let mut routing_data: String = "".to_string();
             let mut routing_type: String = "".to_string();
 
@@ -365,14 +352,20 @@ pub mod payout_routing_algorithm {
                 match key {
                     "type" => {
                         routing_type = map.next_value()?;
-                        output["type"] = serde_json::Value::String(routing_type.to_owned());
+                        output.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(routing_type.to_owned()),
+                        );
                     }
                     "data" => {
                         routing_data = map.next_value()?;
-                        output["data"] = serde_json::Value::String(routing_data.to_owned());
+                        output.insert(
+                            "data".to_string(),
+                            serde_json::Value::String(routing_data.to_owned()),
+                        );
                     }
                     f => {
-                        output[f] = map.next_value()?;
+                        output.insert(f.to_string(), map.next_value()?);
                     }
                 }
             }
@@ -390,7 +383,7 @@ pub mod payout_routing_algorithm {
                 }
                 u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
             }?;
-            Ok(output)
+            Ok(serde_json::Value::Object(output))
         }
     }
 
@@ -443,62 +436,6 @@ pub mod payout_routing_algorithm {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum RoutingAlgorithm {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(
-    tag = "type",
-    content = "data",
-    rename_all = "snake_case",
-    from = "StraightThroughAlgorithmSerde",
-    into = "StraightThroughAlgorithmSerde"
-)]
-pub enum StraightThroughAlgorithm {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum StraightThroughAlgorithmInner {
-    Single(api_enums::RoutableConnectors),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum StraightThroughAlgorithmSerde {
-    Direct(StraightThroughAlgorithmInner),
-    Nested {
-        algorithm: StraightThroughAlgorithmInner,
-    },
-}
-
-impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
-    fn from(value: StraightThroughAlgorithmSerde) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
-            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
-        };
-
-        match inner {
-            StraightThroughAlgorithmInner::Single(conn) => Self::Single(conn),
-        }
-    }
-}
-
-impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
-    fn from(value: StraightThroughAlgorithm) -> Self {
-        let inner = match value {
-            StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
-        };
-
-        Self::Nested { algorithm: inner }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -506,22 +443,6 @@ pub struct PrimaryBusinessDetails {
     pub country: api_enums::CountryAlpha2,
     #[schema(example = "food")]
     pub business: String,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentLinkConfig {
-    pub merchant_logo: Option<String>,
-    pub color_scheme: Option<PaymentLinkColorSchema>,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-
-pub struct PaymentLinkColorSchema {
-    pub primary_color: Option<String>,
-    pub primary_accent_color: Option<String>,
-    pub secondary_color: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -587,10 +508,9 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
-    pub connector_label: String,
+    pub connector_label: Option<String>,
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
@@ -662,6 +582,39 @@ pub struct MerchantConnectorCreate {
     pub profile_id: Option<String>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
+}
+
+// Different patterns of authentication.
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    TemporaryAuth,
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
+    },
+    #[default]
+    NoKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -683,8 +636,8 @@ pub struct MerchantConnectorResponse {
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -767,6 +720,9 @@ pub struct MerchantConnectorResponse {
     pub applepay_verified_domains: Option<Vec<String>>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: api_enums::ConnectorStatus,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -776,6 +732,9 @@ pub struct MerchantConnectorUpdate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    pub connector_label: Option<String>,
 
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -838,6 +797,9 @@ pub struct MerchantConnectorUpdate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
     pub pm_auth_config: Option<serde_json::Value>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -888,7 +850,7 @@ pub struct PaymentMethodsEnabled {
     pub payment_method: common_enums::PaymentMethod,
 
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
+    #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
@@ -947,6 +909,8 @@ pub struct ToggleKVResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
+    #[serde(skip_deserializing)]
+    pub merchant_id: String,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -994,7 +958,7 @@ pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Default)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
     /// A short name to identify the business profile
@@ -1049,6 +1013,13 @@ pub struct BusinessProfileCreate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1113,9 +1084,16 @@ pub struct BusinessProfileResponse {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<i64>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileUpdate {
     /// A short name to identify the business profile
@@ -1170,4 +1148,46 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct BusinessPaymentLinkConfig {
+    pub domain_name: Option<String>,
+    #[serde(flatten)]
+    pub config: PaymentLinkConfigRequest,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkConfigRequest {
+    /// custom theme for the payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
+    pub theme: Option<String>,
+    /// merchant display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
+    pub logo: Option<String>,
+    /// Custom merchant name for payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
+    pub seller_name: Option<String>,
+    /// Custom layout for sdk
+    #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
+    pub sdk_layout: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+pub struct PaymentLinkConfig {
+    /// custom theme for the payment link
+    pub theme: String,
+    /// merchant display logo
+    pub logo: String,
+    /// Custom merchant name for payment link
+    pub seller_name: String,
+    /// Custom layout for sdk
+    pub sdk_layout: String,
 }

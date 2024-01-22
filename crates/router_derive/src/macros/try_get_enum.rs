@@ -1,21 +1,62 @@
 use proc_macro2::Span;
-use syn::punctuated::Punctuated;
+use quote::ToTokens;
+use syn::{parse::Parse, punctuated::Punctuated};
+
+mod try_get_keyword {
+    use syn::custom_keyword;
+
+    custom_keyword!(error_type);
+}
+
+#[derive(Debug)]
+pub struct TryGetEnumMeta {
+    error_type: syn::Ident,
+    variant: syn::Ident,
+}
+
+impl Parse for TryGetEnumMeta {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let error_type = input.parse()?;
+        _ = input.parse::<syn::Token![::]>()?;
+        let variant = input.parse()?;
+
+        Ok(Self {
+            error_type,
+            variant,
+        })
+    }
+}
+
+trait TryGetDeriveInputExt {
+    /// Get all the error metadata associated with an enum.
+    fn get_metadata(&self) -> syn::Result<Vec<TryGetEnumMeta>>;
+}
+
+impl TryGetDeriveInputExt for syn::DeriveInput {
+    fn get_metadata(&self) -> syn::Result<Vec<TryGetEnumMeta>> {
+        super::helpers::get_metadata_inner("error", &self.attrs)
+    }
+}
+
+impl ToTokens for TryGetEnumMeta {
+    fn to_tokens(&self, _: &mut proc_macro2::TokenStream) {}
+}
 
 /// Try and get the variants for an enum
 pub fn try_get_enum_variant(
     input: syn::DeriveInput,
 ) -> Result<proc_macro2::TokenStream, syn::Error> {
     let name = &input.ident;
+    let parsed_error_type = input.get_metadata()?;
 
-    let error_attr = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path.is_ident("error"))
-        .ok_or(super::helpers::syn_error(
-            proc_macro2::Span::call_site(),
-            "Unable to find attribute error. Expected #[error(..)]",
-        ))?;
-    let (error_type, error_variant) = get_error_type_and_variant(error_attr)?;
+    let (error_type, error_variant) = parsed_error_type
+        .first()
+        .ok_or(syn::Error::new(
+            Span::call_site(),
+            "One error should be specified",
+        ))
+        .map(|error_struct| (&error_struct.error_type, &error_struct.variant))?;
+
     let (impl_generics, generics, where_clause) = input.generics.split_for_impl();
 
     let variants = get_enum_variants(&input.data)?;
@@ -47,52 +88,6 @@ pub fn try_get_enum_variant(
     };
 
     Ok(expanded)
-}
-
-/// Parses the attribute #[error(ErrorType(ErrorVariant))]
-fn get_error_type_and_variant(attr: &syn::Attribute) -> syn::Result<(syn::Ident, syn::Path)> {
-    let meta = attr.parse_meta()?;
-    let metalist = match meta {
-        syn::Meta::List(list) => list,
-        _ => {
-            return Err(super::helpers::syn_error(
-                proc_macro2::Span::call_site(),
-                "Invalid attribute format #[error(ErrorType(ErrorVariant)]",
-            ))
-        }
-    };
-
-    for meta in metalist.nested.iter() {
-        if let syn::NestedMeta::Meta(syn::Meta::List(meta)) = meta {
-            let error_type = meta
-                .path
-                .get_ident()
-                .ok_or(super::helpers::syn_error(
-                    proc_macro2::Span::call_site(),
-                    "Invalid attribute format #[error(ErrorType(ErrorVariant))]",
-                ))
-                .cloned()?;
-            let error_variant = get_error_variant(meta)?;
-            return Ok((error_type, error_variant));
-        };
-    }
-
-    Err(super::helpers::syn_error(
-        proc_macro2::Span::call_site(),
-        "Invalid attribute format #[error(ErrorType(ErrorVariant))]",
-    ))
-}
-
-fn get_error_variant(meta: &syn::MetaList) -> syn::Result<syn::Path> {
-    for meta in meta.nested.iter() {
-        if let syn::NestedMeta::Meta(syn::Meta::Path(meta)) = meta {
-            return Ok(meta.clone());
-        }
-    }
-    Err(super::helpers::syn_error(
-        proc_macro2::Span::call_site(),
-        "Invalid attribute format expected #[error(ErrorType(ErrorVariant))]",
-    ))
 }
 
 /// Get variants from Enum

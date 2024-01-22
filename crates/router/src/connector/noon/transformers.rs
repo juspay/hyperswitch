@@ -1,5 +1,5 @@
 use common_utils::pii;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{
         self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
-    core::errors,
+    core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
     utils,
@@ -30,11 +30,13 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -91,7 +93,7 @@ pub struct NoonSubscription {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCard {
-    name_on_card: Secret<String>,
+    name_on_card: Option<Secret<String>>,
     number_plain: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -158,7 +160,7 @@ pub struct NoonPayPal {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "data")]
+#[serde(tag = "type", content = "data", rename_all = "UPPERCASE")]
 pub enum NoonPaymentData {
     Card(NoonCard),
     Subscription(NoonSubscription),
@@ -245,16 +247,59 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 return_url: item.request.get_router_return_url()?,
                             }))
                         }
-                        _ => Err(errors::ConnectorError::NotImplemented(
-                            "Wallets".to_string(),
-                        )),
+                        api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::AliPayRedirect(_)
+                        | api_models::payments::WalletData::AliPayHkRedirect(_)
+                        | api_models::payments::WalletData::MomoRedirect(_)
+                        | api_models::payments::WalletData::KakaoPayRedirect(_)
+                        | api_models::payments::WalletData::GoPayRedirect(_)
+                        | api_models::payments::WalletData::GcashRedirect(_)
+                        | api_models::payments::WalletData::ApplePayRedirect(_)
+                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::DanaRedirect {}
+                        | api_models::payments::WalletData::GooglePayRedirect(_)
+                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::MbWayRedirect(_)
+                        | api_models::payments::WalletData::MobilePayRedirect(_)
+                        | api_models::payments::WalletData::PaypalSdk(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::TwintRedirect {}
+                        | api_models::payments::WalletData::VippsRedirect {}
+                        | api_models::payments::WalletData::TouchNGoRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayQr(_)
+                        | api_models::payments::WalletData::CashappQr(_)
+                        | api_models::payments::WalletData::SwishQr(_) => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
+                                connector: "Noon",
+                            })
+                        }
                     },
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment methods".to_string(),
-                    )),
+                    api::PaymentMethodData::CardRedirect(_)
+                    | api::PaymentMethodData::PayLater(_)
+                    | api::PaymentMethodData::BankRedirect(_)
+                    | api::PaymentMethodData::BankDebit(_)
+                    | api::PaymentMethodData::BankTransfer(_)
+                    | api::PaymentMethodData::Crypto(_)
+                    | api::PaymentMethodData::MandatePayment {}
+                    | api::PaymentMethodData::Reward {}
+                    | api::PaymentMethodData::Upi(_)
+                    | api::PaymentMethodData::Voucher(_)
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
+                            connector: "Noon",
+                        })
+                    }
                 }?,
                 Some(item.request.currency),
-                item.request.order_category.clone(),
+                Some(item.request.order_category.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_category",
+                    },
+                )?),
             ),
         };
 
@@ -288,17 +333,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let (subscription, tokenize_c_c) =
-            match item.request.setup_future_usage.is_some().then_some((
-                NoonSubscriptionData {
-                    subscription_type: NoonSubscriptionType::Unscheduled,
-                    name: name.clone(),
-                },
-                true,
-            )) {
-                Some((a, b)) => (Some(a), Some(b)),
-                None => (None, None),
-            };
+        let subscription = item
+            .request
+            .get_setup_mandate_details()
+            .map(|mandate_data| {
+                let max_amount = match &mandate_data.mandate_type {
+                    Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                    | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
+                        conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
+                    }
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "setup_future_usage.mandate_data.mandate_type",
+                    })
+                    .into_report(),
+                }?;
+
+                Ok::<NoonSubscriptionData, error_stack::Report<errors::ConnectorError>>(
+                    NoonSubscriptionData {
+                        subscription_type: NoonSubscriptionType::Unscheduled,
+                        name: name.clone(),
+                        max_amount,
+                    },
+                )
+            })
+            .transpose()?;
+
+        let tokenize_c_c = subscription.is_some().then_some(true);
+
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
@@ -473,6 +534,8 @@ impl<F, T>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -486,6 +549,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
+                        incremental_authorization_allowed: None,
                     })
                 }
             },
@@ -506,7 +570,6 @@ pub struct NoonActionTransaction {
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionOrder {
     id: String,
-    cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -522,7 +585,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
@@ -552,11 +614,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: item
-                .request
-                .cancellation_reason
-                .clone()
-                .map(|reason| reason.chars().take(100).collect()), // Max 100 chars
         };
         Ok(Self {
             api_operation: NoonApiOperations::Reverse,
@@ -570,7 +627,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
-            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(

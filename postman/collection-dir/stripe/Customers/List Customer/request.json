@@ -1,0 +1,19 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/customers/list",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "customers",
+      "list"
+    ]
+  }
+}

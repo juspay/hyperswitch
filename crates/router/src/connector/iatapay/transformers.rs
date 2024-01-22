@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
+use common_utils::errors::CustomResult;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, PaymentsAuthorizeData},
 };
+
+type Error = error_stack::Report<errors::ConnectorError>;
 
 // Every access token will be valid for 5 minutes. It contains grant_type and scope for different type of access, but for our usecases it should be only 'client_credentials' and 'payment' resp(as per doc) for all type of api call.
 #[derive(Debug, Serialize)]
@@ -26,7 +30,34 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
         })
     }
 }
-
+#[derive(Debug, Serialize)]
+pub struct IatapayRouterData<T> {
+    amount: f64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for IatapayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, _amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: utils::to_currency_base_unit_asf64(_amount, _currency)?,
+            router_data: item,
+        })
+    }
+}
 #[derive(Debug, Deserialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
@@ -80,33 +111,62 @@ pub struct IatapayPaymentsRequest {
     payer_info: Option<PayerInfo>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
+impl
+    TryFrom<
+        &IatapayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                types::PaymentsResponseData,
+            >,
+        >,
+    > for IatapayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method = item.payment_method;
+
+    fn try_from(
+        item: &IatapayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                types::PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_method = item.router_data.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-            _ => item.get_billing_country()?.to_string(),
+
+            PaymentMethod::Card
+            | PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::Voucher
+            | PaymentMethod::GiftCard => item.router_data.get_billing_country()?.to_string(),
         };
-        let return_url = item.get_return_url()?;
-        let payer_info = match item.request.payment_method_data.clone() {
+        let return_url = item.router_data.get_return_url()?;
+        let payer_info = match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
             _ => None,
         };
-        let amount =
-            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
-            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_payment_id: Some(item.payment_id.clone()),
-            amount,
-            currency: item.request.currency.to_string(),
+            merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
+                .merchant_id,
+            merchant_payment_id: Some(item.router_data.connector_request_reference_id.clone()),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
-            notification_url: item.request.get_webhook_url()?,
+            notification_url: item.router_data.request.get_webhook_url()?,
         };
         Ok(payload)
     }
@@ -201,51 +261,85 @@ pub struct IatapayPaymentsResponse {
     pub bank_transfer_description: Option<String>,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
+    pub failure_details: Option<String>,
+}
+
+fn get_iatpay_response(
+    response: IatapayPaymentsResponse,
+    status_code: u16,
+) -> CustomResult<
+    (
+        enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
+> {
+    let status = enums::AttemptStatus::from(response.status);
+    let error = if status == enums::AttemptStatus::Failure {
+        Some(types::ErrorResponse {
+            code: response
+                .failure_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .failure_details
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.failure_details,
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: response.iata_payment_id.clone(),
+        })
+    } else {
+        None
+    };
+    let form_fields = HashMap::new();
+    let id = match response.iata_payment_id.clone() {
+        Some(s) => types::ResponseId::ConnectorTransactionId(s),
+        None => types::ResponseId::NoResponseId,
+    };
+    let connector_response_reference_id = response.merchant_payment_id.or(response.iata_payment_id);
+
+    let payment_response_data = response.checkout_methods.map_or(
+        types::PaymentsResponseData::TransactionResponse {
+            resource_id: id.clone(),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: connector_response_reference_id.clone(),
+            incremental_authorization_allowed: None,
+        },
+        |checkout_methods| types::PaymentsResponseData::TransactionResponse {
+            resource_id: id,
+            redirection_data: Some(services::RedirectForm::Form {
+                endpoint: checkout_methods.redirect.redirect_url,
+                method: services::Method::Get,
+                form_fields,
+            }),
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: connector_response_reference_id.clone(),
+            incremental_authorization_allowed: None,
+        },
+    );
+    Ok((status, error, payment_response_data))
 }
 
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let form_fields = HashMap::new();
-        let id = match item.response.iata_payment_id.clone() {
-            Some(s) => types::ResponseId::ConnectorTransactionId(s),
-            None => types::ResponseId::NoResponseId,
-        };
-        let connector_response_reference_id = item
-            .response
-            .merchant_payment_id
-            .or(item.response.iata_payment_id);
+        let (status, error, payment_response_data) =
+            get_iatpay_response(item.response, item.http_code)?;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: item.response.checkout_methods.map_or(
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: id.clone(),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: connector_response_reference_id.clone(),
-                }),
-                |checkout_methods| {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: id,
-                        redirection_data: Some(services::RedirectForm::Form {
-                            endpoint: checkout_methods.redirect.redirect_url,
-                            method: services::Method::Get,
-                            form_fields,
-                        }),
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: connector_response_reference_id.clone(),
-                    })
-                },
-            ),
+            status,
+            response: error.map_or_else(|| Ok(payment_response_data), Err),
             ..item.data
         })
     }
@@ -264,18 +358,19 @@ pub struct IatapayRefundRequest {
     pub notification_url: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
+impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount =
-            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
+    fn try_from(
+        item: &IatapayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount,
-            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_refund_id: Some(item.request.refund_id.clone()),
-            currency: item.request.currency.to_string(),
-            bank_transfer_description: item.request.reason.clone(),
-            notification_url: item.request.get_webhook_url()?,
+            amount: item.amount,
+            merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
+                .merchant_id,
+            merchant_refund_id: Some(item.router_data.request.refund_id.clone()),
+            currency: item.router_data.request.currency.to_string(),
+            bank_transfer_description: item.router_data.request.reason.clone(),
+            notification_url: item.router_data.request.get_webhook_url()?,
         })
     }
 }

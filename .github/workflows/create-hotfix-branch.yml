@@ -8,11 +8,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate a token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.AUTO_RELEASE_PAT }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Check if the input is valid tag
         shell: bash

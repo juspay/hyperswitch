@@ -9,21 +9,16 @@ license.workspace = true
 
 [features]
 default = ["kv_store"]
-email = ["external_services/email", "dep:aws-config"]
-kms = ["external_services/kms", "dep:aws-config"]
 kv_store = []
-s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 
 [dependencies]
-async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
-aws-config = { version = "0.55.3", optional = true }
-aws-sdk-s3 = { version = "0.28.0", optional = true }
+async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
 diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
@@ -31,7 +26,6 @@ time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 # First party crates
 common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
