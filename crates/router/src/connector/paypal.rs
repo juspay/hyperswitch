@@ -87,7 +87,7 @@ impl Paypal {
                 })
                 .collect::<String>()
         });
-        let errors_list = response.details.unwrap_or(vec![]);
+        let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
                 Self.clone(),
