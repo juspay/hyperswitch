@@ -350,6 +350,23 @@ pub async fn invite_user(
     ))
     .await
 }
+pub async fn invite_multiple_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<Vec<user_api::InviteUserRequest>>,
+) -> HttpResponse {
+    let flow = Flow::InviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, user, payload| user_core::invite_multiple_user(state, payload, user),
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 
 #[cfg(feature = "email")]
 pub async fn verify_email(
