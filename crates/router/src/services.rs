@@ -97,6 +97,8 @@ pub async fn get_store(
     #[cfg(not(feature = "olap"))]
     let conf = master_config.into();
     #[cfg(feature = "olap")]
+    // this would get abstracted, for all cases
+    #[allow(clippy::useless_conversion)]
     let conf = (master_config.into(), replica_config.into());
 
     let store: RouterStore<StoreType> = if test_transaction {
