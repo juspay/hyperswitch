@@ -1,8 +1,8 @@
 use api_models::user_role as user_role_api;
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::ResultExt;
-use router_env::logger;
 use masking::ExposeInterface;
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse},

@@ -4,7 +4,6 @@ use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
-    consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
