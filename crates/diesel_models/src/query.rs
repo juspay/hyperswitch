@@ -6,6 +6,7 @@ mod capture;
 pub mod cards_info;
 pub mod configs;
 
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;

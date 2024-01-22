@@ -3167,6 +3167,9 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            separate_authentication: old_payment_attempt.separate_authentication,
+            authentication_provider: None,
+            authentication_id: None,
         }
     }
 

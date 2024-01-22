@@ -63,6 +63,9 @@ pub struct PaymentAttemptBatchNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub separate_authentication: Option<bool>,
+    pub authentication_provider: Option<String>,
+    pub authentication_id: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -116,6 +119,9 @@ impl PaymentAttemptBatchNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             net_amount: self.net_amount,
+            separate_authentication: self.separate_authentication,
+            authentication_provider: self.authentication_provider,
+            authentication_id: self.authentication_id,
         }
     }
 }

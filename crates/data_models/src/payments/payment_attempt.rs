@@ -155,6 +155,9 @@ pub struct PaymentAttempt {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub separate_authentication: Option<bool>,
+    pub authentication_provider: Option<String>,
+    pub authentication_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -232,6 +235,9 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub separate_authentication: Option<bool>,
+    pub authentication_provider: Option<String>,
+    pub authentication_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -389,6 +395,12 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: i64,
         amount_capturable: i64,
+    },
+    AuthenticationUpdate {
+        separate_authentication: Option<bool>,
+        authentication_provider: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
     },
 }
 
