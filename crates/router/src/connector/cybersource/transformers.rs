@@ -505,14 +505,14 @@ impl
                     .get_recurring_mandate_payment_data()?
                     .original_payment_authorized_amount
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "orignal_payment_authorized_amount",
+                        field_name: "original_payment_authorized_amount",
                     })?;
                 let original_currency = item
                     .router_data
                     .get_recurring_mandate_payment_data()?
                     .original_payment_authorized_currency
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "orignal_payment_authorized_currency",
+                        field_name: "original_payment_authorized_currency",
                     })?;
                 (
                     None,
