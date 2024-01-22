@@ -485,7 +485,7 @@ pub async fn get_token_for_recurring_mandate(
                 merchant_account.storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .map_err(|err| logger::error!(mandate_original_payment_not_found=?err))
             .ok()
         })
