@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums, payments::AdditionalPaymentData};
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -167,10 +167,9 @@ where
                     match frm_configs_option {
                         Some(frm_configs_value) => {
                             let frm_configs_struct: Vec<FrmConfigs> = frm_configs_value
-                                .iter()
+                                .into_iter()
                                 .map(|config| { config
-                                    .peek()
-                                    .clone()
+                                    .expose()
                                     .parse_value("FrmConfigs")
                                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                                         field_name: "frm_configs".to_string(),
@@ -432,6 +431,7 @@ pub async fn pre_payment_frm_core<'a, F>(
     frm_configs: FrmConfigsObject,
     customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
+    should_continue_capture: &mut bool,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<Option<FrmData>>
 where
@@ -467,13 +467,12 @@ where
                 .await?;
             let frm_fraud_check = frm_data_updated.fraud_check.clone();
             payment_data.frm_message = Some(frm_fraud_check.clone());
-            if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud)
-            //DontTakeAction
-            {
-                *should_continue_transaction = false;
+            if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                 if matches!(frm_configs.frm_action, api_enums::FrmAction::CancelTxn) {
+                    *should_continue_transaction = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 } else if matches!(frm_configs.frm_action, api_enums::FrmAction::ManualReview) {
+                    *should_continue_capture = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmManualReview);
                 }
             }
@@ -583,6 +582,7 @@ pub async fn call_frm_before_connector_call<'a, F, Req, Ctx>(
     frm_info: &mut Option<FrmInfo<F>>,
     customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
+    should_continue_capture: &mut bool,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<Option<FrmConfigsObject>>
 where
@@ -616,6 +616,7 @@ where
                         frm_configs,
                         customer,
                         should_continue_transaction,
+                        should_continue_capture,
                         key_store,
                     )
                     .await?;
