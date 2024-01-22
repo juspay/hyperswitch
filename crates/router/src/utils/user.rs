@@ -127,6 +127,6 @@ pub fn handle_invite_error(
         email: request.email.clone(),
         is_email_sent: false,
         password: None,
-        error: error,
+        error,
     }
 }

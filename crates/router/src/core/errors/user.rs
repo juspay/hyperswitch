@@ -74,7 +74,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new(sub_code, 3, self.get_error_message(), None))
             }
             Self::LinkInvalid => {
-                AER::Unauthorized(ApiError::new(sub_code, 4, "Invalid or expired link", None))
+                AER::Unauthorized(ApiError::new(sub_code, 4, self.get_error_message(), None))
             }
             Self::UnverifiedUser => {
                 AER::Unauthorized(ApiError::new(sub_code, 5, self.get_error_message(), None))

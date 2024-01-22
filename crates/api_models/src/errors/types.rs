@@ -109,7 +109,7 @@ impl ::core::fmt::Display for ApiErrorResponse {
 }
 
 impl ApiErrorResponse {
-    pub fn get_internal_error(&self) -> &ApiError {
+    pub(crate) fn get_internal_error(&self) -> &ApiError {
         match self {
             Self::Unauthorized(i)
             | Self::ForbiddenCommonResource(i)

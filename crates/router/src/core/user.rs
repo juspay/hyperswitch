@@ -558,7 +558,6 @@ async fn handle_existing_user_invitation(
     })
 }
 
-#[allow(unused_variables)]
 async fn handle_new_user_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
@@ -571,7 +570,6 @@ async fn handle_new_user_invitation(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
 
     let invitation_status = if cfg!(feature = "email") {
         UserStatus::InvitationSent
@@ -605,6 +603,7 @@ async fn handle_new_user_invitation(
     let is_email_sent;
     #[cfg(feature = "email")]
     {
+        let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
