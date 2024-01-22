@@ -59,15 +59,12 @@ pub struct DrainerSettings {
     pub loop_interval: u32,     // in milliseconds
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Server {
     pub port: u16,
     pub workers: usize,
     pub host: String,
-    pub request_body_limit: usize,
-    pub base_url: String,
-    pub shutdown_timeout: u64,
 }
 
 impl Server {
@@ -102,6 +99,16 @@ impl Default for DrainerSettings {
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
             loop_interval: 100,      // in milliseconds
+        }
+    }
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            workers: 1,
         }
     }
 }
