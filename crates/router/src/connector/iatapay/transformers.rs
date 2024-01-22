@@ -563,7 +563,9 @@ impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
                 | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
             },
             IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => match wh_body.status {
-                IatapayRefundWebhookStatus::Authorized | IatapayRefundWebhookStatus::Settled => Ok(Self::RefundSuccess),
+                IatapayRefundWebhookStatus::Authorized | IatapayRefundWebhookStatus::Settled => {
+                    Ok(Self::RefundSuccess)
+                }
                 IatapayRefundWebhookStatus::Failed => Ok(Self::RefundFailure),
                 IatapayRefundWebhookStatus::Created
                 | IatapayRefundWebhookStatus::Locked
