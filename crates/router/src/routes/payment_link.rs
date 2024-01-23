@@ -123,3 +123,33 @@ pub async fn payments_link_list(
     )
     .await
 }
+
+pub async fn payment_link_status(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkStatus;
+    let (merchant_id, payment_id) = path.into_inner();
+    let payload = api_models::payments::PaymentLinkInitiateRequest {
+        payment_id,
+        merchant_id: merchant_id.clone(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state, auth, _| {
+            get_payment_link_status(
+                state,
+                auth.merchant_account,
+                payload.merchant_id.clone(),
+                payload.payment_id.clone(),
+            )
+        },
+        &crate::services::authentication::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -147,9 +147,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileDelete
             | Flow::BusinessProfileList => Self::Business,
 
-            Flow::PaymentLinkRetrieve | Flow::PaymentLinkInitiate | Flow::PaymentLinkList => {
-                Self::PaymentLink
-            }
+            Flow::PaymentLinkRetrieve
+            | Flow::PaymentLinkInitiate
+            | Flow::PaymentLinkList
+            | Flow::PaymentLinkStatus => Self::PaymentLink,
 
             Flow::Verification => Self::Verification,
 
@@ -178,11 +179,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::InviteUser
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmail
-            | Flow::VerifyEmailRequest => Self::User,
+            | Flow::VerifyEmailRequest
+            | Flow::UpdateUserAccountDetails => Self::User,
 
-            Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
-                Self::UserRole
-            }
+            Flow::ListRoles
+            | Flow::GetRole
+            | Flow::GetRoleFromToken
+            | Flow::UpdateUserRole
+            | Flow::GetAuthorizationInfo
+            | Flow::AcceptInvitation => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
