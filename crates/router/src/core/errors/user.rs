@@ -54,6 +54,8 @@ pub enum UserErrors {
     MerchantIdParsingError,
     #[error("ChangePasswordError")]
     ChangePasswordError,
+    #[error("MaxInvitationsError")]
+    MaxInvitationsError,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -136,6 +138,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ChangePasswordError => {
                 AER::BadRequest(ApiError::new(sub_code, 29, self.get_error_message(), None))
             }
+            Self::MaxInvitationsError => {
+                AER::BadRequest(ApiError::new(sub_code, 30, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -166,6 +171,7 @@ impl UserErrors {
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
             Self::ChangePasswordError => "Old and new password cannot be the same",
+            Self::MaxInvitationsError => "Maximum invite count per request exceeded",
         }
     }
 }

@@ -407,6 +407,12 @@ pub async fn invite_user(
             .await
             .change_context(UserErrors::InternalServerError)?;
 
+        let invitation_status = if cfg!(feature = "email") {
+            UserStatus::InvitationSent
+        } else {
+            UserStatus::Active
+        };
+
         let now = common_utils::date_time::now();
         state
             .store
@@ -415,7 +421,7 @@ pub async fn invite_user(
                 merchant_id: user_from_token.merchant_id,
                 role_id: request.role_id,
                 org_id: user_from_token.org_id,
-                status: UserStatus::InvitationSent,
+                status: invitation_status,
                 created_by: user_from_token.user_id.clone(),
                 last_modified_by: user_from_token.user_id,
                 created_at: now,
@@ -472,6 +478,11 @@ pub async fn invite_multiple_user(
     requests: Vec<user_api::InviteUserRequest>,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
+    if requests.len() > 10 {
+        return Err(UserErrors::MaxInvitationsError.into())
+            .attach_printable("Number of invite requests must not exceed 10");
+    }
+
     let responses = futures::future::join_all(requests.iter().map(|request| async {
         match handle_invitation(&state, &user_from_token, request).await {
             Ok(response) => response,
