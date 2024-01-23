@@ -171,14 +171,14 @@ impl HealthCheckInterface for Store {
             .await
             .change_context(HealthCheckRedisError::StreamAppendFailed)?;
 
-        logger::debug!("Stream append succeded");
+        logger::debug!("Stream append succeeded");
 
         let output = self
             .redis_conn
             .stream_read_entries(TEST_STREAM_NAME, "0-0", Some(10))
             .await
             .change_context(HealthCheckRedisError::StreamReadFailed)?;
-        logger::debug!("Stream read succeded");
+        logger::debug!("Stream read succeeded");
 
         let (_, id_to_trim) = output
             .get(TEST_STREAM_NAME)
@@ -190,7 +190,7 @@ impl HealthCheckInterface for Store {
             .ok_or(error_stack::report!(
                 HealthCheckRedisError::StreamReadFailed
             ))?;
-        logger::debug!("Stream parse succeded");
+        logger::debug!("Stream parse succeeded");
 
         redis_conn
             .stream_trim_entries(
@@ -203,7 +203,7 @@ impl HealthCheckInterface for Store {
             )
             .await
             .change_context(HealthCheckRedisError::StreamTrimFailed)?;
-        logger::debug!("Stream trim succeded");
+        logger::debug!("Stream trim succeeded");
 
         Ok(())
     }

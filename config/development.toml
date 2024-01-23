@@ -50,7 +50,6 @@ max_feed_count = 200
 
 [server]
 # HTTP Request body limit. Defaults to 32kB
-host = "127.0.0.1"
 request_body_limit = 32768
 
 [secrets]
