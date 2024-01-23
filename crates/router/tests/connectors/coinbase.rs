@@ -83,6 +83,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         order_details: None,
         order_category: None,
         email: None,
+        customer_name: None,
         payment_experience: None,
         payment_method_type: None,
         session_token: None,

@@ -163,41 +163,49 @@ impl BlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_blocklist_entry(
         &self,
-        _pm_blocklist: storage::BlocklistNew,
+        pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store.insert_blocklist_entry(pm_blocklist).await
     }
 
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        _merchant_id: &str,
-        _fingerprint_id: &str,
+        merchant_id: &str,
+        fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+            .await
     }
 
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        _merchant_id: &str,
-        _fingerprint_id: &str,
+        merchant_id: &str,
+        fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+            .await
     }
 
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
-        _merchant_id: &str,
-        _data_kind: common_enums::BlocklistDataKind,
-        _limit: i64,
-        _offset: i64,
+        merchant_id: &str,
+        data_kind: common_enums::BlocklistDataKind,
+        limit: i64,
+        offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
+            .await
     }
 
     async fn list_blocklist_entries_by_merchant_id(
         &self,
-        _merchant_id: &str,
+        merchant_id: &str,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .list_blocklist_entries_by_merchant_id(merchant_id)
+            .await
     }
 }
