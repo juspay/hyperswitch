@@ -199,11 +199,37 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
     );
     let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
-    let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
-        .bind((server.host.as_str(), server.port))?
-        .workers(server.workers)
-        .shutdown_timeout(server.shutdown_timeout)
-        .run();
+    let server_builder =
+        actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
+            .bind((server.host.as_str(), server.port))?
+            .workers(server.workers)
+            .shutdown_timeout(server.shutdown_timeout);
+
+    #[cfg(feature = "tls")]
+    let server = match server.tls {
+        None => server_builder.run(),
+        Some(tls_conf) => {
+            let mut builder =
+                openssl::ssl::SslAcceptor::mozilla_intermediate(openssl::ssl::SslMethod::tls())
+                    .expect("Failed while creating the SSL builder");
+            builder
+                .set_private_key_file(tls_conf.private_key, openssl::ssl::SslFiletype::PEM)
+                .expect("Failed while setting private key for TLS");
+            builder
+                .set_certificate_chain_file(tls_conf.certificate)
+                .expect("Failed while setting certificate for TLS");
+
+            server_builder
+                .bind_openssl(
+                    (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
+                    builder,
+                )?
+                .run()
+        }
+    };
+    #[cfg(not(feature = "tls"))]
+    let server = server_builder.run();
+
     tokio::spawn(receiver_for_error(rx, server.handle()));
     Ok(server)
 }

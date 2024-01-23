@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "tls"]
 aws_s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config", "olap"]
@@ -32,6 +32,7 @@ detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
 recon = ["email", "api_models/recon"]
 retry = []
+tls = ["actix-web/openssl"]
 
 [dependencies]
 actix-cors = "0.6.4"

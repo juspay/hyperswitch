@@ -532,6 +532,8 @@ pub struct Server {
     pub request_body_limit: usize,
     pub base_url: String,
     pub shutdown_timeout: u64,
+    #[cfg(feature = "tls")]
+    pub tls: Option<ServerTls>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -923,4 +925,17 @@ pub struct PayPalOnboarding {
     pub client_secret: masking::Secret<String>,
     pub partner_id: masking::Secret<String>,
     pub enabled: bool,
+}
+
+#[cfg(feature = "tls")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct ServerTls {
+    /// Port to host the TLS secure server on
+    pub port: u16,
+    /// Use a different host (optional) (defaults to the host provided in [`Server`] config)
+    pub host: Option<String>,
+    /// private key file path associated with TLS (path to the private key file (`pem` format))
+    pub private_key: String,
+    /// certificate file associated with TLS (path to the certificate file (`pem` format))
+    pub certificate: String,
 }
