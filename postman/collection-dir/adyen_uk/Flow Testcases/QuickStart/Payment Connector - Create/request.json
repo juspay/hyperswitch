@@ -321,21 +321,6 @@
           "merchant_info": {
             "merchant_name": "Narayan Bhat"
           }
-        },
-        "apple_pay": {
-          "session_token_data": {
-            "initiative": "web",
-            "certificate": "{{certificate}}",
-            "display_name": "applepay",
-            "certificate_keys": "{{certificate_keys}}",
-            "initiative_context": "sdk-test-app.netlify.app",
-            "merchant_identifier": "merchant.com.adyen.san"
-          },
-          "payment_request_data": {
-            "label": "applepay pvt.ltd",
-            "supported_networks": ["visa", "masterCard", "amex", "discover"],
-            "merchant_capabilities": ["supports3DS"]
-          }
         }
       }
     }
