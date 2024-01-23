@@ -942,6 +942,7 @@ impl User {
                 .service(web::resource("/{role_id}").route(web::get().to(get_role))),
         );
 
+        // V2 routes
         route = route.service(
             web::scope("/v2").service(web::resource("/signin").route(web::post().to(user_signin))),
         );
