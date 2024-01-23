@@ -3617,6 +3617,18 @@ pub struct DisputeObj {
     pub status: String,
 }
 
+fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, String> {
+    let hashmap: HashMap<String, Value> =
+        serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+    let mut request_hash_map = HashMap::new();
+
+    for (key, value) in hashmap {
+        request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
+    }
+
+    request_hash_map
+}
+
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     #![allow(clippy::unwrap_used)]
@@ -3809,14 +3821,4 @@ mod test_validate_shipping_address_against_payment_method {
     }
 }
 
-fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, String> {
-    let hashmap: HashMap<String, Value> =
-        serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
-    let mut request_hash_map = HashMap::new();
 
-    for (key, value) in hashmap {
-        request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
-    }
-
-    request_hash_map
-}
