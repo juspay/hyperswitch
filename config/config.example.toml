@@ -131,6 +131,7 @@ host_rs = ""                   # Rust Locker host
 mock_locker = true             # Emulate a locker locally using Postgres
 basilisk_host = ""             # Basilisk host
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
+locker_enabled = true         # Boolean to enable or disable saving cards in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -139,12 +140,6 @@ connectors_with_delayed_session_response = "trustpay,payme" # List of connectors
 connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
 
 [jwekey] # 4 priv/pub key pair
-locker_key_identifier1 = ""     # key identifier for key rotation , should be same as basilisk
-locker_key_identifier2 = ""     # key identifier for key rotation , should be same as basilisk
-locker_encryption_key1 = ""     # public key 1 in pem format, corresponding private key in basilisk
-locker_encryption_key2 = ""     # public key 2 in pem format, corresponding private key in basilisk
-locker_decryption_key1 = ""     # private key 1 in pem format, corresponding public key in basilisk
-locker_decryption_key2 = ""     # private key 2 in pem format, corresponding public key in basilisk
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
@@ -345,7 +340,7 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
@@ -357,6 +352,9 @@ stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
+bankofamerica = {payment_method = "card"}
+cybersource = {payment_method = "card"}
+nmi = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true                                  # Whether dummy connector is enabled or not
@@ -385,6 +383,8 @@ pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment 
 bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
 bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
 bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = {connector_list = "stripe,adyen"} # Mandate supported payment method type and connector for bank_redirect
+
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -470,7 +470,7 @@ apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         #Merchant Cer
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" #Private key generate by RSA:2048 algorithm
 
 [payment_link]
-sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
 
 [payment_method_auth]
 redis_expiry = 900
@@ -523,9 +523,10 @@ enabled = true # Switch to enable or disable PayPal onboarding
 source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                       # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"   # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"  # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"   # Kafka topic to be used for Refund events
-api_logs_topic = "topic"           # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"     # Kafka topic to be used for connector api events
+brokers = []                              # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"          # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"         # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"          # Kafka topic to be used for Refund events
+api_logs_topic = "topic"                  # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"            # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events
