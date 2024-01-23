@@ -1,7 +1,4 @@
-use api_models::analytics::{
-    connector_events::{ConnectorEventsRequest},
-    Granularity,
-};
+use api_models::analytics::{connector_events::ConnectorEventsRequest, Granularity};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
