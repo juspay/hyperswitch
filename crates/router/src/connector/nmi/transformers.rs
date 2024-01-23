@@ -211,25 +211,19 @@ impl
                 }),
                 enums::AttemptStatus::AuthenticationPending,
             ),
-            Response::Declined | Response::Error => {
-                // if transaction id is zero(default case), dont fill the connector_transaction_id
-                let connector_transaction_id = if item.response.transactionid.as_str() == "0" {
-                    None
-                } else {
-                    Some(item.response.transactionid)
-                };
-                (
-                    Err(types::ErrorResponse {
-                        code: item.response.response_code,
-                        message: item.response.responsetext.to_owned(),
-                        reason: Some(item.response.responsetext),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id,
-                    }),
-                    enums::AttemptStatus::Failure,
-                )
-            }
+            Response::Declined | Response::Error => (
+                Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext.to_owned(),
+                    reason: Some(item.response.responsetext),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: get_connector_transaction_id(
+                        &item.response.transactionid,
+                    ),
+                }),
+                enums::AttemptStatus::Failure,
+            ),
         };
         Ok(Self {
             status,
@@ -391,19 +385,13 @@ impl
 
 impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
-        // if transaction id is zero(default case), dont fill the connector_transaction_id
-        let connector_transaction_id = if response.transactionid.as_str() == "0" {
-            None
-        } else {
-            Some(response.transactionid)
-        };
         Self {
             code: response.response_code,
             message: response.responsetext.to_owned(),
             reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id,
+            connector_transaction_id: get_connector_transaction_id(&response.transactionid),
         }
     }
 }
@@ -772,20 +760,23 @@ impl<T>
 
 impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
-        // if transaction id is zero(default case), dont fill the connector_transaction_id
-        let connector_transaction_id = if response.transactionid.as_str() == "0" {
-            None
-        } else {
-            Some(response.transactionid)
-        };
         Self {
             code: response.response_code,
             message: response.responsetext.to_owned(),
             reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id,
+            connector_transaction_id: get_connector_transaction_id(&response.transactionid),
         }
+    }
+}
+
+pub fn get_connector_transaction_id(transaction_id: &String) -> Option<String> {
+    // if transaction id is zero(default case), dont fill the connector_transaction_id
+    if transaction_id.as_str() == "0" {
+        None
+    } else {
+        Some(transaction_id.to_owned())
     }
 }
 
