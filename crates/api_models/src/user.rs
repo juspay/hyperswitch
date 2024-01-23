@@ -49,6 +49,9 @@ pub enum SignInResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct MerchantSelectResponse {
     pub token: Secret<String>,
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub verification_days_left: Option<i64>,
     pub merchants: Vec<UserMerchantAccount>,
 }
 

@@ -961,6 +961,8 @@ impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
 
         return Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {
+                name: self.user.get_name(),
+                email: self.user.get_email(),
                 token: auth::UserAuthToken::new_token(
                     self.user.get_user_id().to_string(),
                     &state.conf,
@@ -968,6 +970,7 @@ impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
                 .await?
                 .into(),
                 merchants: merchant_details,
+                verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
             },
         ));
     }
