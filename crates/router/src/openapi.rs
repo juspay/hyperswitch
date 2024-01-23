@@ -119,6 +119,9 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::gsm::get_gsm_rule,
         crate::routes::gsm::update_gsm_rule,
         crate::routes::gsm::delete_gsm_rule,
+        crate::routes::blocklist::add_entry_to_blocklist,
+        crate::routes::blocklist::list_blocked_payment_methods,
+        crate::routes::blocklist::remove_entry_from_blocklist
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -186,8 +189,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
+        api_models::admin::BusinessPaymentLinkConfig,
+        api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
-        api_models::admin::PaymentLinkColorSchema,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::gsm::GsmCreateRequest,
@@ -318,6 +322,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
         api_models::payments::IncrementalAuthorizationResponse,
+        api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
@@ -368,7 +373,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
-        api_models::payments::PaymentLinkObject,
+        api_models::payments::PaymentLinkStatus,
+        api_models::blocklist::BlocklistRequest,
+        api_models::blocklist::BlocklistResponse,
+        api_models::blocklist::ListBlocklistQuery,
+        common_enums::enums::BlocklistDataKind
     )),
     modifiers(&SecurityAddon)
 )]

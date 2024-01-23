@@ -117,7 +117,7 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let captured_amount =
-                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                    types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
@@ -273,6 +273,7 @@ pub trait PaymentsPreProcessingData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -317,6 +318,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -332,6 +338,18 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+pub trait RevokeMandateRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl RevokeMandateRequestData for types::MandateRevokeRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 }
 
@@ -359,6 +377,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
@@ -498,6 +517,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
     }
+
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -575,6 +598,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -598,6 +622,11 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 }
                 .into(),
             )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -789,7 +818,7 @@ impl CardData for api::Card {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         )))
@@ -800,14 +829,14 @@ impl CardData for api::Card {
             "{}{}{}",
             year.peek(),
             delimiter,
-            self.card_exp_month.peek().clone()
+            self.card_exp_month.peek()
         ))
     }
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         ))
@@ -1194,7 +1223,7 @@ where
 {
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    let json = connector_meta_secret.peek().clone();
+    let json = connector_meta_secret.expose();
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
