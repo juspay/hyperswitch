@@ -489,6 +489,10 @@ impl NewUser {
         self.new_merchant.clone()
     }
 
+    pub fn get_password(&self) -> UserPassword {
+        self.password.clone()
+    }
+
     pub async fn insert_user_in_db(
         &self,
         db: &dyn StorageInterface,
@@ -683,8 +687,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = password::generate_password_hash(uuid::Uuid::new_v4().to_string().into())?;
-        let password = UserPassword::new(password)?;
+        let password = UserPassword::new(uuid::Uuid::new_v4().to_string().into())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -736,7 +739,7 @@ impl UserFromStorage {
     }
 
     #[cfg(feature = "email")]
-    pub fn get_verification_days_left(&self, state: AppState) -> UserResult<Option<i64>> {
+    pub fn get_verification_days_left(&self, state: &AppState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
             return Ok(None);
         }
@@ -759,19 +762,13 @@ impl UserFromStorage {
     }
 }
 
-impl TryFrom<info::ModuleInfo> for user_role_api::ModuleInfo {
-    type Error = ();
-    fn try_from(value: info::ModuleInfo) -> Result<Self, Self::Error> {
-        let mut permissions = Vec::with_capacity(value.permissions.len());
-        for permission in value.permissions {
-            let permission = permission.try_into()?;
-            permissions.push(permission);
-        }
-        Ok(Self {
+impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
+    fn from(value: info::ModuleInfo) -> Self {
+        Self {
             module: value.module.into(),
             description: value.description,
-            permissions,
-        })
+            permissions: value.permissions.into_iter().map(Into::into).collect(),
+        }
     }
 }
 
@@ -791,18 +788,17 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::Files => Self::Files,
             info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
             info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
+            info::PermissionModule::AccountCreate => Self::AccountCreate,
         }
     }
 }
 
-impl TryFrom<info::PermissionInfo> for user_role_api::PermissionInfo {
-    type Error = ();
-    fn try_from(value: info::PermissionInfo) -> Result<Self, Self::Error> {
-        let enum_name = (&value.enum_name).try_into()?;
-        Ok(Self {
-            enum_name,
+impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
+    fn from(value: info::PermissionInfo) -> Self {
+        Self {
+            enum_name: value.enum_name.into(),
             description: value.description,
-        })
+        }
     }
 }
 
