@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.23.0
+
+### Features
+
+- **compatibility:** Add multiuse mandates support in stripe compatibility ([#3425](https://github.com/juspay/hyperswitch/pull/3425)) ([`4a8104e`](https://github.com/juspay/hyperswitch/commit/4a8104e5f8dd2cfd03de4055baf1256cb7533895))
+
+**Full Changelog:** [`2024.01.22.1...2024.01.23.0`](https://github.com/juspay/hyperswitch/compare/2024.01.22.1...2024.01.23.0)
+
+- - -
+
 ## 2024.01.22.1
 
 ### Features
