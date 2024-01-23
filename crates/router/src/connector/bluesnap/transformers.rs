@@ -28,7 +28,7 @@ use crate::{
     utils::{Encode, OptionExt},
 };
 
-const IS_METADATA_VISIBLE: &str = "Y";
+const DISPLAY_METADATA: &str = "Y";
 
 #[derive(Debug, Serialize)]
 pub struct BluesnapRouterData<T> {
@@ -1173,7 +1173,7 @@ impl ForeignFrom<Value> for Vec<RequestMetadata> {
             vector.push(RequestMetadata {
                 meta_key: key,
                 meta_value: value.map(|field_value| field_value.to_string()),
-                is_visible: Some(IS_METADATA_VISIBLE.to_string()),
+                is_visible: Some(DISPLAY_METADATA.to_string()),
             });
         }
         vector
