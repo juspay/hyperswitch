@@ -694,24 +694,22 @@ pub async fn list_merchant_ids_for_user(
     state: AppState,
     user: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
-    let merchant_ids =
-        utils::user_role::get_active_merchant_ids_for_user(&state, &user.user_id).await?;
+    let user_roles =
+        utils::user_role::get_active_user_roles_for_user(&state, &user.user_id).await?;
 
     let merchant_accounts = state
         .store
-        .list_multiple_merchant_accounts(merchant_ids)
+        .list_multiple_merchant_accounts(
+            user_roles
+                .iter()
+                .map(|role| role.merchant_id.clone())
+                .collect(),
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(
-        merchant_accounts
-            .into_iter()
-            .map(|acc| user_api::UserMerchantAccount {
-                merchant_id: acc.merchant_id,
-                merchant_name: acc.merchant_name,
-                is_active: true,
-            })
-            .collect(),
+        utils::user::get_multiple_merchant_details_with_status(user_roles, merchant_accounts)?,
     ))
 }
 

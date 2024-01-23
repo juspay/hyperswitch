@@ -942,15 +942,10 @@ pub struct SignInWithMultipleRolesStrategy {
 #[async_trait::async_trait]
 impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
-        let merchant_details = self
-            .merchant_accounts
-            .into_iter()
-            .map(|account| user_api::UserMerchantAccount {
-                merchant_id: account.merchant_id.clone(),
-                merchant_name: account.merchant_name,
-                is_active: false,
-            })
-            .collect::<Vec<_>>();
+        let merchant_details = utils::user::get_multiple_merchant_details_with_status(
+            self.user_roles,
+            self.merchant_accounts,
+        )?;
 
         return Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {

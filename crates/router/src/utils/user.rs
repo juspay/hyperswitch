@@ -121,7 +121,7 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub fn get_merchant_details_from_user_roles(
+pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
