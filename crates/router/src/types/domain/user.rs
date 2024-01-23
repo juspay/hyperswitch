@@ -773,6 +773,18 @@ impl UserFromStorage {
     pub fn get_preferred_merchant_id(&self) -> Option<String> {
         self.0.preferred_merchant_id.clone()
     }
+
+    pub async fn get_role_from_db_by_merchant_id(
+        &self,
+        state: &AppState,
+        merchant_id: &str,
+    ) -> UserResult<UserRole> {
+        state
+            .store
+            .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+    }
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
@@ -863,42 +875,22 @@ impl SignInWithRoleStrategy for SignInWithRoleStrategyType {
 }
 
 impl SignInWithRoleStrategyType {
-    pub async fn decide_user_role_signin_strategy(
-        state: &AppState,
+    pub fn decide_signin_strategy_by_user_roles(
         user: UserFromStorage,
+        user_roles: Vec<UserRole>,
     ) -> UserResult<Self> {
-        if let Some(preferred_merchant_id) = user.get_preferred_merchant_id() {
-            let user_role = state
-                .store
-                .find_user_role_by_user_id_merchant_id(user.get_user_id(), &preferred_merchant_id)
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-
-            return Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
-                user,
-                user_role,
-            }));
-        }
-
-        let user_roles = user.get_roles_from_db(state).await?;
-
         if user_roles.is_empty() {
             return Err(UserErrors::InternalServerError.into());
         }
 
-        let number_of_active_user_roles = user_roles
+        let strategy = if let Some(user_role) = user_roles
             .iter()
-            .filter(|role| role.status == UserStatus::Active)
-            .count();
-
-        let strategy = if number_of_active_user_roles >= 1 {
-            let user_role = user_roles
-                .into_iter()
-                .find(|x| x.status == UserStatus::Active)
-                .ok_or(UserErrors::InternalServerError)
-                .into_report()?;
-
-            Self::SingleRole(SignInWithSingleRoleStrategy { user, user_role })
+            .find(|role| role.status == UserStatus::Active)
+        {
+            Self::SingleRole(SignInWithSingleRoleStrategy {
+                user,
+                user_role: user_role.clone(),
+            })
         } else {
             Self::MultipleRoles(SignInWithMultipleRolesStrategy { user, user_roles })
         };
@@ -936,7 +928,7 @@ impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
         let user_roles = self
             .user_roles
             .into_iter()
-            .filter(|x| x.status == UserStatus::InvitationSent)
+            .filter(|role| role.status == UserStatus::InvitationSent)
             .collect::<Vec<_>>();
 
         let merchant_accounts = state

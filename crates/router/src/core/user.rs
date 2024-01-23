@@ -144,8 +144,21 @@ pub async fn signin(
     user_from_db.compare_password(request.password)?;
 
     let signin_strategy =
-        domain::SignInWithRoleStrategyType::decide_user_role_signin_strategy(&state, user_from_db)
-            .await?;
+        if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
+            let preferred_role = user_from_db
+                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .await?;
+            domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
+                user: user_from_db,
+                user_role: preferred_role,
+            })
+        } else {
+            let user_roles = user_from_db.get_roles_from_db(&state).await?;
+            domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
+                user_from_db,
+                user_roles,
+            )?
+        };
 
     Ok(ApplicationResponse::Json(
         signin_strategy.get_response(&state).await?,
@@ -768,8 +781,21 @@ pub async fn verify_email(
     let user_from_db: domain::UserFromStorage = user.into();
 
     let signin_strategy =
-        domain::SignInWithRoleStrategyType::decide_user_role_signin_strategy(&state, user_from_db)
-            .await?;
+        if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
+            let preferred_role = user_from_db
+                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .await?;
+            domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
+                user: user_from_db,
+                user_role: preferred_role,
+            })
+        } else {
+            let user_roles = user_from_db.get_roles_from_db(&state).await?;
+            domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
+                user_from_db,
+                user_roles,
+            )?
+        };
 
     Ok(ApplicationResponse::Json(
         signin_strategy.get_response(&state).await?,
