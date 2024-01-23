@@ -3316,7 +3316,7 @@ pub fn get_qr_metadata(
         .additional_data
         .clone()
         .and_then(|additional_data| additional_data.pix_expiration_date)
-        .map(|t| t.assume_utc().unix_timestamp());
+        .map(|t| t.assume_utc().unix_timestamp() * 1000);
 
     if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
     {
