@@ -148,13 +148,15 @@ pub async fn intiate_payment_link_flow(
             currency,
             payment_id: payment_intent.payment_id,
             merchant_name,
-            merchant_logo: payment_link_config.clone().logo,
+            merchant_logo: payment_link_config.logo.clone(),
             created: payment_link.created_at,
             intent_status: payment_intent.status,
             payment_link_status,
             error_code: payment_attempt.error_code,
             error_message: payment_attempt.error_message,
             redirect: false,
+            theme: payment_link_config.theme.clone(),
+            return_url: return_url.clone(),
         };
         let js_script = get_js_script(
             api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
@@ -178,11 +180,11 @@ pub async fn intiate_payment_link_flow(
         session_expiry,
         pub_key,
         client_secret,
-        merchant_logo: payment_link_config.clone().logo,
+        merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
-        theme: payment_link_config.clone().theme,
+        theme: payment_link_config.theme.clone(),
         merchant_description: payment_intent.description,
-        sdk_layout: payment_link_config.clone().sdk_layout,
+        sdk_layout: payment_link_config.sdk_layout.clone(),
     };
 
     let js_script = get_js_script(api_models::payments::PaymentLinkData::PaymentLinkDetails(
@@ -504,18 +506,30 @@ pub async fn get_payment_link_status(
     let css_script = get_color_scheme_css(payment_link_config.clone());
     let payment_link_status = check_payment_link_status(session_expiry);
 
+    let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
+        payment_create_return_url
+    } else {
+        merchant_account
+            .return_url
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "return_url",
+            })?
+    };
+
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
         currency,
         payment_id: payment_intent.payment_id,
         merchant_name,
-        merchant_logo: payment_link_config.clone().logo,
+        merchant_logo: payment_link_config.logo.clone(),
         created: payment_link.created_at,
         intent_status: payment_intent.status,
         payment_link_status,
         error_code: payment_attempt.error_code,
         error_message: payment_attempt.error_message,
         redirect: true,
+        theme: payment_link_config.theme.clone(),
+        return_url,
     };
     let js_script = get_js_script(
         api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
@@ -524,7 +538,7 @@ pub async fn get_payment_link_status(
         js_script,
         css_script,
     };
-    return Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_status_data),
-    )));
+    )))
 }

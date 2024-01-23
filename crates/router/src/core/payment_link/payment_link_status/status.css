@@ -21,6 +21,7 @@ body > div {
   width: 100vw;
   overflow: scroll;
   display: flex;
+  flex-flow: column;
   align-items: center;
   justify-content: center;
 }
@@ -128,6 +129,12 @@ body > div {
   word-wrap: break-word;
   font-weight: 400;
   text-align: center;
+}
+
+#hyper-checkout-status-redirect-message {
+  margin-top: 20px;
+  font-family: "Montserrat";
+  font-size: 13px;
 }
 
 .ellipsis-container-2 {

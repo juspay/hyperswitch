@@ -1756,7 +1756,7 @@ pub fn build_payment_link_html(
         Ok(rendered_css) => rendered_css,
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");
-            return Err(errors::ApiErrorResponse::InternalServerError)?;
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
 
@@ -1771,7 +1771,7 @@ pub fn build_payment_link_html(
         Ok(rendered_js) => rendered_js,
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");
-            return Err(errors::ApiErrorResponse::InternalServerError)?;
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
 
@@ -1817,7 +1817,7 @@ pub fn get_payment_link_status(
         Ok(rendered_css) => rendered_css,
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");
-            return Err(errors::ApiErrorResponse::InternalServerError)?;
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
 
@@ -1831,7 +1831,7 @@ pub fn get_payment_link_status(
         Ok(rendered_js) => rendered_js,
         Err(tera_error) => {
             crate::logger::warn!("{tera_error}");
-            return Err(errors::ApiErrorResponse::InternalServerError)?;
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
 
