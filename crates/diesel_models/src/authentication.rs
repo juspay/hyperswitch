@@ -58,6 +58,31 @@ pub struct AuthenticationUpdateInternal {
     pub modified_at: time::PrimitiveDateTime,
 }
 
+impl AuthenticationUpdateInternal {
+    pub fn apply_changeset(self, source: Authentication) -> Authentication {
+        let Self {
+            connector_authentication_id,
+            authentication_data,
+            payment_method_id,
+            authentication_type,
+            authentication_status,
+            lifecycle_status,
+            modified_at: _,
+        } = self;
+        Authentication {
+            connector_authentication_id: connector_authentication_id
+                .or(source.connector_authentication_id),
+            authentication_data: authentication_data.or(source.authentication_data),
+            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
+            authentication_type: authentication_type.or(source.authentication_type),
+            authentication_status: authentication_status.unwrap_or(source.authentication_status),
+            lifecycle_status: lifecycle_status.unwrap_or(source.lifecycle_status),
+            modified_at: common_utils::date_time::now(),
+            ..source
+        }
+    }
+}
+
 impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
     fn from(auth_update: AuthenticationUpdate) -> Self {
         match auth_update {
