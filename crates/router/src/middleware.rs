@@ -175,16 +175,15 @@ where
                 .into_iter()
                 .collect::<Result<Vec<bytes::Bytes>, actix_web::error::PayloadError>>()?;
             let bytes = payload.clone().concat().to_vec();
-            let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-            let concatenated_bytes: bytes::Bytes = payload.concat().to_vec().into();
             let (_, mut new_payload) = actix_http::h1::Payload::create(true);
-            new_payload.unread_data(concatenated_bytes.clone());
+            new_payload.unread_data(bytes.to_vec().clone().into());
             let new_req = actix_web::dev::ServiceRequest::from_parts(http_req, new_payload.into());
             let response_fut = svc.call(new_req);
             let response = response_fut.await?;
-            let request_id = request_id_fut.await?.as_hyphenated().to_string();
             // Log the request_details when we receive 400 status from the application
             if response.status() == 400 {
+                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+                let request_id = request_id_fut.await?.as_hyphenated().to_string();
                 logger::info!(
                     "request_id: {}, request_details: {}",
                     request_id,
