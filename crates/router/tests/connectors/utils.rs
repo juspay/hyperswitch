@@ -524,6 +524,8 @@ pub trait ConnectorActions: Connector {
             apple_pay_flow: None,
             external_latency: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 
