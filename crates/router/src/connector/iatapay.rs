@@ -656,10 +656,8 @@ impl api::IncomingWebhook for Iatapay {
             iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => {
                 match wh_body.merchant_refund_id {
                     Some(merchant_refund_id) => {
-                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                            api_models::payments::PaymentIdType::PaymentAttemptId(
-                                merchant_refund_id,
-                            ),
+                        Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                            api_models::webhooks::RefundIdType::RefundId(merchant_refund_id),
                         ))
                     }
                     None => Ok(api_models::webhooks::ObjectReferenceId::RefundId(

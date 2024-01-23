@@ -225,6 +225,7 @@ pub enum IatapayPaymentStatus {
     Initiated,
     Authorized,
     Settled,
+    Cleared,
     Failed,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
@@ -233,7 +234,9 @@ pub enum IatapayPaymentStatus {
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
     fn from(item: IatapayPaymentStatus) -> Self {
         match item {
-            IatapayPaymentStatus::Authorized | IatapayPaymentStatus::Settled => Self::Charged,
+            IatapayPaymentStatus::Authorized
+            | IatapayPaymentStatus::Settled
+            | IatapayPaymentStatus::Cleared => Self::Charged,
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
@@ -440,30 +443,31 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_details
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_details,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.iata_refund_id.to_string(),
+                refund_status,
+            })
+        };
 
         Ok(Self {
-            response: if connector_util::is_refund_failure(refund_status) {
-                Err(types::ErrorResponse {
-                    code: item
-                        .response
-                        .failure_code
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: item
-                        .response
-                        .failure_details
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.failure_details,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.iata_refund_id.clone()),
-                })
-            } else {
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: item.response.iata_refund_id.to_string(),
-                    refund_status,
-                })
-            },
+            response,
             ..item.data
         })
     }
@@ -477,29 +481,30 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_details
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_details,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.iata_refund_id.to_string(),
+                refund_status,
+            })
+        };
         Ok(Self {
-            response: if connector_util::is_refund_failure(refund_status) {
-                Err(types::ErrorResponse {
-                    code: item
-                        .response
-                        .failure_code
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: item
-                        .response
-                        .failure_details
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.failure_details,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(item.response.iata_refund_id.clone()),
-                })
-            } else {
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: item.response.iata_refund_id.to_string(),
-                    refund_status,
-                })
-            },
+            response,
             ..item.data
         })
     }
