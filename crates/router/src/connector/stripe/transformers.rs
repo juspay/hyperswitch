@@ -3858,5 +3858,3 @@ mod test_validate_shipping_address_against_payment_method {
         }
     }
 }
-
-
