@@ -125,10 +125,14 @@ function boot() {
  **/
 function renderStatusDetails(paymentDetails) {
   var paymentLinkStatus = paymentDetails.payment_link_status;
+  var intentStatus = paymentDetails.intent_status;
+
   var status =
-    paymentLinkStatus === "active"
-      ? paymentDetails.intent_status
-      : paymentLinkStatus;
+    paymentLinkStatus === "expired"
+      ? intentStatus === "requires_confirmation"
+        ? paymentLinkStatus
+        : intentStatus
+      : intentStatus;
 
   var statusDetails = {
     imageSource: "",
@@ -263,7 +267,7 @@ function renderStatusDetails(paymentDetails) {
     statusContentNode.append(statusDetailsNode);
   }
 
-  if (paymentLinkStatus === "active") {
+  if (paymentDetails.redirect === true) {
     // Form redirect text
     var statusRedirectTextNode = document.getElementById(
       "hyper-checkout-status-redirect-message"

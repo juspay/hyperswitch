@@ -151,10 +151,10 @@ pub async fn intiate_payment_link_flow(
             merchant_logo: payment_link_config.logo.clone(),
             created: payment_link.created_at,
             intent_status: payment_intent.status,
-            payment_link_status,
+            payment_link_status: payment_link_status.clone(),
             error_code: payment_attempt.error_code,
             error_message: payment_attempt.error_message,
-            redirect: false,
+            redirect: payment_link_status != api_models::payments::PaymentLinkStatus::Expired,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
         };
@@ -527,7 +527,7 @@ pub async fn get_payment_link_status(
         payment_link_status,
         error_code: payment_attempt.error_code,
         error_message: payment_attempt.error_message,
-        redirect: true,
+        redirect: false,
         theme: payment_link_config.theme.clone(),
         return_url,
     };

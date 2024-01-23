@@ -449,22 +449,7 @@ function handleSubmit(e) {
           showMessage("An unexpected error occurred.");
         }
       } else {
-        hyper
-          .retrievePaymentIntent(paymentDetails.client_secret)
-          .then(function (result) {
-            var paymentIntent = result.paymentIntent;
-            if (paymentIntent && paymentIntent.status) {
-              var arr = window.location.pathname.split("/");
-              arr.splice(0, 2);
-              arr.unshift("status");
-              arr.unshift("payment_link");
-              window.location.href =
-                window.location.origin + "/" + arr.join("/");
-            }
-          })
-          .catch(function (error) {
-            console.error("Error retrieving payment_intent", error);
-          });
+        window.location.reload();
       }
     })
     .catch(function (error) {
