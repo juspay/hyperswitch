@@ -1,6 +1,7 @@
 use api_models::user_role as user_role_api;
-use diesel_models::user_role::UserRoleUpdate;
+use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::ResultExt;
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse},
@@ -112,6 +113,51 @@ pub async fn update_user_role(
             }
             e.change_context(UserErrors::InternalServerError)
         })?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn accept_invitation(
+    state: AppState,
+    user_token: auth::UserWithoutMerchantFromToken,
+    req: user_role_api::AcceptInvitationRequest,
+) -> UserResponse<user_role_api::AcceptInvitationResponse> {
+    let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
+        state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user_token.user_id.as_str(),
+                merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user_token.user_id.clone(),
+                },
+            )
+            .await
+            .map_err(|e| {
+                logger::error!("Error while accepting invitation {}", e);
+            })
+            .ok()
+    }))
+    .await
+    .into_iter()
+    .reduce(Option::or)
+    .flatten()
+    .ok_or(UserErrors::MerchantIdNotFound)?;
+
+    if let Some(true) = req.need_dashboard_entry_response {
+        let user_from_db = state
+            .store
+            .find_user_by_id(user_token.user_id.as_str())
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into();
+
+        let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+        return Ok(ApplicationResponse::Json(
+            utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+        ));
+    }
 
     Ok(ApplicationResponse::StatusOk)
 }
