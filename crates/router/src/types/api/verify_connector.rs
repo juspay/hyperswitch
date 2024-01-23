@@ -103,6 +103,8 @@ impl VerifyConnectorData {
             external_latency: None,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

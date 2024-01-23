@@ -167,6 +167,8 @@ where
         external_latency: None,
         apple_pay_flow,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     };
 
     Ok(router_data)

@@ -18,6 +18,8 @@ pub struct ConnectorEvent {
     created_at: i128,
     request_id: String,
     latency: u128,
+    refund_id: Option<String>,
+    dispute_id: Option<String>,
 }
 
 impl ConnectorEvent {
@@ -33,6 +35,8 @@ impl ConnectorEvent {
         merchant_id: String,
         request_id: Option<&RequestId>,
         latency: u128,
+        refund_id: Option<String>,
+        dispute_id: Option<String>,
     ) -> Self {
         Self {
             connector_name,
@@ -52,6 +56,8 @@ impl ConnectorEvent {
                 .map(|i| i.as_hyphenated().to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
+            refund_id,
+            dispute_id,
         }
     }
 }

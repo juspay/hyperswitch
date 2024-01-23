@@ -394,6 +394,8 @@ where
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        req.refund_id.clone(),
+                        req.dispute_id.clone(),
                     );
 
                     match connector_event.try_into() {
