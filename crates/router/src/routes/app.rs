@@ -922,6 +922,7 @@ impl User {
             .service(web::resource("/role").route(web::get().to(get_role_from_token)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
             .service(web::resource("/user/invite").route(web::post().to(invite_user)))
+            .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
