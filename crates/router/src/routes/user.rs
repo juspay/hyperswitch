@@ -63,7 +63,7 @@ pub async fn user_signin_without_invite_checks(
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SignInRequest>,
 ) -> HttpResponse {
-    let flow = Flow::UserSignIn;
+    let flow = Flow::UserSignInWithoutInviteChecks;
     let req_payload = json_payload.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
@@ -376,7 +376,7 @@ pub async fn verify_email_without_invite_checks(
     http_req: HttpRequest,
     json_payload: web::Json<user_api::VerifyEmailRequest>,
 ) -> HttpResponse {
-    let flow = Flow::VerifyEmail;
+    let flow = Flow::VerifyEmailWithoutInviteChecks;
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
