@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.24.0
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`7885b2a`](https://github.com/juspay/hyperswitch/commit/7885b2a213f474da3e018ddeb56bc6e407c48471))
+
+**Full Changelog:** [`2024.01.23.0...2024.01.24.0`](https://github.com/juspay/hyperswitch/compare/2024.01.23.0...2024.01.24.0)
+
+- - -
+
 ## 2024.01.23.0
 
 ### Features
