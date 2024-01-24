@@ -102,9 +102,9 @@ pub async fn send_recon_request(
         user_name: UserName::new(user_from_db.name)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
-        recipient_email: UserEmail::from_pii_email(user_from_db.email.clone())
+        recipient_email: UserEmail::new(Secret::new("biz@hyperswitch.io".to_string()))
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert to UserEmail from pii::Email")?,
+            .attach_printable("Failed to convert recipient's email to UserEmail")?,
         settings: state.conf.clone(),
         subject: format!(
             "Dashboard Pro Feature Request by {}",
@@ -187,7 +187,7 @@ pub async fn recon_merchant_account_update(
     let email_contents = email_types::ReconActivation {
         recipient_email: UserEmail::from_pii_email(user_email.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert to UserEmail from pii::Email")?,
+            .attach_printable("Failed to convert recipient's email to UserEmail from pii::Email")?,
         user_name: UserName::new(Secret::new("HyperSwitch User".to_string()))
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
