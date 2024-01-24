@@ -473,6 +473,13 @@ impl EventInterface for KafkaStore {
     ) -> CustomResult<storage::Event, errors::StorageError> {
         self.diesel_store.update_event(event_id, event).await
     }
+
+    async fn find_event(
+        &self,
+        event_id: String,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        self.diesel_store.find_event(event_id).await
+    }
 }
 
 #[async_trait::async_trait]

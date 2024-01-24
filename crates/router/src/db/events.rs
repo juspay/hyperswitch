@@ -18,6 +18,10 @@ pub trait EventInterface {
         event_id: String,
         event: storage::EventUpdate,
     ) -> CustomResult<storage::Event, errors::StorageError>;
+    async fn find_event(
+        &self,
+        event_id: String,
+    ) -> CustomResult<storage::Event, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -36,6 +40,17 @@ impl EventInterface for Store {
     ) -> CustomResult<storage::Event, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Event::update(&conn, &event_id, event)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_event(
+        &self,
+        event_id: String,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Event::find(&conn, &event_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -93,6 +108,19 @@ impl EventInterface for MockDb {
         }
 
         Ok(event_to_update.clone())
+    }
+
+    async fn find_event(
+        &self,
+        event_id: String,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        let event = locked_events
+            .iter()
+            .find(|event| event.event_id == event_id)
+            .ok_or(errors::StorageError::MockDbError)?;
+
+        Ok(event.clone())
     }
 }
 

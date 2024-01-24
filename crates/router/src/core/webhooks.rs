@@ -708,33 +708,44 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    // Creating events this way will help ensure that only one webhook for the event will be sent
     let event_id = format!("{primary_object_id}_{}", event_type);
-    let new_event = storage::EventNew {
-        event_id: event_id.clone(),
-        event_type,
-        event_class,
-        is_webhook_notified: false,
-        intent_reference_id,
-        primary_object_id,
-        primary_object_type,
-    };
 
-    let event_insert_result = state.store.insert_event(new_event).await;
-
-    let event = match event_insert_result {
-        Ok(event) => Ok(event),
-        Err(error) => {
-            if error.current_context().is_db_unique_violation() {
+    // Check if a webhook was already tried for this event
+    let event = match state.store.find_event(event_id.clone()).await {
+        Ok(previous_event) => {
+            if previous_event.is_webhook_notified {
                 logger::info!("Merchant already notified about the event {event_id}");
                 return Ok(());
             } else {
-                logger::error!(event_insertion_failure=?error);
-                Err(error
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("Failed to insert event in events table"))
+                previous_event
             }
         }
-    }?;
+        Err(error) => {
+            if error.current_context().is_db_not_found() {
+                let new_event = storage::EventNew {
+                    event_id: event_id.clone(),
+                    event_type,
+                    event_class,
+                    is_webhook_notified: false,
+                    intent_reference_id,
+                    primary_object_id,
+                    primary_object_type,
+                };
+
+                state
+                    .store
+                    .insert_event(new_event)
+                    .await
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to insert event in events table")?
+            } else {
+                Err(error
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to find event in events table"))?
+            }
+        }
+    };
 
     if state.conf.webhooks.outgoing_enabled {
         let outgoing_webhook = api::OutgoingWebhook {
