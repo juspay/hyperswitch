@@ -255,7 +255,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-
+        // connector mandate refernce upate history
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -284,10 +284,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             api_models::payments::MandateIds {
                                 mandate_id: mandate_obj.mandate_id,
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: connector_id.connector_mandate_id,
-                                        payment_method_id: connector_id.payment_method_id,
-                                    },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
                                 ))
                             }
                          }),

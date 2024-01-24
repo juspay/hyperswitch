@@ -929,6 +929,12 @@ fn get_card_info<F>(
                                 field_name: "mandate_data.mandate_type.multi_use",
                             })?
                         }
+                        MandateDataType::UpdateMandateId(_) => {
+                            Err(errors::ConnectorError::FlowNotSupported {
+                                flow: "update mandate".to_string(),
+                                connector: "nuvei".to_string(),
+                            })?
+                        }
                     };
                     let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(
                         Some(details.get_metadata().ok_or_else(utils::missing_field_err(

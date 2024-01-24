@@ -1846,6 +1846,9 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
+                    data_models::mandates::MandateDataType::UpdateMandateId(mandate_id) => {
+                        api::MandateType::UpdateMandateId(mandate_id)
+                    }
                 },
             ),
             show_surcharge_breakup_screen: merchant_surcharge_configs

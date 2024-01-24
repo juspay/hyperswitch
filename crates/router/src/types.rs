@@ -828,7 +828,7 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
-#[derive(serde::Serialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,

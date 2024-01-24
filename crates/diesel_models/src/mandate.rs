@@ -75,6 +75,11 @@ pub enum MandateUpdate {
     ConnectorReferenceUpdate {
         connector_mandate_ids: Option<pii::SecretSerdeValue>,
     },
+    ConnectorMandateIdUpdate {
+        connector_mandate_id: Option<String>,
+        connector_mandate_ids: Option<pii::SecretSerdeValue>,
+        payment_method_id: String,
+    },
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -89,6 +94,8 @@ pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i64>,
     connector_mandate_ids: Option<pii::SecretSerdeValue>,
+    connector_mandate_id: Option<String>,
+    payment_method_id: Option<String>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
@@ -98,16 +105,30 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 mandate_status: Some(mandate_status),
                 connector_mandate_ids: None,
                 amount_captured: None,
+                connector_mandate_id: None,
+                payment_method_id: None,
             },
             MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
                 mandate_status: None,
                 amount_captured,
                 connector_mandate_ids: None,
+                connector_mandate_id: None,
+                payment_method_id: None,
             },
             MandateUpdate::ConnectorReferenceUpdate {
-                connector_mandate_ids: connector_mandate_id,
+                connector_mandate_ids,
             } => Self {
-                connector_mandate_ids: connector_mandate_id,
+                connector_mandate_ids,
+                ..Default::default()
+            },
+            MandateUpdate::ConnectorMandateIdUpdate {
+                connector_mandate_id,
+                connector_mandate_ids,
+                payment_method_id,
+            } => Self {
+                connector_mandate_id,
+                connector_mandate_ids,
+                payment_method_id: Some(payment_method_id),
                 ..Default::default()
             },
         }

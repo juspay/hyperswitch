@@ -202,6 +202,16 @@ impl MandateInterface for MockDb {
                     } => {
                         mandate.connector_mandate_ids = connector_mandate_ids;
                     }
+
+                    diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
+                        connector_mandate_id,
+                        connector_mandate_ids,
+                        payment_method_id,
+                    } => {
+                        mandate.connector_mandate_ids = connector_mandate_ids;
+                        mandate.connector_mandate_id = connector_mandate_id;
+                        mandate.payment_method_id = payment_method_id
+                    }
                 }
                 Ok(mandate.clone())
             }

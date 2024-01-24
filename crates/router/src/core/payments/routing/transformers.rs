@@ -40,6 +40,7 @@ impl ForeignFrom<api_models::payments::MandateType> for dsl_enums::MandateType {
         match from {
             api_models::payments::MandateType::MultiUse(_) => Self::MultiUse,
             api_models::payments::MandateType::SingleUse(_) => Self::SingleUse,
+            api_models::payments::MandateType::UpdateMandateId(_) => Self::UpdateMandateId,
         }
     }
 }
@@ -49,6 +50,7 @@ impl ForeignFrom<storage_enums::MandateDataType> for dsl_enums::MandateType {
         match from {
             storage_enums::MandateDataType::MultiUse(_) => Self::MultiUse,
             storage_enums::MandateDataType::SingleUse(_) => Self::SingleUse,
+            storage_enums::MandateDataType::UpdateMandateId(_) => Self::UpdateMandateId,
         }
     }
 }

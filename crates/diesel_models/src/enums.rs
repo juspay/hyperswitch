@@ -174,6 +174,7 @@ use diesel::{
 pub enum MandateDataType {
     SingleUse(MandateAmountData),
     MultiUse(Option<MandateAmountData>),
+    UpdateMandateId(String),
 }
 
 impl<DB: Backend> FromSql<Jsonb, DB> for MandateDataType

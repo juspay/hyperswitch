@@ -637,6 +637,9 @@ where
                                     data_models::mandates::MandateDataType::MultiUse(None) => {
                                         api::MandateType::MultiUse(None)
                                     }
+                                    data_models::mandates::MandateDataType::UpdateMandateId(
+                                        mandate_id,
+                                    ) => api::MandateType::UpdateMandateId(mandate_id),
                                 }),
                             }),
                             auth_flow == services::AuthFlow::Merchant,

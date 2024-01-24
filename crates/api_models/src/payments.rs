@@ -576,10 +576,18 @@ pub enum MandateReferenceId {
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub update_history: Option<Vec<UpdateHistory>>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct UpdateHistory {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: String,
+    pub original_payment_id: Option<String>,
 }
 
 impl MandateIds {
@@ -638,6 +646,8 @@ pub enum MandateType {
     SingleUse(MandateAmountData),
     /// If the mandate should be valid for multiple debits
     MultiUse(Option<MandateAmountData>),
+
+    UpdateMandateId(String),
 }
 
 impl Default for MandateType {

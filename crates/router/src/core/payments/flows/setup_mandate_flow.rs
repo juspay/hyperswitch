@@ -1,9 +1,10 @@
 use async_trait::async_trait;
+use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
@@ -65,16 +66,16 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
             &self,
-            call_connector_action,
+            call_connector_action.clone(),
             connector_request,
         )
         .await
         .to_setup_mandate_failed_response()?;
-
         let pm_id = Box::pin(tokenization::save_payment_method(
             state,
             connector,
@@ -86,14 +87,87 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         ))
         .await?;
 
-        mandate::mandate_procedure(
-            state,
-            resp,
-            maybe_customer,
-            pm_id,
-            connector.merchant_connector_id.clone(),
-        )
-        .await
+        if let Some(mandate_id) =
+            self.request
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|mandate_data| {
+                    mandate_data
+                        .mandate_type
+                        .as_ref()
+                        .and_then(|mandate_data_type| match mandate_data_type {
+                            data_models::mandates::MandateDataType::SingleUse(_)
+                            | data_models::mandates::MandateDataType::MultiUse(_) => None,
+                            data_models::mandates::MandateDataType::UpdateMandateId(mandate_id) => {
+                                Some(mandate_id)
+                            }
+                        })
+                })
+        {
+            let mandate = state
+                .store
+                .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+
+            let profile_id = mandate::helpers::get_profile_id_for_mandate(
+                state,
+                merchant_account,
+                mandate.clone(),
+            )
+            .await?;
+            let connector_integration: services::BoxedConnectorIntegration<
+                '_,
+                types::api::MandateRevoke,
+                types::MandateRevokeRequestData,
+                types::MandateRevokeResponseData,
+            > = connector.connector.get_connector_integration();
+            let merchant_connector_account = helpers::get_merchant_connector_account(
+                state,
+                &merchant_account.merchant_id,
+                None,
+                key_store,
+                &profile_id,
+                &mandate.connector,
+                mandate.merchant_connector_id.as_ref(),
+            )
+            .await?;
+
+            let router_data = mandate::utils::construct_mandate_revoke_router_data(
+                merchant_connector_account,
+                merchant_account,
+                mandate.clone(),
+            )
+            .await?;
+
+            let _response = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                call_connector_action,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            // TODO:Add the revoke mandate task to process tracker
+            mandate::update_mandate_procedure(
+                state,
+                resp,
+                mandate,
+                &merchant_account.merchant_id,
+                pm_id,
+            )
+            .await
+        } else {
+            mandate::mandate_procedure(
+                state,
+                resp,
+                maybe_customer,
+                pm_id,
+                connector.merchant_connector_id.clone(),
+            )
+            .await
+        }
     }
 
     async fn add_access_token<'a>(

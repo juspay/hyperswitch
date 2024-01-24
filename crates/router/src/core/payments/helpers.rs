@@ -811,7 +811,7 @@ fn validate_new_mandate_request(
     let mandate_details = match mandate_data.mandate_type {
         Some(api_models::payments::MandateType::SingleUse(details)) => Some(details),
         Some(api_models::payments::MandateType::MultiUse(details)) => details,
-        None => None,
+        _ => None,
     };
     mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
         utils::when (start_date >= end_date, || {
@@ -2395,6 +2395,9 @@ pub fn generate_mandate(
                     }
                     .set_mandate_type(storage_enums::MandateType::MultiUse)
                     .to_owned(),
+                    data_models::mandates::MandateDataType::UpdateMandateId(_) => {
+                        Err(errors::ApiErrorResponse::MandateUpdateFailed)?
+                    }
                 },
             ))
         }

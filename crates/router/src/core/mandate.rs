@@ -1,13 +1,13 @@
+pub mod helpers;
 pub mod utils;
-
 use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, IntoReport, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
 
-use super::payments::helpers;
+use super::payments::helpers as payment_helper;
 use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
@@ -64,34 +64,17 @@ pub async fn revoke_mandate(
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
-            let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
-                let pi = db
-                    .find_payment_intent_by_payment_id_merchant_id(
-                        payment_id,
-                        &merchant_account.merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-                let profile_id = pi.profile_id.clone().ok_or(
-                    errors::ApiErrorResponse::BusinessProfileNotFound {
-                        id: pi
-                            .profile_id
-                            .unwrap_or_else(|| "Profile id is Null".to_string()),
-                    },
-                )?;
-                Ok(profile_id)
-            } else {
-                Err(errors::ApiErrorResponse::PaymentNotFound)
-            }?;
+            let profile_id =
+                helpers::get_profile_id_for_mandate(&state, &merchant_account, mandate.clone())
+                    .await?;
 
-            let merchant_connector_account = helpers::get_merchant_connector_account(
+            let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
                 &merchant_account.merchant_id,
                 None,
                 &key_store,
                 &profile_id,
-                &mandate.connector,
+                &mandate.connector.clone(),
                 mandate.merchant_connector_id.as_ref(),
             )
             .await?;
@@ -243,7 +226,84 @@ where
         _ => Some(router_data.request.get_payment_method_data()),
     }
 }
+pub async fn update_mandate_procedure<F, FData>(
+    state: &AppState,
+    resp: types::RouterData<F, FData, types::PaymentsResponseData>,
+    mandate: Mandate,
+    merchant_id: &str,
+    pm_id: Option<String>,
+) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+where
+    FData: MandateBehaviour,
+{
+    let mandate_details = match resp.response.clone() {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            mandate_reference, ..
+        }) => mandate_reference,
+        _ => None,
+    };
 
+    let new_update_record = payments::UpdateHistory {
+        connector_mandate_id: mandate.connector_mandate_id,
+        payment_method_id: mandate.payment_method_id,
+        original_payment_id: mandate.original_payment_id,
+    };
+
+    let mandate_ref = mandate
+        .connector_mandate_ids
+        .map(|ids| {
+            Some(ids)
+                .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
+                .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
+        })
+        .transpose()?;
+
+    let updated_mandate_ref = match mandate_ref {
+        Some(mut mr) => {
+            match mr.update_history {
+                Some(ref mut uh) => {
+                    println!("Entershere1");
+                    uh.push(new_update_record)
+                }
+                None => {
+                    println!("Entershere2");
+                    let v = vec![new_update_record];
+                    mr.update_history = Some(v)
+                }
+            };
+            mr.connector_mandate_id = mandate_details
+                .clone()
+                .and_then(|mr| mr.connector_mandate_id);
+            mr
+        }
+        None => payments::ConnectorMandateReferenceId {
+            connector_mandate_id: None,
+            payment_method_id: None,
+            update_history: None,
+        },
+    };
+
+    let connector_mandate_ids =
+        Encode::<types::MandateReference>::encode_to_value(&updated_mandate_ref)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .map(masking::Secret::new)?;
+
+    let _update_mandate_details = state
+        .store
+        .update_mandate_by_merchant_id_mandate_id(
+            merchant_id,
+            &mandate.mandate_id,
+            diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
+                connector_mandate_id: mandate_details.and_then(|mr| mr.connector_mandate_id),
+                connector_mandate_ids: Some(connector_mandate_ids),
+                payment_method_id: pm_id
+                    .unwrap_or("Error retreiving the payment_method_id".to_string()),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+    Ok(resp)
+}
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -324,7 +384,7 @@ where
                         })
                         .transpose()?;
 
-                    if let Some(new_mandate_data) = helpers::generate_mandate(
+                    if let Some(new_mandate_data) = payment_helper::generate_mandate(
                         resp.merchant_id.clone(),
                         resp.payment_id.clone(),
                         resp.connector.clone(),
@@ -363,6 +423,8 @@ where
                                     api_models::payments::ConnectorMandateReferenceId {
                                         connector_mandate_id: connector_id.connector_mandate_id,
                                         payment_method_id: connector_id.payment_method_id,
+                                        update_history:None,
+
                                     }
                                 )))
                         }));

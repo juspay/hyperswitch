@@ -1010,6 +1010,8 @@ impl DataModelExt for MandateDataType {
             Self::MultiUse(Some(data)) => {
                 DieselMandateType::MultiUse(Some(data.to_storage_model()))
             }
+
+            Self::UpdateMandateId(mandate_id) => DieselMandateType::UpdateMandateId(mandate_id),
         }
     }
 
@@ -1022,6 +1024,7 @@ impl DataModelExt for MandateDataType {
                 Self::MultiUse(Some(MandateAmountData::from_storage_model(data)))
             }
             DieselMandateType::MultiUse(None) => Self::MultiUse(None),
+            DieselMandateType::UpdateMandateId(mandate_id) => Self::UpdateMandateId(mandate_id),
         }
     }
 }

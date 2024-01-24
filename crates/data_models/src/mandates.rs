@@ -14,6 +14,7 @@ use time::PrimitiveDateTime;
 pub enum MandateDataType {
     SingleUse(MandateAmountData),
     MultiUse(Option<MandateAmountData>),
+    UpdateMandateId(String),
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -69,6 +70,7 @@ impl From<MandateType> for MandateDataType {
             MandateType::MultiUse(mandate_amount_data) => {
                 Self::MultiUse(mandate_amount_data.map(|d| d.into()))
             }
+            MandateType::UpdateMandateId(mandate_id) => Self::UpdateMandateId(mandate_id),
         }
     }
 }
