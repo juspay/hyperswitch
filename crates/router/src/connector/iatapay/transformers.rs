@@ -47,7 +47,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, _amount, item): (
+        (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -55,7 +55,7 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: connector_util::to_currency_base_unit_asf64(_amount, _currency)?,
+            amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
             router_data: item,
         })
     }
