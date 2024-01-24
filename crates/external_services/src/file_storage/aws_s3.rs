@@ -7,6 +7,9 @@ use aws_sdk_s3::{
 };
 use aws_sdk_sts::config::Region;
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
+use error_stack::{IntoReport, ResultExt};
+
+use crate::file_storage::{FileStorageError, FileStorageInterface};
 
 use super::InvalidFileStorageConfig;
 
@@ -56,56 +59,61 @@ impl AwsFileStorageClient {
             bucket_name: config.bucket_name.clone(),
         }
     }
+}
 
+#[async_trait::async_trait]
+impl FileStorageInterface for AwsFileStorageClient {
     /// Uploads a file to AWS S3.
-    pub(super) async fn upload_file_to_s3(
+    async fn upload_file(
         &self,
-        file_key: impl AsRef<str>,
+        file_key: String,
         file: Vec<u8>,
-    ) -> CustomResult<(), AwsS3StorageError> {
+    ) -> CustomResult<(), FileStorageError> {
         self.inner_client
             .put_object()
             .bucket(&self.bucket_name)
-            .key(file_key.as_ref())
+            .key(file_key)
             .body(file.into())
             .send()
             .await
-            .map_err(AwsS3StorageError::UploadFailure)?;
+            .map_err(AwsS3StorageError::UploadFailure)
+            .into_report()
+            .change_context(FileStorageError::UploadFailed)?;
         Ok(())
     }
 
     /// Deletes a file from AWS S3.
-    pub(super) async fn delete_file_from_s3(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<(), AwsS3StorageError> {
+    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError> {
         self.inner_client
             .delete_object()
             .bucket(&self.bucket_name)
-            .key(file_key.as_ref())
+            .key(file_key)
             .send()
             .await
-            .map_err(AwsS3StorageError::DeleteFailure)?;
+            .map_err(AwsS3StorageError::DeleteFailure)
+            .into_report()
+            .change_context(FileStorageError::DeleteFailed)?;
         Ok(())
     }
 
     /// Retrieves a file from AWS S3.
-    pub(super) async fn retrieve_file_from_s3(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<Vec<u8>, AwsS3StorageError> {
+    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError> {
         Ok(self
             .inner_client
             .get_object()
             .bucket(&self.bucket_name)
-            .key(file_key.as_ref())
+            .key(file_key)
             .send()
             .await
-            .map_err(AwsS3StorageError::RetrieveFailure)?
+            .map_err(AwsS3StorageError::RetrieveFailure)
+            .into_report()
+            .change_context(FileStorageError::RetrieveFailed)?
             .body
             .collect()
             .await
-            .map_err(AwsS3StorageError::UnknownError)?
+            .map_err(AwsS3StorageError::UnknownError)
+            .into_report()
+            .change_context(FileStorageError::RetrieveFailed)?
             .to_vec())
     }
 }
@@ -114,15 +122,15 @@ impl AwsFileStorageClient {
 #[derive(Debug, thiserror::Error)]
 pub(super) enum AwsS3StorageError {
     /// Error indicating that file upload to S3 failed.
-    #[error("File upload to S3 failed {0:?}")]
+    #[error("File upload to S3 failed: {0:?}")]
     UploadFailure(aws_smithy_client::SdkError<PutObjectError>),
 
     /// Error indicating that file retrieval from S3 failed.
-    #[error("File retrieve from S3 failed {0:?}")]
+    #[error("File retrieve from S3 failed: {0:?}")]
     RetrieveFailure(aws_smithy_client::SdkError<GetObjectError>),
 
     /// Error indicating that file deletion from S3 failed.
-    #[error("File delete from S3 failed {0:?}")]
+    #[error("File delete from S3 failed: {0:?}")]
     DeleteFailure(aws_smithy_client::SdkError<DeleteObjectError>),
 
     /// Unknown error occurred.

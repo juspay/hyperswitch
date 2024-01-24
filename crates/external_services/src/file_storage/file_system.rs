@@ -11,6 +11,8 @@ use std::{
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 
+use crate::file_storage::{FileStorageError, FileStorageInterface};
+
 /// Constructs the file path for a given file key within the file system.
 /// The file path is generated based on the workspace path and the provided file key.
 fn get_file_path(file_key: impl AsRef<str>) -> PathBuf {
@@ -29,14 +31,15 @@ fn get_file_path(file_key: impl AsRef<str>) -> PathBuf {
 #[derive(Debug, Clone)]
 pub struct FileSystem;
 
-impl FileSystem {
+#[async_trait::async_trait]
+impl FileStorageInterface for FileSystem {
     /// Saves the provided file data to the file system under the specified file key.
-    pub(super) fn save_file_to_fs(
+    async fn upload_file(
         &self,
-        file_key: impl AsRef<str>,
-        file_data: Vec<u8>,
-    ) -> CustomResult<(), FileSystemStorageError> {
-        let file_path = get_file_path(&file_key);
+        file_key: String,
+        file: Vec<u8>,
+    ) -> CustomResult<(), FileStorageError> {
+        let file_path = get_file_path(file_key);
 
         // Ignore the file name and create directories in the `file_path` if not exists
         std::fs::create_dir_all(
@@ -44,45 +47,47 @@ impl FileSystem {
                 .parent()
                 .ok_or(FileSystemStorageError::CreateDirFailed)
                 .into_report()
+                .change_context(FileStorageError::UploadFailed)
                 .attach_printable("Failed to obtain parent directory")?,
         )
         .into_report()
-        .change_context(FileSystemStorageError::CreateDirFailed)?;
+        .change_context(FileSystemStorageError::CreateDirFailed)
+        .change_context(FileStorageError::UploadFailed)?;
 
-        let mut file = File::create(file_path)
+        let mut file_handler = File::create(file_path)
             .into_report()
-            .change_context(FileSystemStorageError::CreateFailure)?;
-        file.write_all(&file_data)
+            .change_context(FileSystemStorageError::CreateFailure)
+            .change_context(FileStorageError::UploadFailed)?;
+        file_handler
+            .write_all(&file)
             .into_report()
-            .change_context(FileSystemStorageError::WriteFailure)?;
+            .change_context(FileSystemStorageError::WriteFailure)
+            .change_context(FileStorageError::UploadFailed)?;
         Ok(())
     }
 
     /// Deletes the file associated with the specified file key from the file system.
-    pub(super) fn delete_file_from_fs(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<(), FileSystemStorageError> {
+    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError> {
         let file_path = get_file_path(file_key);
         remove_file(file_path)
             .into_report()
-            .change_context(FileSystemStorageError::DeleteFailure)?;
+            .change_context(FileSystemStorageError::DeleteFailure)
+            .change_context(FileStorageError::DeleteFailed)?;
         Ok(())
     }
 
     /// Retrieves the file content associated with the specified file key from the file system.
-    pub(super) fn retrieve_file_from_fs(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<Vec<u8>, FileSystemStorageError> {
+    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError> {
         let mut received_data: Vec<u8> = Vec::new();
         let file_path = get_file_path(file_key);
         let mut file = File::open(file_path)
             .into_report()
-            .change_context(FileSystemStorageError::FileOpenFailure)?;
+            .change_context(FileSystemStorageError::FileOpenFailure)
+            .change_context(FileStorageError::RetrieveFailed)?;
         file.read_to_end(&mut received_data)
             .into_report()
-            .change_context(FileSystemStorageError::ReadFailure)?;
+            .change_context(FileSystemStorageError::ReadFailure)
+            .change_context(FileStorageError::RetrieveFailed)?;
         Ok(received_data)
     }
 }

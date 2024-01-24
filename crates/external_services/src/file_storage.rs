@@ -5,7 +5,6 @@
 use std::fmt::{Display, Formatter};
 
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
 
 /// Includes functionality for AWS S3 storage operations.
 #[cfg(feature = "aws_s3")]
@@ -40,83 +39,33 @@ impl FileStorageConfig {
     }
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
-    pub async fn get_file_storage_client(&self) -> FileStorageBackend {
+    pub async fn get_file_storage_client(&self) -> Box<dyn FileStorageInterface> {
         match self {
             #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { aws_s3 } => FileStorageBackend::AwsS3 {
-                client: aws_s3::AwsFileStorageClient::new(aws_s3).await,
-            },
-            Self::FileSystem => FileStorageBackend::FileSystem(file_system::FileSystem),
+            Self::AwsS3 { aws_s3 } => Box::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
+            Self::FileSystem => Box::new(file_system::FileSystem),
         }
     }
 }
 
-/// Enum representing different file storage clients.
-#[derive(Debug, Clone)]
-pub enum FileStorageBackend {
-    /// AWS S3 file storage client.
-    #[cfg(feature = "aws_s3")]
-    AwsS3 {
-        /// AWS S3 file storage client.
-        client: aws_s3::AwsFileStorageClient,
-    },
-    /// Local file system storage client.
-    FileSystem(file_system::FileSystem),
-}
-
-impl FileStorageBackend {
+/// Trait for file storage operations
+#[async_trait::async_trait]
+pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
     /// Uploads a file to the selected storage scheme.
-    pub async fn upload_file(
+    async fn upload_file(
         &self,
-        file_key: impl AsRef<str>,
+        file_key: String,
         file: Vec<u8>,
-    ) -> CustomResult<(), FileStorageError> {
-        match self {
-            #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { client } => client
-                .upload_file_to_s3(file_key, file)
-                .await
-                .change_context(FileStorageError::UploadFailed),
-            Self::FileSystem(file_system) => file_system
-                .save_file_to_fs(file_key, file)
-                .change_context(FileStorageError::UploadFailed),
-        }
-    }
+    ) -> CustomResult<(), FileStorageError>;
 
     /// Deletes a file from the selected storage scheme.
-    pub async fn delete_file(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<(), FileStorageError> {
-        match self {
-            #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { client } => client
-                .delete_file_from_s3(file_key)
-                .await
-                .change_context(FileStorageError::DeleteFailed),
-            Self::FileSystem(file_system) => file_system
-                .delete_file_from_fs(file_key)
-                .change_context(FileStorageError::DeleteFailed),
-        }
-    }
+    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError>;
 
     /// Retrieves a file from the selected storage scheme.
-    pub async fn retrieve_file(
-        &self,
-        file_key: impl AsRef<str>,
-    ) -> CustomResult<Vec<u8>, FileStorageError> {
-        match self {
-            #[cfg(feature = "aws_s3")]
-            Self::AwsS3 { client } => client
-                .retrieve_file_from_s3(file_key)
-                .await
-                .change_context(FileStorageError::RetrieveFailed),
-            Self::FileSystem(file_system) => file_system
-                .retrieve_file_from_fs(file_key)
-                .change_context(FileStorageError::RetrieveFailed),
-        }
-    }
+    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError>;
 }
+
+dyn_clone::clone_trait_object!(FileStorageInterface);
 
 /// Error thrown when the file storage config is invalid
 #[derive(Debug, Clone)]
