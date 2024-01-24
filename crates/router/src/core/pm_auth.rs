@@ -684,7 +684,10 @@ pub async fn retrieve_payment_method_from_auth_service(
     let bank_account = bank_account_creds
         .credentials
         .iter()
-        .find(|acc| acc.payment_method_type == auth_token.payment_method_type)
+        .find(|acc| {
+            acc.payment_method_type == auth_token.payment_method_type
+                && acc.payment_method == auth_token.payment_method
+        })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .into_report()
         .attach_printable("Bank account details not found")?;

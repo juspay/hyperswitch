@@ -2840,6 +2840,7 @@ async fn get_bank_account_connector_details(
 
                 let token_data = BankAccountTokenData {
                     payment_method_type: pm_type,
+                    payment_method: pm.payment_method,
                     connector_details: connector_details.clone(),
                 };
 

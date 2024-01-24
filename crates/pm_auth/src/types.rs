@@ -3,7 +3,7 @@ pub mod api;
 use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken};
-use common_enums::PaymentMethodType;
+use common_enums::{PaymentMethod, PaymentMethodType};
 use masking::Secret;
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
@@ -74,6 +74,7 @@ pub struct BankAccountDetails {
     pub account_name: Option<String>,
     pub account_details: PaymentMethodTypeDetails,
     pub payment_method_type: PaymentMethodType,
+    pub payment_method: PaymentMethod,
     pub account_id: String,
     pub account_type: Option<String>,
 }

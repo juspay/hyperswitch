@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::PaymentMethodType;
+use common_enums::{PaymentMethod, PaymentMethodType};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -256,6 +256,7 @@ impl<F, T>
                 account_name: acc_name,
                 account_details,
                 payment_method_type: PaymentMethodType::Ach,
+                payment_method: PaymentMethod::BankDebit,
                 account_id: ach.account_id,
                 account_type: acc_type,
             };
@@ -281,6 +282,7 @@ impl<F, T>
                 account_name: acc_name,
                 account_details,
                 payment_method_type: PaymentMethodType::Bacs,
+                payment_method: PaymentMethod::BankDebit,
                 account_id: bacs.account_id,
                 account_type: acc_type,
             };
@@ -306,6 +308,7 @@ impl<F, T>
                 account_name: acc_name,
                 account_details,
                 payment_method_type: PaymentMethodType::Sepa,
+                payment_method: PaymentMethod::BankDebit,
                 account_id: sepa.account_id,
                 account_type: acc_type,
             };

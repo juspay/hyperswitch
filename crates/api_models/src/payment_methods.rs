@@ -192,6 +192,7 @@ pub struct PaymentMethodDataBankCreds {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountTokenData {
     pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
     pub connector_details: BankAccountConnectorDetails,
 }
 
