@@ -12,7 +12,7 @@ CREATE TABLE connector_events_queue (
     `latency` UInt128,
     `method` LowCardinality(String),
     `refund_id` Nullable(String),
-    `dispute_id` Nullable(String),
+    `dispute_id` Nullable(String)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-connector-api-events',
 kafka_group_name = 'hyper-c1',
@@ -58,9 +58,9 @@ CREATE MATERIALIZED VIEW connector_events_mv TO connector_events_dist (
     `status_code` UInt32,
     `created_at` DateTime64(3),
     `latency` UInt128,
-    `method` LowCardinality(String)
-    `dispute_id` Nullable(String),
+    `method` LowCardinality(String),
     `refund_id` Nullable(String),
+    `dispute_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -76,8 +76,8 @@ SELECT
     now() as inserted_at,
     latency,
     method,
-    dispute_id,
-    refund_id
+    refund_id,
+    dispute_id
 FROM
     connector_events_queue
 where length(_error) = 0;
