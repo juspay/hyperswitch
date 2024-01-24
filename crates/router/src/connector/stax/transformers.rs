@@ -147,7 +147,7 @@ pub struct StaxCustomerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    firstname: Option<String>,
+    firstname: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
