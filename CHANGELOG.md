@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.24.1
+
+### Features
+
+- **hashicorp:** Implement hashicorp secrets manager solution ([#3297](https://github.com/juspay/hyperswitch/pull/3297)) ([`629d546`](https://github.com/juspay/hyperswitch/commit/629d546aa7c774e86d609abec3b3ab5cf0d100a7))
+
+### Refactors
+
+- **Router:** [Noon] revert adding new field max_amount to mandate request ([#3435](https://github.com/juspay/hyperswitch/pull/3435)) ([`4cd65a2`](https://github.com/juspay/hyperswitch/commit/4cd65a24f70fdef160eb2d87654f1e30538c3339))
+- **compatibility:** Revert add multiuse mandates support in stripe compatibility ([#3436](https://github.com/juspay/hyperswitch/pull/3436)) ([`8a019f0`](https://github.com/juspay/hyperswitch/commit/8a019f08acf74e04c3ae9c8790dd481301bdcfee))
+
+### Miscellaneous Tasks
+
+- **ckh-source:** Updated ckh analytics source tables ([#3397](https://github.com/juspay/hyperswitch/pull/3397)) ([`3f343d3`](https://github.com/juspay/hyperswitch/commit/3f343d36bff7ce8f73602a2391d205367d5581c7))
+
+**Full Changelog:** [`2024.01.24.0...2024.01.24.1`](https://github.com/juspay/hyperswitch/compare/2024.01.24.0...2024.01.24.1)
+
+- - -
+
 ## 2024.01.24.0
 
 ### Miscellaneous Tasks
