@@ -146,12 +146,6 @@ pub struct StripeMetadata {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
     pub customer: Option<Secret<String>>,
@@ -160,6 +154,8 @@ pub struct SetupIntentRequest {
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
+    #[serde(flatten)]
+    pub meta_data: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1981,10 +1977,6 @@ fn get_payment_method_type_for_saved_payment_method_payment(
 impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let metadata_order_id = item.connector_request_reference_id.clone();
-        let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
-        let metadata_txn_uuid = Uuid::new_v4().to_string();
-
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
         let payment_data = StripePaymentMethodData::try_from((
@@ -1993,17 +1985,33 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             pm_type,
         ))?;
 
+        let mut meta_data = HashMap::from([
+            (
+                "metadata[order_id]".to_string(),
+                item.connector_request_reference_id.clone(),
+            ),
+            (
+                "metadata[txn_id]".to_string(),
+                format!("{}_{}_{}", item.merchant_id, item.payment_id, "1"),
+            ),
+            ("metadata[txn_uuid]".to_owned(), Uuid::new_v4().to_string()),
+        ]);
+
+        item.request.metadata.clone().map(|metadata| {
+            let merchant_defined_metadata =
+                get_merchant_defined_metadata(metadata.peek().to_owned());
+            meta_data.extend(merchant_defined_metadata.into_iter())
+        });
+
         Ok(Self {
             confirm: true,
-            metadata_order_id,
-            metadata_txn_id,
-            metadata_txn_uuid,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
+            meta_data: Some(meta_data),
         })
     }
 }
@@ -3094,17 +3102,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: value.request.amount.to_string(),
-            currency: value.request.currency.to_string(),
-            customer: Secret::new(value.get_connector_customer_id()?),
-            source: Secret::new(value.get_preprocessing_id()?),
-            meta_data: value
-                .request
-                .metadata
-                .clone()
-                .map(|metadata| get_merchant_defined_metadata(metadata.peek().to_owned())),
-        })
+        {
+            let order_id = value.connector_request_reference_id.clone();
+            Ok(Self {
+                amount: value.request.amount.to_string(),
+                currency: value.request.currency.to_string(),
+                customer: Secret::new(value.get_connector_customer_id()?),
+                source: Secret::new(value.get_preprocessing_id()?),
+                meta_data: value.request.metadata.clone().map_or(
+                    Some(HashMap::from([(
+                        "metadata[order_id]".to_string(),
+                        order_id.clone(),
+                    )])),
+                    |metadata| {
+                        let mut merchant_defined_metadata =
+                            get_merchant_defined_metadata(metadata.peek().to_owned());
+                        merchant_defined_metadata
+                            .insert("metadata[order_id]".to_string(), order_id.clone());
+                        Some(merchant_defined_metadata)
+                    },
+                ),
+            })
+        }
     }
 }
 
