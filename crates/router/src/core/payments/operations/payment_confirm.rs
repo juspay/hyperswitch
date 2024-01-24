@@ -597,6 +597,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        state: &AppState,
+        merchant_account: &domain::MerchantAccount,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        blocklist_utils::validate_data_for_blocklist(state, merchant_account, payment_data).await
+    }
 }
 
 #[async_trait]
@@ -710,16 +720,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
 
-        // Validate blocklist
-        let (fingerprint_id, is_pm_blocklisted, intent_status, attempt_status) =
-            blocklist_utils::validate_data_for_blocklist(
-                payment_data.payment_method_data.clone(),
-                payment_data.payment_attempt.merchant_id,
-                state,
-                intent_status,
-                attempt_status,
-            )
-            .await?;
+        // Generate Fingerprint
+        let fingerprint_id = blocklist_utils::generate_payment_fingerprint(
+            state,
+            payment_data.payment_attempt.merchant_id,
+            payment_data.payment_method_data.clone(),
+        )
+        .await?;
 
         let surcharge_amount = payment_data
             .surcharge_details
@@ -850,17 +857,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
-
-        // Block the payment if the entry was present in the Blocklist
-        if is_pm_blocklisted {
-            return Err(errors::ApiErrorResponse::PaymentBlockedError {
-                code: 200,
-                message: "This payment was blocked".to_string(),
-                status: "Failed".to_string(),
-                reason: "Blocked".to_string(),
-            }
-            .into());
-        }
 
         Ok((Box::new(self), payment_data))
     }
