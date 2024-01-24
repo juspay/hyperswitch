@@ -267,5 +267,6 @@ pub fn get_application_builder(
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
