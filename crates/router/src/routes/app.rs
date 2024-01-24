@@ -5,9 +5,9 @@ use actix_web::{web, Scope};
 use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+use external_services::file_storage::FileStorageInterface;
 #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-use external_services::file_storage::FileStorageInterface;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(all(feature = "olap", feature = "kms"))]

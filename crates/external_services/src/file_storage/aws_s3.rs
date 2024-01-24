@@ -9,9 +9,8 @@ use aws_sdk_sts::config::Region;
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
 use error_stack::{IntoReport, ResultExt};
 
-use crate::file_storage::{FileStorageError, FileStorageInterface};
-
 use super::InvalidFileStorageConfig;
+use crate::file_storage::{FileStorageError, FileStorageInterface};
 
 /// Configuration for AWS S3 file storage.
 #[derive(Debug, serde::Deserialize, Clone, Default)]
