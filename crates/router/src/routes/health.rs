@@ -54,12 +54,21 @@ pub async fn deep_health_check(state: web::Data<app::AppState>) -> impl actix_we
         }
     };
 
+    let analytics_status = match db.health_check_analytics(&state.pool).await {
+        Ok(_) => "Health is good".to_string(),
+        Err(err) => {
+            status_code = 500;
+            err.to_string()
+        }
+    };
+
     logger::debug!("Locker health check end");
 
     let response = serde_json::to_string(&RouterHealthCheckResponse {
         database: db_status,
         redis: redis_status,
         locker: locker_status,
+        analytics: analytics_status,
     })
     .unwrap_or_default();
 

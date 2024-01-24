@@ -2188,4 +2188,10 @@ impl HealthCheckInterface for KafkaStore {
     ) -> CustomResult<(), errors::HealthCheckLockerError> {
         self.diesel_store.health_check_locker(state).await
     }
+    async fn health_check_analytics(
+        &self,
+        analytics: &analytics::AnalyticsProvider,
+    ) -> CustomResult<(), errors::HealthCheckDBError> {
+        self.diesel_store.health_check_analytics(analytics).await
+    }
 }

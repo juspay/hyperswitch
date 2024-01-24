@@ -3,4 +3,5 @@ pub struct RouterHealthCheckResponse {
     pub database: String,
     pub redis: String,
     pub locker: String,
+    pub analytics: String,
 }

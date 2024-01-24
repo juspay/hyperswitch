@@ -1,3 +1,4 @@
+use analytics::health_check::HealthCheck;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use diesel_models::ConfigNew;
 use error_stack::ResultExt;
@@ -24,6 +25,10 @@ pub trait HealthCheckInterface {
         &self,
         state: &routes::AppState,
     ) -> CustomResult<(), errors::HealthCheckLockerError>;
+    async fn health_check_analytics(
+        &self,
+        analytics: &analytics::AnalyticsProvider,
+    ) -> CustomResult<(), errors::HealthCheckDBError>;
 }
 
 #[async_trait::async_trait]
@@ -123,6 +128,22 @@ impl HealthCheckInterface for Store {
 
         Ok(())
     }
+    async fn health_check_analytics(
+        &self,
+        analytics: &analytics::AnalyticsProvider,
+    ) -> CustomResult<(), errors::HealthCheckDBError> {
+        match analytics {
+            analytics::AnalyticsProvider::Sqlx(client) => client
+                .deep_health_check()
+                .await
+                .change_context(errors::HealthCheckDBError::SqlxAnalyticsError),
+            analytics::AnalyticsProvider::Clickhouse(client) => client
+                .deep_health_check()
+                .await
+                .change_context(errors::HealthCheckDBError::ClickhouseAnalyticsError),
+            _ => Ok(()),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -142,6 +163,12 @@ impl HealthCheckInterface for MockDb {
         &self,
         _: &routes::AppState,
     ) -> CustomResult<(), errors::HealthCheckLockerError> {
+        Ok(())
+    }
+    async fn health_check_analytics(
+        &self,
+        _analytics: &analytics::AnalyticsProvider,
+    ) -> CustomResult<(), errors::HealthCheckDBError> {
         Ok(())
     }
 }
