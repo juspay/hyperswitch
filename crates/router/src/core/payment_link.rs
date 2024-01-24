@@ -132,8 +132,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::Succeeded,
         ],
     );
-    if is_terminal_state
-        || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
+    if is_terminal_state || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
         let status = match payment_link_status {
             api_models::payments::PaymentLinkStatus::Active => {
