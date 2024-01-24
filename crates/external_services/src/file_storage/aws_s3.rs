@@ -42,7 +42,7 @@ impl AwsFileStorageConfig {
 
 /// AWS S3 file storage client.
 #[derive(Debug, Clone)]
-pub struct AwsFileStorageClient {
+pub(super) struct AwsFileStorageClient {
     /// AWS S3 client
     inner_client: Client,
     /// The name of the AWS S3 bucket.
@@ -120,7 +120,7 @@ impl FileStorageInterface for AwsFileStorageClient {
 
 /// Enum representing errors that can occur during AWS S3 file storage operations.
 #[derive(Debug, thiserror::Error)]
-pub(super) enum AwsS3StorageError {
+enum AwsS3StorageError {
     /// Error indicating that file upload to S3 failed.
     #[error("File upload to S3 failed: {0:?}")]
     UploadFailure(aws_smithy_client::SdkError<PutObjectError>),

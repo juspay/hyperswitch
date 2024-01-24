@@ -29,7 +29,7 @@ fn get_file_path(file_key: impl AsRef<str>) -> PathBuf {
 
 /// Represents a file system for storing and managing files locally.
 #[derive(Debug, Clone)]
-pub struct FileSystem;
+pub(super) struct FileSystem;
 
 #[async_trait::async_trait]
 impl FileStorageInterface for FileSystem {
@@ -94,7 +94,7 @@ impl FileStorageInterface for FileSystem {
 
 /// Represents an error that can occur during local file system storage operations.
 #[derive(Debug, thiserror::Error)]
-pub enum FileSystemStorageError {
+enum FileSystemStorageError {
     /// Error indicating opening a file failed
     #[error("Failed while opening the file")]
     FileOpenFailure,
