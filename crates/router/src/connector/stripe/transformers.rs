@@ -1997,11 +1997,11 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             ("metadata[txn_uuid]".to_owned(), Uuid::new_v4().to_string()),
         ]);
 
-        item.request.metadata.clone().map(|metadata| {
+        if let Some(metadata) = item.request.metadata.clone() {
             let merchant_defined_metadata =
                 get_merchant_defined_metadata(metadata.peek().to_owned());
-            meta_data.extend(merchant_defined_metadata.into_iter())
-        });
+            meta_data.extend(merchant_defined_metadata)
+        };
 
         Ok(Self {
             confirm: true,
