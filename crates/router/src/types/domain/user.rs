@@ -876,7 +876,6 @@ impl SignInWithRoleStrategy for SignInWithRoleStrategyType {
 
 impl SignInWithRoleStrategyType {
     pub async fn decide_signin_strategy_by_user_roles(
-        state: &AppState,
         user: UserFromStorage,
         user_roles: Vec<UserRole>,
     ) -> UserResult<Self> {
@@ -893,22 +892,7 @@ impl SignInWithRoleStrategyType {
                 user_role: user_role.clone(),
             })
         } else {
-            let merchant_accounts = state
-                .store
-                .list_multiple_merchant_accounts(
-                    user_roles
-                        .iter()
-                        .map(|role| role.merchant_id.clone())
-                        .collect(),
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-
-            Self::MultipleRoles(SignInWithMultipleRolesStrategy {
-                user,
-                user_roles,
-                merchant_accounts,
-            })
+            Self::MultipleRoles(SignInWithMultipleRolesStrategy { user, user_roles })
         };
 
         Ok(strategy)
@@ -936,15 +920,25 @@ impl SignInWithRoleStrategy for SignInWithSingleRoleStrategy {
 pub struct SignInWithMultipleRolesStrategy {
     pub user: UserFromStorage,
     pub user_roles: Vec<UserRole>,
-    pub merchant_accounts: Vec<super::MerchantAccount>,
 }
 
 #[async_trait::async_trait]
 impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let merchant_accounts = state
+            .store
+            .list_multiple_merchant_accounts(
+                self.user_roles
+                    .iter()
+                    .map(|role| role.merchant_id.clone())
+                    .collect(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
         let merchant_details = utils::user::get_multiple_merchant_details_with_status(
             self.user_roles,
-            self.merchant_accounts,
+            merchant_accounts,
         )?;
 
         return Ok(user_api::SignInResponse::MerchantSelect(

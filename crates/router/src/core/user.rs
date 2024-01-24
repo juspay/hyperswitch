@@ -155,7 +155,6 @@ pub async fn signin(
         } else {
             let user_roles = user_from_db.get_roles_from_db(&state).await?;
             domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
-                &state,
                 user_from_db,
                 user_roles,
             )
@@ -792,7 +791,6 @@ pub async fn verify_email(
         } else {
             let user_roles = user_from_db.get_roles_from_db(&state).await?;
             domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
-                &state,
                 user_from_db,
                 user_roles,
             )

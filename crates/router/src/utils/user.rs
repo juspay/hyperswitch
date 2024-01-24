@@ -130,7 +130,7 @@ pub fn get_multiple_merchant_details_with_status(
         .map(|user_role| (user_role.merchant_id.clone(), user_role))
         .collect();
 
-    let x = merchant_accounts
+    merchant_accounts
         .into_iter()
         .map(|merchant| {
             let role = roles
@@ -144,6 +144,5 @@ pub fn get_multiple_merchant_details_with_status(
                 is_active: role.status == UserStatus::Active,
             })
         })
-        .collect();
-    x
+        .collect()
 }
