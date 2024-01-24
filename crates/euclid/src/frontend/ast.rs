@@ -165,7 +165,6 @@ pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
-    // pub connector: RoutableConnectors,
     #[cfg(feature = "connector_choice_mca_id")]
     pub merchant_connector_id: Option<String>,
     #[cfg(not(feature = "connector_choice_mca_id"))]
