@@ -11764,7 +11764,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -11882,7 +11882,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -12128,7 +12128,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
             "minimum": 0
           },
           "currency": {
@@ -12239,7 +12239,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -12521,7 +12521,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -12639,7 +12639,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
@@ -13518,7 +13518,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency. (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and ¥100 since ¥ is a zero-decimal currency",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -13636,7 +13636,7 @@
           },
           "name": {
             "type": "string",
-            "description": "The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "description": "The customer's name.\nThis field will be deprecated soon, use the customer object instead.",
             "example": "John Test",
             "nullable": true,
             "maxLength": 255
