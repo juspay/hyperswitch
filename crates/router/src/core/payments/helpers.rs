@@ -13,12 +13,12 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{

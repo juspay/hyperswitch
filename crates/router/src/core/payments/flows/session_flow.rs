@@ -2,12 +2,12 @@ use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::{IntoReport, Report, ResultExt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use masking::ExposeInterface;
 
@@ -259,12 +259,13 @@ async fn create_applepay_session_token(
                     .await?;
 
                     #[cfg(feature = "aws_kms")]
-                    let decrypted_apple_pay_merchant_cert = aws_kms::get_aws_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(apple_pay_merchant_cert)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant certificate decryption failed")?;
+                    let decrypted_apple_pay_merchant_cert =
+                        aws_kms::get_aws_kms_client(&state.conf.kms)
+                            .await
+                            .decrypt(apple_pay_merchant_cert)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Apple pay merchant certificate decryption failed")?;
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert_key =
@@ -278,12 +279,13 @@ async fn create_applepay_session_token(
                             )?;
 
                     #[cfg(feature = "aws_kms")]
-                    let decrypted_merchant_identifier = aws_kms::get_aws_kms_client(&state.conf.kms)
-                        .await
-                        .decrypt(common_merchant_identifier)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Apple pay merchant identifier decryption failed")?;
+                    let decrypted_merchant_identifier =
+                        aws_kms::get_aws_kms_client(&state.conf.kms)
+                            .await
+                            .decrypt(common_merchant_identifier)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Apple pay merchant identifier decryption failed")?;
 
                     #[cfg(not(feature = "aws_kms"))]
                     let decrypted_merchant_identifier = common_merchant_identifier;

@@ -2,10 +2,10 @@ use common_utils::date_time;
 #[cfg(feature = "email")]
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(not(feature = "aws_kms"))]
 use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};

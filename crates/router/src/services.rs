@@ -13,26 +13,15 @@ pub mod recon;
 #[cfg(feature = "email")]
 pub mod email;
 
-
-
-
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
-
-
-
-
 #[cfg(any(feature = "aws_kms", feature = "hashicorp-vault"))]
 use data_models::errors::StorageError;
 use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-
 use masking::{PeekInterface, StrongSecret};
-
-
-
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
 use storage_impl::RouterStore;

@@ -3,10 +3,10 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 #[cfg(feature = "hashicorp-vault")]
 use masking::ExposeInterface;

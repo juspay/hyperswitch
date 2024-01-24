@@ -45,7 +45,8 @@ pub async fn api_key_create(
         payload,
         |state, _, payload| async {
             #[cfg(feature = "aws_kms")]
-            let aws_kms_client = external_services::aws_kms::get_aws_kms_client(&state.clone().conf.kms).await;
+            let aws_kms_client =
+                external_services::aws_kms::get_aws_kms_client(&state.clone().conf.kms).await;
 
             #[cfg(feature = "hashicorp-vault")]
             let hc_client = external_services::hashicorp_vault::get_hashicorp_client(
