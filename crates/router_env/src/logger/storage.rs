@@ -103,8 +103,6 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
         let span = ctx.span(id).expect("No span");
         let mut extensions = span.extensions_mut();
 
-        // let mut storage = span.parent().and_then(|p| p.extensions_mut().get_mut::<Storage<'_>>());
-
         let mut visitor = if let Some(parent_span) = span.parent() {
             let mut extensions = parent_span.extensions_mut();
             extensions
