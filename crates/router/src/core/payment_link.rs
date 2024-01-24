@@ -1,4 +1,4 @@
-use api_models::admin as admin_types;
+use api_models::{admin as admin_types, payments::PaymentLinkStatusWrap};
 use common_utils::{
     consts::{
         DEFAULT_BACKGROUND_COLOR, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
@@ -121,7 +121,7 @@ pub async fn intiate_payment_link_flow(
     let css_script = get_color_scheme_css(payment_link_config.clone());
     let payment_link_status = check_payment_link_status(session_expiry);
 
-    if check_payment_link_invalid_conditions(
+    let is_terminal_state = check_payment_link_invalid_conditions(
         &payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
@@ -131,8 +131,25 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresMerchantAction,
             storage_enums::IntentStatus::Succeeded,
         ],
-    ) || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
+    );
+    if is_terminal_state
+        || payment_link_status == api_models::payments::PaymentLinkStatus::Expired
     {
+        let status = match payment_link_status {
+            api_models::payments::PaymentLinkStatus::Active => {
+                PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
+            }
+            api_models::payments::PaymentLinkStatus::Expired => {
+                if is_terminal_state {
+                    PaymentLinkStatusWrap::IntentStatus(payment_intent.status)
+                } else {
+                    PaymentLinkStatusWrap::PaymentLinkStatus(
+                        api_models::payments::PaymentLinkStatus::Expired,
+                    )
+                }
+            }
+        };
+
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -150,11 +167,10 @@ pub async fn intiate_payment_link_flow(
             merchant_name,
             merchant_logo: payment_link_config.logo.clone(),
             created: payment_link.created_at,
-            intent_status: payment_intent.status,
-            payment_link_status: payment_link_status.clone(),
+            status,
             error_code: payment_attempt.error_code,
             error_message: payment_attempt.error_message,
-            redirect: payment_link_status != api_models::payments::PaymentLinkStatus::Expired,
+            redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
         };
@@ -495,16 +511,9 @@ pub async fn get_payment_link_status(
         .into_report()
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
 
-    let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
-        payment_intent
-            .created_at
-            .saturating_add(time::Duration::seconds(DEFAULT_SESSION_EXPIRY))
-    });
-
     // converting first letter of merchant name to upperCase
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
     let css_script = get_color_scheme_css(payment_link_config.clone());
-    let payment_link_status = check_payment_link_status(session_expiry);
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
         payment_create_return_url
@@ -523,11 +532,10 @@ pub async fn get_payment_link_status(
         merchant_name,
         merchant_logo: payment_link_config.logo.clone(),
         created: payment_link.created_at,
-        intent_status: payment_intent.status,
-        payment_link_status,
+        status: PaymentLinkStatusWrap::IntentStatus(payment_intent.status),
         error_code: payment_attempt.error_code,
         error_message: payment_attempt.error_message,
-        redirect: false,
+        redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
     };
