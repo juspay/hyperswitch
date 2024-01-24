@@ -1,5 +1,4 @@
-use router_env::tracing::Instrument;
-
+use router_env::tracing::{field::Empty, Instrument};
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -50,22 +49,23 @@ where
         let request_id_fut = req.extract::<router_env::tracing_actix_web::RequestId>();
         let response_fut = self.service.call(req);
 
-        Box::pin(async move {
-            let request_id = request_id_fut.await?;
-            let request_id = request_id.as_hyphenated().to_string();
-            if let Some(upstream_request_id) = old_x_request_id {
-                router_env::logger::info!(?request_id, ?upstream_request_id);
-            }
-            router_env::logger::info!("REQUEST MIDDLEWARE START");
-            let mut response = response_fut.await?;
-            router_env::logger::info!("REQUEST MIDDLEWARE END");
-            response.headers_mut().append(
-                http::header::HeaderName::from_static("x-request-id"),
-                http::HeaderValue::from_str(&request_id)?,
-            );
+        Box::pin(
+            async move {
+                let request_id = request_id_fut.await?;
+                let request_id = request_id.as_hyphenated().to_string();
+                if let Some(upstream_request_id) = old_x_request_id {
+                    router_env::logger::info!(?request_id, ?upstream_request_id);
+                }
+                let mut response = response_fut.await?;
+                response.headers_mut().append(
+                    http::header::HeaderName::from_static("x-request-id"),
+                    http::HeaderValue::from_str(&request_id)?,
+                );
 
-            Ok(response)
-        })
+                Ok(response)
+            }
+            .in_current_span(),
+        )
     }
 }
 
@@ -86,6 +86,7 @@ pub fn default_response_headers() -> actix_web::middleware::DefaultHeaders {
         .add((header::VIA, "HyperSwitch"))
 }
 
+/// Middleware to build a TOP level domain span for each request.
 pub struct LogSpanInitializer;
 
 impl<S, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest> for LogSpanInitializer
@@ -108,7 +109,7 @@ where
         std::future::ready(Ok(LogSpanInitializerMiddleware { service }))
     }
 }
-use router_env::tracing::field::Empty;
+
 pub struct LogSpanInitializerMiddleware<S> {
     service: S,
 }
