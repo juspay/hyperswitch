@@ -7093,6 +7093,17 @@
                 "nullable": true
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "update_mandate_id"
+            ],
+            "properties": {
+              "update_mandate_id": {
+                "type": "string"
+              }
+            }
           }
         ]
       },
