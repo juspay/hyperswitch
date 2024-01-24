@@ -10,7 +10,7 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
@@ -503,17 +503,11 @@ impl
                 let original_amount = item
                     .router_data
                     .get_recurring_mandate_payment_data()?
-                    .original_payment_authorized_amount
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "original_payment_authorized_amount",
-                    })?;
+                    .get_original_payment_amount()?;
                 let original_currency = item
                     .router_data
                     .get_recurring_mandate_payment_data()?
-                    .original_payment_authorized_currency
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "original_payment_authorized_currency",
-                    })?;
+                    .get_original_payment_currency()?;
                 (
                     None,
                     None,
@@ -1300,7 +1294,6 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
-    Accepted,
     Succeeded,
     Failed,
     Voided,
@@ -1331,8 +1324,7 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
     fn foreign_from((status, capture): (CybersourcePaymentStatus, bool)) -> Self {
         match status {
             CybersourcePaymentStatus::Authorized
-            | CybersourcePaymentStatus::AuthorizedPendingReview
-            | CybersourcePaymentStatus::Accepted => {
+            | CybersourcePaymentStatus::AuthorizedPendingReview => {
                 if capture {
                     // Because Cybersource will return Payment Status as Authorized even in AutoCapture Payment
                     Self::Charged

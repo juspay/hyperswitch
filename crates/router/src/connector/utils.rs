@@ -1139,6 +1139,22 @@ impl MandateData for payments::MandateAmountData {
     }
 }
 
+pub trait RecurringMandateData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error>;
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+}
+
+impl RecurringMandateData for RecurringMandatePaymentData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error> {
+        self.original_payment_authorized_amount
+            .ok_or_else(missing_field_err("original_payment_authorized_amount"))
+    }
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+        self.original_payment_authorized_currency
+            .ok_or_else(missing_field_err("original_payment_authorized_currency"))
+    }
+}
+
 pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
