@@ -260,7 +260,7 @@ impl Health {
         web::scope("health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
