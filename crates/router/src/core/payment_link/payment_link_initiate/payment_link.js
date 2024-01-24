@@ -449,7 +449,7 @@ function handleSubmit(e) {
           showMessage("An unexpected error occurred.");
         }
       } else {
-        window.location.reload();
+        redirectToStatus();
       }
     })
     .catch(function (error) {
