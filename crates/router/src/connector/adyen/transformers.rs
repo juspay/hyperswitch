@@ -9,9 +9,7 @@ use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 #[cfg(feature = "payouts")]
-use crate::connector::utils::AddressDetailsData;
-#[cfg(feature = "payouts")]
-use crate::types::api::payouts;
+use crate::{connector::utils::AddressDetailsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
         self, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData,
@@ -1707,20 +1705,6 @@ fn get_country_code(
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
-#[cfg(feature = "payouts")]
-fn get_payout_card_details(payout_method_data: &PayoutMethodData) -> Option<PayoutCardDetails> {
-    match payout_method_data {
-        PayoutMethodData::Card(card) => Some(PayoutCardDetails {
-            _type: "scheme".to_string(), // FIXME: Remove hardcoding
-            number: card.card_number.peek().to_string(),
-            expiry_month: card.expiry_month.peek().to_string(),
-            expiry_year: card.expiry_year.peek().to_string(),
-            holder_name: card.card_holder_name.peek().to_string(),
-        }),
-        _ => None,
-    }
-}
-
 fn get_social_security_number(
     voucher_data: &api_models::payments::VoucherData,
 ) -> Option<Secret<String>> {
@@ -2164,10 +2148,14 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
-                    issuer: bank_name
-                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
-                        .transpose()?
-                        .map(|adyen_bank_name| adyen_bank_name.0),
+                    issuer: Some(
+                        AdyenTestBankNames::try_from(&bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "eps.bank_name",
+                            },
+                        )?)?
+                        .0,
+                    ),
                 })),
             ),
             api_models::payments::BankRedirectData::Giropay { .. } => Ok(
@@ -2178,10 +2166,14 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Ideal,
-                    issuer: bank_name
-                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
-                        .transpose()?
-                        .map(|adyen_bank_name| adyen_bank_name.0),
+                    issuer: Some(
+                        AdyenTestBankNames::try_from(&bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "ideal.bank_name",
+                            },
+                        )?)?
+                        .0,
+                    ),
                 })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
@@ -3972,12 +3964,12 @@ pub struct AdyenPayoutCreateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PayoutBankDetails {
-    bank_name: String,
+    iban: Secret<String>,
+    owner_name: Secret<String>,
+    bank_city: Option<String>,
+    bank_name: Option<String>,
     bic: Option<Secret<String>>,
-    country_code: storage_enums::CountryAlpha2,
-    iban: Option<Secret<String>>,
-    owner_name: Option<Secret<String>>,
-    bank_city: String,
+    country_code: Option<storage_enums::CountryAlpha2>,
     tax_id: Option<Secret<String>>,
 }
 
@@ -4028,11 +4020,11 @@ pub struct AdyenPayoutEligibilityRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PayoutCardDetails {
     #[serde(rename = "type")]
-    _type: String,
-    number: String,
-    expiry_month: String,
-    expiry_year: String,
-    holder_name: String,
+    payment_method_type: String,
+    number: CardNumber,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    holder_name: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -4087,6 +4079,31 @@ pub struct AdyenPayoutCancelRequest {
     merchant_account: Secret<String>,
 }
 
+#[cfg(feature = "payouts")]
+impl TryFrom<&PayoutMethodData> for PayoutCardDetails {
+    type Error = Error;
+    fn try_from(item: &PayoutMethodData) -> Result<Self, Self::Error> {
+        match item {
+            PayoutMethodData::Card(card) => Ok(Self {
+                payment_method_type: "scheme".to_string(), // FIXME: Remove hardcoding
+                number: card.card_number.clone(),
+                expiry_month: card.expiry_month.clone(),
+                expiry_year: card.expiry_year.clone(),
+                holder_name: card
+                    .card_holder_name
+                    .clone()
+                    .get_required_value("card_holder_name")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payout_method_data.card.holder_name",
+                    })?,
+            }),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payout_method_data.card",
+            })?,
+        }
+    }
+}
+
 // Payouts eligibility request transform
 #[cfg(feature = "payouts")]
 impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutEligibilityRequest {
@@ -4094,12 +4111,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
     fn try_from(item: &AdyenRouterData<&types::PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payout_method_data =
-            get_payout_card_details(&item.router_data.get_payout_method_data()?).map_or(
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payout_method_data",
-                }),
-                Ok,
-            )?;
+            PayoutCardDetails::try_from(&item.router_data.get_payout_method_data()?)?;
         Ok(Self {
             amount: Amount {
                 currency: item.router_data.request.destination_currency,
@@ -4147,6 +4159,11 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
             .customer_details
             .to_owned()
             .map_or((None, None), |c| (c.name, c.email));
+        let owner_name = owner_name.get_required_value("owner_name").change_context(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "payout_method_data.bank.owner_name",
+            },
+        )?;
 
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
@@ -4161,7 +4178,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         bank_city: b.bank_city,
                         owner_name,
                         bic: b.bic,
-                        iban: Some(b.iban),
+                        iban: b.iban,
                         tax_id: None,
                     },
                     payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
@@ -4226,13 +4243,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                         value: item.amount.to_owned(),
                         currency: item.router_data.request.destination_currency,
                     },
-                    card: get_payout_card_details(&item.router_data.get_payout_method_data()?)
-                        .map_or(
-                            Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "payout_method_data",
-                            }),
-                            Ok,
-                        )?,
+                    card: PayoutCardDetails::try_from(&item.router_data.get_payout_method_data()?)?,
                     billing_address: get_address_info(item.router_data.get_billing().ok()),
                     merchant_account,
                     reference: item.router_data.request.payout_id.clone(),
