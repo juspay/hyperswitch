@@ -118,15 +118,3 @@ pub fn get_verification_days_left(
     #[cfg(not(feature = "email"))]
     return Ok(None);
 }
-
-pub fn handle_invite_error(
-    request: &user_api::InviteUserRequest,
-    error: Option<String>,
-) -> user_api::InviteMultipleUserResponse {
-    user_api::InviteMultipleUserResponse {
-        email: request.email.clone(),
-        is_email_sent: false,
-        password: None,
-        error,
-    }
-}

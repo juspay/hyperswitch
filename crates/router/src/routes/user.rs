@@ -361,7 +361,7 @@ pub async fn invite_multiple_user(
         state.clone(),
         &req,
         payload.into_inner(),
-        |state, user, payload| user_core::invite_multiple_user(state, payload, user),
+        |state, user, payload| user_core::invite_multiple_user(state, user, payload),
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))

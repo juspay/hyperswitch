@@ -475,8 +475,8 @@ pub async fn invite_user(
 
 pub async fn invite_multiple_user(
     state: AppState,
-    requests: Vec<user_api::InviteUserRequest>,
     user_from_token: auth::UserFromToken,
+    requests: Vec<user_api::InviteUserRequest>,
 ) -> UserResponse<Vec<InviteMultipleUserResponse>> {
     if requests.len() > 10 {
         return Err(UserErrors::MaxInvitationsError.into())
@@ -486,10 +486,12 @@ pub async fn invite_multiple_user(
     let responses = futures::future::join_all(requests.iter().map(|request| async {
         match handle_invitation(&state, &user_from_token, request).await {
             Ok(response) => response,
-            Err(error) => utils::user::handle_invite_error(
-                request,
-                Some(error.current_context().get_error_message().to_string()),
-            ),
+            Err(error) => InviteMultipleUserResponse {
+                email: request.email.clone(),
+                is_email_sent: false,
+                password: None,
+                error: Some(error.current_context().get_error_message().to_string()),
+            },
         }
     }))
     .await;
@@ -517,7 +519,7 @@ async fn handle_invitation(
         .await;
 
     if let Ok(invitee_user) = invitee_user {
-        handle_existing_user_invitation(state, user_from_token, request, invitee_user).await
+        handle_existing_user_invitation(state, user_from_token, request, invitee_user.into()).await
     } else if invitee_user
         .as_ref()
         .map_err(|e| e.current_context().is_db_not_found())
@@ -534,10 +536,8 @@ async fn handle_existing_user_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
-    invitee_user: storage_user::User,
+    invitee_user_from_db: domain::UserFromStorage,
 ) -> UserResult<InviteMultipleUserResponse> {
-    let invitee_user_from_db = domain::UserFromStorage::from(invitee_user);
-
     let now = common_utils::date_time::now();
     state
         .store
