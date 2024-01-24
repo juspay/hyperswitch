@@ -124,15 +124,7 @@ function boot() {
  * @param {PaymentDetails} paymentDetails
  **/
 function renderStatusDetails(paymentDetails) {
-  var paymentLinkStatus = paymentDetails.payment_link_status;
-  var intentStatus = paymentDetails.intent_status;
-
-  var status =
-    paymentLinkStatus === "expired"
-      ? intentStatus === "requires_confirmation"
-        ? paymentLinkStatus
-        : intentStatus
-      : intentStatus;
+  var status = paymentDetails.status;
 
   var statusDetails = {
     imageSource: "",
@@ -291,7 +283,7 @@ function renderStatusDetails(paymentDetails) {
             // Form query params
             var queryParams = {
               payment_id: paymentDetails.payment_id,
-              status: paymentDetails.intent_status,
+              status: paymentDetails.status,
               amount: paymentDetails.amount,
             };
             var url = new URL(paymentDetails.return_url);
