@@ -3312,11 +3312,11 @@ pub fn get_qr_metadata(
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
-    let display_to_timestamp = response
+    let time: Option<PrimitiveDateTime> = response
         .additional_data
         .clone()
-        .and_then(|additional_data| additional_data.pix_expiration_date)
-        .map(|t| t.assume_utc().unix_timestamp() * 1000);
+        .and_then(|additional_data| additional_data.pix_expiration_date);
+    let display_to_timestamp: Option<i64> = time.map(|t| utils::get_timestamp_in_milliseconds(&t));
 
     if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
     {
