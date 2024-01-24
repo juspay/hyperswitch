@@ -57,6 +57,7 @@ impl CashtocodeTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             payment_experience: None,
             payment_method_type,
             session_token: None,

@@ -24,7 +24,7 @@ serde_urlencoded = "0.7.1"
 serial_test = "2.0.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.28.2"
+tokio = "1.35.1"
 toml = "0.7.4"
 
 # First party crates
