@@ -6,6 +6,8 @@ use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::{self, decrypt::VaultFetch};
 use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
@@ -127,6 +129,8 @@ async fn waited_fetch_and_update_caches(
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     for _n in 1..local_fetch_retry_count {
         sleep(Duration::from_millis(local_fetch_retry_delay)).await;
@@ -149,6 +153,8 @@ async fn waited_fetch_and_update_caches(
         None,
         #[cfg(feature = "aws_kms")]
         aws_kms_config,
+        #[cfg(feature = "hashicorp-vault")]
+        hc_config,
     )
     .await
 }
@@ -187,6 +193,8 @@ pub async fn get_forex_rates(
     local_fetch_retry_delay: u64,
     local_fetch_retry_count: u64,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     if let Some(local_rates) = retrieve_forex_from_local().await {
         if local_rates.is_expired(call_delay) {
@@ -197,6 +205,8 @@ pub async fn get_forex_rates(
                 local_rates,
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await
         } else {
@@ -212,6 +222,8 @@ pub async fn get_forex_rates(
             local_fetch_retry_count,
             #[cfg(feature = "aws_kms")]
             aws_kms_config,
+            #[cfg(feature = "hashicorp-vault")]
+            hc_config,
         )
         .await
     }
@@ -223,6 +235,8 @@ async fn handler_local_no_data(
     _local_fetch_retry_delay: u64,
     _local_fetch_retry_count: u64,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match retrieve_forex_from_redis(state).await {
         Ok(Some(data)) => {
@@ -232,6 +246,8 @@ async fn handler_local_no_data(
                 call_delay,
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await
         }
@@ -242,6 +258,8 @@ async fn handler_local_no_data(
                 None,
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await?)
         }
@@ -252,6 +270,8 @@ async fn handler_local_no_data(
                 None,
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await?)
         }
@@ -262,6 +282,8 @@ async fn successive_fetch_and_save_forex(
     state: &AppState,
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match acquire_redis_lock(state).await {
         Ok(lock_acquired) => {
@@ -272,6 +294,8 @@ async fn successive_fetch_and_save_forex(
                 state,
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await;
             match api_rates {
@@ -283,6 +307,8 @@ async fn successive_fetch_and_save_forex(
                         state,
                         #[cfg(feature = "aws_kms")]
                         aws_kms_config,
+                        #[cfg(feature = "hashicorp-vault")]
+                        hc_config,
                     )
                     .await;
                     match secondary_api_rates {
@@ -326,6 +352,8 @@ async fn fallback_forex_redis_check(
     redis_data: FxExchangeRatesCacheEntry,
     call_delay: i64,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match is_redis_expired(Some(redis_data.clone()).as_ref(), call_delay).await {
         Some(redis_forex) => {
@@ -341,6 +369,8 @@ async fn fallback_forex_redis_check(
                 Some(redis_data),
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await
         }
@@ -352,6 +382,8 @@ async fn handler_local_expired(
     call_delay: i64,
     local_rates: FxExchangeRatesCacheEntry,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     match retrieve_forex_from_redis(state).await {
         Ok(redis_data) => {
@@ -370,6 +402,8 @@ async fn handler_local_expired(
                         Some(local_rates),
                         #[cfg(feature = "aws_kms")]
                         aws_kms_config,
+                        #[cfg(feature = "hashicorp-vault")]
+                        hc_config,
                     )
                     .await
                 }
@@ -383,6 +417,8 @@ async fn handler_local_expired(
                 Some(local_rates),
                 #[cfg(feature = "aws_kms")]
                 aws_kms_config,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_config,
             )
             .await
         }
@@ -392,16 +428,40 @@ async fn handler_local_expired(
 async fn fetch_forex_rates(
     state: &AppState,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> Result<FxExchangeRatesCacheEntry, error_stack::Report<ForexCacheError>> {
+    let forex_api_key = async {
+        #[cfg(feature = "hashicorp-vault")]
+        let client = hashicorp_vault::get_hashicorp_client(hc_config)
+            .await
+            .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
+
+        #[cfg(not(feature = "hashicorp-vault"))]
+        let output = state.conf.forex_api.api_key.clone();
+        #[cfg(feature = "hashicorp-vault")]
+        let output = state
+            .conf
+            .forex_api
+            .api_key
+            .clone()
+            .fetch_inner::<hashicorp_vault::Kv2>(client)
+            .await
+            .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
+
+        Ok::<_, error_stack::Report<ForexCacheError>>(output)
+    }
+    .await?;
     #[cfg(feature = "aws_kms")]
     let forex_api_key = aws_kms::get_aws_kms_client(aws_kms_config)
         .await
-        .decrypt(state.conf.forex_api.api_key.peek())
+        .decrypt(forex_api_key.peek())
         .await
         .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
 
     #[cfg(not(feature = "aws_kms"))]
-    let forex_api_key = state.conf.forex_api.api_key.peek();
+    let forex_api_key = forex_api_key.peek();
 
     let forex_url: String = format!("{}{}{}", FOREX_BASE_URL, forex_api_key, FOREX_BASE_CURRENCY);
     let forex_request = services::RequestBuilder::new()
@@ -457,16 +517,39 @@ async fn fetch_forex_rates(
 pub async fn fallback_fetch_forex_rates(
     state: &AppState,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
+    let fallback_api_key = async {
+        #[cfg(feature = "hashicorp-vault")]
+        let client = hashicorp_vault::get_hashicorp_client(hc_config)
+            .await
+            .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
+
+        #[cfg(not(feature = "hashicorp-vault"))]
+        let output = state.conf.forex_api.fallback_api_key.clone();
+        #[cfg(feature = "hashicorp-vault")]
+        let output = state
+            .conf
+            .forex_api
+            .fallback_api_key
+            .clone()
+            .fetch_inner::<hashicorp_vault::Kv2>(client)
+            .await
+            .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
+
+        Ok::<_, error_stack::Report<ForexCacheError>>(output)
+    }
+    .await?;
     #[cfg(feature = "aws_kms")]
     let fallback_forex_api_key = aws_kms::get_aws_kms_client(aws_kms_config)
         .await
-        .decrypt(state.conf.forex_api.fallback_api_key.peek())
+        .decrypt(fallback_api_key.peek())
         .await
         .change_context(ForexCacheError::AwsKmsDecryptionFailed)?;
 
     #[cfg(not(feature = "aws_kms"))]
-    let fallback_forex_api_key = state.conf.forex_api.fallback_api_key.peek();
+    let fallback_forex_api_key = fallback_api_key.peek();
 
     let fallback_forex_url: String =
         format!("{}{}", FALLBACK_FOREX_BASE_URL, fallback_forex_api_key,);
@@ -609,6 +692,8 @@ pub async fn convert_currency(
     to_currency: String,
     from_currency: String,
     #[cfg(feature = "aws_kms")] aws_kms_config: &aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_config: &external_services::hashicorp_vault::HashiCorpVaultConfig,
 ) -> CustomResult<api_models::currency::CurrencyConversionResponse, ForexCacheError> {
     let rates = get_forex_rates(
         &state,
@@ -617,6 +702,8 @@ pub async fn convert_currency(
         state.conf.forex_api.local_fetch_retry_count,
         #[cfg(feature = "aws_kms")]
         aws_kms_config,
+        #[cfg(feature = "hashicorp-vault")]
+        hc_config,
     )
     .await
     .change_context(ForexCacheError::ApiError)?;

@@ -9,6 +9,9 @@ pub mod email;
 #[cfg(feature = "aws_kms")]
 pub mod aws_kms;
 
+#[cfg(feature = "hashicorp-vault")]
+pub mod hashicorp_vault;
+
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]
 pub mod consts {

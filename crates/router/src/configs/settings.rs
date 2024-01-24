@@ -13,6 +13,8 @@ use config::{Environment, File};
 use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -88,6 +90,8 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "aws_kms")]
     pub kms: aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
     #[cfg(feature = "aws_s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,

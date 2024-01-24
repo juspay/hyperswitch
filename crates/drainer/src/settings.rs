@@ -4,6 +4,8 @@ use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
@@ -34,6 +36,8 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     #[cfg(feature = "aws_kms")]
     pub kms: aws_kms::AwsKmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -4,7 +4,8 @@ use diesel::PgConnection;
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
-
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::{self, decrypt::VaultFetch, Kv2};
 use crate::settings::Database;
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
@@ -27,16 +28,24 @@ pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
     #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::AwsKmsClient,
+    #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static hashicorp_vault::HashiCorpVault,
 ) -> PgPool {
+    let password = database.password.clone();
+    #[cfg(feature = "hashicorp-vault")]
+    let password = password
+        .fetch_inner::<Kv2>(hashicorp_client)
+        .await
+        .expect("Failed while fetching db password");
+
     #[cfg(feature = "aws_kms")]
-    let password = database
-        .password
+    let password =
+        password
         .decrypt_inner(aws_kms_client)
         .await
         .expect("Failed to decrypt password");
 
     #[cfg(not(feature = "aws_kms"))]
-    let password = &database.password.peek();
+    let password = &password.peek();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

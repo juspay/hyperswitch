@@ -198,6 +198,44 @@ impl common_utils::ext_traits::ConfigExt for AwsKmsValue {
     }
 }
 
+impl From<String> for AwsKmsValue {
+    fn from(value: String) -> Self {
+        Self(Secret::new(value))
+    }
+}
+
+impl From<Secret<String>> for AwsKmsValue {
+    fn from(value: Secret<String>) -> Self {
+        Self(value)
+    }
+}
+
+#[cfg(feature = "hashicorp-vault")]
+#[async_trait::async_trait]
+impl super::hashicorp_vault::decrypt::VaultFetch for AwsKmsValue {
+    async fn fetch_inner<En>(
+        self,
+        client: &super::hashicorp_vault::HashiCorpVault,
+    ) -> error_stack::Result<Self, super::hashicorp_vault::HashiCorpError>
+    where
+        for<'a> En: super::hashicorp_vault::Engine<
+                ReturnType<'a, String> = std::pin::Pin<
+                    Box<
+                        dyn std::future::Future<
+                                Output = error_stack::Result<
+                                    String,
+                                    super::hashicorp_vault::HashiCorpError,
+                                >,
+                            > + Send
+                            + 'a,
+                    >,
+                >,
+            > + 'a,
+    {
+        self.0.fetch_inner::<En>(client).await.map(AwsKmsValue)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
