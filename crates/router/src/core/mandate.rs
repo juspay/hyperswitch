@@ -261,12 +261,8 @@ where
     let updated_mandate_ref = match mandate_ref {
         Some(mut mr) => {
             match mr.update_history {
-                Some(ref mut uh) => {
-                    println!("Entershere1");
-                    uh.push(new_update_record)
-                }
+                Some(ref mut uh) => uh.push(new_update_record),
                 None => {
-                    println!("Entershere2");
                     let v = vec![new_update_record];
                     mr.update_history = Some(v)
                 }
@@ -297,7 +293,7 @@ where
                 connector_mandate_id: mandate_details.and_then(|mr| mr.connector_mandate_id),
                 connector_mandate_ids: Some(connector_mandate_ids),
                 payment_method_id: pm_id
-                    .unwrap_or("Error retreiving the payment_method_id".to_string()),
+                    .unwrap_or("Error retrieving the payment_method_id".to_string()),
             },
         )
         .await

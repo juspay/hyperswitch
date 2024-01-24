@@ -255,7 +255,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-        // connector mandate refernce upate history
+        // connector mandate reference update history
         let mandate_id = request
             .mandate_id
             .as_ref()
