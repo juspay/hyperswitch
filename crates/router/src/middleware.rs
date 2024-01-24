@@ -136,7 +136,7 @@ where
         let response_fut = self.service.call(req);
 
         Box::pin(
-            async move { response_fut.await }.instrument(
+            response_fut.instrument(
                 router_env::tracing::info_span!(
                     "golden_log_line",
                     payment_id = Empty,

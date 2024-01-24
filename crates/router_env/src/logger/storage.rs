@@ -154,7 +154,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
                 .unwrap_or(0)
         };
 
-        span.extensions().get::<Storage<'_>>().map(|s| {
+        if let Some(s) = span.extensions().get::<Storage<'_>>() {
             s.values.iter().for_each(|(k, v)| {
                 if PERSISTENT_KEYS.contains(k) {
                     span.parent().and_then(|p| {
@@ -164,7 +164,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
                     });
                 }
             })
-        });
+        };
 
         let mut extensions_mut = span.extensions_mut();
         #[allow(clippy::expect_used)]
