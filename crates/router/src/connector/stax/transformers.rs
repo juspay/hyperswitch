@@ -63,10 +63,9 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
         item: &StaxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency != enums::Currency::USD {
-            Err(errors::ConnectorError::NotSupported {
-                message: item.router_data.request.currency.to_string(),
-                connector: "Stax",
-            })?
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?
         }
         let total = item.amount;
 
@@ -118,10 +117,10 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: "SELECTED_PAYMENT_METHOD".to_string(),
-                connector: "Stax",
-            })?,
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -148,7 +147,7 @@ pub struct StaxCustomerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    firstname: Option<String>,
+    firstname: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
@@ -226,8 +225,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             api::PaymentMethodData::Card(card_data) => {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    person_name: card_data.card_holder_name,
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                    person_name: card_data
+                        .card_holder_name
+                        .unwrap_or(Secret::new("".to_string())),
                     card_number: card_data.card_number,
                     card_cvv: card_data.card_cvc,
                     customer_id: Secret::new(customer_id),
@@ -268,10 +269,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: "SELECTED_PAYMENT_METHOD".to_string(),
-                connector: "Stax",
-            })?,
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -368,6 +369,7 @@ impl<F, T>
                 connector_response_reference_id: Some(
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

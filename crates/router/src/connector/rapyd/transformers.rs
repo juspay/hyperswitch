@@ -131,7 +131,10 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: ccard.card_holder_name.to_owned(),
+                        name: ccard
+                            .card_holder_name
+                            .to_owned()
+                            .unwrap_or(Secret::new("".to_string())),
                         cvv: ccard.card_cvc.to_owned(),
                     }),
                     address: None,
@@ -458,6 +461,7 @@ impl<F, T>
                             message: item.response.status.status.unwrap_or_default(),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
+                            connector_transaction_id: None,
                         }),
                     ),
                     _ => {
@@ -486,6 +490,7 @@ impl<F, T>
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
                             }),
                         )
                     }
@@ -499,6 +504,7 @@ impl<F, T>
                     message: item.response.status.status.unwrap_or_default(),
                     reason: item.response.status.message,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
             ),
         };

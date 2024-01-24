@@ -9,6 +9,7 @@ use std::{
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
+    payments::Address,
     routing::ConnectorSelection,
 };
 use common_utils::static_cache::StaticCache;
@@ -71,7 +72,10 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    #[cfg(feature = "business_profile_routing")]
+    #[cfg(any(
+        feature = "business_profile_routing",
+        feature = "profile_specific_fallback_routing"
+    ))]
     profile_id: Option<String>,
 }
 static ROUTING_CACHE: StaticCache<CachedAlgorithm> = StaticCache::new();
@@ -207,10 +211,22 @@ pub async fn perform_static_routing_v1<F: Clone>(
     let algorithm_id = if let Some(id) = algorithm_ref.algorithm_id {
         id
     } else {
-        let fallback_config =
-            routing_helpers::get_merchant_default_config(&*state.clone().store, merchant_id)
-                .await
-                .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+        let fallback_config = routing_helpers::get_merchant_default_config(
+            &*state.clone().store,
+            #[cfg(not(feature = "profile_specific_fallback_routing"))]
+            merchant_id,
+            #[cfg(feature = "profile_specific_fallback_routing")]
+            {
+                payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?
+            },
+        )
+        .await
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
         return Ok(fallback_config);
     };
@@ -507,8 +523,10 @@ pub async fn refresh_kgraph_cache(
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
-    merchant_connector_accounts
-        .retain(|mca| mca.connector_type != storage_enums::ConnectorType::PaymentVas);
+    merchant_connector_accounts.retain(|mca| {
+        mca.connector_type != storage_enums::ConnectorType::PaymentVas
+            && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
+    });
 
     #[cfg(feature = "business_profile_routing")]
     let merchant_connector_accounts = payments_oss::helpers::filter_mca_based_on_business_profile(
@@ -616,10 +634,22 @@ pub async fn perform_fallback_routing<F: Clone>(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let fallback_config =
-        routing_helpers::get_merchant_default_config(&*state.store, &key_store.merchant_id)
-            .await
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.store,
+        #[cfg(not(feature = "profile_specific_fallback_routing"))]
+        &key_store.merchant_id,
+        #[cfg(feature = "profile_specific_fallback_routing")]
+        {
+            payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
+                .change_context(errors::RoutingError::ProfileIdMissing)?
+        },
+    )
+    .await
+    .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
     let backend_input = make_dsl_input(payment_data)?;
 
     perform_kgraph_filtering(
@@ -819,8 +849,11 @@ pub async fn perform_session_flow_routing(
             routing_algorithm: &routing_algorithm,
             backend_input: backend_input.clone(),
             allowed_connectors,
-            #[cfg(feature = "business_profile_routing")]
-            profile_id: session_input.payment_intent.clone().profile_id,
+            #[cfg(any(
+                feature = "business_profile_routing",
+                feature = "profile_specific_fallback_routing"
+            ))]
+            profile_id: session_input.payment_intent.profile_id.clone(),
         };
         let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
 
@@ -880,7 +913,16 @@ async fn perform_session_routing_for_pm_type(
             } else {
                 routing_helpers::get_merchant_default_config(
                     &*session_pm_input.state.clone().store,
+                    #[cfg(not(feature = "profile_specific_fallback_routing"))]
                     merchant_id,
+                    #[cfg(feature = "profile_specific_fallback_routing")]
+                    {
+                        session_pm_input
+                            .profile_id
+                            .as_ref()
+                            .get_required_value("profile_id")
+                            .change_context(errors::RoutingError::ProfileIdMissing)?
+                    },
                 )
                 .await
                 .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
@@ -903,7 +945,16 @@ async fn perform_session_routing_for_pm_type(
     if final_selection.is_empty() {
         let fallback = routing_helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
+            #[cfg(not(feature = "profile_specific_fallback_routing"))]
             merchant_id,
+            #[cfg(feature = "profile_specific_fallback_routing")]
+            {
+                session_pm_input
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?
+            },
         )
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -947,4 +998,61 @@ async fn perform_session_routing_for_pm_type(
     }
 
     Ok(final_choice)
+}
+
+pub fn make_dsl_input_for_surcharge(
+    payment_attempt: &oss_storage::PaymentAttempt,
+    payment_intent: &oss_storage::PaymentIntent,
+    billing_address: Option<Address>,
+) -> RoutingResult<dsl_inputs::BackendInput> {
+    let mandate_data = dsl_inputs::MandateData {
+        mandate_acceptance_type: None,
+        mandate_type: None,
+        payment_type: None,
+    };
+    let payment_input = dsl_inputs::PaymentInput {
+        amount: payment_attempt.amount,
+        // currency is always populated in payment_attempt during payment create
+        currency: payment_attempt
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::RoutingError::DslMissingRequiredField {
+                field_name: "currency".to_string(),
+            })?,
+        authentication_type: payment_attempt.authentication_type,
+        card_bin: None,
+        capture_method: payment_attempt.capture_method,
+        business_country: payment_intent
+            .business_country
+            .map(api_enums::Country::from_alpha2),
+        billing_country: billing_address
+            .and_then(|bic| bic.address)
+            .and_then(|add| add.country)
+            .map(api_enums::Country::from_alpha2),
+        business_label: payment_intent.business_label.clone(),
+        setup_future_usage: payment_intent.setup_future_usage,
+    };
+    let metadata = payment_intent
+        .metadata
+        .clone()
+        .map(|val| val.parse_value("routing_parameters"))
+        .transpose()
+        .change_context(errors::RoutingError::MetadataParsingError)
+        .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
+        .unwrap_or_else(|err| {
+            logger::error!(error=?err);
+            None
+        });
+    let payment_method_input = dsl_inputs::PaymentMethodInput {
+        payment_method: None,
+        payment_method_type: None,
+        card_network: None,
+    };
+    let backend_input = dsl_inputs::BackendInput {
+        metadata,
+        payment: payment_input,
+        payment_method: payment_method_input,
+        mandate: mandate_data,
+    };
+    Ok(backend_input)
 }

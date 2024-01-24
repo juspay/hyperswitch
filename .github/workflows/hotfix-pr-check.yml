@@ -15,12 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get hotfix pull request body
         shell: bash
-        run: |
-          echo '${{ github.event.pull_request.body }}' > hotfix_pr_body.txt
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: echo $PR_BODY > hotfix_pr_body.txt
 
       - name: Get a list of all original PR numbers
         shell: bash
