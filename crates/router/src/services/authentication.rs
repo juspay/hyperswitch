@@ -3,11 +3,27 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
+use serde::Serialize;
 
+use super::authorization::{self, permissions::Permission};
+#[cfg(feature = "olap")]
+use super::jwt;
+#[cfg(feature = "recon")]
+use super::recon::ReconToken;
+#[cfg(feature = "olap")]
+use crate::consts;
+#[cfg(feature = "olap")]
+use crate::core::errors::UserResult;
+#[cfg(feature = "recon")]
+use crate::routes::AppState;
 use crate::{
     configs::settings,
     core::{
@@ -21,9 +37,120 @@ use crate::{
     utils::OptionExt,
 };
 
+#[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(
+    tag = "api_auth_type",
+    content = "authentication_data",
+    rename_all = "snake_case"
+)]
+pub enum AuthenticationType {
+    ApiKey {
+        merchant_id: String,
+        key_id: String,
+    },
+    AdminApiKey,
+    MerchantJwt {
+        merchant_id: String,
+        user_id: Option<String>,
+    },
+    UserJwt {
+        user_id: String,
+    },
+    MerchantId {
+        merchant_id: String,
+    },
+    PublishableKey {
+        merchant_id: String,
+    },
+    WebhookAuth {
+        merchant_id: String,
+    },
+    NoAuth,
+}
+
+impl AuthenticationType {
+    pub fn get_merchant_id(&self) -> Option<&str> {
+        match self {
+            Self::ApiKey {
+                merchant_id,
+                key_id: _,
+            }
+            | Self::MerchantId { merchant_id }
+            | Self::PublishableKey { merchant_id }
+            | Self::MerchantJwt {
+                merchant_id,
+                user_id: _,
+            }
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
+            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithoutMerchantFromToken {
+    pub user_id: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct UserAuthToken {
+    pub user_id: String,
+    pub exp: u64,
+}
+
+#[cfg(feature = "olap")]
+impl UserAuthToken {
+    pub async fn new_token(user_id: String, settings: &settings::Settings) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let token_payload = Self { user_id, exp };
+        jwt::generate_jwt(&token_payload, settings).await
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct AuthToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub exp: u64,
+    pub org_id: String,
+}
+
+#[cfg(feature = "olap")]
+impl AuthToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: String,
+        role_id: String,
+        settings: &settings::Settings,
+        org_id: String,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            role_id,
+            exp,
+            org_id,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
+    }
+}
+
+#[derive(Clone)]
+pub struct UserFromToken {
+    pub user_id: String,
+    pub merchant_id: String,
+    pub role_id: String,
+    pub org_id: String,
 }
 
 pub trait AuthInfo {
@@ -46,13 +173,12 @@ impl AuthInfo for AuthenticationData {
 pub trait AuthenticateAndFetch<T, A>
 where
     A: AppStateInfo,
-    T: AuthInfo,
 {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<T>;
+    ) -> RouterResult<(T, AuthenticationType)>;
 }
 
 #[derive(Debug)]
@@ -69,8 +195,8 @@ where
         &self,
         _request_headers: &HeaderMap,
         _state: &A,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<((), AuthenticationType)> {
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 
@@ -83,7 +209,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -100,6 +226,10 @@ where
                 &config.api_keys,
                 #[cfg(feature = "kms")]
                 kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "hashicorp-vault")]
+                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
             )
             .await?
         };
@@ -139,10 +269,17 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                key_id: stored_api_key.key_id,
+            },
+        ))
     }
 }
 
@@ -152,9 +289,14 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
+            #[cfg(not(feature = "kms"))]
+            let admin_api_key = secrets.admin_api_key.clone();
+
             #[cfg(feature = "kms")]
             let admin_api_key = secrets
                 .kms_encrypted_admin_api_key
@@ -163,12 +305,44 @@ pub async fn get_admin_api_key(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt admin API key")?;
 
-            #[cfg(not(feature = "kms"))]
-            let admin_api_key = secrets.admin_api_key.clone();
+            #[cfg(feature = "hashicorp-vault")]
+            let admin_api_key = masking::Secret::new(admin_api_key)
+                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt admin API key")?
+                .expose();
 
             Ok(StrongSecret::new(admin_api_key))
         })
         .await
+}
+
+#[derive(Debug)]
+pub struct UserWithoutMerchantJWTAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserWithoutMerchantFromToken {
+                user_id: payload.user_id.clone(),
+            },
+            AuthenticationType::UserJwt {
+                user_id: payload.user_id,
+            },
+        ))
+    }
 }
 
 #[derive(Debug)]
@@ -183,7 +357,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<((), AuthenticationType)> {
         let request_admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
@@ -192,6 +366,11 @@ where
             &conf.secrets,
             #[cfg(feature = "kms")]
             kms::get_kms_client(&conf.kms).await,
+            #[cfg(feature = "hashicorp-vault")]
+            external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting admin api key")?,
         )
         .await?;
 
@@ -200,7 +379,7 @@ where
                 .attach_printable("Admin Authentication Failure"))?;
         }
 
-        Ok(())
+        Ok(((), AuthenticationType::AdminApiKey))
     }
 }
 
@@ -216,7 +395,7 @@ where
         &self,
         _request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
@@ -245,10 +424,16 @@ where
                 }
             })?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+            },
+        ))
     }
 }
 
@@ -264,7 +449,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -279,11 +464,19 @@ where
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
             })
+            .map(|auth| {
+                (
+                    auth.clone(),
+                    AuthenticationType::PublishableKey {
+                        merchant_id: auth.merchant_account.merchant_id.clone(),
+                    },
+                )
+            })
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth;
+pub(crate) struct JWTAuth(pub Permission);
 
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchUnit {
@@ -300,18 +493,102 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<()> {
-        let mut token = get_jwt(request_headers)?;
-        token = strip_jwt_token(token)?;
-        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state)
-            .await
-            .map(|_| ())
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
+        Ok((
+            (),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+pub struct JWTAuthMerchantFromRoute {
+    pub merchant_id: String,
+    pub required_permission: Permission,
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantFromRoute
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.required_permission, permissions)?;
+
+        // Check if token has access to MerchantId that has been requested through query param
+        if payload.merchant_id != self.merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+        Ok((
+            (),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
+where
+    T: serde::de::DeserializeOwned,
+    A: AppStateInfo + Sync,
+{
+    let token = get_jwt_from_authorization_header(headers)?;
+    let payload = decode_jwt(token, state).await?;
+
+    Ok(payload)
 }
 
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchMerchantAccount {
     merchant_id: String,
+    role_id: String,
 }
 
 #[async_trait]
@@ -323,10 +600,14 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<AuthenticationData> {
-        let mut token = get_jwt(request_headers)?;
-        token = strip_jwt_token(token)?;
-        let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload =
+            parse_jwt_payload::<A, JwtAuthPayloadFetchMerchantAccount>(request_headers, state)
+                .await?;
+
+        let permissions = authorization::get_permissions(&payload.role_id)?;
+        authorization::check_authorization(&self.0, permissions)?;
+
         let key_store = state
             .store()
             .get_merchant_key_store_by_merchant_id(
@@ -343,10 +624,64 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
-        Ok(AuthenticationData {
+        let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-        })
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                user_id: None,
+            },
+        ))
+    }
+}
+
+pub struct DashboardNoPermissionAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
+                org_id: payload.org_id,
+                role_id: payload.role_id,
+            },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        Ok(((), AuthenticationType::NoAuth))
     }
 }
 
@@ -379,6 +714,18 @@ impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
 }
 
 impl ClientSecretFetch for api_models::payments::RetrievePaymentLinkRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::pm_auth::LinkTokenCreateRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -523,14 +870,16 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .transpose()
 }
 
-pub fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {
+pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)
         .get_required_value(crate::headers::AUTHORIZATION)?
         .to_str()
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert JWT token to string")
+        .attach_printable("Failed to convert JWT token to string")?
+        .strip_prefix("Bearer ")
+        .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
@@ -550,4 +899,96 @@ where
         return jwt_auth_type;
     }
     default_auth
+}
+
+#[cfg(feature = "recon")]
+static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
+    tokio::sync::OnceCell::const_new();
+
+#[cfg(feature = "recon")]
+pub async fn get_recon_admin_api_key(
+    secrets: &settings::Secrets,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+) -> RouterResult<&'static StrongSecret<String>> {
+    RECON_API_KEY
+        .get_or_try_init(|| async {
+            #[cfg(feature = "kms")]
+            let recon_admin_api_key = secrets
+                .kms_encrypted_recon_admin_api_key
+                .decrypt_inner(kms_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt recon admin API key")?;
+
+            #[cfg(not(feature = "kms"))]
+            let recon_admin_api_key = secrets.recon_admin_api_key.clone();
+
+            Ok(StrongSecret::new(recon_admin_api_key))
+        })
+        .await
+}
+
+#[cfg(feature = "recon")]
+pub struct ReconAdmin;
+
+#[async_trait]
+#[cfg(feature = "recon")]
+impl<A> AuthenticateAndFetch<(), A> for ReconAdmin
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let request_admin_api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let conf = state.conf();
+
+        let admin_api_key = get_recon_admin_api_key(
+            &conf.secrets,
+            #[cfg(feature = "kms")]
+            kms::get_kms_client(&conf.kms).await,
+        )
+        .await?;
+
+        if request_admin_api_key != admin_api_key.peek() {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Recon Admin Authentication Failure"))?;
+        }
+
+        Ok(((), AuthenticationType::NoAuth))
+    }
+}
+
+#[cfg(feature = "recon")]
+pub struct ReconJWT;
+#[cfg(feature = "recon")]
+pub struct ReconUser {
+    pub user_id: String,
+}
+#[cfg(feature = "recon")]
+impl AuthInfo for ReconUser {
+    fn get_merchant_id(&self) -> Option<&str> {
+        None
+    }
+}
+#[cfg(all(feature = "olap", feature = "recon"))]
+#[async_trait]
+impl AuthenticateAndFetch<ReconUser, AppState> for ReconJWT {
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &AppState,
+    ) -> RouterResult<(ReconUser, AuthenticationType)> {
+        let payload = parse_jwt_payload::<AppState, ReconToken>(request_headers, state).await?;
+
+        Ok((
+            ReconUser {
+                user_id: payload.user_id,
+            },
+            AuthenticationType::NoAuth,
+        ))
+    }
 }

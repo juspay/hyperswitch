@@ -200,7 +200,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
+                        name_on_card: req_card
+                            .card_holder_name
+                            .clone()
+                            .unwrap_or(Secret::new("".to_string())),
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),
@@ -245,13 +248,52 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                 return_url: item.request.get_router_return_url()?,
                             }))
                         }
-                        _ => Err(errors::ConnectorError::NotImplemented(
-                            "Wallets".to_string(),
-                        )),
+                        api_models::payments::WalletData::AliPayQr(_)
+                        | api_models::payments::WalletData::AliPayRedirect(_)
+                        | api_models::payments::WalletData::AliPayHkRedirect(_)
+                        | api_models::payments::WalletData::MomoRedirect(_)
+                        | api_models::payments::WalletData::KakaoPayRedirect(_)
+                        | api_models::payments::WalletData::GoPayRedirect(_)
+                        | api_models::payments::WalletData::GcashRedirect(_)
+                        | api_models::payments::WalletData::ApplePayRedirect(_)
+                        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::DanaRedirect {}
+                        | api_models::payments::WalletData::GooglePayRedirect(_)
+                        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                        | api_models::payments::WalletData::MbWayRedirect(_)
+                        | api_models::payments::WalletData::MobilePayRedirect(_)
+                        | api_models::payments::WalletData::PaypalSdk(_)
+                        | api_models::payments::WalletData::SamsungPay(_)
+                        | api_models::payments::WalletData::TwintRedirect {}
+                        | api_models::payments::WalletData::VippsRedirect {}
+                        | api_models::payments::WalletData::TouchNGoRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayRedirect(_)
+                        | api_models::payments::WalletData::WeChatPayQr(_)
+                        | api_models::payments::WalletData::CashappQr(_)
+                        | api_models::payments::WalletData::SwishQr(_) => {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
+                                connector: "Noon",
+                            })
+                        }
                     },
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment methods".to_string(),
-                    )),
+                    api::PaymentMethodData::CardRedirect(_)
+                    | api::PaymentMethodData::PayLater(_)
+                    | api::PaymentMethodData::BankRedirect(_)
+                    | api::PaymentMethodData::BankDebit(_)
+                    | api::PaymentMethodData::BankTransfer(_)
+                    | api::PaymentMethodData::Crypto(_)
+                    | api::PaymentMethodData::MandatePayment {}
+                    | api::PaymentMethodData::Reward {}
+                    | api::PaymentMethodData::Upi(_)
+                    | api::PaymentMethodData::Voucher(_)
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
+                            connector: "Noon",
+                        })
+                    }
                 }?,
                 Some(item.request.currency),
                 item.request.order_category.clone(),
@@ -473,6 +515,8 @@ impl<F, T>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -486,6 +530,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
+                        incremental_authorization_allowed: None,
                     })
                 }
             },

@@ -40,9 +40,15 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     use rand::distributions::{Distribution, Uniform};
 
     let mut rng = rand::thread_rng();
+
+    // TODO: this can be removed once rand-0.9 is released
+    // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
+    #[allow(unknown_lints)]
+    #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=settings.loop_interval)
         .into_report()
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
+
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
@@ -61,7 +67,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
-    loop {
+    'consumer: loop {
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 interval.tick().await;
@@ -71,7 +77,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                     continue;
                 }
 
-                tokio::task::spawn(pt_utils::consumer_operation_handler(
+                pt_utils::consumer_operation_handler(
                     state.clone(),
                     settings.clone(),
                     |err| {
@@ -79,19 +85,23 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                     },
                     sync::Arc::clone(&consumer_operation_counter),
                     workflow_selector,
-                ));
+                )
+                .await;
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
                 rx.close();
-                shutdown_interval.tick().await;
-                let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-                match active_tasks {
-                    0 => {
-                        logger::info!("Terminating consumer");
-                        break;
+                loop {
+                    shutdown_interval.tick().await;
+                    let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
+                    logger::error!("{}", active_tasks);
+                    match active_tasks {
+                        0 => {
+                            logger::info!("Terminating consumer");
+                            break 'consumer;
+                        }
+                        _ => continue,
                     }
-                    _ => continue,
                 }
             }
         }
@@ -204,6 +214,7 @@ where
     T: SchedulerAppState,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
+    logger::info!("{:?}", process.name.as_ref());
     let res = workflow_selector
         .trigger_workflow(&state.clone(), process.clone())
         .await;
