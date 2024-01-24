@@ -131,7 +131,16 @@ where
             }
 
             KvOperation::Scan(pattern) => {
-                let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
+                let result: Vec<T> = redis_conn
+                    .hscan_and_deserialize(key, pattern, None)
+                    .await
+                    .and_then(|result| {
+                        if result.is_empty() {
+                            Err(RedisError::NotFound).into_report()
+                        } else {
+                            Ok(result)
+                        }
+                    })?;
                 Ok(KvResult::Scan(result))
             }
 
