@@ -12,6 +12,8 @@ use config::{Environment, File};
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::file_storage::FileStorageConfig;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -90,6 +92,8 @@ pub struct Settings {
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
     pub file_storage: FileStorageConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]

@@ -96,3 +96,22 @@ pub async fn update_user_role(
     ))
     .await
 }
+
+pub async fn accept_invitation(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitation;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        user_role_core::accept_invitation,
+        &auth::UserWithoutMerchantJWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

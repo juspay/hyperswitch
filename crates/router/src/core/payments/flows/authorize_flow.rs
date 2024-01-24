@@ -376,7 +376,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
-            name: None,
+            name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
         })
     }

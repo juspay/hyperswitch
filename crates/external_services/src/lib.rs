@@ -10,6 +10,8 @@ pub mod email;
 pub mod kms;
 
 pub mod file_storage;
+#[cfg(feature = "hashicorp-vault")]
+pub mod hashicorp_vault;
 
 /// Crate specific constants
 #[cfg(feature = "kms")]

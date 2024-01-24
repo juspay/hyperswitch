@@ -90,11 +90,10 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -118,11 +117,10 @@ pub async fn signin(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -600,7 +598,7 @@ pub async fn switch_merchant_id(
             .ok_or(UserErrors::InvalidRoleOperation.into())
             .attach_printable("User doesn't have access to switch")?;
 
-        let token = utils::user::generate_jwt_auth_token(state, &user, user_role).await?;
+        let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
         (token, user_role.role_id.clone())
     };
 
@@ -712,11 +710,10 @@ pub async fn verify_email(
 
     let user_from_db: domain::UserFromStorage = user.into();
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
