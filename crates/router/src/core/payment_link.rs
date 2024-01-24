@@ -507,7 +507,7 @@ pub async fn get_payment_link_status(
             })?;
 
     let amount = currency
-        .to_currency_base_unit(payment_intent.amount)
+        .to_currency_base_unit(payment_attempt.net_amount)
         .into_report()
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
 
