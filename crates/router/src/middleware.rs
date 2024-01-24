@@ -175,6 +175,7 @@ where
                 .into_iter()
                 .collect::<Result<Vec<bytes::Bytes>, actix_web::error::PayloadError>>()?;
             let bytes = payload.clone().concat().to_vec();
+            // we are creating h1 payload manually from bytes, currently there's no way to create http2 payload with actix
             let (_, mut new_payload) = actix_http::h1::Payload::create(true);
             new_payload.unread_data(bytes.to_vec().clone().into());
             let new_req = actix_web::dev::ServiceRequest::from_parts(http_req, new_payload.into());
