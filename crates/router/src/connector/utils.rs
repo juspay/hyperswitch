@@ -25,7 +25,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::PaymentData,
+        payments::{PaymentData, RecurringMandatePaymentData},
     },
     pii::PeekInterface,
     types::{
@@ -81,6 +81,7 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -250,6 +251,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+        self.recurring_mandate_payment_data
+            .to_owned()
+            .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
         self.payout_method_data
@@ -1130,6 +1137,22 @@ impl MandateData for payments::MandateAmountData {
         self.metadata.clone().ok_or_else(missing_field_err(
             "mandate_data.mandate_type.{multi_use|single_use}.metadata",
         ))
+    }
+}
+
+pub trait RecurringMandateData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error>;
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+}
+
+impl RecurringMandateData for RecurringMandatePaymentData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error> {
+        self.original_payment_authorized_amount
+            .ok_or_else(missing_field_err("original_payment_authorized_amount"))
+    }
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+        self.original_payment_authorized_currency
+            .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
 }
 
