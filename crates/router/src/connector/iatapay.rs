@@ -685,10 +685,11 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let notif: iatapay::IatapayWebhookResponse = request
-            .body
-            .parse_struct("IatapayWebhookResponse")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif: IatapayPaymentsResponse =
+            request
+                .body
+                .parse_struct("IatapayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(notif))
     }
