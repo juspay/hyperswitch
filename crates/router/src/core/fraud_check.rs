@@ -81,6 +81,16 @@ where
         .payment_attempt
         .connector_transaction_id
         .clone();
+    if let Some(surcharge_details) = &payment_data.surcharge_details {
+        frm_data
+            .payment_attempt
+            .amount
+            .set_surcharge_amount(surcharge_details.surcharge_amount);
+        frm_data
+            .payment_attempt
+            .amount
+            .set_tax_amount(surcharge_details.tax_on_surcharge_amount);
+    }
 
     let mut router_data = frm_data
         .construct_router_data(

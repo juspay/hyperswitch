@@ -77,7 +77,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount,
+            amount: payment_attempt.amount.get_authorize_amount(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },

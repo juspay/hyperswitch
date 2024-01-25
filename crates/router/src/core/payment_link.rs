@@ -105,7 +105,7 @@ pub async fn intiate_payment_link_flow(
         payment_intent.client_secret.clone(),
     )?;
     let amount = currency
-        .to_currency_base_unit(payment_intent.amount)
+        .to_currency_base_unit(payment_intent.original_amount)
         .into_report()
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
     let order_details = validate_order_details(payment_intent.order_details.clone(), currency)?;
