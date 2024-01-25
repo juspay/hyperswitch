@@ -719,10 +719,22 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_db = state.clone().store;
 
         // Validate Blocklist
+        let mut fingerprint_id = None;
+        let mut is_pm_blocklisted = false;
         let merchant_id = payment_data.payment_attempt.merchant_id;
+        let blocklist_enabled_key = format!("guard_blocklist_for_{merchant_id}");
+        let blocklist_guard_enabled = state
+            .store
+            .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch guard blocklist enabled config")?;
+
+        let blocklist_guard_enabled = blocklist_guard_enabled.config != "false";
+
+        if blocklist_guard_enabled {
         let merchant_fingerprint_secret =
             blocklist_utils::get_merchant_fingerprint_secret(state, &merchant_id).await?;
-
         // Hashed Fingerprint to check whether or not this payment should be blocked.
         let card_number_fingerprint = payment_data
             .payment_method_data
@@ -795,11 +807,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .map(hex::encode);
 
-        let mut fingerprint_id = None;
 
         //validating the payment method.
-        let mut is_pm_blocklisted = false;
-
         let mut blocklist_futures = Vec::new();
         if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
             blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
@@ -868,7 +877,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     );
             }
         }
-
+    } 
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
