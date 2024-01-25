@@ -54,6 +54,8 @@ pub enum UserErrors {
     MerchantIdParsingError,
     #[error("ChangePasswordError")]
     ChangePasswordError,
+    #[error("InvalidDeleteOperation")]
+    InvalidDeleteOperation,
     #[error("MaxInvitationsError")]
     MaxInvitationsError,
 }
@@ -138,8 +140,11 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ChangePasswordError => {
                 AER::BadRequest(ApiError::new(sub_code, 29, self.get_error_message(), None))
             }
-            Self::MaxInvitationsError => {
+            Self::InvalidDeleteOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 30, self.get_error_message(), None))
+            }
+            Self::MaxInvitationsError => {
+                AER::BadRequest(ApiError::new(sub_code, 31, self.get_error_message(), None))
             }
         }
     }
@@ -171,6 +176,7 @@ impl UserErrors {
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
             Self::ChangePasswordError => "Old and new password cannot be the same",
+            Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
         }
     }

@@ -177,6 +177,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ResetPassword
             | Flow::InviteUser
             | Flow::InviteMultipleUser
+            | Flow::DeleteUser
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmail
             | Flow::VerifyEmailRequest
