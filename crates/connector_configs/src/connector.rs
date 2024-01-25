@@ -144,6 +144,8 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub stripe: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub stripe_payout: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
@@ -194,6 +196,7 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
+            PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
         }
     }

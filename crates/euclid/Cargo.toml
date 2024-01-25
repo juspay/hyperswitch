@@ -27,9 +27,6 @@ valued_jit = []
 connector_choice_mca_id = []
 dummy_connector = []
 
-[dev-dependencies]
-criterion = "0.5"
-
 [[bench]]
 name = "backends"
 harness = false

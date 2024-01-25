@@ -24,6 +24,9 @@ pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
 pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
 
+/// Average delay (in seconds) between account onboarding's API response and the changes to actually reflect at Stripe's end
+pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
+
 /// Maximum limit for payment link list get api
 pub const PAYMENTS_LINK_LIST_LIMIT: u32 = 100;
 

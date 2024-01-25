@@ -861,6 +861,7 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Varchar,
+        confirm -> Bool,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
     }

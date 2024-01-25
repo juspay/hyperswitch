@@ -169,6 +169,7 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    Stripe,
     Wise,
 }
 
@@ -177,6 +178,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
         }
     }

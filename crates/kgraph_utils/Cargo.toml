@@ -20,9 +20,6 @@ serde = "1.0.193"
 serde_json = "1.0.108"
 thiserror = "1.0.43"
 
-[dev-dependencies]
-criterion = "0.5"
-
 [[bench]]
 name = "evaluation"
 harness = false
