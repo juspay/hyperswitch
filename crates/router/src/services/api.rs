@@ -1138,7 +1138,6 @@ where
         status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
-
     res
 }
 

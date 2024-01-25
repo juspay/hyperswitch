@@ -37,7 +37,7 @@ impl ExecuteQuery for kv::DBOperation {
         ];
 
         let (result, execution_time) =
-            common_utils::date_time::time_it(|| self.execute(&conn)).await;
+            Box::pin(common_utils::date_time::time_it(|| self.execute(&conn))).await;
 
         push_drainer_delay(pushed_at, operation, table, tags);
         metrics::QUERY_EXECUTION_TIME.record(&metrics::CONTEXT, execution_time, tags);
