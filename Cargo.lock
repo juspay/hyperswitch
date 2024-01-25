@@ -43,6 +43,7 @@ dependencies = [
  "actix-codec",
  "actix-rt",
  "actix-service",
+ "actix-tls",
  "actix-utils",
  "ahash 0.8.6",
  "base64 0.21.5",
@@ -185,11 +186,13 @@ dependencies = [
  "futures-core",
  "http",
  "impl-more",
+ "openssl",
  "pin-project-lite",
  "rustls 0.21.7",
  "rustls-webpki",
  "tokio 1.35.1",
- "tokio-rustls 0.23.4",
+ "tokio-openssl",
+ "tokio-rustls",
  "tokio-util",
  "tracing",
  "webpki-roots 0.22.6",
@@ -218,6 +221,7 @@ dependencies = [
  "actix-rt",
  "actix-server",
  "actix-service",
+ "actix-tls",
  "actix-utils",
  "actix-web-codegen",
  "ahash 0.7.7",
@@ -6649,6 +6653,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
+ "tokio 1.35.1",
+]
+
+[[package]]
+name = "tokio-openssl"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08f9ffb7809f1b20c1b398d92acf4cc719874b3b2b2d9ea2f09b4a80350878a"
+dependencies = [
+ "futures-util",
+ "openssl",
+ "openssl-sys",
  "tokio 1.35.1",
 ]
 
