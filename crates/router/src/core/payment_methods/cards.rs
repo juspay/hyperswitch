@@ -245,7 +245,13 @@ pub async fn update_customer_payment_method(
             .as_ref()
             .map(|card_network| card_network.to_string()),
     };
-    add_payment_method(state, new_pm, &merchant_account, &key_store).await
+    Box::pin(add_payment_method(
+        state,
+        new_pm,
+        &merchant_account,
+        &key_store,
+    ))
+    .await
 }
 
 // Wrapper function to switch lockers
