@@ -18,6 +18,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
+        authentication,
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
@@ -32,7 +33,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentIdTypeExt},
+        api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -486,6 +487,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
+            authentication: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -602,6 +604,52 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await
+    }
+
+    async fn call_authentication_if_needed<'a>(
+        &'a self,
+        state: &AppState,
+        payment_data: &mut PaymentData<F>,
+        should_continue_confirm_transaction: &mut bool,
+        connector_call_type: &ConnectorCallType,
+        merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let is_pre_authn_call = payment_data.authentication.is_none();
+        let separate_authentication_requested = payment_data
+            .payment_attempt
+            .external_3ds_authentication_requested
+            .unwrap_or(false);
+        let connector_supports_separate_authn =
+            authentication::utils::is_separate_authn_supported(connector_call_type);
+        let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+            if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+                Some(card.card_number.clone())
+            } else {
+                None
+            }
+        });
+        if is_pre_authn_call {
+            if separate_authentication_requested && connector_supports_separate_authn {
+                if let Some(card_number) = card_number {
+                    let connector_account_for_3ds = "3d_secure_io".to_string();
+                    authentication::pre_authn::execute_pre_auth_flow(
+                        state,
+                        authentication::types::AuthenthenticationFlowInput::PaymentAuthNFlow {
+                            payment_data,
+                            should_continue_confirm_transaction,
+                            card_number,
+                        },
+                        connector_account_for_3ds,
+                        merchant_account,
+                    )
+                    .await;
+                }
+            }
+            Ok(())
+        } else {
+            // call post authn service
+            Ok(())
+        }
     }
 }
 

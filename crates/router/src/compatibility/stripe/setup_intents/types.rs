@@ -434,6 +434,14 @@ pub(crate) fn into_stripe_next_action(
             display_from_timestamp,
             display_to_timestamp,
         },
+        payments::NextActionData::ThreeDsInvoke { three_ds_data } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url: None,
+                    url: None,
+                },
+            }
+        }
     })
 }
 

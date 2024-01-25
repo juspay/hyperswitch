@@ -186,6 +186,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 surcharge_details: None,
                 frm_message: None,
                 payment_link_data: None,
+                authentication: None,
                 frm_metadata: None,
             },
             Some(payments::CustomerDetails {

@@ -375,6 +375,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: request.frm_metadata.clone(),
         };
 
@@ -731,6 +732,7 @@ impl PaymentCreate {
                     .mandate_data
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                external_3ds_authentication_requested: request.request_separate_authentication,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
