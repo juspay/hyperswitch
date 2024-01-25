@@ -90,11 +90,10 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -118,11 +117,10 @@ pub async fn signin(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -253,6 +251,7 @@ pub async fn change_password(
                 name: None,
                 password: Some(new_password_hash),
                 is_verified: None,
+                preferred_merchant_id: None,
             },
         )
         .await
@@ -330,6 +329,7 @@ pub async fn reset_password(
                 name: None,
                 password: Some(hash_password),
                 is_verified: Some(true),
+                preferred_merchant_id: None,
             },
         )
         .await
@@ -598,7 +598,7 @@ pub async fn switch_merchant_id(
             .ok_or(UserErrors::InvalidRoleOperation.into())
             .attach_printable("User doesn't have access to switch")?;
 
-        let token = utils::user::generate_jwt_auth_token(state, &user, user_role).await?;
+        let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
         (token, user_role.role_id.clone())
     };
 
@@ -710,11 +710,10 @@ pub async fn verify_email(
 
     let user_from_db: domain::UserFromStorage = user.into();
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token =
-        utils::user::generate_jwt_auth_token(state.clone(), &user_from_db, &user_role).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
 }
 
@@ -785,4 +784,48 @@ pub async fn verify_token(
         merchant_id: merchant_id.to_string(),
         user_email: user.email,
     }))
+}
+
+pub async fn update_user_details(
+    state: AppState,
+    user_token: auth::UserFromToken,
+    req: user_api::UpdateUserAccountDetailsRequest,
+) -> UserResponse<()> {
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+
+    let name = req.name.map(domain::UserName::new).transpose()?;
+
+    if let Some(ref preferred_merchant_id) = req.preferred_merchant_id {
+        let _ = state
+            .store
+            .find_user_role_by_user_id_merchant_id(user.get_user_id(), preferred_merchant_id)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(UserErrors::MerchantIdNotFound)
+                } else {
+                    e.change_context(UserErrors::InternalServerError)
+                }
+            })?;
+    }
+
+    let user_update = storage_user::UserUpdate::AccountUpdate {
+        name: name.map(|x| x.get_secret().expose()),
+        password: None,
+        is_verified: None,
+        preferred_merchant_id: req.preferred_merchant_id,
+    };
+
+    state
+        .store
+        .update_user_by_user_id(user.get_user_id(), user_update)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

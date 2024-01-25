@@ -92,7 +92,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            if resp.request.setup_mandate_details.clone().is_some() {
+            let is_mandate = resp.request.setup_mandate_details.is_some();
+
+            if is_mandate {
                 let payment_method_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -374,7 +376,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
-            name: None,
+            name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
         })
     }

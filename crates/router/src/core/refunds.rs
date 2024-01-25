@@ -1088,6 +1088,12 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
+    metrics::TASKS_ADDED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("flow", "Refund")],
+    );
+
     Ok(response)
 }
 
@@ -1170,7 +1176,15 @@ pub async fn retry_refund_sync_task(
         get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
+        Some(s_time) => {
+            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes("flow", "Refund")],
+            );
+            retry_schedule
+        }
         None => {
             pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
