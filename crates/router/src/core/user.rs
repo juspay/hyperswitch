@@ -532,6 +532,7 @@ async fn handle_invitation(
     }
 }
 
+//TODO: send email
 async fn handle_existing_user_invitation(
     state: &AppState,
     user_from_token: &auth::UserFromToken,

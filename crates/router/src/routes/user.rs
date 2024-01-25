@@ -355,7 +355,7 @@ pub async fn invite_multiple_user(
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
 ) -> HttpResponse {
-    let flow = Flow::InviteUser;
+    let flow = Flow::InviteMultipleUser;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
