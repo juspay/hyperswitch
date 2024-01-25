@@ -121,7 +121,7 @@ pub async fn delete_user_role(
     req: HttpRequest,
     payload: web::Json<user_role_api::DeleteUserRoleRequest>,
 ) -> HttpResponse {
-    let flow = Flow::DeleteUser;
+    let flow = Flow::DeleteUserRole;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
