@@ -36,7 +36,7 @@ impl FileStorageInterface for FileSystem {
     /// Saves the provided file data to the file system under the specified file key.
     async fn upload_file(
         &self,
-        file_key: String,
+        file_key: &str,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError> {
         let file_path = get_file_path(file_key);
@@ -67,7 +67,7 @@ impl FileStorageInterface for FileSystem {
     }
 
     /// Deletes the file associated with the specified file key from the file system.
-    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError> {
+    async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileStorageError> {
         let file_path = get_file_path(file_key);
         remove_file(file_path)
             .into_report()
@@ -77,7 +77,7 @@ impl FileStorageInterface for FileSystem {
     }
 
     /// Retrieves the file content associated with the specified file key from the file system.
-    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError> {
+    async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError> {
         let mut received_data: Vec<u8> = Vec::new();
         let file_path = get_file_path(file_key);
         let mut file = File::open(file_path)

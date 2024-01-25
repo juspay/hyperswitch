@@ -65,7 +65,7 @@ impl FileStorageInterface for AwsFileStorageClient {
     /// Uploads a file to AWS S3.
     async fn upload_file(
         &self,
-        file_key: String,
+        file_key: &str,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError> {
         self.inner_client
@@ -82,7 +82,7 @@ impl FileStorageInterface for AwsFileStorageClient {
     }
 
     /// Deletes a file from AWS S3.
-    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError> {
+    async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileStorageError> {
         self.inner_client
             .delete_object()
             .bucket(&self.bucket_name)
@@ -96,7 +96,7 @@ impl FileStorageInterface for AwsFileStorageClient {
     }
 
     /// Retrieves a file from AWS S3.
-    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError> {
+    async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError> {
         Ok(self
             .inner_client
             .get_object()

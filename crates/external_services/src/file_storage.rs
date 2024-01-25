@@ -54,15 +54,15 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
     /// Uploads a file to the selected storage scheme.
     async fn upload_file(
         &self,
-        file_key: String,
+        file_key: &str,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError>;
 
     /// Deletes a file from the selected storage scheme.
-    async fn delete_file(&self, file_key: String) -> CustomResult<(), FileStorageError>;
+    async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileStorageError>;
 
     /// Retrieves a file from the selected storage scheme.
-    async fn retrieve_file(&self, file_key: String) -> CustomResult<Vec<u8>, FileStorageError>;
+    async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError>;
 }
 
 dyn_clone::clone_trait_object!(FileStorageInterface);
