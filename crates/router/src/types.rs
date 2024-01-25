@@ -1051,6 +1051,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub currency: Option<common_enums::Currency>,
     pub message_category: authentication::MessageCategory,
     pub device_channel: String,
+    pub three_ds_server_trans_id: String,
 }
 
 #[derive(Clone, Debug)]

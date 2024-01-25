@@ -31,6 +31,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: String,
+    three_ds_server_trans_id: String,
 ) -> CustomResult<types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -58,6 +59,7 @@ pub async fn perform_authentication(
         device_channel,
         merchant_account,
         merchant_connector_account,
+        three_ds_server_trans_id,
     )?;
     let response = services::execute_connector_processing_step(
         &state,
@@ -67,7 +69,7 @@ pub async fn perform_authentication(
         None,
     )
     .await
-    .unwrap();
+    .map_err(|_err| ApiErrorResponse::InternalServerError)?;
     let submit_evidence_response =
         response
             .response

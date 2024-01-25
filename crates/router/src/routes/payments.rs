@@ -1251,7 +1251,7 @@ pub async fn payments_external_authentication(
                 req,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::PublishableKeyAuth,
         locking_action,
     ))
     .await

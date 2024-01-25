@@ -3047,12 +3047,12 @@ pub async fn payment_external_authentication(
     let merchant_connector_account = db
         .find_merchant_connector_account_by_profile_id_connector_name(
             profile_id,
-            "3dsecureio",
+            "threedsecureio",
             &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: format!("profile id {profile_id} and connector name 3dsecureio"),
+            id: format!("profile id {profile_id} and connector name threedsecureio"),
         })?;
 
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token {
@@ -3163,7 +3163,7 @@ pub async fn payment_external_authentication(
     payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
     let authentication_response = authentication_core::perform_authentication(
         &state,
-        "3dsecureio".to_string(),
+        "threedsecureio".to_string(),
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,
@@ -3194,6 +3194,7 @@ pub async fn payment_external_authentication(
         Some(currency),
         authentication::MessageCategory::Payment,
         "01".to_string(),
+        "5626259c-6c6e-4e72-b07f-c097ccf2116d".to_string(),
     )
     .await?;
     Ok(services::ApplicationResponse::Json(
