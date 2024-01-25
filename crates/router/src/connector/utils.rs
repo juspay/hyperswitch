@@ -17,6 +17,7 @@ use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -1605,6 +1606,11 @@ pub fn validate_currency(
         })?
     }
     Ok(())
+}
+
+pub fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
+    let utc_datetime = datetime.assume_utc();
+    utc_datetime.unix_timestamp() * 1000
 }
 
 #[cfg(feature = "frm")]
