@@ -31,7 +31,7 @@ services:
     networks:
       - router_net
     ports:
-      - "6379"
+      - "6379:6379"
 
   migration_runner:
     image: rust:latest

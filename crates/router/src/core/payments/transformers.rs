@@ -34,7 +34,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
-    customer: &Option<domain::Customer>,
+    customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
@@ -89,6 +89,7 @@ where
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
         state,
+        customer_data: customer,
     };
 
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
@@ -521,10 +522,7 @@ where
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                            api_models::payments::NextActionData::QrCodeInformation {
-                                image_data_url: qr_code_data.image_data_url,
-                                display_to_timestamp: qr_code_data.display_to_timestamp,
-                            }
+                            api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -829,11 +827,10 @@ where
 
 pub fn qr_code_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
-    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
@@ -903,17 +900,24 @@ pub fn bank_transfer_next_steps_check(
     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
-        bank_transfer_next_steps
+        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        {
+            let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
+                payment_attempt
+                    .connector_metadata
+                    .map(|metadata| {
+                        metadata
+                            .parse_value("NextStepsRequirements")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse the Value to NextRequirements struct",
+                            )
+                    })
+                    .transpose()?;
+            bank_transfer_next_steps
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -959,6 +963,38 @@ pub fn change_order_details_to_new_type(
     }])
 }
 
+impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
+    fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
+        match qr_info {
+            api_models::payments::QrCodeInformation::QrCodeUrl {
+                image_data_url,
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+            },
+            api_models::payments::QrCodeInformation::QrDataUrl {
+                image_data_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                display_to_timestamp,
+                qr_code_url: None,
+            },
+            api_models::payments::QrCodeInformation::QrCodeImageUrl {
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+                image_data_url: None,
+            },
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
@@ -968,6 +1004,7 @@ where
     connector_name: String,
     payment_data: PaymentData<F>,
     state: &'a AppState,
+    customer_data: &'a Option<domain::Customer>,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -1048,6 +1085,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|surcharge_details| surcharge_details.final_amount)
             .unwrap_or(payment_data.amount.into());
+
+        let customer_name = additional_data
+            .customer_data
+            .as_ref()
+            .and_then(|customer_data| {
+                customer_data
+                    .name
+                    .as_ref()
+                    .map(|customer| customer.clone().into_inner())
+            });
+
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1062,6 +1110,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
+            customer_name,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
             order_category,
@@ -1354,6 +1403,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let customer_name = additional_data
+            .customer_data
+            .as_ref()
+            .and_then(|customer_data| {
+                customer_data
+                    .name
+                    .as_ref()
+                    .map(|customer| customer.clone().into_inner())
+            });
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -1368,6 +1428,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             setup_mandate_details: payment_data.setup_mandate,
             router_return_url,
             email: payment_data.email,
+            customer_name,
             return_url: payment_data.payment_intent.return_url,
             browser_info,
             payment_method_type: attempt.payment_method_type,
