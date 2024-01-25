@@ -366,7 +366,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -599,7 +598,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -643,10 +641,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
