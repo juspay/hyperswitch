@@ -50,6 +50,11 @@ jobs:
             exit 1
           fi
 
+      # Pulling latest changes in case pre-release steps push new commits
+      - name: Pull allowed branch 
+        shell: bash
+        run: git pull
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
