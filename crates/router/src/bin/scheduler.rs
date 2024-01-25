@@ -112,7 +112,7 @@ impl Health {
             .app_data(web::Data::new(state))
             .app_data(web::Data::new(service))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
+            .service(web::resource("/deep_check").route(web::get().to(deep_health_check)))
     }
 }
 
