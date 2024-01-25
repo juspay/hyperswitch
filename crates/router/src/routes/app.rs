@@ -955,6 +955,7 @@ impl User {
             .service(
                 web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
             )
+            .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -972,7 +973,7 @@ impl User {
             )
             .service(web::resource("/user/delete").route(web::delete().to(delete_user_role)));
 
-        // User Roles
+        // User management
         route = route.service(
             web::scope("/user")
                 .service(web::resource("/list").route(web::get().to(get_user_details)))
@@ -987,11 +988,6 @@ impl User {
                 .service(web::resource("").route(web::get().to(get_role_from_token)))
                 .service(web::resource("/list").route(web::get().to(list_all_roles)))
                 .service(web::resource("/{role_id}").route(web::get().to(get_role))),
-        );
-
-        // V2 routes
-        route = route.service(
-            web::scope("/v2").service(web::resource("/signin").route(web::post().to(user_signin))),
         );
 
         #[cfg(feature = "dummy_connector")]

@@ -55,7 +55,8 @@ pub enum UserErrors {
     #[error("ChangePasswordError")]
     ChangePasswordError,
     #[error("InvalidDeleteOperation")]
-    InvalidDeleteOperation,
+    #[error("RoleNotFound")]
+    RoleNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -165,6 +166,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "Delete Operation Not Supported",
                 None,
             )),
+            Self::RoleNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 31, "Role Not Found", None))
+            }
         }
     }
 }

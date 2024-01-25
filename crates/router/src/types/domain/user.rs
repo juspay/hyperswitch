@@ -783,7 +783,14 @@ impl UserFromStorage {
             .store
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
-            .change_context(UserErrors::InternalServerError)
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    UserErrors::RoleNotFound
+                } else {
+                    UserErrors::InternalServerError
+                }
+            })
+            .into_report()
     }
 }
 
@@ -854,24 +861,9 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
     }
 }
 
-#[async_trait::async_trait]
-pub trait SignInWithRoleStrategy {
-    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse>;
-}
-
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),
-}
-
-#[async_trait::async_trait]
-impl SignInWithRoleStrategy for SignInWithRoleStrategyType {
-    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
-        match self {
-            Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
-            Self::MultipleRoles(strategy) => strategy.get_signin_response(state).await,
-        }
-    }
 }
 
 impl SignInWithRoleStrategyType {
@@ -883,19 +875,30 @@ impl SignInWithRoleStrategyType {
             return Err(UserErrors::InternalServerError.into());
         }
 
-        let strategy = if let Some(user_role) = user_roles
+        if let Some(user_role) = user_roles
             .iter()
             .find(|role| role.status == UserStatus::Active)
         {
-            Self::SingleRole(SignInWithSingleRoleStrategy {
+            Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
                 user,
                 user_role: user_role.clone(),
-            })
+            }))
         } else {
-            Self::MultipleRoles(SignInWithMultipleRolesStrategy { user, user_roles })
-        };
+            Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
+                user,
+                user_roles,
+            }))
+        }
+    }
 
-        Ok(strategy)
+    pub async fn get_signin_response(
+        self,
+        state: &AppState,
+    ) -> UserResult<user_api::SignInResponse> {
+        match self {
+            Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
+            Self::MultipleRoles(strategy) => strategy.get_signin_response(state).await,
+        }
     }
 }
 
@@ -904,8 +907,7 @@ pub struct SignInWithSingleRoleStrategy {
     pub user_role: UserRole,
 }
 
-#[async_trait::async_trait]
-impl SignInWithRoleStrategy for SignInWithSingleRoleStrategy {
+impl SignInWithSingleRoleStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
@@ -922,8 +924,7 @@ pub struct SignInWithMultipleRolesStrategy {
     pub user_roles: Vec<UserRole>,
 }
 
-#[async_trait::async_trait]
-impl SignInWithRoleStrategy for SignInWithMultipleRolesStrategy {
+impl SignInWithMultipleRolesStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let merchant_accounts = state
             .store

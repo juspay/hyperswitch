@@ -16,7 +16,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{authentication as auth, ApplicationResponse},
-    types::{domain, domain::SignInWithRoleStrategy},
+    types::domain,
     utils,
 };
 pub mod dashboard_metadata;
@@ -147,7 +147,8 @@ pub async fn signin(
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
                 .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
-                .await?;
+                .await
+                .change_context(UserErrors::InternalServerError)?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
                 user_role: preferred_role,
