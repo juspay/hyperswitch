@@ -169,6 +169,7 @@ window.state = {
   prevHeight: window.innerHeight,
   prevWidth: window.innerWidth,
   isMobileView: window.innerWidth <= 1400,
+  currentScreen: "payment_link",
 };
 
 var widgets = null;

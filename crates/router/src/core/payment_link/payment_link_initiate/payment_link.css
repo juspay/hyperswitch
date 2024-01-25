@@ -608,6 +608,10 @@ body {
 #payment-form {
   max-width: 560px;
   width: 100%;
+  min-height: 500px;
+  max-height: 90vh;
+  height: 100%;
+  overflow: scroll;
   margin: 0 auto;
   text-align: center;
 }

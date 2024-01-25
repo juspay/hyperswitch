@@ -142,14 +142,14 @@ function renderStatusDetails(paymentDetails) {
   // Status specific information
   switch (status) {
     case "expired":
-      statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
       statusDetails.status = "Payment Link Expired";
       statusDetails.message =
         "Sorry, this payment link has expired. Please use below reference for further investigation.";
       break;
 
     case "succeeded":
-      statusDetails.imageSource = "https://i.imgur.com/5BOmYVl.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
       statusDetails.message = "We have successfully received your payment";
       statusDetails.status = "Paid successfully";
       statusDetails.amountText = new Date(
@@ -158,14 +158,14 @@ function renderStatusDetails(paymentDetails) {
       break;
 
     case "processing":
-      statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
       statusDetails.message =
         "Sorry! Your payment is taking longer than expected. Please check back again in sometime.";
       statusDetails.status = "Payment Pending";
       break;
 
     case "failed":
-      statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
       statusDetails.status = "Payment Failed!";
       var errorCodeNode = createItem("Error code", paymentDetails.error_code);
       var errorMessageNode = createItem(
@@ -177,28 +177,29 @@ function renderStatusDetails(paymentDetails) {
       break;
 
     case "cancelled":
-      statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
       statusDetails.status = "Payment Cancelled";
       break;
 
     case "requires_merchant_action":
-      statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
       statusDetails.status = "Payment under review";
       break;
 
     case "requires_capture":
-      statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
-      statusDetails.status = "Payment Pending";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
+      statusDetails.message = "We have successfully received your payment";
+      statusDetails.status = "Payment Success";
       break;
 
     case "partially_captured":
-      statusDetails.imageSource = "https://i.imgur.com/Yb79Qt4.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
       statusDetails.message = "Partial payment was captured.";
-      statusDetails.status = "Partial Payment Pending";
+      statusDetails.status = "Payment Success";
       break;
 
     default:
-      statusDetails.imageSource = "https://i.imgur.com/UD8CEuY.png";
+      statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/failed.png";
       statusDetails.status = "Something went wrong";
       // Error details
       if (typeof paymentDetails.error === "object") {
