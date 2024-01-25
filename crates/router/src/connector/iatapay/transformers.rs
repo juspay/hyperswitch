@@ -545,6 +545,7 @@ pub struct IatapayRefundWebhookBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum IatapayWebhookResponse {
     IatapayPaymentWebhookBody(IatapayPaymentWebhookBody),
     IatapayRefundWebhookBody(IatapayRefundWebhookBody),
