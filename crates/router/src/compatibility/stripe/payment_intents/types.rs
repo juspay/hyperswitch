@@ -738,25 +738,9 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                             metadata: None,
                         },
                     )),
-                    StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(Some(
-                        payments::MandateAmountData {
-                            amount: mandate.amount.unwrap_or_default(),
-                            currency,
-                            start_date: mandate.start_date,
-                            end_date: mandate.end_date,
-                            metadata: None,
-                        },
-                    ))),
+                    StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(None)),
                 },
-                None => Some(api_models::payments::MandateType::MultiUse(Some(
-                    payments::MandateAmountData {
-                        amount: mandate.amount.unwrap_or_default(),
-                        currency,
-                        start_date: mandate.start_date,
-                        end_date: mandate.end_date,
-                        metadata: None,
-                    },
-                ))),
+                None => Some(api_models::payments::MandateType::MultiUse(None)),
             },
             customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
@@ -810,8 +794,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_url: url::Url,
+        image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
+        qr_code_url: Option<url::Url>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -846,9 +831,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
