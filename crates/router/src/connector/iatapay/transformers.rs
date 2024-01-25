@@ -523,33 +523,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IatapayWebhookResponse {
-    pub status: IatapayWebhookStatus,
-    pub iata_payment_id: Option<String>,
-    pub iata_refund_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum IatapayWebhookStatus {
-    #[default]
-    Created,
-    Initiated,
-    Authorized,
-    Settled,
-    Cleared,
-    Failed,
-    Tobeinvestigated,
-    Blocked,
-    Locked,
-    #[serde(rename = "UNEXPECTED SETTLED")]
-    UnexpectedSettled,
-    #[serde(other)]
-    Unknown,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct IatapayErrorResponse {
     pub status: u16,
