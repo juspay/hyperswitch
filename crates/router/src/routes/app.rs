@@ -971,6 +971,9 @@ impl User {
             .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
+                web::resource("/user/invite_multiple").route(web::post().to(invite_multiple_user)),
+            )
+            .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
