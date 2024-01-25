@@ -55,6 +55,7 @@ pub enum UserErrors {
     #[error("ChangePasswordError")]
     ChangePasswordError,
     #[error("InvalidDeleteOperation")]
+    InvalidDeleteOperation,
     #[error("RoleNotFound")]
     RoleNotFound,
 }
