@@ -148,7 +148,8 @@ pub async fn signin(
             let preferred_role = user_from_db
                 .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
                 .await
-                .change_context(UserErrors::InternalServerError)?;
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
                 user_role: preferred_role,
@@ -784,7 +785,9 @@ pub async fn verify_email(
         if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
             let preferred_role = user_from_db
                 .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
-                .await?;
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
                 user_role: preferred_role,
