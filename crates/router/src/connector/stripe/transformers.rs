@@ -2018,7 +2018,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             description: item.request.description.to_owned(),
             email: item.request.email.to_owned(),
             phone: item.request.phone.to_owned(),
-            name: item.request.name.to_owned().map(Secret::new),
+            name: item.request.name.to_owned(),
             source: item.request.preprocessing_id.to_owned(),
         })
     }
@@ -3315,7 +3315,7 @@ pub enum WebhookEventType {
     PaymentIntentProcessing,
     #[serde(rename = "payment_intent.requires_action")]
     PaymentIntentRequiresAction,
-    #[serde(rename = "amount_capturable_updated")]
+    #[serde(rename = "payment_intent.amount_capturable_updated")]
     PaymentIntentAmountCapturableUpdated,
     #[serde(rename = "source.chargeable")]
     SourceChargeable,

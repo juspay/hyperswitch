@@ -1,17 +1,37 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use crate::{configs, consts};
 #[cfg(feature = "olap")]
 use crate::{core::errors::UserErrors, services::jwt, types::domain};
 
 pub enum EmailBody {
-    Verify { link: String },
-    Reset { link: String, user_name: String },
-    MagicLink { link: String, user_name: String },
-    InviteUser { link: String, user_name: String },
+    Verify {
+        link: String,
+    },
+    Reset {
+        link: String,
+        user_name: String,
+    },
+    MagicLink {
+        link: String,
+        user_name: String,
+    },
+    InviteUser {
+        link: String,
+        user_name: String,
+    },
+    ReconActivation {
+        user_name: String,
+    },
+    ProFeatureRequest {
+        feature_name: String,
+        merchant_id: String,
+        user_name: String,
+        user_email: String,
+    },
 }
 
 pub mod html {
@@ -43,6 +63,28 @@ pub mod html {
                     link = link
                 )
             }
+            EmailBody::ReconActivation { user_name } => {
+                format!(
+                    include_str!("assets/recon_activation.html"),
+                    username = user_name,
+                )
+            }
+            EmailBody::ProFeatureRequest {
+                feature_name,
+                merchant_id,
+                user_name,
+                user_email,
+            } => format!(
+                "Dear Hyperswitch Support Team,
+
+Dashboard Pro Feature Request,
+Feature name  : {feature_name}
+Merchant ID   : {merchant_id}
+Merchant Name : {user_name}
+Email         : {user_email}
+
+(note: This is an auto generated email. Use merchant email for any further communications)",
+            ),
         }
     }
 }
@@ -195,6 +237,57 @@ impl EmailData for InviteUser {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+
+pub struct ReconActivation {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: domain::UserName,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub subject: &'static str,
+}
+
+#[async_trait::async_trait]
+impl EmailData for ReconActivation {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::ReconActivation {
+            user_name: self.user_name.clone().get_secret().expose(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+
+pub struct ProFeatureRequest {
+    pub recipient_email: domain::UserEmail,
+    pub feature_name: String,
+    pub merchant_id: String,
+    pub user_name: domain::UserName,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub subject: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for ProFeatureRequest {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let recipient = self.recipient_email.clone().into_inner();
+
+        let body = html::get_html_body(EmailBody::ProFeatureRequest {
+            user_name: self.user_name.clone().get_secret().expose(),
+            feature_name: self.feature_name.clone(),
+            merchant_id: self.merchant_id.clone(),
+            user_email: recipient.peek().to_string(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.clone(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient,
         })
     }
 }

@@ -226,7 +226,12 @@ pub async fn get_customer_mandates(
         &req,
         customer_id,
         |state, auth, req| {
-            crate::core::mandate::get_customer_mandates(state, auth.merchant_account, req)
+            crate::core::mandate::get_customer_mandates(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
