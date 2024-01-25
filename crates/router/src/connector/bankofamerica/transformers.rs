@@ -442,7 +442,7 @@ pub struct ClientRiskInformationRules {
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
     code: String,
-    code_raw: String,
+    code_raw: Option<String>,
 }
 
 impl

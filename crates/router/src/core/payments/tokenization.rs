@@ -81,11 +81,11 @@ where
                     )
                     .await?
                 } else {
-                    save_in_locker(
+                    Box::pin(save_in_locker(
                         state,
                         merchant_account,
                         payment_method_create_request.to_owned(),
-                    )
+                    ))
                     .await?
                 };
 

@@ -1892,8 +1892,12 @@ pub enum NextActionData {
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
-        image_data_url: Url,
+        /// Hyperswitch generated image data source url
+        image_data_url: Option<Url>,
         display_to_timestamp: Option<i64>,
+        #[schema(value_type = String)]
+        /// The url for Qr code given by the connector
+        qr_code_url: Option<Url>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -1904,6 +1908,26 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+    },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(untagged)]
+// the enum order shouldn't be changed as this is being used during serialization and deserialization
+pub enum QrCodeInformation {
+    QrCodeUrl {
+        image_data_url: Url,
+        qr_code_url: Url,
+        display_to_timestamp: Option<i64>,
+    },
+    QrDataUrl {
+        image_data_url: Url,
+        display_to_timestamp: Option<i64>,
+    },
+    QrCodeImageUrl {
+        qr_code_url: Url,
+        display_to_timestamp: Option<i64>,
     },
 }
 
@@ -1932,6 +1956,7 @@ pub struct VoucherNextStepData {
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
     pub display_to_timestamp: Option<i64>,
+    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
