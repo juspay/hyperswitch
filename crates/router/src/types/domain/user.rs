@@ -942,7 +942,7 @@ impl SignInWithMultipleRolesStrategy {
             merchant_accounts,
         )?;
 
-        return Ok(user_api::SignInResponse::MerchantSelect(
+        Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {
                 name: self.user.get_name(),
                 email: self.user.get_email(),
@@ -955,6 +955,6 @@ impl SignInWithMultipleRolesStrategy {
                 merchants: merchant_details,
                 verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
             },
-        ));
+        ))
     }
 }
