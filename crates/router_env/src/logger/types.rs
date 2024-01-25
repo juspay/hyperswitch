@@ -337,6 +337,8 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
 }
 
 ///

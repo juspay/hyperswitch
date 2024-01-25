@@ -146,6 +146,7 @@ pub struct ConnectorConfig {
     pub stripe: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
+    pub threedsecureio: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -249,6 +250,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Trustpay => Ok(connector_data.trustpay),
+            Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
