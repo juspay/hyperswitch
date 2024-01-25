@@ -595,7 +595,10 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         // Eligiblity check for cards is not implemented
-        Err(errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string()).into())
+        Err(
+            errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string())
+                .into(),
+        )
     }
 }
 
