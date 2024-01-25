@@ -56,7 +56,7 @@ jobs:
             local previous_hotfix_number
             local next_tag
             
-            previous_hotfix_number="$(echo "${previous_tag}" | awk -F. '{ print $4 }') | grep -oE '[0-9]+$'"
+            previous_hotfix_number="$(echo "${previous_tag}" | awk -F. '{ print $4 }' | gsed -oE 's/([0-9]+)(-hotfix([0-9]+))?/\3/')"
 
             if [[ -z "${previous_hotfix_number}" ]]; then
               # Previous tag was not a hotfix tag
