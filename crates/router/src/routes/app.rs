@@ -967,6 +967,9 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
+                web::resource("/user/invite_multiple").route(web::post().to(invite_multiple_user)),
+            )
+            .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),

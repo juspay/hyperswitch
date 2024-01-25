@@ -323,6 +323,8 @@ pub enum Flow {
     ResetPassword,
     /// Invite users
     InviteUser,
+    /// Invite multiple users
+    InviteMultipleUser,
     /// Delete user
     DeleteUser,
     /// Incremental Authorization flow
