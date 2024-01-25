@@ -14,7 +14,11 @@ pub mod types;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
 use api_models::{self, enums, payments::HeaderPayload};
-use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
+use common_utils::{
+    ext_traits::{AsyncExt, StringExt},
+    pii,
+    types::Surcharge,
+};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
@@ -46,6 +50,7 @@ use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     core::{
+        authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::PaymentMethodRetrieve,
         utils,
@@ -56,10 +61,11 @@ use crate::{
     services::{self, api::Authenticate},
     types::{
         self as router_types,
-        api::{self, ConnectorCallType},
+        api::{self, authentication, ConnectorCallType},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
+        BrowserInformation,
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
@@ -2956,4 +2962,245 @@ where
         .attach_printable("Invalid connector name received")?;
 
     Ok(ConnectorCallType::Retryable(connector_data))
+}
+
+#[instrument(skip_all)]
+pub async fn payment_external_authentication(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api_models::payments::PaymentsExternalAuthenticationRequest,
+) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
+    let db = &*state.store;
+    let merchant_id = &merchant_account.merchant_id;
+    let storage_scheme = merchant_account.storage_scheme;
+    let (mut payment_intent, payment_attempt, currency, amount);
+
+    let payment_id = req.payment_id;
+
+    payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    helpers::validate_payment_status_against_allowed_statuses(
+        &payment_intent.status,
+        &[
+            storage_enums::IntentStatus::Processing,
+            storage_enums::IntentStatus::RequiresConfirmation,
+        ],
+        "authenticate",
+    )?;
+
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+
+    // let business_profile = state
+    //     .store
+    //     .find_business_profile_by_profile_id(profile_id)
+    //     .await
+    //     .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+    //         id: profile_id.to_string(),
+    //     })?;
+
+    let attempt_id = payment_intent.active_attempt.get_id().clone();
+    payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_intent.payment_id,
+            merchant_id,
+            &attempt_id.clone(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    currency = payment_attempt.currency.get_required_value("currency")?;
+    amount = payment_attempt.get_total_amount().into();
+
+    let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        db,
+        None,
+        payment_intent.shipping_address_id.as_deref(),
+        merchant_id,
+        payment_intent.customer_id.as_ref(),
+        &key_store,
+        &payment_intent.payment_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+    let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        db,
+        None,
+        payment_intent.billing_address_id.as_deref(),
+        merchant_id,
+        payment_intent.customer_id.as_ref(),
+        &key_store,
+        &payment_intent.payment_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+
+    let merchant_connector_account = db
+        .find_merchant_connector_account_by_profile_id_connector_name(
+            profile_id,
+            "3dsecureio",
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: format!("profile id {profile_id} and connector name 3dsecureio"),
+        })?;
+
+    let hyperswitch_token = if let Some(token) = payment_attempt.payment_token {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            token,
+            payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+        );
+        let token_data_string = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?
+            .ok_or(error_stack::Report::new(
+                errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Token is invalid or expired".to_owned(),
+                },
+            ))?;
+        let token_data_result = token_data_string
+            .clone()
+            .parse_struct("PaymentTokenData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to deserialize hyperswitch token data");
+        let token_data = match token_data_result {
+            Ok(data) => data,
+            Err(e) => {
+                // The purpose of this logic is backwards compatibility to support tokens
+                // in redis that might be following the old format.
+                if token_data_string.starts_with('{') {
+                    return Err(e);
+                } else {
+                    storage::PaymentTokenData::temporary_generic(token_data_string)
+                }
+            }
+        };
+        Some(token_data)
+    } else {
+        None
+    };
+
+    let payment_method_details =
+        match hyperswitch_token.ok_or(errors::ApiErrorResponse::InternalServerError)? {
+            storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+                helpers::retrieve_payment_method_with_temporary_token(
+                    &state,
+                    &generic_token.token,
+                    &payment_intent,
+                    &key_store,
+                    None,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Temporary(generic_token) => {
+                helpers::retrieve_payment_method_with_temporary_token(
+                    &state,
+                    &generic_token.token,
+                    &payment_intent,
+                    &key_store,
+                    None,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Permanent(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
+                    &state,
+                    &card_token.token,
+                    &payment_intent,
+                    None,
+                )
+                .await
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::PermanentCard(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
+                    &state,
+                    &card_token.token,
+                    &payment_intent,
+                    None,
+                )
+                .await
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::AuthBankDebit(auth_token) => {
+                super::pm_auth::retrieve_payment_method_from_auth_service(
+                    &state,
+                    &key_store,
+                    &auth_token,
+                    &payment_intent,
+                    &None,
+                )
+                .await
+            }
+        }?;
+
+    payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
+    payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
+    let authentication_response = authentication_core::perform_authentication(
+        &state,
+        "3dsecureio".to_string(),
+        payment_method_details
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?
+            .0,
+        // api_models::payments::PaymentMethodData::Card(api_models::payments::Card {
+        //     card_number: "3000100811111072"
+        //         .to_string()
+        //         .try_into()
+        //         .into_report()
+        //         .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        //     card_exp_month: "06".to_string().into(),
+        //     card_exp_year: "28".to_string().into(),
+        //     card_cvc: "123".to_string().into(),
+        //     ..Default::default()
+        // }),
+        payment_attempt
+            .payment_method
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        billing_address.ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        shipping_address.ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        BrowserInformation::default(),
+        merchant_account,
+        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
+        Some(authentication::AcquirerDetails {
+            acquirer_bin: "438309".to_string(),
+            acquirer_merchant_mid: "00002000000".to_string(),
+        }),
+        amount,
+        Some(currency),
+        authentication::MessageCategory::Payment,
+        "01".to_string(),
+    )
+    .await?;
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsExternalAuthenticationResponse {
+            trans_status: authentication_response.trans_status,
+            acs_url: authentication_response.acs_url,
+            challenge_request: authentication_response.challenge_request,
+        },
+    ))
 }

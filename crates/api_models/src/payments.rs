@@ -3123,6 +3123,25 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub reason: Option<String>,
 }
 
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// Client Secret
+    pub client_secret: String,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationResponse {
+    /// indicates the authentication status
+    pub trans_status: String,
+    /// acs_url to be used for challenge
+    pub acs_url: Option<Url>,
+    /// challenge request which should be sent to acs_url
+    pub challenge_request: Option<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsApproveRequest {
     /// The identifier for the payment

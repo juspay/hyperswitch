@@ -29,7 +29,10 @@ use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::Serialize;
 
-use self::{api::payments, storage::enums as storage_enums};
+use self::{
+    api::{authentication, payments},
+    storage::enums as storage_enums,
+};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
@@ -229,6 +232,12 @@ pub type DefendDisputeType = dyn services::ConnectorIntegration<
     DefendDisputeResponse,
 >;
 
+pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
+    api::Authentication,
+    ConnectorAuthenticationRequestData,
+    ConnectorAuthenticationResponse,
+>;
+
 pub type SetupMandateRouterData =
     RouterData<api::SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 
@@ -254,6 +263,12 @@ pub type DefendDisputeRouterData =
 
 pub type MandateRevokeRouterData =
     RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
+pub type ConnectorAuthenticationRouterData = RouterData<
+    api::Authentication,
+    ConnectorAuthenticationRequestData,
+    ConnectorAuthenticationResponse,
+>;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
@@ -1023,6 +1038,26 @@ pub struct AcceptDisputeRequestData {
 pub struct AcceptDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectorAuthenticationRequestData {
+    pub payment_method_data: payments::PaymentMethodData,
+    pub billing_address: domain::Address,
+    pub shipping_address: domain::Address,
+    pub browser_details: BrowserInformation,
+    pub acquirer_details: Option<authentication::AcquirerDetails>,
+    pub amount: Option<i64>,
+    pub currency: Option<common_enums::Currency>,
+    pub message_category: authentication::MessageCategory,
+    pub device_channel: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectorAuthenticationResponse {
+    pub trans_status: String,
+    pub acs_url: Option<url::Url>,
+    pub challenge_request: Option<String>,
 }
 
 #[derive(Default, Debug, Clone)]
