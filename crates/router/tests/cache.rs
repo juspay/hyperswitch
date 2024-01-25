@@ -7,10 +7,14 @@ mod utils;
 #[actix_web::test]
 async fn invalidate_existing_cache_success() {
     // Arrange
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
     let (tx, _) = tokio::sync::oneshot::channel();
-    let state =
-        routes::AppState::new(Settings::default(), tx, Box::new(services::MockApiClient)).await;
+    let state = Box::pin(routes::AppState::new(
+        Settings::default(),
+        tx,
+        Box::new(services::MockApiClient),
+    ))
+    .await;
 
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();
@@ -46,14 +50,14 @@ async fn invalidate_existing_cache_success() {
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
-    assert!(cache::CONFIG_CACHE.get(&cache_key).is_none());
-    assert!(cache::ACCOUNTS_CACHE.get(&cache_key).is_none());
+    assert!(cache::CONFIG_CACHE.get(&cache_key).await.is_none());
+    assert!(cache::ACCOUNTS_CACHE.get(&cache_key).await.is_none());
 }
 
 #[actix_web::test]
 async fn invalidate_non_existing_cache_success() {
     // Arrange
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
     let cache_key = "cacheKey".to_string();
     let api_key = ("api-key", "test_admin");
     let client = awc::Client::default();

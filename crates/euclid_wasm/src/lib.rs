@@ -6,7 +6,18 @@ use std::{
     str::FromStr,
 };
 
-use api_models::{admin as admin_api, routing::ConnectorSelection};
+use api_models::{
+    admin as admin_api, conditional_configs::ConditionalConfigs, enums as api_model_enums,
+    routing::ConnectorSelection, surcharge_decision_configs::SurchargeDecisionConfigs,
+};
+use common_enums::RoutableConnectors;
+use connector_configs::{
+    common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
+    connector,
+};
+use currency_conversion::{
+    conversion::convert as convert_currency, types as currency_conversion_types,
+};
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{
@@ -14,10 +25,9 @@ use euclid::{
         graph::{self, Memoization},
         state_machine, truth,
     },
-    enums,
     frontend::{
         ast,
-        dir::{self, enums as dir_enums},
+        dir::{self, enums as dir_enums, EuclidDirFilter},
     },
 };
 use once_cell::sync::OnceCell;
@@ -33,6 +43,39 @@ struct SeedData<'a> {
 }
 
 static SEED_DATA: OnceCell<SeedData<'_>> = OnceCell::new();
+static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
+
+/// This function can be used by the frontend to educate wasm about the forex rates data.
+/// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
+/// to all different currencies present.
+#[wasm_bindgen(js_name = setForexData)]
+pub fn seed_forex(forex: JsValue) -> JsResult {
+    let forex: currency_conversion_types::ExchangeRates = serde_wasm_bindgen::from_value(forex)?;
+    SEED_FOREX
+        .set(forex)
+        .map_err(|_| "Forex has already been seeded".to_string())
+        .err_to_js()?;
+
+    Ok(JsValue::NULL)
+}
+
+/// This function can be used to perform currency_conversion on the input amount, from_currency,
+/// to_currency which are all expected to be one of currencies we already have in our Currency
+/// enum.
+#[wasm_bindgen(js_name = convertCurrency)]
+pub fn convert_forex_value(amount: i64, from_currency: JsValue, to_currency: JsValue) -> JsResult {
+    let forex_data = SEED_FOREX
+        .get()
+        .ok_or("Forex Data not seeded")
+        .err_to_js()?;
+    let from_currency: common_enums::Currency = serde_wasm_bindgen::from_value(from_currency)?;
+    let to_currency: common_enums::Currency = serde_wasm_bindgen::from_value(to_currency)?;
+    let converted_amount = convert_currency(forex_data, from_currency, to_currency, amount)
+        .map_err(|_| "conversion not possible for provided values")
+        .err_to_js()?;
+
+    Ok(serde_wasm_bindgen::to_value(&converted_amount)?)
+}
 
 /// This function can be used by the frontend to provide the WASM with information about
 /// all the merchant's connector accounts. The input argument is a vector of all the merchant's
@@ -44,7 +87,7 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .iter()
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
-                connector: dir_enums::Connector::from_str(&mca.connector_name)?,
+                connector: RoutableConnectors::from_str(&mca.connector_name)?,
                 #[cfg(not(feature = "connector_choice_mca_id"))]
                 sub_label: mca.business_sub_label.clone(),
             })
@@ -147,7 +190,9 @@ pub fn run_program(program: JsValue, input: JsValue) -> JsResult {
 
 #[wasm_bindgen(js_name = getAllConnectors)]
 pub fn get_all_connectors() -> JsResult {
-    Ok(serde_wasm_bindgen::to_value(enums::Connector::VARIANTS)?)
+    Ok(serde_wasm_bindgen::to_value(
+        common_enums::RoutableConnectors::VARIANTS,
+    )?)
 }
 
 #[wasm_bindgen(js_name = getAllKeys)]
@@ -165,6 +210,18 @@ pub fn get_key_type(key: &str) -> Result<String, String> {
     let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
     let key_str = key.get_type().to_string();
     Ok(key_str)
+}
+
+#[wasm_bindgen(js_name = getThreeDsKeys)]
+pub fn get_three_ds_keys() -> JsResult {
+    let keys = <ConditionalConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
+}
+
+#[wasm_bindgen(js_name= getSurchargeKeys)]
+pub fn get_surcharge_keys() -> JsResult {
+    let keys = <SurchargeDecisionConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
 #[wasm_bindgen(js_name=parseToString)]
@@ -216,12 +273,57 @@ pub fn add_two(n1: i64, n2: i64) -> i64 {
 }
 
 #[wasm_bindgen(js_name = getDescriptionCategory)]
-pub fn get_description_category(key: &str) -> JsResult {
-    let key = dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+pub fn get_description_category() -> JsResult {
+    let keys = dir::DirKeyKind::VARIANTS
+        .iter()
+        .copied()
+        .filter(|s| s != &"Connector")
+        .collect::<Vec<&'static str>>();
+    let mut category: HashMap<Option<&str>, Vec<types::Details<'_>>> = HashMap::new();
+    for key in keys {
+        let dir_key =
+            dir::DirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+        let details = types::Details {
+            description: dir_key.get_detailed_message(),
+            kind: dir_key.clone(),
+        };
+        category
+            .entry(dir_key.get_str("Category"))
+            .and_modify(|val| val.push(details.clone()))
+            .or_insert(vec![details]);
+    }
 
-    let result = types::Details {
-        description: key.get_detailed_message(),
-        category: key.get_str("Category"),
-    };
+    Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getConnectorConfig)]
+pub fn get_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::Connector::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[cfg(feature = "payouts")]
+#[wasm_bindgen(js_name = getPayoutConnectorConfig)]
+pub fn get_payout_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::PayoutConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_payout_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getRequestPayload)]
+pub fn get_request_payload(input: JsValue, response: JsValue) -> JsResult {
+    let input: DashboardRequestPayload = serde_wasm_bindgen::from_value(input)?;
+    let api_response: ConnectorApiIntegrationPayload = serde_wasm_bindgen::from_value(response)?;
+    let result = DashboardRequestPayload::create_connector_request(input, api_response);
+    Ok(serde_wasm_bindgen::to_value(&result)?)
+}
+
+#[wasm_bindgen(js_name = getResponsePayload)]
+pub fn get_response_payload(input: JsValue) -> JsResult {
+    let input: ConnectorApiIntegrationPayload = serde_wasm_bindgen::from_value(input)?;
+    let result = ConnectorApiIntegrationPayload::get_transformed_response_payload(input);
     Ok(serde_wasm_bindgen::to_value(&result)?)
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use data_models::errors::{StorageError, StorageResult};
-use diesel_models::{self as store};
+use diesel_models as store;
 use error_stack::ResultExt;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
@@ -251,14 +251,6 @@ pub(crate) fn diesel_error_to_data_error(
             entity: "entity ",
             key: None,
         },
-        diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
-            StorageError::DatabaseError("No fields to update".to_string())
-        }
-        diesel_models::errors::DatabaseError::QueryGenerationFailed => {
-            StorageError::DatabaseError("Query generation failed".to_string())
-        }
-        diesel_models::errors::DatabaseError::Others => {
-            StorageError::DatabaseError("Others".to_string())
-        }
+        _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
     }
 }

@@ -372,6 +372,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -455,6 +456,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -624,7 +626,8 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Reward
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
-        | PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }
@@ -640,7 +643,7 @@ fn get_card_data(
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
                     payment_instrument_id: item.request.connector_mandate_id(),
                 })),
-                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };
             let cof_contract = Some(CofContract {
                 recurring_type: RecurringType::Unscheduled,
@@ -648,7 +651,7 @@ fn get_card_data(
             (card_data, cof_contract)
         }
         false => (
-            CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             None,
         ),
     };
@@ -674,13 +677,15 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> CardDetails {
-    CardDetails {
+fn get_card_details(
+    req_card: &api_models::payments::Card,
+) -> Result<CardDetails, errors::ConnectorError> {
+    Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.get_card_expiry_year_2_digit(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
-    }
+    })
 }
 
 fn get_wallet_details(

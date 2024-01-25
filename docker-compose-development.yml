@@ -1,0 +1,297 @@
+version: "3.8"
+
+volumes:
+  cargo_cache:
+  pg_data:
+  router_build_cache:
+  scheduler_build_cache:
+  drainer_build_cache:
+  redisinsight_store:
+
+networks:
+  router_net:
+
+services:
+  ### Dependencies
+  pg:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    networks:
+      - router_net
+    volumes:
+      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=hyperswitch_db
+
+  redis-standalone:
+    image: redis:7
+    networks:
+      - router_net
+    ports:
+      - "6379:6379"
+
+  migration_runner:
+    image: rust:latest
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+    environment:
+      - DATABASE_USER=db_user
+      - DATABASE_PASSWORD=db_pass
+      - DATABASE_HOST=pg
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=hyperswitch_db
+
+  ### Application services
+  hyperswitch-server:
+    image: rust:latest
+    command: cargo run --bin router -- -f ./config/docker_compose.toml
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - router_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: curl --fail http://localhost:8080/health || exit 1
+      interval: 120s
+      retries: 4
+      start_period: 20s
+      timeout: 10s
+
+  hyperswitch-producer:
+    image: rust:latest
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    profiles:
+      - scheduler
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - scheduler_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - SCHEDULER_FLOW=producer
+    depends_on:
+      hyperswitch-consumer:
+        condition: service_healthy
+    labels:
+      logs: "promtail"
+
+  hyperswitch-consumer:
+    image: rust:latest
+    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
+    working_dir: /app
+    networks:
+      - router_net
+    profiles:
+      - scheduler
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - scheduler_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
+      - SCHEDULER_FLOW=consumer
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: (ps -e | grep scheduler) || exit 1
+      interval: 120s
+      retries: 4
+      start_period: 30s
+      timeout: 10s
+
+  hyperswitch-drainer:
+    image: rust:latest
+    command: cargo run --bin drainer -- -f ./config/docker_compose.toml
+    working_dir: /app
+    deploy:
+      replicas: ${DRAINER_INSTANCE_COUNT:-1}
+    networks:
+      - router_net
+    profiles:
+      - full_kv
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - drainer_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_HOME=/cargo_cache
+      - CARGO_TARGET_DIR=/cargo_build_cache
+    restart: unless-stopped
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+    labels:
+      logs: "promtail"
+
+  ### Clustered Redis setup
+  redis-cluster:
+    image: redis:7
+    deploy:
+      replicas: ${REDIS_CLUSTER_COUNT:-3}
+    command: redis-server /usr/local/etc/redis/redis.conf
+    profiles:
+      - clustered_redis
+    volumes:
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - router_net
+    ports:
+      - "6379"
+      - "16379"
+
+  redis-init:
+    image: redis:7
+    profiles:
+      - clustered_redis
+    depends_on:
+      - redis-cluster
+    networks:
+      - router_net
+    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
+
+      \ if [ $$COUNT -lt 3 ]
+
+      \ then
+
+      \ echo \"Minimum 3 nodes are needed for redis cluster\"
+
+      \ exit 1
+
+      \ fi
+
+      \ HOSTS=\"\"
+
+      \ for ((c=1; c<=$$COUNT;c++))
+
+      \ do
+
+      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
+
+      \ echo $$NODE
+
+      \ HOSTS=\"$$HOSTS $$NODE\"
+
+      \ done
+
+      \ echo Creating a cluster with $$HOSTS
+
+      \ redis-cli --cluster create $$HOSTS --cluster-yes
+
+      \ '"
+
+  ### Monitoring
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./config/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./logs:/var/log/router
+      - ./config:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yaml
+    profiles:
+      - monitoring
+    networks:
+      - router_net
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100"
+    command: -config.file=/etc/loki/loki.yaml
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    volumes:
+      - ./config:/etc/loki
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: --config=/etc/otel-collector.yaml
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml
+    ports:
+      - "4317"
+      - "8888"
+      - "8889"
+
+  prometheus:
+    image: prom/prometheus:latest
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    volumes:
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090"
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    ports:
+      - "3200" # tempo
+      - "4317" # otlp grpc
+    restart: unless-stopped
+
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    networks:
+      - router_net
+    profiles:
+      - full_kv
+    ports:
+      - "8001:8001"
+    volumes:
+      - redisinsight_store:/db

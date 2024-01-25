@@ -45,6 +45,10 @@
         {
           "country": "US",
           "business": "default"
+        },
+        {
+          "country": "GB",
+          "business": "payouts"
         }
       ],
       "merchant_details": {

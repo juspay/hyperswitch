@@ -10,15 +10,23 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [features]
-default = ["connector_choice_bcompat"]
+default = ["connector_choice_bcompat","payouts", "connector_choice_mca_id"]
+release = ["connector_choice_bcompat", "connector_choice_mca_id"]
 connector_choice_bcompat = ["api_models/connector_choice_bcompat"]
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
-dummy_connector = ["kgraph_utils/dummy_connector"]
+dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
+production = ["connector_configs/production"]
+development = ["connector_configs/development"]
+sandbox = ["connector_configs/sandbox"]
+payouts = []
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
+connector_configs = { version = "0.1.0", path = "../connector_configs" }
 euclid = { path = "../euclid", features = [] }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 
 # Third party crates
 getrandom = { version = "0.2.10", features = ["js"] }

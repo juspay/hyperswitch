@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(ops = "all", flow = "verify")]
+#[operation(operations = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::VerifyRequest, Ctx>
@@ -186,6 +186,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 surcharge_details: None,
                 frm_message: None,
                 payment_link_data: None,
+                frm_metadata: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -205,7 +206,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: &'b AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -225,7 +226,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
+            .store
             .update_payment_intent(
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::ReturnUrlUpdate {

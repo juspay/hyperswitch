@@ -200,7 +200,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
+                        name_on_card: req_card
+                            .card_holder_name
+                            .clone()
+                            .unwrap_or(Secret::new("".to_string())),
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),
@@ -284,7 +287,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Reward {}
                     | api::PaymentMethodData::Upi(_)
                     | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_) => {
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
                             connector: "Noon",
@@ -512,6 +516,7 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -525,6 +530,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
+                        incremental_authorization_allowed: None,
                     })
                 }
             },

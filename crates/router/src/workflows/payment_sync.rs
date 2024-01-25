@@ -61,7 +61,13 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         let (mut payment_data, _, customer, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
+            Box::pin(payment_flows::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 merchant_account.clone(),
                 key_store,
@@ -71,7 +77,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 services::AuthFlow::Client,
                 None,
                 api::HeaderPayload::default(),
-            )
+            ))
             .await?;
 
         let terminal_status = [
@@ -118,7 +124,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -130,6 +136,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             )),
                             amount_capturable: Some(0),
                             updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
+                            connector_transaction_id: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -169,7 +178,11 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    utils::trigger_payments_webhook::<_, api_models::payments::PaymentsRequest, _>(
+                    Box::pin(utils::trigger_payments_webhook::<
+                        _,
+                        api_models::payments::PaymentsRequest,
+                        _,
+                    >(
                         merchant_account,
                         business_profile,
                         payment_data,
@@ -177,7 +190,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         customer,
                         state,
                         operation,
-                    )
+                    ))
                     .await
                     .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
                     .ok();
@@ -288,7 +301,10 @@ mod tests {
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
-            vec![cpt_default.start_after, cpt_default.frequency[0]]
+            vec![
+                cpt_default.start_after,
+                *cpt_default.frequency.first().unwrap()
+            ]
         );
     }
 }

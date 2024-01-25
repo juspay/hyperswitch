@@ -75,7 +75,7 @@ impl KmsClient {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(kms_sdk_error=?error, "Failed to KMS decrypt data");
-                metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
             .into_report()
@@ -96,11 +96,51 @@ impl KmsClient {
 
         Ok(output)
     }
+
+    /// Encrypts the provided String data using the AWS KMS SDK. We assume that
+    /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
+    /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
+    /// a machine that is able to assume an IAM role.
+    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
+        let start = Instant::now();
+        let plaintext_blob = Blob::new(data.as_ref());
+
+        let encrypted_output = self
+            .inner_client
+            .encrypt()
+            .key_id(&self.key_id)
+            .plaintext(plaintext_blob)
+            .send()
+            .await
+            .map_err(|error| {
+                // Logging using `Debug` representation of the error as the `Display`
+                // representation does not hold sufficient information.
+                logger::error!(kms_sdk_error=?error, "Failed to KMS encrypt data");
+                metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+            .into_report()
+            .change_context(KmsError::EncryptionFailed)?;
+
+        let output = encrypted_output
+            .ciphertext_blob
+            .ok_or(KmsError::MissingCiphertextEncryptionOutput)
+            .into_report()
+            .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
+        let time_taken = start.elapsed();
+        metrics::AWS_KMS_ENCRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+
+        Ok(output)
+    }
 }
 
 /// Errors that could occur during KMS operations.
 #[derive(Debug, thiserror::Error)]
 pub enum KmsError {
+    /// An error occurred when base64 encoding input data.
+    #[error("Failed to base64 encode input data")]
+    Base64EncodingFailed,
+
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
@@ -109,9 +149,17 @@ pub enum KmsError {
     #[error("Failed to KMS decrypt input data")]
     DecryptionFailed,
 
+    /// An error occurred when KMS encrypting input data.
+    #[error("Failed to KMS encrypt input data")]
+    EncryptionFailed,
+
     /// The KMS decrypted output does not include a plaintext output.
     #[error("Missing plaintext KMS decryption output")]
     MissingPlaintextDecryptionOutput,
+
+    /// The KMS encrypted output does not include a ciphertext output.
+    #[error("Missing ciphertext KMS encryption output")]
+    MissingCiphertextEncryptionOutput,
 
     /// An error occurred UTF-8 decoding KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
@@ -142,8 +190,93 @@ impl KmsConfig {
 #[serde(transparent)]
 pub struct KmsValue(Secret<String>);
 
+impl From<String> for KmsValue {
+    fn from(value: String) -> Self {
+        Self(Secret::new(value))
+    }
+}
+
+impl From<Secret<String>> for KmsValue {
+    fn from(value: Secret<String>) -> Self {
+        Self(value)
+    }
+}
+
+#[cfg(feature = "hashicorp-vault")]
+#[async_trait::async_trait]
+impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
+    async fn fetch_inner<En>(
+        self,
+        client: &super::hashicorp_vault::HashiCorpVault,
+    ) -> error_stack::Result<Self, super::hashicorp_vault::HashiCorpError>
+    where
+        for<'a> En: super::hashicorp_vault::Engine<
+                ReturnType<'a, String> = std::pin::Pin<
+                    Box<
+                        dyn std::future::Future<
+                                Output = error_stack::Result<
+                                    String,
+                                    super::hashicorp_vault::HashiCorpError,
+                                >,
+                            > + Send
+                            + 'a,
+                    >,
+                >,
+            > + 'a,
+    {
+        self.0.fetch_inner::<En>(client).await.map(KmsValue)
+    }
+}
+
 impl common_utils::ext_traits::ConfigExt for KmsValue {
     fn is_empty_after_trim(&self) -> bool {
         self.0.peek().is_empty_after_trim()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+    #[tokio::test]
+    async fn check_kms_encryption() {
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
+        std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
+        use super::*;
+        let config = KmsConfig {
+            key_id: "YOUR KMS KEY ID".to_string(),
+            region: "AWS REGION".to_string(),
+        };
+
+        let data = "hello".to_string();
+        let binding = data.as_bytes();
+        let kms_encrypted_fingerprint = KmsClient::new(&config)
+            .await
+            .encrypt(binding)
+            .await
+            .expect("kms encryption failed");
+
+        println!("{}", kms_encrypted_fingerprint);
+    }
+
+    #[tokio::test]
+    async fn check_kms_decrypt() {
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
+        std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
+        use super::*;
+        let config = KmsConfig {
+            key_id: "YOUR KMS KEY ID".to_string(),
+            region: "AWS REGION".to_string(),
+        };
+
+        // Should decrypt to hello
+        let data = "KMS ENCRYPTED CIPHER".to_string();
+        let binding = data.as_bytes();
+        let kms_encrypted_fingerprint = KmsClient::new(&config)
+            .await
+            .decrypt(binding)
+            .await
+            .expect("kms decryption failed");
+
+        println!("{}", kms_encrypted_fingerprint);
     }
 }
