@@ -36,6 +36,12 @@ pub trait DashboardMetadataInterface {
         org_id: &str,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -106,6 +112,21 @@ impl DashboardMetadataInterface for Store {
             merchant_id.to_owned(),
             org_id.to_owned(),
             data_keys,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id(
+            &conn,
+            user_id.to_owned(),
+            merchant_id.to_owned(),
         )
         .await
         .map_err(Into::into)
@@ -245,5 +266,32 @@ impl DashboardMetadataInterface for MockDb {
             .into());
         }
         Ok(query_result)
+    }
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+        let initial_len = dashboard_metadata.len();
+
+        dashboard_metadata.retain(|metadata_inner| {
+            !(metadata_inner
+                .user_id
+                .clone()
+                .map(|user_id_inner| user_id_inner == user_id)
+                .unwrap_or(false)
+                && metadata_inner.merchant_id == merchant_id)
+        });
+
+        if dashboard_metadata.len() == initial_len {
+            return Err(errors::StorageError::ValueNotFound(format!(
+                "No user available for user_id = {user_id} and merchant id = {merchant_id}"
+            ))
+            .into());
+        }
+
+        Ok(true)
     }
 }
