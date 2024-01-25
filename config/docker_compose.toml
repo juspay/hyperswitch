@@ -56,6 +56,7 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
 
 [jwekey]
 vault_encryption_key = ""
@@ -241,6 +242,7 @@ stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
 shift4 = {payment_method = "card"}
 bluesnap = {payment_method = "card"}
+bankofamerica = {payment_method = "card"}
 cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
 
