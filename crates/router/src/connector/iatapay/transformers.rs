@@ -532,6 +532,12 @@ pub struct IatapayPaymentWebhookBody {
     pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
+    pub amount: f64,
+    pub currency: String,
+    pub country: Option<String>,
+    pub locale: Option<String>,
+    pub bank_transfer_description: Option<String>,
+    pub checkout_methods: Option<CheckoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -542,6 +548,12 @@ pub struct IatapayRefundWebhookBody {
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
+    pub amount: f64,
+    pub currency: String,
+    pub country: Option<String>,
+    pub locale: Option<String>,
+    pub bank_transfer_description: Option<String>,
+    pub checkout_methods: Option<CheckoutMethod>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
