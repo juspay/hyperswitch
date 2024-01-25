@@ -44,7 +44,13 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req| async move {
-            cards::add_payment_method(state, req, &auth.merchant_account, &auth.key_store).await
+            Box::pin(cards::add_payment_method(
+                state,
+                req,
+                &auth.merchant_account,
+                &auth.key_store,
+            ))
+            .await
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
@@ -108,7 +114,6 @@ pub async fn list_payment_method_api(
     get,
     path = "/customers/{customer_id}/payment_methods",
     params (
-        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
         ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
@@ -134,10 +139,6 @@ pub async fn list_customer_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
-    };
     let customer_id = customer_id.into_inner().0;
     Box::pin(api::server_wrap(
         flow,
@@ -153,7 +154,7 @@ pub async fn list_customer_payment_method_api(
                 Some(&customer_id),
             )
         },
-        &*auth,
+        &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -166,7 +167,6 @@ pub async fn list_customer_payment_method_api(
     path = "/customers/payment_methods",
     params (
         ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
-        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
         ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
@@ -248,7 +248,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
+        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.key_store),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

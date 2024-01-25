@@ -54,6 +54,8 @@ pub enum UserErrors {
     MerchantIdParsingError,
     #[error("ChangePasswordError")]
     ChangePasswordError,
+    #[error("InvalidDeleteOperation")]
+    InvalidDeleteOperation,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -155,6 +157,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 sub_code,
                 29,
                 "Old and new password cannot be same",
+                None,
+            )),
+            Self::InvalidDeleteOperation => AER::BadRequest(ApiError::new(
+                sub_code,
+                30,
+                "Delete Operation Not Supported",
                 None,
             )),
         }
