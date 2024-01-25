@@ -1,0 +1,39 @@
+[drainer]
+loop_interval = 500
+max_read_count = 100
+num_partitions = 64
+shutdown_interval = 1000
+stream_name = "drainer_stream"
+
+[kms]
+key_id = "kms_key_id"
+region = "kms_region"
+
+[log.console]
+enabled = true
+level = "DEBUG"
+log_format = "json"
+
+[log.telemetry]
+metrics_enabled = true
+otel_exporter_otlp_endpoint = "http://localhost:4317"
+
+[master_database]
+dbname = "master_database_name"
+host = "localhost"
+password = "master_database_password"
+pool_size = 3
+port = 5432
+username = "username"
+
+[redis]
+cluster_enabled = false
+cluster_urls = ["redis.cluster.uri-1:8080", "redis.cluster.uri-2:4115"] # List of redis cluster urls
+default_ttl = 300
+host = "localhost"
+pool_size = 5
+port = 6379
+reconnect_delay = 5
+reconnect_max_attempts = 5
+stream_read_count = 1
+use_legacy_version = false

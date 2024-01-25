@@ -1,5 +1,5 @@
 use api_models::user as user_api;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::user_role::UserRole;
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -55,24 +55,8 @@ impl UserFromToken {
     }
 }
 
-pub async fn get_merchant_ids_for_user(state: AppState, user_id: &str) -> UserResult<Vec<String>> {
-    Ok(state
-        .store
-        .list_user_roles_by_user_id(user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|ele| {
-            if ele.status == UserStatus::Active {
-                return Some(ele.merchant_id);
-            }
-            None
-        })
-        .collect())
-}
-
 pub async fn generate_jwt_auth_token(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     user_role: &UserRole,
 ) -> UserResult<Secret<String>> {
@@ -87,34 +71,31 @@ pub async fn generate_jwt_auth_token(
     Ok(Secret::new(token))
 }
 
-pub async fn generate_jwt_auth_token_with_custom_merchant_id(
+pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: AppState,
     user: &UserFromStorage,
-    user_role: &UserRole,
     merchant_id: String,
+    org_id: String,
+    role_id: String,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
         merchant_id,
-        user_role.role_id.clone(),
+        role_id,
         &state.conf,
-        user_role.org_id.to_owned(),
+        org_id,
     )
     .await?;
     Ok(Secret::new(token))
 }
 
-#[allow(unused_variables)]
 pub fn get_dashboard_entry_response(
-    state: AppState,
+    state: &AppState,
     user: UserFromStorage,
     user_role: UserRole,
     token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
-    #[cfg(feature = "email")]
-    let verification_days_left = user.get_verification_days_left(state)?;
-    #[cfg(not(feature = "email"))]
-    let verification_days_left = None;
+    let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
         merchant_id: user_role.merchant_id,
@@ -125,4 +106,15 @@ pub fn get_dashboard_entry_response(
         verification_days_left,
         user_role: user_role.role_id,
     })
+}
+
+#[allow(unused_variables)]
+pub fn get_verification_days_left(
+    state: &AppState,
+    user: &UserFromStorage,
+) -> UserResult<Option<i64>> {
+    #[cfg(feature = "email")]
+    return user.get_verification_days_left(state);
+    #[cfg(not(feature = "email"))]
+    return Ok(None);
 }
