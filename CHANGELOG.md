@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.24.1-hotfix1
+
+### Refactors
+
+- **core:** Add killswitch for blocklist feature ([#3459](https://github.com/juspay/hyperswitch/pull/3459)) ([`8e9b3ac`](https://github.com/juspay/hyperswitch/commit/8e9b3ac124a9852de15b6353b56304be8b0af2fb))
+
+**Full Changelog:** [`2024.01.24.1...2024.01.24.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2024.01.24.1...2024.01.24.1-hotfix1)
+
+- - -
+
 ## 2024.01.24.1
 
 ### Features
