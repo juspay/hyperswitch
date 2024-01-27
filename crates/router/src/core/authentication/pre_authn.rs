@@ -17,15 +17,17 @@ use crate::{
     types::{
         api,
         authentication::{AuthenticationResponseData, PreAuthNRequestData},
-        domain, storage, RouterData,
+        domain, storage,
+        transformers::ForeignFrom,
+        RouterData,
     },
 };
 
 pub async fn execute_pre_auth_flow<F: Clone + Send>(
     state: &AppState,
     authentication_flow_input: types::AuthenthenticationFlowInput<'_, F>,
-    connector_account_for_3ds: String,
     merchant_account: &domain::MerchantAccount,
+    three_ds_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<()> {
     let authentication =
         create_new_authentication(state, merchant_account.merchant_id.clone()).await?;
@@ -35,9 +37,17 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             should_continue_confirm_transaction,
             card_number,
         } => {
-            let router_data =
-                do_pre_auth_connector_call(state, card_number, connector_account_for_3ds.clone())
-                    .await?;
+            let router_data: RouterData<
+                api::PreAuthentication,
+                PreAuthNRequestData,
+                AuthenticationResponseData,
+            > = do_pre_auth_connector_call(
+                state,
+                card_number,
+                three_ds_connector_account.connector_name.clone(),
+                three_ds_connector_account,
+            )
+            .await?;
 
             let (authentication, authentication_data) =
                 utils::update_trackers(state, router_data, authentication).await?;
@@ -49,8 +59,11 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                     false
                 };
             let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+                status: common_enums::AttemptStatus::foreign_from(
+                    authentication.authentication_status,
+                ),
                 external_3ds_authentication_requested: Some(external_3ds_authentication_requested),
-                authentication_provider: Some(connector_account_for_3ds.clone()),
+                authentication_provider: Some(three_ds_connector_account.connector_name.clone()),
                 authentication_id: Some(authentication.authentication_id.clone()),
                 updated_by: merchant_account.storage_scheme.to_string(),
             };
@@ -70,47 +83,26 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             card_number,
             other_fields: _,
         } => {
-            let router_data =
-                do_pre_auth_connector_call(state, card_number, connector_account_for_3ds).await?;
+            let _router_data = do_pre_auth_connector_call(
+                state,
+                card_number,
+                three_ds_connector_account.connector_name.clone(),
+                three_ds_connector_account,
+            )
+            .await?;
             todo!("Some operation");
         }
     };
     Ok(())
 }
 
-// async fn payment_authentication_operations<F: Clone>(
-//     state: &AppState,
-//     connector: &ConnectorCallType,
-//     payment_data: &mut payments::PaymentData<F>,
-//     should_continue_confirm_transaction: &mut bool,
-// ) -> RouterResult<()> {
-//     if !should_continue_confirm_transaction {
-//         return Ok(());
-//     }
-//     let separate_authn_supported = utils::is_separate_authn_supported(connector);
-//     let separate_authn_requested = payment_data
-//         .payment_attempt
-//         .external_3ds_authentication_requested
-//         .unwrap_or(false);
-//     if separate_authn_requested && separate_authn_supported {
-//         let authentication =
-//             create_new_authentication(state, &payment_data.payment_attempt).await?;
-//         let merchant_connector_account = todo!("Fetch MCA");
-
-//         // call 3ds conector version call(connector_processing_step)
-//         let is_3ds_version_greater_than_2 = true;
-//         if is_3ds_version_greater_than_2 {
-//             *should_continue_confirm_transaction = false;
-//         }
-//     }
-//     Ok(())
-// }
-
 async fn do_pre_auth_connector_call(
     state: &AppState,
     card_holder_account_number: CardNumber,
     merchant_connector_account: String,
-) -> RouterResult<RouterData<api::PreAuthN, PreAuthNRequestData, AuthenticationResponseData>> {
+    three_ds_connector_account: &domain::MerchantConnectorAccount,
+) -> RouterResult<RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>>
+{
     let request = PreAuthNRequestData {
         card_holder_account_number,
     };
@@ -118,7 +110,10 @@ async fn do_pre_auth_connector_call(
         threeds_server_transaction_id: "".into(),
         maximum_supported_3ds_version: (0, 0, 0),
         connector_authentication_id: "".into(),
+        three_ds_method_data: "".into(),
+        three_ds_method_url: None,
     };
+
     let router_data = utils::construct_router_data(
         None,
         None,
@@ -126,14 +121,20 @@ async fn do_pre_auth_connector_call(
         None,
         request,
         temp_response_data,
-        merchant_connector_account,
+        three_ds_connector_account,
+    )?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &merchant_connector_account,
+        api::GetToken::Connector,
+        Some(three_ds_connector_account.merchant_connector_id.clone()),
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api::PreAuthN,
+        api::PreAuthentication,
         PreAuthNRequestData,
         AuthenticationResponseData,
-    > = todo!();
+    > = connector_data.connector.get_connector_integration();
     let router_data = execute_connector_processing_step(
         state,
         connector_integration,

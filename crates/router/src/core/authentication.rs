@@ -3,62 +3,6 @@ pub mod pre_authn;
 pub mod types;
 pub(crate) mod utils;
 
-use api_models::payments::PaymentMethodData;
-use cards::CardNumber;
-
-use crate::{
-    core::payments,
-    errors::RouterResult,
-    types::{api::ConnectorCallType, domain},
-    AppState,
-};
-
-pub async fn call_payment_3ds_service<F: Send + Clone>(
-    state: &AppState,
-    payment_data: &mut payments::PaymentData<F>,
-    should_continue_confirm_transaction: &mut bool,
-    connector_call_type: &ConnectorCallType,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<()> {
-    let is_pre_authn_call = payment_data.authentication.is_none();
-    let separate_authentication_requested = payment_data
-        .payment_attempt
-        .external_3ds_authentication_requested
-        .unwrap_or(false);
-    let connector_supports_separate_authn = utils::is_separate_authn_supported(connector_call_type);
-    let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
-        if let PaymentMethodData::Card(card) = pmd {
-            Some(card.card_number.clone())
-        } else {
-            None
-        }
-    });
-    if is_pre_authn_call {
-        if separate_authentication_requested && connector_supports_separate_authn {
-            if let Some(card_number) = card_number {
-                let connector_account_for_3ds = "3d_secure_io".to_string();
-                pre_authn::execute_pre_auth_flow(
-                    state,
-                    types::AuthenthenticationFlowInput::PaymentAuthNFlow {
-                        payment_data,
-                        should_continue_confirm_transaction,
-                        card_number,
-                    },
-                    connector_account_for_3ds,
-                    merchant_account,
-                )
-                .await;
-            }
-        }
-        Ok(())
-    } else {
-        Ok(())
-    }
-}
-
-async fn call_payment_method_3ds_service(_card_number: CardNumber) -> RouterResult<()> {
-    Ok(())
-}
 pub mod transformers;
 
 use api_models::payments;
@@ -72,7 +16,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self as core_types, api, domain},
 };
 
 pub async fn perform_authentication(
@@ -82,16 +26,16 @@ pub async fn perform_authentication(
     payment_method: common_enums::PaymentMethod,
     billing_address: domain::Address,
     shipping_address: domain::Address,
-    browser_details: types::BrowserInformation,
-    merchant_account: types::domain::MerchantAccount,
+    browser_details: core_types::BrowserInformation,
+    merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    acquirer_details: Option<types::api::authentication::AcquirerDetails>,
+    acquirer_details: Option<core_types::api::authentication::AcquirerDetails>,
     amount: Option<i64>,
     currency: Option<Currency>,
-    message_category: types::api::authentication::MessageCategory,
+    message_category: core_types::api::authentication::MessageCategory,
     device_channel: String,
     three_ds_server_trans_id: String,
-) -> CustomResult<types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
+) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &authentication_provider,
@@ -101,8 +45,8 @@ pub async fn perform_authentication(
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Authentication,
-        types::ConnectorAuthenticationRequestData,
-        types::ConnectorAuthenticationResponse,
+        core_types::ConnectorAuthenticationRequestData,
+        core_types::ConnectorAuthenticationResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_authentication_router_data(
         authentication_provider.clone(),
@@ -139,7 +83,7 @@ pub async fn perform_authentication(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-    Ok(types::api::AuthenticationResponse {
+    Ok(core_types::api::AuthenticationResponse {
         trans_status: submit_evidence_response.trans_status,
         acs_url: submit_evidence_response.acs_url,
         challenge_request: submit_evidence_response.challenge_request,

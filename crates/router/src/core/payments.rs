@@ -225,6 +225,7 @@ where
                 &mut should_continue_transaction,
                 &connector_details,
                 &merchant_account,
+                &key_store,
             )
             .await?;
 

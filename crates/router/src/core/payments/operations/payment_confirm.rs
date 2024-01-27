@@ -613,6 +613,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let is_pre_authn_call = payment_data.authentication.is_none();
         let separate_authentication_requested = payment_data
@@ -631,6 +632,28 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         if is_pre_authn_call {
             if separate_authentication_requested && connector_supports_separate_authn {
                 if let Some(card_number) = card_number {
+                    let profile_id = payment_data
+                        .payment_intent
+                        .profile_id
+                        .as_ref()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("'profile_id' not set in payment intent")?;
+                    let merchant_connector_account = state
+                        .store
+                        .find_merchant_connector_account_by_profile_id_connector_name(
+                            profile_id,
+                            "threedsecureio",
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: format!(
+                                    "profile id {profile_id} and connector name threedsecureio"
+                                ),
+                            },
+                        )?;
                     let connector_account_for_3ds = "3d_secure_io".to_string();
                     authentication::pre_authn::execute_pre_auth_flow(
                         state,
@@ -639,8 +662,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                             should_continue_confirm_transaction,
                             card_number,
                         },
-                        connector_account_for_3ds,
                         merchant_account,
+                        &merchant_connector_account,
                     )
                     .await;
                 }

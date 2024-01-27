@@ -20,7 +20,7 @@ use crate::{
         authentication::{AuthNFlowType, AuthenticationResponseData},
         domain, storage,
         storage::enums as storage_enums,
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ConnectorAuthType, PaymentAddress, RouterData,
     },
 };
@@ -73,7 +73,6 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Shift4
         | api_models::enums::Connector::Square
         | api_models::enums::Connector::Stax
-        | api_models::enums::Connector::Stripe
         | api_models::enums::Connector::Trustpay
         | api_models::enums::Connector::Tsys
         | api_models::enums::Connector::Volt
@@ -83,8 +82,9 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Zen
         | api_models::enums::Connector::Signifyd
         | api_models::enums::Connector::Plaid
-        | api_models::enums::Connector::Riskified => false,
-        api_models::enums::Connector::Checkout => true,
+        | api_models::enums::Connector::Riskified
+        | api_models::enums::Connector::Threedsecureio => false,
+        api_models::enums::Connector::Stripe | api_models::enums::Connector::Checkout => true,
     }
 }
 
@@ -110,23 +110,20 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     address: Option<PaymentAddress>,
     request_data: Req,
     response_data: Res,
-    merchant_connector_account: String,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<RouterData<F, Req, Res>> {
-    // let auth_type: ConnectorAuthType = merchant_connector_account
-    //     .connector_account_details
-    //     .peek()
-    //     .parse_value("ConnectorAuthType")
-    //     .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
-    //         id: "ConnectorAuthType".to_string(),
-    //     })?;
-    let auth_type = ConnectorAuthType::default();
+    let auth_type: ConnectorAuthType = merchant_connector_account
+        .connector_account_details
+        .clone()
+        .parse_value("ConnectorAuthType")
+        .change_context(ApiErrorResponse::InternalServerError)?;
     let empty_string = String::new();
     Ok(RouterData {
         flow: std::marker::PhantomData,
         merchant_id: merchant_id.unwrap_or(empty_string.clone()),
         customer_id: None,
         connector_customer: None,
-        connector: todo!(),
+        connector: merchant_connector_account.connector_name.clone(),
         payment_id: payment_id.unwrap_or(empty_string.clone()),
         attempt_id: attempt_id.unwrap_or(empty_string),
         status: storage_enums::AttemptStatus::Pending,
@@ -184,9 +181,18 @@ pub async fn update_trackers<F: Clone, Req>(
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
                 connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
             } => {
                 authentication_data.maximum_supported_version = maximum_supported_3ds_version;
                 authentication_data.threeds_server_transaction_id = threeds_server_transaction_id;
+                authentication_data
+                    .three_ds_method_data
+                    .three_ds_method_data = three_ds_method_data;
+                authentication_data
+                    .three_ds_method_data
+                    .three_ds_method_data_submission = three_ds_method_url.is_some();
+                authentication_data.three_ds_method_data.three_ds_method_url = three_ds_method_url;
 
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
@@ -196,7 +202,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_authentication_id: Some(connector_authentication_id),
                     payment_method_id: None,
                     authentication_type: None,
-                    authentication_status: None,
+                    authentication_status: Some(common_enums::AuthenticationStatus::Started),
                     lifecycle_status: None,
                 }
             }
@@ -224,12 +230,19 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_authentication_id: None,
                     payment_method_id: None,
                     authentication_type: None,
-                    authentication_status: None,
+                    authentication_status: Some(common_enums::AuthenticationStatus::Success),
                     lifecycle_status: None,
                 }
             }
         }),
-        Err(error) => None,
+        Err(_error) => Some(storage::AuthenticationUpdate::AuthenticationDataUpdate {
+            authentication_data: None,
+            connector_authentication_id: None,
+            payment_method_id: None,
+            authentication_type: None,
+            authentication_status: Some(common_enums::AuthenticationStatus::Failed),
+            lifecycle_status: None,
+        }),
     };
     let authentication_result = if let Some(authentication_update) = authentication_update {
         state
@@ -244,4 +257,15 @@ pub async fn update_trackers<F: Clone, Req>(
         Ok(authentication)
     };
     authentication_result.map(|authentication| (authentication, authentication_data))
+}
+
+impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptStatus {
+    fn foreign_from(from: common_enums::AuthenticationStatus) -> Self {
+        match from {
+            common_enums::AuthenticationStatus::Started
+            | common_enums::AuthenticationStatus::Pending => Self::AuthenticationPending,
+            common_enums::AuthenticationStatus::Success => Self::AuthenticationSuccessful,
+            common_enums::AuthenticationStatus::Failed => Self::AuthenticationFailed,
+        }
+    }
 }

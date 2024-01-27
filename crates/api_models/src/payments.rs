@@ -1928,7 +1928,7 @@ pub struct ThreeDsData {
 pub struct ThreeDsMethodData {
     pub three_ds_method_data_submission: bool,
     pub three_ds_method_data: String,
-    pub three_ds_method_url: String,
+    pub three_ds_method_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

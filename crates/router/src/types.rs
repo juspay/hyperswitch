@@ -31,7 +31,7 @@ use masking::Secret;
 use serde::Serialize;
 
 use self::{
-    api::{authentication, payments},
+    api::{authentication as api_authentication, payments},
     storage::enums as storage_enums,
 };
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -237,6 +237,12 @@ pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
     api::Authentication,
     ConnectorAuthenticationRequestData,
     ConnectorAuthenticationResponse,
+>;
+
+pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
+    api::PreAuthentication,
+    authentication::PreAuthNRequestData,
+    authentication::AuthenticationResponseData,
 >;
 
 pub type SetupMandateRouterData =
@@ -1047,10 +1053,10 @@ pub struct ConnectorAuthenticationRequestData {
     pub billing_address: domain::Address,
     pub shipping_address: domain::Address,
     pub browser_details: BrowserInformation,
-    pub acquirer_details: Option<authentication::AcquirerDetails>,
+    pub acquirer_details: Option<api_authentication::AcquirerDetails>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,
-    pub message_category: authentication::MessageCategory,
+    pub message_category: api_authentication::MessageCategory,
     pub device_channel: String,
     pub three_ds_server_trans_id: String,
 }

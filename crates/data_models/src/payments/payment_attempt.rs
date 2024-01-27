@@ -397,6 +397,7 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: i64,
     },
     AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
         external_3ds_authentication_requested: Option<bool>,
         authentication_provider: Option<String>,
         authentication_id: Option<String>,

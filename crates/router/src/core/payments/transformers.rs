@@ -475,6 +475,7 @@ where
 
     let output = Ok(match payment_request {
         Some(_request) => {
+            dbg!(&payment_data.authentication);
             if payments::is_start_pay(&operation) && payment_attempt.authentication_data.is_some() {
                 let redirection_data = payment_attempt
                     .authentication_data
@@ -508,6 +509,7 @@ where
                     || next_action_voucher.is_some()
                     || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
+                    || payment_data.authentication.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -540,20 +542,33 @@ where
                                     &payment_intent,
                                 ),
                             }
-                        })).or(payment_data.authentication.as_ref().map(|(authentication, authentication_data)|{
-                            let payment_id = payment_attempt.payment_id.clone();
-                            let base_url = server.base_url.clone();
-                            api_models::payments::NextActionData::ThreeDsInvoke{
-                                three_ds_data: api_models::payments::ThreeDsData{
-                                    authentication_url: format!("{base_url}/payments/{payment_id}/{merchant_id}/3ds/authentication").into(),
-                                    three_ds_method_data: api_models::payments::ThreeDsMethodData{
-                                        three_ds_method_data_submission: true,
-                                        three_ds_method_data: authentication_data.three_ds_method_data.three_ds_method_data.clone(),
-                                        three_ds_method_url: authentication_data.three_ds_method_data.three_ds_method_url.clone(),
-                                    }
+                        }))
+                        .or(payment_data.authentication.as_ref().map(
+                            |(authentication, authentication_data)| {
+                                let payment_id = payment_attempt.payment_id.clone();
+                                let base_url = server.base_url.clone();
+                                api_models::payments::NextActionData::ThreeDsInvoke {
+                                    three_ds_data: api_models::payments::ThreeDsData {
+                                        authentication_url: format!(
+                                            "{base_url}/payments/{payment_id}/3ds/authentication"
+                                        )
+                                        .into(),
+                                        three_ds_method_data:
+                                            api_models::payments::ThreeDsMethodData {
+                                                three_ds_method_data_submission: true,
+                                                three_ds_method_data: authentication_data
+                                                    .three_ds_method_data
+                                                    .three_ds_method_data
+                                                    .clone(),
+                                                three_ds_method_url: authentication_data
+                                                    .three_ds_method_data
+                                                    .three_ds_method_url
+                                                    .clone(),
+                                            },
+                                    },
                                 }
-                            }
-                        }));
+                            },
+                        ));
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)

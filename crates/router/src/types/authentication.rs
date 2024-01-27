@@ -9,6 +9,8 @@ pub enum AuthenticationResponseData {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: (i64, i64, i64),
         connector_authentication_id: String,
+        three_ds_method_data: String,
+        three_ds_method_url: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
@@ -47,9 +49,9 @@ pub struct AuthNRequestData {}
 pub struct PostAuthNRequestData {}
 
 pub type PreAuthNRouterData =
-    RouterData<api::PreAuthN, PreAuthNRequestData, AuthenticationResponseData>;
+    RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
 
-pub type AuthNRouterData = RouterData<api::AuthN, AuthNRequestData, AuthenticationResponseData>;
+// pub type AuthNRouterData = RouterData<api::AuthN, AuthNRequestData, AuthenticationResponseData>;
 
-pub type PostAuthNRouterData =
-    RouterData<api::PostAuthN, PostAuthNRequestData, AuthenticationResponseData>;
+// pub type PostAuthNRouterData =
+//     RouterData<api::PostAuthN, PostAuthNRequestData, AuthenticationResponseData>;
