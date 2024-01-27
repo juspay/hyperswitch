@@ -1,4 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
+#[cfg(feature = "hashicorp-vault")]
+use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -44,10 +46,20 @@ pub async fn api_key_create(
         |state, _, payload| async {
             #[cfg(feature = "kms")]
             let kms_client = external_services::kms::get_kms_client(&state.clone().conf.kms).await;
+
+            #[cfg(feature = "hashicorp-vault")]
+            let hc_client = external_services::hashicorp_vault::get_hashicorp_client(
+                &state.clone().conf.hc_vault,
+            )
+            .await
+            .change_context(crate::core::errors::ApiErrorResponse::InternalServerError)?;
+
             api_keys::create_api_key(
                 state,
                 #[cfg(feature = "kms")]
                 kms_client,
+                #[cfg(feature = "hashicorp-vault")]
+                hc_client,
                 payload,
                 merchant_id.clone(),
             )

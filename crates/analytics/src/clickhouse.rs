@@ -354,11 +354,11 @@ impl ToSql<ClickhouseClient> for PrimitiveDateTime {
 impl ToSql<ClickhouseClient> for AnalyticsCollection {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
-            Self::Payment => Ok("payment_attempt_dist".to_string()),
-            Self::Refund => Ok("refund_dist".to_string()),
-            Self::SdkEvents => Ok("sdk_events_dist".to_string()),
-            Self::ApiEvents => Ok("api_audit_log".to_string()),
-            Self::PaymentIntent => Ok("payment_intents_dist".to_string()),
+            Self::Payment => Ok("payment_attempts".to_string()),
+            Self::Refund => Ok("refunds".to_string()),
+            Self::SdkEvents => Ok("sdk_events_audit".to_string()),
+            Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
         }
