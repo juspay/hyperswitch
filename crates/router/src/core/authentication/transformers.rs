@@ -24,8 +24,8 @@ pub fn construct_authentication_router_data(
     authentication_provider: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: domain::Address,
-    shipping_address: domain::Address,
+    billing_address: api_models::payments::Address,
+    shipping_address: api_models::payments::Address,
     browser_details: types::BrowserInformation,
     acquirer_details: Option<types::api::authentication::AcquirerDetails>,
     amount: Option<i64>,
@@ -34,7 +34,6 @@ pub fn construct_authentication_router_data(
     device_channel: String,
     merchant_account: domain::MerchantAccount,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    three_ds_server_trans_id: String,
 ) -> RouterResult<types::ConnectorAuthenticationRouterData> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -67,7 +66,6 @@ pub fn construct_authentication_router_data(
             currency,
             message_category,
             device_channel,
-            three_ds_server_trans_id,
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,

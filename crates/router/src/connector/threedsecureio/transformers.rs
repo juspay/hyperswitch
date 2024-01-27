@@ -1,10 +1,18 @@
-use masking::{Secret, ExposeInterface};
+use common_utils::date_time;
+use error_stack::{IntoReport, ResultExt};
+use iso_currency::Currency;
+use isocountry;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, CardData},
+    connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData},
     core::errors,
-    types::{self, api, storage::enums},
+    types::{
+        self,
+        api::{self, MessageCategory},
+        storage::enums,
+    },
 };
 
 //TODO: Fill the struct with respective fields
@@ -244,7 +252,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-fn get_card_details (
+fn get_card_details(
     payment_method_data: api_models::payments::PaymentMethodData,
 ) -> Result<api_models::payments::Card, errors::ConnectorError> {
     match payment_method_data {
@@ -261,46 +269,190 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
         item: &ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let card_details = get_card_details(item.router_data.request.payment_method_data.clone())?;
+        let currency = item
+            .router_data
+            .request
+            .currency
+            .map(|currency| currency.to_string())
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let address = item
+            .router_data
+            .request
+            .billing_address
+            .address
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let billing_state = address.clone().to_state_code()?;
+        let billing_country = isocountry::CountryCode::for_alpha2(
+            &item
+                .router_data
+                .request
+                .billing_address
+                .address
+                .clone()
+                .and_then(|address| address.country)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        )
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Error parsing billing country type2")?;
         Ok(Self {
             ds_start_protocol_version: "2.1.0".to_string(),
             ds_end_protocol_version: "2.1.0".to_string(),
             acs_start_protocol_version: "2.1.0".to_string(),
             acs_end_protocol_version: "2.1.0".to_string(),
-            three_dsserver_trans_id: item.router_data.request.three_ds_server_trans_id.clone(),
-            // acct_number: card_details.card_number.to_string(),
+            three_dsserver_trans_id: item
+                .router_data
+                .request
+                .billing_address
+                .address
+                .clone()
+                .and_then(|address| address.city)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
             acct_number: "3000100811111072".to_string(),
-            notification_url: "https://webhook.site/8d03e3ea-a7d8-48f5-a200-476bca75a55c".to_string(),
+            // card_details.card_number.clone(),
+            notification_url: "https://webhook.site/8d03e3ea-a7d8-48f5-a200-476bca75a55c"
+                .to_string(),
             three_dscomp_ind: "Y".to_string(),
-            // three_dsrequestor_url: todo!(),
-            acquirer_bin: item.router_data.request.acquirer_details.clone().map(|acquirer| acquirer.acquirer_bin).ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-            acquirer_merchant_id: item.router_data.request.acquirer_details.clone().map(|acquirer| acquirer.acquirer_merchant_mid).ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            three_dsrequestor_url: "https::/google.com".to_string(),
+            acquirer_bin: item
+                .router_data
+                .request
+                .acquirer_details
+                .clone()
+                .map(|acquirer| acquirer.acquirer_bin)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            acquirer_merchant_id: item
+                .router_data
+                .request
+                .acquirer_details
+                .clone()
+                .map(|acquirer| acquirer.acquirer_merchant_mid)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
-            bill_addr_city: item.router_data.request.billing_address.city.clone().ok_or(errors::ConnectorError::RequestEncodingFailed)?.to_string(),
-            bill_addr_country: item.router_data.request.billing_address.country.clone().ok_or(errors::ConnectorError::RequestEncodingFailed)?.to_string(),
-            bill_addr_line1: "Bill Address Line 1".to_string(),
-            bill_addr_post_code: "Bill Post Code".to_string(),
-            bill_addr_state: "CO".to_string(),
+            bill_addr_city: item
+                .router_data
+                .request
+                .billing_address
+                .address
+                .clone()
+                .and_then(|address| address.city)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+            bill_addr_country: billing_country.numeric_id().to_string(),
+            bill_addr_line1: item
+                .router_data
+                .request
+                .billing_address
+                .address
+                .clone()
+                .and_then(|address| address.line1)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .expose()
+                .to_string(),
+            bill_addr_post_code: item
+                .router_data
+                .request
+                .billing_address
+                .address
+                .clone()
+                .and_then(|address| address.zip)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .expose()
+                .to_string(),
+            bill_addr_state: billing_state.peek().to_string(),
             three_dsrequestor_authentication_ind: "01".to_string(),
-            device_channel: "02".to_string(),
-            browser_javascript_enabled: true,
-            browser_accept_header: "text/html,application/xhtml+xml,application/xml; q=0.9,*/*;q=0.8".to_string(),
-            browser_ip: "192.168.1.11".to_string(),
-            browser_java_enabled: true,
-            browser_language: "en".to_string(),
-            browser_color_depth: "48".to_string(),
-            browser_screen_height: "400".to_string(),
-            browser_screen_width: "600".to_string(),
-            browser_tz: "0".to_string(),
-            browser_user_agent: "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0".to_string(),
+            device_channel: item.router_data.request.device_channel.clone(),
+            message_category: if item.router_data.request.message_category
+                == MessageCategory::Payment
+            {
+                "01".to_string()
+            } else {
+                "02".to_string()
+            },
+            browser_javascript_enabled: item
+                .router_data
+                .request
+                .browser_details
+                .java_script_enabled
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            browser_accept_header: item
+                .router_data
+                .request
+                .browser_details
+                .accept_header
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            browser_ip: item
+                .router_data
+                .request
+                .browser_details
+                .ip_address
+                .map(|ip| ip.to_string()),
+            browser_java_enabled: item
+                .router_data
+                .request
+                .browser_details
+                .java_enabled
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            browser_language: item
+                .router_data
+                .request
+                .browser_details
+                .language
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            browser_color_depth: item
+                .router_data
+                .request
+                .browser_details
+                .color_depth
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+            browser_screen_height: item
+                .router_data
+                .request
+                .browser_details
+                .screen_height
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+            browser_screen_width: item
+                .router_data
+                .request
+                .browser_details
+                .screen_width
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+            browser_tz: item
+                .router_data
+                .request
+                .browser_details
+                .time_zone
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+            browser_user_agent: item
+                .router_data
+                .request
+                .browser_details
+                .user_agent
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
             mcc: "5411".to_string(),
             merchant_country_code: "840".to_string(),
             merchant_name: "Dummy Merchant".to_string(),
-            message_category: "01".to_string(),
             message_type: "AReq".to_string(),
             message_version: "2.1.0".to_string(),
             purchase_amount: item.amount.to_string(),
-            purchase_currency: "840".to_string(),
-            trans_type: "01".to_string(),
+            purchase_currency: purchase_currency.numeric().to_string(),
+            trans_type: "01".to_string(),       //TODO
+            purchase_exponent: "2".to_string(), //TODO
+            purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
+                .to_string(),
         })
     }
 }
@@ -321,17 +473,29 @@ pub struct ThreedsecureioErrorResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioAuthenticationResponse {
+    #[serde(rename = "acsChallengeMandated")]
     pub acs_challenge_mandated: String,
+    #[serde(rename = "acsOperatorID")]
     pub acs_operator_id: String,
+    #[serde(rename = "acsReferenceNumber")]
     pub acs_reference_number: String,
+    #[serde(rename = "acsTransID")]
     pub acs_trans_id: String,
+    #[serde(rename = "acsURL")]
     pub acs_url: url::Url,
+    #[serde(rename = "authenticationType")]
     pub authentication_type: String,
+    #[serde(rename = "dsReferenceNumber")]
     pub ds_reference_number: String,
+    #[serde(rename = "dsTransID")]
     pub ds_trans_id: String,
+    #[serde(rename = "messageType")]
     pub message_type: String,
+    #[serde(rename = "messageVersion")]
     pub message_version: String,
+    #[serde(rename = "threeDSServerTransID")]
     pub three_dsserver_trans_id: String,
+    #[serde(rename = "transStatus")]
     pub trans_status: String,
 }
 
@@ -343,10 +507,11 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub acs_start_protocol_version: String,
     pub acs_end_protocol_version: String,
     pub three_dsserver_trans_id: String,
+    // pub acct_number: cards::CardNumber,
     pub acct_number: String,
     pub notification_url: String,
     pub three_dscomp_ind: String,
-    // pub three_dsrequestor_url: String,
+    pub three_dsrequestor_url: String,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
     pub card_expiry_date: String,
@@ -361,7 +526,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub device_channel: String,
     pub browser_javascript_enabled: bool,
     pub browser_accept_header: String,
-    pub browser_ip: String,
+    pub browser_ip: Option<String>,
     pub browser_java_enabled: bool,
     pub browser_language: String,
     pub browser_color_depth: String,
@@ -377,7 +542,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub message_version: String,
     pub purchase_amount: String,
     pub purchase_currency: String,
-    // pub purchase_exponent: String,
-    // pub purchase_date: String,
+    pub purchase_exponent: String,
+    pub purchase_date: String,
     pub trans_type: String,
 }

@@ -13,7 +13,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api},
 };
 
 pub async fn perform_authentication(
@@ -21,8 +21,8 @@ pub async fn perform_authentication(
     authentication_provider: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
-    billing_address: domain::Address,
-    shipping_address: domain::Address,
+    billing_address: api_models::payments::Address,
+    shipping_address: api_models::payments::Address,
     browser_details: types::BrowserInformation,
     merchant_account: types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
@@ -31,7 +31,6 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: String,
-    three_ds_server_trans_id: String,
 ) -> CustomResult<types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -59,7 +58,6 @@ pub async fn perform_authentication(
         device_channel,
         merchant_account,
         merchant_connector_account,
-        three_ds_server_trans_id,
     )?;
     let response = services::execute_connector_processing_step(
         &state,
@@ -69,7 +67,10 @@ pub async fn perform_authentication(
         None,
     )
     .await
-    .map_err(|_err| ApiErrorResponse::InternalServerError)?;
+    .map_err(|err| {
+        println!("connector error_response {}", err);
+        ApiErrorResponse::InternalServerError
+    })?;
     let submit_evidence_response =
         response
             .response

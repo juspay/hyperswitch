@@ -13,7 +13,7 @@ pub struct AuthenticationResponse {
     pub challenge_request: Option<String>,
 }
 
-#[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
 pub enum MessageCategory {
     Payment,
     NonPayment,

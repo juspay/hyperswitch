@@ -3161,29 +3161,32 @@ pub async fn payment_external_authentication(
 
     payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
     payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
+    let browser_info: Option<BrowserInformation> = payment_attempt
+        .browser_info
+        .clone()
+        .map(|b| b.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
     let authentication_response = authentication_core::perform_authentication(
         &state,
         "threedsecureio".to_string(),
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,
-        // api_models::payments::PaymentMethodData::Card(api_models::payments::Card {
-        //     card_number: "3000100811111072"
-        //         .to_string()
-        //         .try_into()
-        //         .into_report()
-        //         .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        //     card_exp_month: "06".to_string().into(),
-        //     card_exp_year: "28".to_string().into(),
-        //     card_cvc: "123".to_string().into(),
-        //     ..Default::default()
-        // }),
         payment_attempt
             .payment_method
             .ok_or(errors::ApiErrorResponse::InternalServerError)?,
-        billing_address.ok_or(errors::ApiErrorResponse::InternalServerError)?,
-        shipping_address.ok_or(errors::ApiErrorResponse::InternalServerError)?,
-        BrowserInformation::default(),
+        billing_address
+            .as_ref()
+            .map(|a| a.into())
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        shipping_address
+            .as_ref()
+            .map(|a| a.into())
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        browser_info.ok_or(errors::ApiErrorResponse::InternalServerError)?,
         merchant_account,
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
         Some(authentication::AcquirerDetails {
@@ -3193,8 +3196,7 @@ pub async fn payment_external_authentication(
         amount,
         Some(currency),
         authentication::MessageCategory::Payment,
-        "01".to_string(),
-        "5626259c-6c6e-4e72-b07f-c097ccf2116d".to_string(),
+        "02".to_string(),
     )
     .await?;
     Ok(services::ApplicationResponse::Json(

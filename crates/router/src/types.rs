@@ -1043,15 +1043,14 @@ pub struct AcceptDisputeResponse {
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationRequestData {
     pub payment_method_data: payments::PaymentMethodData,
-    pub billing_address: domain::Address,
-    pub shipping_address: domain::Address,
+    pub billing_address: api_models::payments::Address,
+    pub shipping_address: api_models::payments::Address,
     pub browser_details: BrowserInformation,
     pub acquirer_details: Option<authentication::AcquirerDetails>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,
     pub message_category: authentication::MessageCategory,
     pub device_channel: String,
-    pub three_ds_server_trans_id: String,
 }
 
 #[derive(Clone, Debug)]

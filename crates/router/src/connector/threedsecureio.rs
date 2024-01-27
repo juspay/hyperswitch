@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::errors::ParsingError;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde_json::{json, to_string};
@@ -10,6 +11,7 @@ use transformers as threedsecureio;
 
 use crate::{
     configs::settings,
+    consts::BASE64_ENGINE,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -22,7 +24,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, RequestContent, Response,
     },
-    utils::BytesExt, consts::BASE64_ENGINE,
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -76,7 +78,7 @@ impl ConnectorCommon for Threedsecureio {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -544,8 +546,12 @@ impl api::IncomingWebhook for Threedsecureio {
 impl api::ExternalAuthentication for Threedsecureio {}
 impl api::ConnectorAuthentication for Threedsecureio {}
 
-impl ConnectorIntegration<api::Authentication, types::ConnectorAuthenticationRequestData, types::ConnectorAuthenticationResponse>
-    for Threedsecureio
+impl
+    ConnectorIntegration<
+        api::Authentication,
+        types::ConnectorAuthenticationRequestData,
+        types::ConnectorAuthenticationResponse,
+    > for Threedsecureio
 {
     fn get_headers(
         &self,
@@ -574,13 +580,22 @@ impl ConnectorIntegration<api::Authentication, types::ConnectorAuthenticationReq
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = threedsecureio::ThreedsecureioRouterData::try_from((
             &self.get_currency_unit(),
-            req.request.currency.ok_or(errors::ConnectorError::MissingRequiredField { field_name: "currency" })?,
-            req.request.amount.ok_or(errors::ConnectorError::MissingRequiredField { field_name: "amount" })?,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
             req,
         ))?;
         let req_obj =
-            threedsecureio::ThreedsecureioAuthenticationRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+            threedsecureio::ThreedsecureioAuthenticationRequest::try_from(&connector_router_data);
+        println!("req_obj authn {:?}", req_obj);
+        Ok(RequestContent::Json(Box::new(req_obj?)))
     }
 
     fn build_request(
@@ -591,9 +606,13 @@ impl ConnectorIntegration<api::Authentication, types::ConnectorAuthenticationReq
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::ConnectorAuthenticationType::get_url(self, req, connectors)?)
+                .url(&types::ConnectorAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::ConnectorAuthenticationType::get_headers(self, req, connectors)?)
+                .headers(types::ConnectorAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
                 .set_body(types::ConnectorAuthenticationType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -606,10 +625,15 @@ impl ConnectorIntegration<api::Authentication, types::ConnectorAuthenticationReq
         data: &types::ConnectorAuthenticationRouterData,
         res: Response,
     ) -> CustomResult<types::ConnectorAuthenticationRouterData, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioAuthenticationResponse = res
+        let response: Result<
+            threedsecureio::ThreedsecureioAuthenticationResponse,
+            error_stack::Report<ParsingError>,
+        > = res
             .response
-            .parse_struct("threedsecureio PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("threedsecureio PaymentsSyncResponse");
+        println!("response authn {:?}", response);
+        let response =
+            response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let creq = json!({
             "threeDSServerTransID": response.three_dsserver_trans_id,
             "acsTransID": response.acs_trans_id,
@@ -617,8 +641,12 @@ impl ConnectorIntegration<api::Authentication, types::ConnectorAuthenticationReq
             "messageType": "CReq",
             "challengeWindowSize": "01",
         });
-        let creq_str = to_string(&creq).ok().ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("creq authn {}", creq);
+        let creq_str = to_string(&creq)
+            .ok()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         let creq_base64 = BASE64_ENGINE.encode(creq_str);
+        println!("creq_base64 authn {}", creq_base64);
         Ok(types::ConnectorAuthenticationRouterData {
             response: Ok(types::ConnectorAuthenticationResponse {
                 trans_status: response.trans_status,
