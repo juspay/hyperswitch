@@ -892,4 +892,15 @@ mod hashset_deserialization_test {
         assert!(payment_methods.is_ok());
         assert_eq!(payment_methods.unwrap(), expected_payment_methods);
     }
+
+    #[test]
+    fn test_payment_method_hashset_deserializer_error() {
+        use diesel_models::enums::PaymentMethod;
+
+        let deserializer: StrDeserializer<'_, ValueError> =
+            "wallet, card, unknown".into_deserializer();
+        let payment_methods = deserialize_hashset::<'_, _, PaymentMethod>(deserializer);
+
+        assert!(payment_methods.is_err());
+    }
 }
