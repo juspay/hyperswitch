@@ -236,11 +236,11 @@ pub async fn update_mandate_procedure<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    let mandate_details = match resp.response.clone() {
+    let mandate_details = match &resp.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
             mandate_reference, ..
         }) => mandate_reference,
-        _ => None,
+        _ => &None,
     };
 
     let new_update_record = payments::UpdateHistory {
@@ -249,28 +249,26 @@ where
         original_payment_id: mandate.original_payment_id,
     };
 
-    let mandate_ref = mandate
-        .connector_mandate_ids
-        .map(|ids| {
-            Some(ids)
-                .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
-                .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
-        })
-        .transpose()?;
+    let mandate_ref = Some(
+        mandate
+            .connector_mandate_ids
+            .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
+            .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)?,
+    );
 
     let updated_mandate_ref = match mandate_ref {
-        Some(mut mr) => {
-            match mr.update_history {
+        Some(mut man_ref) => {
+            match man_ref.update_history {
                 Some(ref mut uh) => uh.push(new_update_record),
                 None => {
                     let v = vec![new_update_record];
-                    mr.update_history = Some(v)
+                    man_ref.update_history = Some(v)
                 }
             };
-            mr.connector_mandate_id = mandate_details
-                .clone()
-                .and_then(|mr| mr.connector_mandate_id);
-            mr
+            man_ref.connector_mandate_id = mandate_details
+                .as_ref()
+                .and_then(|mr| mr.connector_mandate_id.clone());
+            man_ref
         }
         None => payments::ConnectorMandateReferenceId {
             connector_mandate_id: None,
@@ -290,10 +288,13 @@ where
             merchant_id,
             &mandate.mandate_id,
             diesel_models::MandateUpdate::ConnectorMandateIdUpdate {
-                connector_mandate_id: mandate_details.and_then(|mr| mr.connector_mandate_id),
+                connector_mandate_id: mandate_details
+                    .as_ref()
+                    .and_then(|man_ref| man_ref.connector_mandate_id.clone()),
                 connector_mandate_ids: Some(connector_mandate_ids),
                 payment_method_id: pm_id
                     .unwrap_or("Error retrieving the payment_method_id".to_string()),
+                original_payment_id: Some(resp.payment_id.clone()),
             },
         )
         .await

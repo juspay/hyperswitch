@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
+use data_models::{
+    mandates::{MandateData, MandateDetails, MandateTypeDetails},
+    payments::payment_attempt::PaymentAttempt,
+};
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use masking::PeekInterface;
@@ -284,7 +287,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             api_models::payments::MandateIds {
                                 mandate_id: mandate_obj.mandate_id,
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
+                                api_models::payments::ConnectorMandateReferenceId{
+                                    connector_mandate_id: connector_id.connector_mandate_id,
+                                    payment_method_id: connector_id.payment_method_id,
+                                    update_history: None
+                                }
                                 ))
                             }
                          }),
@@ -697,6 +704,22 @@ impl PaymentCreate {
         let tax_amount = request
             .surcharge_details
             .and_then(|surcharge_details| surcharge_details.tax_amount);
+        let mandate_dets = if let Some(update_id) = request
+            .mandate_data
+            .as_ref()
+            .and_then(|inner| inner.update_mandate_id.clone())
+        {
+            let mandate_data = MandateDetails {
+                update_mandate_id: Some(update_id),
+            };
+            Some(MandateTypeDetails::MandateDetails(mandate_data))
+        } else {
+            request
+                .mandate_data
+                .as_ref()
+                .and_then(|inner| inner.mandate_type.clone().map(Into::into))
+                .map(MandateTypeDetails::MandateType)
+        };
 
         Ok((
             storage::PaymentAttemptNew {
@@ -724,10 +747,7 @@ impl PaymentCreate {
                 business_sub_label: request.business_sub_label.clone(),
                 surcharge_amount,
                 tax_amount,
-                mandate_details: request
-                    .mandate_data
-                    .as_ref()
-                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                mandate_details: mandate_dets,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,

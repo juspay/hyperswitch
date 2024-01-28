@@ -637,10 +637,8 @@ where
                                     data_models::mandates::MandateDataType::MultiUse(None) => {
                                         api::MandateType::MultiUse(None)
                                     }
-                                    data_models::mandates::MandateDataType::UpdateMandateId(
-                                        mandate_id,
-                                    ) => api::MandateType::UpdateMandateId(mandate_id),
                                 }),
+                                update_mandate_id: d.update_mandate_id,
                             }),
                             auth_flow == services::AuthFlow::Merchant,
                         )
@@ -1357,6 +1355,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,

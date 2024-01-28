@@ -2395,9 +2395,6 @@ pub fn generate_mandate(
                     }
                     .set_mandate_type(storage_enums::MandateType::MultiUse)
                     .to_owned(),
-                    data_models::mandates::MandateDataType::UpdateMandateId(_) => {
-                        Err(errors::ApiErrorResponse::MandateUpdateFailed)?
-                    }
                 },
             ))
         }

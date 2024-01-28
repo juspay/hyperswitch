@@ -156,8 +156,6 @@ impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDa
             api_models::payments::MandateType::MultiUse(inner) => {
                 Self::MultiUse(inner.map(ForeignInto::foreign_into))
             }
-
-            payments::MandateType::UpdateMandateId(inner) => Self::UpdateMandateId(inner),
         }
     }
 }
@@ -171,7 +169,6 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
             storage_enums::MandateDataType::MultiUse(inner) => {
                 Self::MultiUse(inner.map(ForeignInto::foreign_into))
             }
-            storage_enums::MandateDataType::UpdateMandateId(inner) => Self::UpdateMandateId(inner),
         }
     }
 }
@@ -325,10 +322,8 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                 api_models::payments::MandateType::MultiUse(None) => {
                     data_models::mandates::MandateDataType::MultiUse(None)
                 }
-                api_models::payments::MandateType::UpdateMandateId(mandate_id) => {
-                    data_models::mandates::MandateDataType::UpdateMandateId(mandate_id)
-                }
             }),
+            update_mandate_id: d.update_mandate_id,
         }
     }
 }

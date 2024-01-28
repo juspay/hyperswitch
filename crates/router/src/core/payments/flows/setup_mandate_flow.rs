@@ -87,26 +87,15 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         ))
         .await?;
 
-        if let Some(mandate_id) =
-            self.request
-                .setup_mandate_details
-                .as_ref()
-                .and_then(|mandate_data| {
-                    mandate_data
-                        .mandate_type
-                        .as_ref()
-                        .and_then(|mandate_data_type| match mandate_data_type {
-                            data_models::mandates::MandateDataType::SingleUse(_)
-                            | data_models::mandates::MandateDataType::MultiUse(_) => None,
-                            data_models::mandates::MandateDataType::UpdateMandateId(mandate_id) => {
-                                Some(mandate_id)
-                            }
-                        })
-                })
+        if let Some(mandate_id) = self
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
         {
             let mandate = state
                 .store
-                .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id)
+                .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 

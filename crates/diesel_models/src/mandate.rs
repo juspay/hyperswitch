@@ -79,6 +79,7 @@ pub enum MandateUpdate {
         connector_mandate_id: Option<String>,
         connector_mandate_ids: Option<pii::SecretSerdeValue>,
         payment_method_id: String,
+        original_payment_id: Option<String>,
     },
 }
 
@@ -96,6 +97,7 @@ pub struct MandateUpdateInternal {
     connector_mandate_ids: Option<pii::SecretSerdeValue>,
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
+    original_payment_id: Option<String>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
@@ -107,6 +109,7 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 amount_captured: None,
                 connector_mandate_id: None,
                 payment_method_id: None,
+                original_payment_id: None,
             },
             MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
                 mandate_status: None,
@@ -114,6 +117,7 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 connector_mandate_ids: None,
                 connector_mandate_id: None,
                 payment_method_id: None,
+                original_payment_id: None,
             },
             MandateUpdate::ConnectorReferenceUpdate {
                 connector_mandate_ids,
@@ -125,10 +129,12 @@ impl From<MandateUpdate> for MandateUpdateInternal {
                 connector_mandate_id,
                 connector_mandate_ids,
                 payment_method_id,
+                original_payment_id,
             } => Self {
                 connector_mandate_id,
                 connector_mandate_ids,
                 payment_method_id: Some(payment_method_id),
+                original_payment_id,
                 ..Default::default()
             },
         }

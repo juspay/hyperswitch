@@ -207,10 +207,12 @@ impl MandateInterface for MockDb {
                         connector_mandate_id,
                         connector_mandate_ids,
                         payment_method_id,
+                        original_payment_id,
                     } => {
                         mandate.connector_mandate_ids = connector_mandate_ids;
                         mandate.connector_mandate_id = connector_mandate_id;
-                        mandate.payment_method_id = payment_method_id
+                        mandate.payment_method_id = payment_method_id;
+                        mandate.original_payment_id = original_payment_id
                     }
                 }
                 Ok(mandate.clone())

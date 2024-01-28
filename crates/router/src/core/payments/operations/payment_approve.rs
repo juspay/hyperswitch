@@ -206,12 +206,26 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: payment_attempt
+        let setup_mandate = setup_mandate.and_then(|mandate_data| {
+            payment_attempt
                 .mandate_details
                 .clone()
-                .or(mandate_data.mandate_type),
+                .map(|mandate| match mandate {
+                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
+                        MandateData {
+                            customer_acceptance: mandate_data.customer_acceptance,
+                            mandate_type: Some(mandate_type),
+                            update_mandate_id: None,
+                        }
+                    }
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        MandateData {
+                            customer_acceptance: mandate_data.customer_acceptance,
+                            mandate_type: None,
+                            update_mandate_id: mandate_details.update_mandate_id,
+                        }
+                    }
+                })
         });
 
         let frm_response = db

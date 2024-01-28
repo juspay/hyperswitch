@@ -604,6 +604,8 @@ impl MandateIds {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
+    /// A way to update the mandate's payment method details
+    pub update_mandate_id: Option<String>,
     /// A concent from the customer to store the payment method
     pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
@@ -646,8 +648,6 @@ pub enum MandateType {
     SingleUse(MandateAmountData),
     /// If the mandate should be valid for multiple debits
     MultiUse(Option<MandateAmountData>),
-
-    UpdateMandateId(String),
 }
 
 impl Default for MandateType {

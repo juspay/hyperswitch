@@ -93,5 +93,4 @@ pub enum PaymentType {
 pub enum MandateType {
     SingleUse,
     MultiUse,
-    UpdateMandateId,
 }

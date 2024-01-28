@@ -129,9 +129,6 @@ where
                     data_models::mandates::MandateDataType::MultiUse(_) => {
                         euclid_enums::MandateType::MultiUse
                     }
-                    data_models::mandates::MandateDataType::UpdateMandateId(_) => {
-                        euclid_enums::MandateType::UpdateMandateId
-                    }
                 })
             }),
         payment_type: Some(payment_data.setup_mandate.clone().map_or_else(

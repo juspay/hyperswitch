@@ -1823,8 +1823,15 @@ pub async fn list_payment_methods(
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
-                |d| match d {
+            mandate_payment: payment_attempt
+                .and_then(|inner| inner.mandate_details)
+                .and_then(|man_type_details| match man_type_details {
+                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
+                        Some(mandate_type)
+                    }
+                    data_models::mandates::MandateTypeDetails::MandateDetails(_) => None,
+                })
+                .map(|d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -1846,11 +1853,7 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                    data_models::mandates::MandateDataType::UpdateMandateId(mandate_id) => {
-                        api::MandateType::UpdateMandateId(mandate_id)
-                    }
-                },
-            ),
+                }),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
