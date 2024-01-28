@@ -409,6 +409,7 @@ impl ParentPaymentMethodToken {
         ![
             IntentStatus::RequiresCustomerAction,
             IntentStatus::RequiresMerchantAction,
+            IntentStatus::Processing,
         ]
         .contains(&status)
     }

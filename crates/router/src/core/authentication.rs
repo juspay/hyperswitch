@@ -1,11 +1,15 @@
 pub mod post_authn;
 pub mod pre_authn;
+pub(crate) mod utils;
+
 pub mod transformers;
+pub mod types;
 
 use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
 
+use super::errors::ConnectorErrorExt;
 use crate::{
     core::{
         errors::ApiErrorResponse,
@@ -13,7 +17,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api},
+    types::{self as core_types, api},
 };
 
 pub async fn perform_authentication(
@@ -23,15 +27,16 @@ pub async fn perform_authentication(
     payment_method: common_enums::PaymentMethod,
     billing_address: api_models::payments::Address,
     shipping_address: api_models::payments::Address,
-    browser_details: types::BrowserInformation,
-    merchant_account: types::domain::MerchantAccount,
+    browser_details: core_types::BrowserInformation,
+    merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    acquirer_details: Option<types::api::authentication::AcquirerDetails>,
+    acquirer_details: Option<api::AcquirerDetails>,
     amount: Option<i64>,
     currency: Option<Currency>,
-    message_category: types::api::authentication::MessageCategory,
+    message_category: api::authentication::MessageCategory,
     device_channel: String,
-) -> CustomResult<types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
+    authentication_data: types::AuthenticationData,
+) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &authentication_provider,
@@ -41,8 +46,8 @@ pub async fn perform_authentication(
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Authentication,
-        types::ConnectorAuthenticationRequestData,
-        types::ConnectorAuthenticationResponse,
+        core_types::ConnectorAuthenticationRequestData,
+        core_types::ConnectorAuthenticationResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_authentication_router_data(
         authentication_provider.clone(),
@@ -58,6 +63,7 @@ pub async fn perform_authentication(
         device_channel,
         merchant_account,
         merchant_connector_account,
+        authentication_data,
     )?;
     let response = services::execute_connector_processing_step(
         &state,
@@ -67,10 +73,7 @@ pub async fn perform_authentication(
         None,
     )
     .await
-    .map_err(|err| {
-        println!("connector error_response {}", err);
-        ApiErrorResponse::InternalServerError
-    })?;
+    .to_payment_failed_response()?;
     let submit_evidence_response =
         response
             .response
@@ -81,7 +84,7 @@ pub async fn perform_authentication(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-    Ok(types::api::AuthenticationResponse {
+    Ok(core_types::api::AuthenticationResponse {
         trans_status: submit_evidence_response.trans_status,
         acs_url: submit_evidence_response.acs_url,
         challenge_request: submit_evidence_response.challenge_request,

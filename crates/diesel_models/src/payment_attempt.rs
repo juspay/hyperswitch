@@ -308,6 +308,7 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: i64,
     },
     AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
         external_3ds_authentication_requested: Option<bool>,
         authentication_provider: Option<String>,
         authentication_id: Option<String>,
@@ -763,11 +764,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
+                status,
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,
                 updated_by,
             } => Self {
+                status: Some(status),
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,

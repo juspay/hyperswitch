@@ -18,6 +18,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
+        authentication,
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
@@ -32,7 +33,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentIdTypeExt},
+        api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -372,6 +373,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .or(payment_attempt.payment_experience);
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
+        payment_attempt.external_3ds_authentication_requested =
+            request.request_separate_authentication;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
@@ -486,6 +489,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
+            authentication: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -602,6 +606,74 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await
+    }
+
+    async fn call_authentication_if_needed<'a>(
+        &'a self,
+        state: &AppState,
+        payment_data: &mut PaymentData<F>,
+        should_continue_confirm_transaction: &mut bool,
+        connector_call_type: &ConnectorCallType,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let is_pre_authn_call = payment_data.authentication.is_none();
+        let separate_authentication_requested = payment_data
+            .payment_attempt
+            .external_3ds_authentication_requested
+            .unwrap_or(false);
+        let connector_supports_separate_authn =
+            authentication::utils::is_separate_authn_supported(connector_call_type);
+        let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
+            if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+                Some(card.card_number.clone())
+            } else {
+                None
+            }
+        });
+        if is_pre_authn_call {
+            if separate_authentication_requested && connector_supports_separate_authn {
+                if let Some(card_number) = card_number {
+                    let profile_id = payment_data
+                        .payment_intent
+                        .profile_id
+                        .as_ref()
+                        .get_required_value("profile_id")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("'profile_id' not set in payment intent")?;
+                    let merchant_connector_account = state
+                        .store
+                        .find_merchant_connector_account_by_profile_id_connector_name(
+                            profile_id,
+                            "threedsecureio",
+                            key_store,
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: format!(
+                                    "profile id {profile_id} and connector name threedsecureio"
+                                ),
+                            },
+                        )?;
+                    authentication::pre_authn::execute_pre_auth_flow(
+                        state,
+                        authentication::types::AuthenthenticationFlowInput::PaymentAuthNFlow {
+                            payment_data,
+                            should_continue_confirm_transaction,
+                            card_number,
+                        },
+                        merchant_account,
+                        &merchant_connector_account,
+                    )
+                    .await?;
+                }
+            }
+            Ok(())
+        } else {
+            // call post authn service
+            Ok(())
+        }
     }
 }
 

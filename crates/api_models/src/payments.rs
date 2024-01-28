@@ -327,6 +327,10 @@ pub struct PaymentsRequest {
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
+
+    /// flag to request separate authentication
+    #[schema(example = true)]
+    pub request_separate_authentication: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -1882,13 +1886,17 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
-    RedirectToUrl { redirect_to_url: String },
+    RedirectToUrl {
+        redirect_to_url: String,
+    },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    ThirdPartySdkSessionToken {
+        session_token: Option<SessionToken>,
+    },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
@@ -1905,6 +1913,22 @@ pub enum NextActionData {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
     },
+    ThreeDsInvoke {
+        three_ds_data: ThreeDsData,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThreeDsData {
+    pub authentication_url: String,
+    pub three_ds_method_data: ThreeDsMethodData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThreeDsMethodData {
+    pub three_ds_method_data_submission: bool,
+    pub three_ds_method_data: String,
+    pub three_ds_method_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

@@ -22,6 +22,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignTryFrom,
         ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
@@ -543,6 +544,7 @@ impl api::IncomingWebhook for Threedsecureio {
     }
 }
 
+impl api::ConnectorPreAuthentication for Threedsecureio {}
 impl api::ExternalAuthentication for Threedsecureio {}
 impl api::ConnectorAuthentication for Threedsecureio {}
 
@@ -645,7 +647,7 @@ impl
         let creq_str = to_string(&creq)
             .ok()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq_base64 = BASE64_ENGINE.encode(creq_str);
+        let creq_base64 = BASE64_ENGINE.encode(creq_str).trim_end_matches('=').to_owned();
         println!("creq_base64 authn {}", creq_base64);
         Ok(types::ConnectorAuthenticationRouterData {
             response: Ok(types::ConnectorAuthenticationResponse {
@@ -653,6 +655,109 @@ impl
                 acs_url: Some(response.acs_url),
                 challenge_request: Some(creq_base64),
             }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for Threedsecureio
+{
+    fn get_headers(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/preauth", self.base_url(connectors),))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = threedsecureio::ThreedsecureioRouterData::try_from((0, req))?;
+        let req_obj = threedsecureio::ThreedsecureioPreAuthenticationRequest::try_from(
+            &connector_router_data,
+        )?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::ConnectorPreAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorPreAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorPreAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::PreAuthNRouterData,
+        res: Response,
+    ) -> CustomResult<types::authentication::PreAuthNRouterData, errors::ConnectorError> {
+        let response: threedsecureio::ThreedsecureioPreAuthenticationResponse = res
+            .response
+            .parse_struct("threedsecureio PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let creq = json!({
+            "threeDSServerTransID": response.threeds_server_trans_id,
+        });
+        //"threeDSMethodNotificationURL": 'https://webhook.site/e3e30c35-6fe6-455e-8c72-64d6075b164f'
+        let creq_str = to_string(&creq)
+            .ok()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let creq_base64 = BASE64_ENGINE.encode(creq_str);
+        Ok(types::authentication::PreAuthNRouterData {
+            response: Ok(
+                types::authentication::AuthenticationResponseData::PreAuthNResponse {
+                    threeds_server_transaction_id: response.threeds_server_trans_id.clone(),
+                    maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
+                        response.acs_end_protocol_version,
+                    )?,
+                    connector_authentication_id: response.threeds_server_trans_id,
+                    three_ds_method_data: creq_base64,
+                    three_ds_method_url: response.threeds_method_url,
+                },
+            ),
+            status: common_enums::AttemptStatus::AuthenticationPending,
             ..data.clone()
         })
     }

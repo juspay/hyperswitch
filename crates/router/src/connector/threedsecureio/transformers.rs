@@ -1,5 +1,5 @@
 use common_utils::date_time;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -12,6 +12,7 @@ use crate::{
         self,
         api::{self, MessageCategory},
         storage::enums,
+        transformers::ForeignTryFrom,
     },
 };
 
@@ -42,6 +43,17 @@ impl<T>
         Ok(Self {
             amount,
             router_data: item,
+        })
+    }
+}
+
+impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(router_data: (i64, T)) -> Result<Self, Self::Error> {
+        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+        Ok(Self {
+            amount: router_data.0,
+            router_data: router_data.1,
         })
     }
 }
@@ -307,12 +319,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             three_dsserver_trans_id: item
                 .router_data
                 .request
-                .billing_address
-                .address
-                .clone()
-                .and_then(|address| address.city)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .authentication_data
+                .threeds_server_transaction_id
+                .clone(),
             acct_number: "3000100811111072".to_string(),
             // card_details.card_number.clone(),
             notification_url: "https://webhook.site/8d03e3ea-a7d8-48f5-a200-476bca75a55c"
@@ -545,4 +554,97 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub purchase_exponent: String,
     pub purchase_date: String,
     pub trans_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreedsecureioPreAuthenticationRequest {
+    acct_number: String,
+    ds: Option<DirectoryServer>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DirectoryServer {
+    Standin,
+    Visa,
+    Mastercard,
+    Jcb,
+    Upi,
+    Amex,
+    Protectbuy,
+    Sbn,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreedsecureioPreAuthenticationResponse {
+    pub ds_start_protocol_version: String,
+    pub ds_end_protocol_version: String,
+    pub acs_start_protocol_version: String,
+    pub acs_end_protocol_version: String,
+    #[serde(rename = "threeDSMethodURL")]
+    pub threeds_method_url: Option<String>,
+    #[serde(rename = "threeDSServerTransID")]
+    pub threeds_server_trans_id: String,
+    pub scheme: String,
+    pub message_type: String,
+}
+
+impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterData>>
+    for ThreedsecureioPreAuthenticationRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        value: &ThreedsecureioRouterData<&types::authentication::PreAuthNRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = value.router_data;
+        Ok(Self {
+            acct_number: router_data
+                .request
+                .card_holder_account_number
+                .clone()
+                .get_card_no(),
+            ds: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<String> for (i64, i64, i64) {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let mut splitted_version = value.split('.');
+        let version_string = {
+            let major_version = splitted_version.next().ok_or(report!(
+                errors::ConnectorError::ResponseDeserializationFailed
+            ))?;
+            let minor_version = splitted_version.next().ok_or(report!(
+                errors::ConnectorError::ResponseDeserializationFailed
+            ))?;
+            let patch_version = splitted_version.next().ok_or(report!(
+                errors::ConnectorError::ResponseDeserializationFailed
+            ))?;
+            (major_version, minor_version, patch_version)
+        };
+        let int_representation = {
+            let major_version = version_string
+                .0
+                .parse()
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            let minor_version = version_string
+                .1
+                .parse()
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            let patch_version = version_string
+                .2
+                .parse()
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            (major_version, minor_version, patch_version)
+        };
+        Ok(int_representation)
+    }
 }

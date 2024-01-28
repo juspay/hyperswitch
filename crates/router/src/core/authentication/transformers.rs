@@ -34,6 +34,7 @@ pub fn construct_authentication_router_data(
     device_channel: String,
     merchant_account: domain::MerchantAccount,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
+    authentication_data: super::types::AuthenticationData,
 ) -> RouterResult<types::ConnectorAuthenticationRouterData> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -66,6 +67,7 @@ pub fn construct_authentication_router_data(
             currency,
             message_category,
             device_channel,
+            authentication_data,
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,

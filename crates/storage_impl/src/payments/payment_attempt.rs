@@ -1533,11 +1533,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
             },
             Self::AuthenticationUpdate {
+                status,
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationUpdate {
+                status,
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,
@@ -1812,11 +1814,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
             },
             DieselPaymentAttemptUpdate::AuthenticationUpdate {
+                status,
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,
                 updated_by,
             } => Self::AuthenticationUpdate {
+                status,
                 external_3ds_authentication_requested,
                 authentication_provider,
                 authentication_id,

@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -30,7 +31,7 @@ use masking::Secret;
 use serde::Serialize;
 
 use self::{
-    api::{authentication, payments},
+    api::{authentication as api_authentication, payments},
     storage::enums as storage_enums,
 };
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -236,6 +237,12 @@ pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
     api::Authentication,
     ConnectorAuthenticationRequestData,
     ConnectorAuthenticationResponse,
+>;
+
+pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
+    api::PreAuthentication,
+    authentication::PreAuthNRequestData,
+    authentication::AuthenticationResponseData,
 >;
 
 pub type SetupMandateRouterData =
@@ -1046,11 +1053,12 @@ pub struct ConnectorAuthenticationRequestData {
     pub billing_address: api_models::payments::Address,
     pub shipping_address: api_models::payments::Address,
     pub browser_details: BrowserInformation,
-    pub acquirer_details: Option<authentication::AcquirerDetails>,
+    pub acquirer_details: Option<api_authentication::AcquirerDetails>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,
-    pub message_category: authentication::MessageCategory,
+    pub message_category: api_authentication::MessageCategory,
     pub device_channel: String,
+    pub authentication_data: crate::core::authentication::types::AuthenticationData,
 }
 
 #[derive(Clone, Debug)]

@@ -87,3 +87,5 @@ pub const MAX_SESSION_EXPIRY: u32 = 7890000;
 pub const MIN_SESSION_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+
+pub const AUTHENTICATION_ID_PREFIX: &str = "authn";

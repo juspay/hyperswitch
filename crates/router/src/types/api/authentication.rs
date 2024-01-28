@@ -1,3 +1,11 @@
+#[derive(Debug, Clone)]
+pub struct PreAuthentication;
+
+#[derive(Debug, Clone)]
+pub struct Authentication;
+
+#[derive(Debug, Clone)]
+pub struct PostAuthentication;
 use crate::{services, types};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -19,9 +27,6 @@ pub enum MessageCategory {
     NonPayment,
 }
 
-#[derive(Debug, Clone)]
-pub struct Authentication;
-
 pub trait ConnectorAuthentication:
     services::ConnectorIntegration<
     Authentication,
@@ -31,4 +36,16 @@ pub trait ConnectorAuthentication:
 {
 }
 
-pub trait ExternalAuthentication: super::ConnectorCommon + ConnectorAuthentication {}
+pub trait ConnectorPreAuthentication:
+    services::ConnectorIntegration<
+    PreAuthentication,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+>
+{
+}
+
+pub trait ExternalAuthentication:
+    super::ConnectorCommon + ConnectorAuthentication + ConnectorPreAuthentication
+{
+}

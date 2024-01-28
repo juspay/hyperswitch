@@ -2305,11 +2305,19 @@ macro_rules! default_imp_for_connector_authentication {
     ($($path:ident::$connector:ident),*) => {
         $( impl api::ExternalAuthentication for $path::$connector {}
             impl api::ConnectorAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthentication for $path::$connector {}
             impl
             services::ConnectorIntegration<
             api::Authentication,
             types::ConnectorAuthenticationRequestData,
             types::ConnectorAuthenticationResponse,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthentication,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
         > for $path::$connector
         {}
     )*
@@ -2319,13 +2327,24 @@ macro_rules! default_imp_for_connector_authentication {
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ExternalAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
+
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Authentication,
         types::ConnectorAuthenticationRequestData,
         types::ConnectorAuthenticationResponse,
+    > for connector::DummyConnector<T>
+{
+}
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
     > for connector::DummyConnector<T>
 {
 }

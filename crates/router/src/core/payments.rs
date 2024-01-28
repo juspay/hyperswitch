@@ -44,7 +44,10 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs};
+use super::{
+    authentication::types::AuthenticationData, errors::StorageErrorExt,
+    payment_methods::surcharge_decision_configs,
+};
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
@@ -165,7 +168,10 @@ where
     .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
-
+    let separate_authentication = payment_data
+        .payment_attempt
+        .external_3ds_authentication_requested
+        .clone();
     payment_data = tokenize_in_router_when_confirm_false(
         state,
         &operation,
@@ -173,6 +179,7 @@ where
         &validate_result,
         &key_store,
         &customer,
+        separate_authentication,
     )
     .await?;
 
@@ -213,6 +220,18 @@ where
             should_continue_transaction,
             should_continue_capture,
         );
+
+        operation
+            .to_domain()?
+            .call_authentication_if_needed(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &merchant_account,
+                &key_store,
+            )
+            .await?;
 
         if should_continue_transaction {
             #[cfg(feature = "frm")]
@@ -919,6 +938,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
+                        api_models::payments::NextActionData::ThreeDsInvoke { .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -1811,7 +1831,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
@@ -1952,13 +1972,15 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    separate_authentication: Option<bool>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
-    let payment_data = if !is_operation_confirm(operation) {
+    let payment_data = if !is_operation_confirm(operation) || separate_authentication == Some(true)
+    {
         let (_operation, payment_method_data) = operation
             .to_domain()?
             .make_pm_data(
@@ -2037,6 +2059,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    pub authentication: Option<(storage::Authentication, AuthenticationData)>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 
@@ -3055,6 +3078,20 @@ pub async fn payment_external_authentication(
             id: format!("profile id {profile_id} and connector name threedsecureio"),
         })?;
 
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id.to_string(),
+            payment_attempt
+                .authentication_id
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let authentication_data: AuthenticationData = authentication
+        .authentication_data
+        .parse_value("authentication data")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token {
         let redis_conn = state
             .store
@@ -3197,6 +3234,7 @@ pub async fn payment_external_authentication(
         Some(currency),
         authentication::MessageCategory::Payment,
         "02".to_string(),
+        authentication_data,
     )
     .await?;
     Ok(services::ApplicationResponse::Json(
