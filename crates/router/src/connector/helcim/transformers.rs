@@ -756,6 +756,13 @@ pub enum HelcimErrorTypes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct HelcimErrorResponse {
+pub struct HelcimPaymentsErrorResponse {
     pub errors: HelcimErrorTypes,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum HelcimErrorResponse {
+    Payment(HelcimPaymentsErrorResponse),
+    General(String),
 }
