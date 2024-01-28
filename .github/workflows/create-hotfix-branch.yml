@@ -25,7 +25,7 @@ jobs:
       - name: Check if the input is valid tag
         shell: bash
         run: |
-          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}.[0-9]+$ ]]; then
+          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
             echo "::notice::${{github.ref}} is a CalVer tag."
           else
             echo "::error::${{github.ref}} is not a CalVer tag."
