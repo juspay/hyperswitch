@@ -7,7 +7,7 @@ use crate::{
     core::{api_locking, user_role as user_role_core},
     services::{
         api,
-        authentication::{self as auth},
+        authentication::{self as auth, UserFromToken},
         authorization::permissions::Permission,
     },
 };
@@ -64,6 +64,20 @@ pub async fn get_role(
     .await
 }
 
+pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetRoleFromToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user: UserFromToken, _| user_role_core::get_role_from_token(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn update_user_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -77,6 +91,43 @@ pub async fn update_user_role(
         &req,
         payload,
         user_role_core::update_user_role,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn accept_invitation(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitation;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        user_role_core::accept_invitation,
+        &auth::UserWithoutMerchantJWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn delete_user_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_role_api::DeleteUserRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_role_core::delete_user_role,
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))

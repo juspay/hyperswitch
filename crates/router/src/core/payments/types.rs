@@ -3,6 +3,7 @@ use std::{collections::HashMap, num::TryFromIntError};
 use api_models::{payment_methods::SurchargeDetailsResponse, payments::RequestSurchargeDetails};
 use common_utils::{consts, errors::CustomResult, ext_traits::Encode, types as common_types};
 use data_models::payments::payment_attempt::PaymentAttempt;
+use diesel_models::business_profile::BusinessProfile;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
@@ -12,7 +13,6 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -322,7 +322,7 @@ impl SurchargeMetadata {
     pub async fn persist_individual_surcharge_details_in_redis(
         &self,
         state: &AppState,
-        merchant_account: &domain::MerchantAccount,
+        business_profile: &BusinessProfile,
     ) -> RouterResult<()> {
         if !self.is_empty_result() {
             let redis_conn = state
@@ -341,7 +341,7 @@ impl SurchargeMetadata {
                         .attach_printable("Failed to encode to string of json")?,
                 ));
             }
-            let intent_fulfillment_time = merchant_account
+            let intent_fulfillment_time = business_profile
                 .intent_fulfillment_time
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn

@@ -31,10 +31,10 @@ jobs:
       - name: Check if the input is valid hotfix branch
         shell: bash
         run: |
-          if [[ ${{github.ref}} =~ ^refs/heads/hotfix-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::notice::${{github.ref}} is a valid branch."
+          if [[ ${{github.ref}} =~ ^refs/heads/hotfix-[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
+            echo "::notice::${{github.ref}} is a valid hotfix branch."
           else
-            echo "::error::${{github.ref}} is not a valid branch."
+            echo "::error::${{github.ref}} is not a valid hotfix branch."
             exit 1
           fi
 
@@ -56,11 +56,11 @@ jobs:
             local previous_hotfix_number
             local next_tag
             
-            previous_hotfix_number="$(echo "${previous_tag}" | awk -F. '{ print $4 }')"
+            previous_hotfix_number="$(echo "${previous_tag}" | awk -F. '{ print $4 }' | sed -E 's/([0-9]+)(-hotfix([0-9]+))?/\3/')"
 
             if [[ -z "${previous_hotfix_number}" ]]; then
               # Previous tag was not a hotfix tag
-              next_tag="${previous_tag}+hotfix.1"
+              next_tag="${previous_tag}-hotfix1"
             else
               # Previous tag was a hotfix tag, increment hotfix number
               local hotfix_number=$((previous_hotfix_number + 1))
@@ -70,7 +70,13 @@ jobs:
             echo "${next_tag}"
           }
 
-          PREVIOUS_TAG="$(git tag --merged | sort --version-sort | tail --lines 1)"
+          # Search for date-like tags (no strict checking), sort and obtain previous tag
+          PREVIOUS_TAG="$(
+              git tag --merged \
+                | grep --extended-regexp '[0-9]{4}\.[0-9]{2}\.[0-9]{2}' \
+                | sort --version-sort \
+                | tail --lines 1
+            )"
           NEXT_TAG="$(get_next_tag "${PREVIOUS_TAG}")"
 
           echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> $GITHUB_ENV

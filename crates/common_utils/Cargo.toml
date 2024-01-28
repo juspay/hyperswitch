@@ -37,7 +37,7 @@ signal-hook = { version = "0.3.15", optional = true }
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"], optional = true }
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"], optional = true }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }

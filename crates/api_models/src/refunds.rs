@@ -127,7 +127,10 @@ pub struct RefundResponse {
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe")]
     pub connector: String,
+    /// The id of business profile for this refund
     pub profile_id: Option<String>,
+    /// The merchant_connector_id of the processor through which this payment went through
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

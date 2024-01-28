@@ -126,7 +126,8 @@ impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyReque
     fn try_from(value: (&types::SetupMandateRouterData, &api::Card)) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
-            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_expiry: req_card
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
@@ -196,7 +197,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
-            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_expiry: req_card
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
@@ -754,6 +756,13 @@ pub enum HelcimErrorTypes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct HelcimErrorResponse {
+pub struct HelcimPaymentsErrorResponse {
     pub errors: HelcimErrorTypes,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum HelcimErrorResponse {
+    Payment(HelcimPaymentsErrorResponse),
+    General(String),
 }
