@@ -11,6 +11,8 @@ use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -88,6 +90,8 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
     #[cfg(feature = "aws_s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
