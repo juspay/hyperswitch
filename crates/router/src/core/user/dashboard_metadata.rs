@@ -458,7 +458,7 @@ async fn insert_metadata(
 
                 let email_contents = email_types::BizEmailProd {
                     recipient_email: domain::UserEmail::new(Secret::new(
-                        "biz@hyperswitch.io".to_string(),
+                        "mani.dchandra+1@juspay.in".to_string(),
                     ))?,
                     settings: state.conf.clone(),
                     subject: "Bizz Email",
@@ -479,6 +479,8 @@ async fn insert_metadata(
                         data.business_website.clone().unwrap_or(String::from("")),
                     ),
                 };
+
+                println!("email_contents: {:#?}", email_contents);
 
                 let send_email_result = state
                     .email_client

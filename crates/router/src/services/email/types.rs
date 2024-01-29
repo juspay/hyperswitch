@@ -85,7 +85,7 @@ pub mod html {
                 business_location,
                 business_website,
             } => {
-                format!(
+                let x = format!(
                     include_str!("assets/bizemailprod.html"),
                     link = link,
                     poc_email = poc_email,
@@ -93,7 +93,9 @@ pub mod html {
                     business_location = business_location,
                     business_website = business_website,
                     username = user_name,
-                )
+                );
+                println!("x: {}", x);
+                x
             }
             EmailBody::ProFeatureRequest {
                 feature_name,
@@ -284,9 +286,13 @@ impl EmailData for BizEmailProd {
         let invite_user_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
-        let body = html::get_html_body(EmailBody::MagicLink {
+        let body = html::get_html_body(EmailBody::BizEmailProd {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
+            poc_email: self.poc_email.clone().get_secret().expose(),
+            legal_business_name: self.legal_business_name.clone(),
+            business_location: self.business_location.clone(),
+            business_website: self.business_website.clone(),
         });
 
         Ok(EmailContents {
@@ -297,6 +303,7 @@ impl EmailData for BizEmailProd {
     }
 }
 
+#[derive(Debug)]
 pub struct BizEmailProd {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
