@@ -54,9 +54,18 @@ impl UserRole {
         .await
     }
 
-    pub async fn delete_by_user_id(conn: &PgPooledConn, user_id: String) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::user_id.eq(user_id))
-            .await
+    pub async fn delete_by_user_id_merchant_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        merchant_id: String,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::user_id
+                .eq(user_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+        )
+        .await
     }
 
     pub async fn list_by_user_id(conn: &PgPooledConn, user_id: String) -> StorageResult<Vec<Self>> {
