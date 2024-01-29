@@ -610,23 +610,23 @@ pub async fn send_request(
 
     // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
-            cloned_request
-                .send()
-                .await
-                .map_err(|error| match error {
-                    error if error.is_timeout() => {
-                        metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                        errors::ApiClientError::RequestTimeoutReceived
-                    }
-                    error if is_connection_closed(&error) => {
-                        metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                        errors::ApiClientError::ConnectionClosed
-                    }
-                    _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-                })
-                .into_report()
-                .attach_printable("Unable to send request to connector")
-        });
+        cloned_request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosed
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+    });
 
     let send_request = async {
         request
