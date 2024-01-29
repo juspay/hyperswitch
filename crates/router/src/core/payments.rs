@@ -3103,8 +3103,7 @@ pub async fn payment_external_authentication(
             token,
             payment_attempt
                 .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
+                .unwrap_or(storage_enums::PaymentMethod::Card),
         );
         let token_data_string = redis_conn
             .get_key::<Option<String>>(&key)
@@ -3214,7 +3213,7 @@ pub async fn payment_external_authentication(
             .0,
         payment_attempt
             .payment_method
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            .unwrap_or(storage_enums::PaymentMethod::Card),
         billing_address
             .as_ref()
             .map(|a| a.into())

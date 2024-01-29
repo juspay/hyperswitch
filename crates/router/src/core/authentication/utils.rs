@@ -172,6 +172,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_authentication_id,
                 three_ds_method_data,
                 three_ds_method_url,
+                message_version,
             } => {
                 authentication_data.maximum_supported_version = maximum_supported_3ds_version;
                 authentication_data.threeds_server_transaction_id = threeds_server_transaction_id;
@@ -182,6 +183,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .three_ds_method_data
                     .three_ds_method_data_submission = three_ds_method_url.is_some();
                 authentication_data.three_ds_method_data.three_ds_method_url = three_ds_method_url;
+                authentication_data.message_version = message_version;
 
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(

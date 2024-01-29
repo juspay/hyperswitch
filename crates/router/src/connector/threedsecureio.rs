@@ -647,13 +647,20 @@ impl
         let creq_str = to_string(&creq)
             .ok()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq_base64 = BASE64_ENGINE.encode(creq_str).trim_end_matches('=').to_owned();
+        let creq_base64 = BASE64_ENGINE
+            .encode(creq_str)
+            .trim_end_matches('=')
+            .to_owned();
         println!("creq_base64 authn {}", creq_base64);
         Ok(types::ConnectorAuthenticationRouterData {
             response: Ok(types::ConnectorAuthenticationResponse {
-                trans_status: response.trans_status,
-                acs_url: Some(response.acs_url),
-                challenge_request: Some(creq_base64),
+                trans_status: response.trans_status.clone(),
+                acs_url: response.acs_url,
+                challenge_request: if response.trans_status != "Y" {
+                    Some(creq_base64)
+                } else {
+                    None
+                },
             }),
             ..data.clone()
         })
@@ -750,11 +757,12 @@ impl
                 types::authentication::AuthenticationResponseData::PreAuthNResponse {
                     threeds_server_transaction_id: response.threeds_server_trans_id.clone(),
                     maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
-                        response.acs_end_protocol_version,
+                        response.acs_end_protocol_version.clone(),
                     )?,
                     connector_authentication_id: response.threeds_server_trans_id,
                     three_ds_method_data: creq_base64,
                     three_ds_method_url: response.threeds_method_url,
+                    message_version: response.acs_end_protocol_version.clone(),
                 },
             ),
             status: common_enums::AttemptStatus::AuthenticationPending,

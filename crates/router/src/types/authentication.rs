@@ -11,6 +11,7 @@ pub enum AuthenticationResponseData {
         connector_authentication_id: String,
         three_ds_method_data: String,
         three_ds_method_url: Option<String>,
+        message_version: String,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,

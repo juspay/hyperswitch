@@ -312,18 +312,37 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Error parsing billing country type2")?;
         Ok(Self {
-            ds_start_protocol_version: "2.1.0".to_string(),
-            ds_end_protocol_version: "2.1.0".to_string(),
-            acs_start_protocol_version: "2.1.0".to_string(),
-            acs_end_protocol_version: "2.1.0".to_string(),
+            ds_start_protocol_version: item
+                .router_data
+                .request
+                .authentication_data
+                .message_version
+                .clone(),
+            ds_end_protocol_version: item
+                .router_data
+                .request
+                .authentication_data
+                .message_version
+                .clone(),
+            acs_start_protocol_version: item
+                .router_data
+                .request
+                .authentication_data
+                .message_version
+                .clone(),
+            acs_end_protocol_version: item
+                .router_data
+                .request
+                .authentication_data
+                .message_version
+                .clone(),
             three_dsserver_trans_id: item
                 .router_data
                 .request
                 .authentication_data
                 .threeds_server_transaction_id
                 .clone(),
-            acct_number: "3000100811111072".to_string(),
-            // card_details.card_number.clone(),
+            acct_number: card_details.card_number.clone(),
             notification_url: "https://webhook.site/8d03e3ea-a7d8-48f5-a200-476bca75a55c"
                 .to_string(),
             three_dscomp_ind: "Y".to_string(),
@@ -455,7 +474,12 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             merchant_country_code: "840".to_string(),
             merchant_name: "Dummy Merchant".to_string(),
             message_type: "AReq".to_string(),
-            message_version: "2.1.0".to_string(),
+            message_version: item
+                .router_data
+                .request
+                .authentication_data
+                .message_version
+                .clone(),
             purchase_amount: item.amount.to_string(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),       //TODO
@@ -483,7 +507,7 @@ pub struct ThreedsecureioErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioAuthenticationResponse {
     #[serde(rename = "acsChallengeMandated")]
-    pub acs_challenge_mandated: String,
+    pub acs_challenge_mandated: Option<String>,
     #[serde(rename = "acsOperatorID")]
     pub acs_operator_id: String,
     #[serde(rename = "acsReferenceNumber")]
@@ -491,15 +515,15 @@ pub struct ThreedsecureioAuthenticationResponse {
     #[serde(rename = "acsTransID")]
     pub acs_trans_id: String,
     #[serde(rename = "acsURL")]
-    pub acs_url: url::Url,
+    pub acs_url: Option<url::Url>,
     #[serde(rename = "authenticationType")]
-    pub authentication_type: String,
+    pub authentication_type: Option<String>,
     #[serde(rename = "dsReferenceNumber")]
     pub ds_reference_number: String,
     #[serde(rename = "dsTransID")]
     pub ds_trans_id: String,
     #[serde(rename = "messageType")]
-    pub message_type: String,
+    pub message_type: Option<String>,
     #[serde(rename = "messageVersion")]
     pub message_version: String,
     #[serde(rename = "threeDSServerTransID")]
@@ -516,8 +540,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub acs_start_protocol_version: String,
     pub acs_end_protocol_version: String,
     pub three_dsserver_trans_id: String,
-    // pub acct_number: cards::CardNumber,
-    pub acct_number: String,
+    pub acct_number: cards::CardNumber,
     pub notification_url: String,
     pub three_dscomp_ind: String,
     pub three_dsrequestor_url: String,

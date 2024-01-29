@@ -112,6 +112,7 @@ async fn do_pre_auth_connector_call(
         connector_authentication_id: "".into(),
         three_ds_method_data: "".into(),
         three_ds_method_url: None,
+        message_version: "".into(),
     };
 
     let router_data = utils::construct_router_data(

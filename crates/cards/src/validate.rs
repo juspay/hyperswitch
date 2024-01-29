@@ -51,13 +51,13 @@ impl FromStr for CardNumber {
     type Err = CCValError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match luhn::valid(s) {
-            true => {
-                let cc_no_whitespace: String = s.split_whitespace().collect();
-                Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
-            }
-            false => Err(CCValError),
-        }
+        let cc_no_whitespace: String = s.split_whitespace().collect();
+        Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
+        // match luhn::valid(s) {
+        //     true => {
+        //     }
+        //     false => Err(CCValError),
+        // }
     }
 }
 
