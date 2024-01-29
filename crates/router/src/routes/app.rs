@@ -458,7 +458,7 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::get().to(cloud_routing::list_routing_configs))
                     .route(web::post().to(cloud_routing::routing_create_config)),
             )
             .service(
