@@ -124,6 +124,7 @@ storage_impl = { version = "0.1.0", path = "../storage_impl", default-features =
 erased-serde = "0.3.31"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rdkafka = "0.36.0"
+actix-http = "3.3.1"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
