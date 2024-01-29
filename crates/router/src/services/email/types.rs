@@ -83,7 +83,7 @@ pub mod html {
                 business_location,
                 business_website,
             } => {
-                let x = format!(
+                format!(
                     include_str!("assets/bizemailprod.html"),
                     poc_email = poc_email,
                     legal_business_name = legal_business_name,
@@ -91,8 +91,6 @@ pub mod html {
                     business_website = business_website,
                     username = user_name,
                 );
-                println!("x: {}", x);
-                x
             }
             EmailBody::ProFeatureRequest {
                 feature_name,
@@ -292,7 +290,6 @@ impl EmailData for BizEmailProd {
     }
 }
 
-#[derive(Debug)]
 pub struct BizEmailProd {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,

@@ -35,7 +35,7 @@ use crate::{
 
 pub mod dashboard_metadata;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UserName(Secret<String>);
 
 impl UserName {
