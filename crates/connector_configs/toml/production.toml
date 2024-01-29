@@ -1077,8 +1077,42 @@ merchant_capabilities=["supports3DS"]
 label="apple"
 
 [nmi]
-[[nmi.bank_redirect]]
-  payment_method_type = "ideal"
+[[nmi.credit]]
+  payment_method_type = "Mastercard"
+[[nmi.credit]]
+  payment_method_type = "Visa"
+[[nmi.credit]]
+  payment_method_type = "Interac"
+[[nmi.credit]]
+  payment_method_type = "AmericanExpress"
+[[nmi.credit]]
+  payment_method_type = "JCB"
+[[nmi.credit]]
+  payment_method_type = "DinersClub"
+[[nmi.credit]]
+  payment_method_type = "Discover"
+[[nmi.credit]]
+  payment_method_type = "CartesBancaires"
+[[nmi.credit]]
+  payment_method_type = "UnionPay"
+[[nmi.debit]]
+  payment_method_type = "Mastercard"
+[[nmi.debit]]
+  payment_method_type = "Visa"
+[[nmi.debit]]
+  payment_method_type = "Interac"
+[[nmi.debit]]
+  payment_method_type = "AmericanExpress"
+[[nmi.debit]]
+  payment_method_type = "JCB"
+[[nmi.debit]]
+  payment_method_type = "DinersClub"
+[[nmi.debit]]
+  payment_method_type = "Discover"
+[[nmi.debit]]
+  payment_method_type = "CartesBancaires"
+[[nmi.debit]]
+  payment_method_type = "UnionPay"
 [nmi.connector_auth.BodyKey]
 api_key="API Key"
 key1="Public Key"
