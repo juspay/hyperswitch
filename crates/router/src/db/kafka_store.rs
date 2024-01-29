@@ -474,11 +474,11 @@ impl EventInterface for KafkaStore {
         self.diesel_store.update_event(event_id, event).await
     }
 
-    async fn find_event(
+    async fn find_event_by_event_id(
         &self,
         event_id: String,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        self.diesel_store.find_event(event_id).await
+        self.diesel_store.find_event_by_event_id(event_id).await
     }
 }
 

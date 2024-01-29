@@ -18,7 +18,7 @@ pub trait EventInterface {
         event_id: String,
         event: storage::EventUpdate,
     ) -> CustomResult<storage::Event, errors::StorageError>;
-    async fn find_event(
+    async fn find_event_by_event_id(
         &self,
         event_id: String,
     ) -> CustomResult<storage::Event, errors::StorageError>;
@@ -45,7 +45,7 @@ impl EventInterface for Store {
             .into_report()
     }
 
-    async fn find_event(
+    async fn find_event_by_event_id(
         &self,
         event_id: String,
     ) -> CustomResult<storage::Event, errors::StorageError> {
@@ -110,7 +110,7 @@ impl EventInterface for MockDb {
         Ok(event_to_update.clone())
     }
 
-    async fn find_event(
+    async fn find_event_by_event_id(
         &self,
         event_id: String,
     ) -> CustomResult<storage::Event, errors::StorageError> {

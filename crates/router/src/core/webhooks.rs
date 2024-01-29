@@ -712,7 +712,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     let event_id = format!("{primary_object_id}_{}", event_type);
 
     // Check if a webhook was already tried for this event
-    let event = match state.store.find_event(event_id.clone()).await {
+    let event = match state.store.find_event_by_event_id(event_id.clone()).await {
         Ok(previous_event) => {
             if previous_event.is_webhook_notified {
                 logger::info!("Merchant already notified about the event {event_id}");
