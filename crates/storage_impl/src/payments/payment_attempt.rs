@@ -1310,6 +1310,21 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_type,
                 updated_by,
             },
+            Self::BlocklistUpdate {
+                status,
+                connector,
+                error_code,
+                error_message,
+                updated_by,
+                merchant_connector_id,
+            } => DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                connector: connector.unwrap_or(None),
+                error_code,
+                error_message,
+                updated_by,
+                merchant_connector_id: merchant_connector_id.unwrap_or(None),
+            },
             Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1629,6 +1644,21 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 cancellation_reason,
                 updated_by,
+            },
+            DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+                connector,
+                merchant_connector_id,
+            } => Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+                connector: Some(connector),
+                merchant_connector_id: Some(merchant_connector_id),
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,

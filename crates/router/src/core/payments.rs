@@ -406,19 +406,10 @@ where
             }
 
             // Validating the blocklist
-            if operation
+            operation
                 .to_domain()?
                 .guard_payment_against_blocklist(state, &merchant_account, &mut payment_data)
-                .await?
-            {
-                return Ok((
-                    payment_data,
-                    req,
-                    customer,
-                    connector_http_status_code,
-                    external_latency,
-                ));
-            }
+                .await?;
         } else {
             (_, payment_data) = operation
                 .to_update_tracker()?

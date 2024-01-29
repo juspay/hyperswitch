@@ -476,11 +476,11 @@ where
 
     let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
 
-    let mut db_operations_sucessfull = false;
+    let mut db_operations_successful = false;
     for lookup in blocklist_lookups {
         match lookup {
             Ok(_) => {
-                db_operations_sucessfull = true;
+                db_operations_successful = true;
             }
             Err(e) => {
                 logger::error!(blocklist_db_error=?e, "failed db operations for blocklist");
@@ -488,7 +488,7 @@ where
         }
     }
 
-    if db_operations_sucessfull {
+    if db_operations_successful {
         // Update db for attempt and intent status.
         db.update_payment_intent(
             payment_data.payment_intent.clone(),
@@ -505,20 +505,28 @@ where
             "Failed to update status in Payment Intent to failed due to it being blocklisted",
         )?;
 
-        db
-            .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.clone(),
-                    storage::PaymentAttemptUpdate::RejectUpdate {
-                        status: common_enums::AttemptStatus::Failure,
-                        error_code: Some(Some("HE-03".to_string())),
-                        error_message: Some(Some("Failed to update status in Payment Attempt to failed due to it being blocklisted".to_string())),
-                        updated_by: merchant_account.storage_scheme.to_string(), // merchant_decision: Some(MerchantDecision::AutoRefunded),
-                    },
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                .attach_printable("Failed to update status in Payment Attempt to failed due to it being blocklisted")?;
+        // If payment is blocked not showing connector details
+        let attempt_update = storage::PaymentAttemptUpdate::BlocklistUpdate {
+            status: common_enums::AttemptStatus::Failure,
+            error_code: Some(Some("HE-03".to_string())),
+            error_message: Some(Some(
+                "Failed to update status in Payment Attempt to failed, due to it being blocklisted"
+                    .to_string(),
+            )),
+            updated_by: merchant_account.storage_scheme.to_string(),
+            connector: Some(None),
+            merchant_connector_id: Some(None),
+        };
+        db.update_payment_attempt_with_attempt_id(
+            payment_data.payment_attempt.clone(),
+            attempt_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Failed to update status in Payment Attempt to failed, due to it being blocklisted",
+        )?;
 
         return Err(errors::ApiErrorResponse::PaymentBlockedError {
             code: 200,
