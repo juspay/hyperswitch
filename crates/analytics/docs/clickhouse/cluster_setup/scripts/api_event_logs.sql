@@ -18,7 +18,8 @@ CREATE TABLE hyperswitch.api_events_queue on cluster '{cluster}' (
     `created_at` DateTime CODEC(T64, LZ4),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String)
+    `ip_addr` Nullable(String),
+    `dispute_id` Nullable(String)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'hyper-c1-kafka-brokers.kafka-cluster.svc.cluster.local:9092',
 kafka_topic_list = 'hyperswitch-api-log-events',
 kafka_group_name = 'hyper-c1',
@@ -81,7 +82,8 @@ CREATE TABLE hyperswitch.api_events_dist on cluster '{cluster}' (
     `created_at` DateTime64(3),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String)
+    `ip_addr` Nullable(String),
+    `dispute_id` Nullable(String)
 ) ENGINE = Distributed('{cluster}', 'hyperswitch', 'api_events_clustered', rand());
 
 CREATE MATERIALIZED VIEW hyperswitch.api_events_mv on cluster '{cluster}' TO hyperswitch.api_events_dist (
@@ -105,7 +107,8 @@ CREATE MATERIALIZED VIEW hyperswitch.api_events_mv on cluster '{cluster}' TO hyp
     `created_at` DateTime64(3),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String)
+    `ip_addr` Nullable(String),
+    `dispute_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -158,7 +161,7 @@ WHERE length(_error) > 0
 
 ALTER TABLE hyperswitch.api_events_clustered on cluster '{cluster}' ADD COLUMN `url_path` LowCardinality(Nullable(String));
 ALTER TABLE hyperswitch.api_events_clustered on cluster '{cluster}' ADD COLUMN `event_type` LowCardinality(Nullable(String));
-
+ALTER TABLE hyperswitch.api_events_clustered on cluster '{cluster}' ADD COLUMN `dispute_id` Nullable(String);
 
 CREATE TABLE hyperswitch.api_audit_log ON CLUSTER '{cluster}' (
     `merchant_id` LowCardinality(String),
@@ -209,7 +212,8 @@ CREATE MATERIALIZED VIEW hyperswitch.api_audit_log_mv ON CLUSTER `{cluster}` TO 
     `created_at` DateTime64(3),
     `latency` Nullable(UInt128),
     `user_agent` Nullable(String),
-    `ip_addr` Nullable(String)
+    `ip_addr` Nullable(String),
+    `dispute_id` Nullable(String)
 ) AS 
 SELECT 
     merchant_id,
@@ -232,6 +236,7 @@ SELECT
     created_at,
     latency,
     user_agent,
-    ip_addr
+    ip_addr,
+    dispute_id
 FROM hyperswitch.api_events_queue
 WHERE length(_error) = 0
