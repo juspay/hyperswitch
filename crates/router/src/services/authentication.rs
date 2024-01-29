@@ -36,6 +36,7 @@ use crate::{
     types::domain,
     utils::OptionExt,
 };
+pub mod blacklist;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -495,6 +496,9 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
 
         let permissions = authorization::get_permissions(&payload.role_id)?;
         authorization::check_authorization(&self.0, permissions)?;

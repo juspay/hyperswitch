@@ -281,6 +281,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Signout Flow
+    Signout,
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow

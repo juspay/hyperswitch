@@ -953,6 +953,7 @@ impl User {
 
         route = route
             .service(web::resource("/signin").route(web::post().to(user_signin)))
+            .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
