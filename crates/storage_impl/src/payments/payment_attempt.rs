@@ -1015,7 +1015,7 @@ impl DataModelExt for MandateDetails {
             update_mandate_id: storage_model.update_mandate_id,
             mandate_type: storage_model
                 .mandate_type
-                .and_then(|mand_type| Some(MandateDataType::from_storage_model(mand_type))),
+                .map(MandateDataType::from_storage_model),
         }
     }
 }

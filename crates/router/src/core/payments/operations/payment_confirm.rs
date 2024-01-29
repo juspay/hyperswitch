@@ -438,7 +438,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
                         Some(mandate_type)
                     }
-                    data_models::mandates::MandateTypeDetails::MandateDetails(_) => None,
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        mandate_details.mandate_type
+                    }
                 })
                 .or(sm.mandate_type);
             sm.update_mandate_id = payment_attempt

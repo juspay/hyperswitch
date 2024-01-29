@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -105,48 +105,56 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 mandate.clone(),
             )
             .await?;
-            let connector_integration: services::BoxedConnectorIntegration<
-                '_,
-                types::api::MandateRevoke,
-                types::MandateRevokeRequestData,
-                types::MandateRevokeResponseData,
-            > = connector.connector.get_connector_integration();
-            let merchant_connector_account = helpers::get_merchant_connector_account(
-                state,
-                &merchant_account.merchant_id,
-                None,
-                key_store,
-                &profile_id,
-                &mandate.connector,
-                mandate.merchant_connector_id.as_ref(),
-            )
-            .await?;
+            match resp.response {
+                Ok(types::PaymentsResponseData::TransactionResponse { .. }) => {
+                    let connector_integration: services::BoxedConnectorIntegration<
+                        '_,
+                        types::api::MandateRevoke,
+                        types::MandateRevokeRequestData,
+                        types::MandateRevokeResponseData,
+                    > = connector.connector.get_connector_integration();
+                    let merchant_connector_account = helpers::get_merchant_connector_account(
+                        state,
+                        &merchant_account.merchant_id,
+                        None,
+                        key_store,
+                        &profile_id,
+                        &mandate.connector,
+                        mandate.merchant_connector_id.as_ref(),
+                    )
+                    .await?;
 
-            let router_data = mandate::utils::construct_mandate_revoke_router_data(
-                merchant_connector_account,
-                merchant_account,
-                mandate.clone(),
-            )
-            .await?;
+                    let router_data = mandate::utils::construct_mandate_revoke_router_data(
+                        merchant_connector_account,
+                        merchant_account,
+                        mandate.clone(),
+                    )
+                    .await?;
 
-            let _response = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &router_data,
-                call_connector_action,
-                None,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            // TODO:Add the revoke mandate task to process tracker
-            mandate::update_mandate_procedure(
-                state,
-                resp,
-                mandate,
-                &merchant_account.merchant_id,
-                pm_id,
-            )
-            .await
+                    let _response = services::execute_connector_processing_step(
+                        state,
+                        connector_integration,
+                        &router_data,
+                        call_connector_action,
+                        None,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    // TODO:Add the revoke mandate task to process tracker
+                    mandate::update_mandate_procedure(
+                        state,
+                        resp,
+                        mandate,
+                        &merchant_account.merchant_id,
+                        pm_id,
+                    )
+                    .await
+                }
+                Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("Unexpected response received")?,
+                Err(_) => Ok(resp),
+            }
         } else {
             mandate::mandate_procedure(
                 state,

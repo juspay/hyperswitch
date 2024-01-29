@@ -1823,6 +1823,7 @@ pub async fn list_payment_methods(
         } else {
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
+    print!("PAMT{:?}", payment_attempt);
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
@@ -1835,7 +1836,9 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
                         Some(mandate_type)
                     }
-                    data_models::mandates::MandateTypeDetails::MandateDetails(_) => None,
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        mandate_details.mandate_type
+                    }
                 })
                 .map(|d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
