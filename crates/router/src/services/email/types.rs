@@ -90,7 +90,7 @@ pub mod html {
                     business_location = business_location,
                     business_website = business_website,
                     username = user_name,
-                );
+                )
             }
             EmailBody::ProFeatureRequest {
                 feature_name,
