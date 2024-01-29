@@ -6962,6 +6962,11 @@
       "MandateData": {
         "type": "object",
         "properties": {
+          "update_mandate_id": {
+            "type": "string",
+            "description": "A way to update the mandate's payment method details",
+            "nullable": true
+          },
           "customer_acceptance": {
             "allOf": [
               {
@@ -7091,17 +7096,6 @@
                   }
                 ],
                 "nullable": true
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "update_mandate_id"
-            ],
-            "properties": {
-              "update_mandate_id": {
-                "type": "string"
               }
             }
           }
