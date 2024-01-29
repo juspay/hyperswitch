@@ -718,14 +718,20 @@ impl PaymentCreate {
         {
             let mandate_data = MandateDetails {
                 update_mandate_id: Some(update_id),
+                mandate_type: None,
             };
             Some(MandateTypeDetails::MandateDetails(mandate_data))
         } else {
-            request
-                .mandate_data
-                .as_ref()
-                .and_then(|inner| inner.mandate_type.clone().map(Into::into))
-                .map(MandateTypeDetails::MandateType)
+            // let mandate_type: data_models::mandates::MandateDataType =
+
+            let mandate_data = MandateDetails {
+                update_mandate_id: None,
+                mandate_type: request
+                    .mandate_data
+                    .as_ref()
+                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+            };
+            Some(MandateTypeDetails::MandateDetails(mandate_data))
         };
 
         Ok((

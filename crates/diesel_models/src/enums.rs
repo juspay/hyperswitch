@@ -174,6 +174,7 @@ use diesel::{
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
+    pub mandate_type: Option<MandateDataType>,
 }
 
 #[derive(
@@ -214,6 +215,7 @@ where
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
 )]
 #[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateTypeDetails {
     MandateType(MandateDataType),

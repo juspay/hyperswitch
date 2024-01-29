@@ -1005,11 +1005,17 @@ impl DataModelExt for MandateDetails {
     fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateDetails {
             update_mandate_id: self.update_mandate_id,
+            mandate_type: self
+                .mandate_type
+                .map(|mand_type| mand_type.to_storage_model()),
         }
     }
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             update_mandate_id: storage_model.update_mandate_id,
+            mandate_type: storage_model
+                .mandate_type
+                .and_then(|mand_type| Some(MandateDataType::from_storage_model(mand_type))),
         }
     }
 }
