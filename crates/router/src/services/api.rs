@@ -609,8 +609,7 @@ pub async fn send_request(
     };
 
     // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
-    let cloned_send_request = match request.try_clone() {
-        Some(cloned_request) => Some(async {
+    let cloned_send_request = request.try_clone().map(|cloned_request| async {
             cloned_request
                 .send()
                 .await
@@ -627,9 +626,7 @@ pub async fn send_request(
                 })
                 .into_report()
                 .attach_printable("Unable to send request to connector")
-        }),
-        None => None,
-    };
+        });
 
     let send_request = async {
         request
