@@ -45,19 +45,29 @@ pub async fn get_connector_data(
     merchant_account: &domain::MerchantAccount,
     routed_through: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
-) -> RouterResult<api::PayoutConnectorData> {
-    let mut routing_data = storage::PayoutRoutingData {
+) -> RouterResult<api::ConnectorData> {
+    use crate::types::storage::PaymentRoutingInfo;
+
+    let mut routing_data = storage::RoutingData {
         routed_through,
+        #[cfg(feature = "connector_choice_mca_id")]
+        merchant_connector_id: None,
+        #[cfg(not(feature = "connector_choice_mca_id"))]
+        business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
         algorithm: None,
+        routing_info: PaymentRoutingInfo {
+            algorithm: None,
+            pre_routing_results: None,
+        },
     };
     let connector_choice = helpers::get_default_payout_connector(state, routing_algorithm).await?;
     let connector_details = match connector_choice {
-        api::PayoutConnectorChoice::SessionMultiple(session_connectors) => {
-            api::PayoutConnectorCallType::Multiple(session_connectors)
+        api::ConnectorChoice::SessionMultiple(session_connectors) => {
+            api::ConnectorCallType::SessionMultiple(session_connectors)
         }
 
-        api::PayoutConnectorChoice::StraightThrough(straight_through) => {
-            let request_straight_through: Option<api::PayoutStraightThroughAlgorithm> =
+        api::ConnectorChoice::StraightThrough(straight_through) => {
+            let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
                 Some(straight_through)
                     .map(|val| val.parse_value("StraightThroughAlgorithm"))
                     .transpose()
@@ -71,14 +81,21 @@ pub async fn get_connector_data(
             )?
         }
 
-        api::PayoutConnectorChoice::Decide => {
+        api::ConnectorChoice::Decide => {
             helpers::decide_payout_connector(state, merchant_account, None, &mut routing_data)?
         }
     };
     let connector_data = match connector_details {
-        api::PayoutConnectorCallType::Single(connector) => connector,
+        api::ConnectorCallType::PreDetermined(connector) => connector,
 
-        api::PayoutConnectorCallType::Multiple(connectors) => {
+        api::ConnectorCallType::Retryable(connectors) => {
+            // TODO: route through actual multiple connectors.
+            connectors.first().map_or(
+                Err(errors::ApiErrorResponse::IncorrectConnectorNameGiven),
+                |c| Ok(c.clone()),
+            )?
+        }
+        api::ConnectorCallType::SessionMultiple(connectors) => {
             // TODO: route through actual multiple connectors.
             connectors.first().map_or(
                 Err(errors::ApiErrorResponse::IncorrectConnectorNameGiven),
@@ -227,10 +244,11 @@ pub async fn payouts_update_core(
     }
 
     // Form connector data
-    let connector_data: api::PayoutConnectorData = api::PayoutConnectorData::get_connector_by_name(
+    let connector_data: api::ConnectorData = api::ConnectorData::get_payout_connector_by_name(
         &state.conf.connectors,
         &payout_data.payout_attempt.connector,
         api::GetToken::Connector,
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
@@ -443,7 +461,7 @@ pub async fn call_connector_payout(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
-    connector_data: api::PayoutConnectorData,
+    connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
@@ -555,7 +573,7 @@ pub async fn create_recipient(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
-    connector_data: &api::PayoutConnectorData,
+    connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     let customer_details = payout_data.customer_details.to_owned();
@@ -640,7 +658,7 @@ pub async fn check_payout_eligibility(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
-    connector_data: &api::PayoutConnectorData,
+    connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
@@ -740,7 +758,7 @@ pub async fn create_payout(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
-    connector_data: &api::PayoutConnectorData,
+    connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
@@ -846,7 +864,7 @@ pub async fn cancel_payout(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
-    connector_data: &api::PayoutConnectorData,
+    connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
@@ -938,7 +956,7 @@ pub async fn fulfill_payout(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
-    connector_data: &api::PayoutConnectorData,
+    connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
@@ -1123,7 +1141,7 @@ pub async fn payout_create_db_entries(
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
     profile_id: &String,
-    connector_name: &api_enums::PayoutConnectors,
+    connector_name: &api_enums::Connector,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
