@@ -4471,24 +4471,6 @@ impl Default for super::settings::RequiredFields {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::from([
                                             (
-                                                "payment_method_data.bank_redirect.giropay.bank_account_bic".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.giropay.bank_account_bic".to_string(),
-                                                    display_name: "bank_account_bic".to_string(),
-                                                    field_type: enums::FieldType::Text,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
-                                                "payment_method_data.bank_redirect.giropay.bank_account_iban".to_string(),
-                                                RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_redirect.giropay.bank_account_iban".to_string(),
-                                                    display_name: "bank_account_iban".to_string(),
-                                                    field_type: enums::FieldType::Text,
-                                                    value: None,
-                                                }
-                                            ),
-                                            (
                                                 "payment_method_data.bank_redirect.giropay.country".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.giropay.country".to_string(),
