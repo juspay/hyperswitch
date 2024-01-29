@@ -3,14 +3,12 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
-use masking::ExposeInterface;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
-    db::user::UserInterface,
     routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
 
