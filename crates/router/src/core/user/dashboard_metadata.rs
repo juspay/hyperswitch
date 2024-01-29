@@ -4,13 +4,17 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 
+#[cfg(feature = "email")]
+use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use router_env::logger;
 
 pub async fn set_metadata(
     state: AppState,
@@ -446,41 +450,18 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                use crate::services::email::types as email_types;
-                use crate::{
-                    db::user::UserInterface,
-                    types::domain::{self},
-                };
-                use masking::ExposeInterface;
-                use masking::Secret;
-                use router_env::logger;
-
-                let user_data =
-                    UserInterface::find_user_by_id(&*state.store, &user.user_id.clone())
-                        .await
-                        .change_context(UserErrors::InternalServerError)?;
-
                 let email_contents = email_types::BizEmailProd {
-                    recipient_email: domain::UserEmail::new(Secret::new(
-                        "biz@hyperswitch.io".to_string(),
-                    ))?,
+                    recipient_email: domain::UserEmail::new("biz@hyperswitch.io".to_string().into())?,
                     settings: state.conf.clone(),
                     subject: "Bizz Email",
-                    user_name: domain::UserName::new(Secret::new(user_data.name.expose()))?,
-                    poc_email: domain::UserEmail::new(Secret::new(
-                        data.poc_email.unwrap_or(String::from("")),
-                    ))?,
-                    legal_business_name: String::from(
-                        data.legal_business_name.unwrap_or(String::from("")),
-                    ),
+                    user_name: data.poc_name.unwrap_or_default().into(),
+                    poc_email: data.poc_email.unwrap_or_default().into(),
+                    legal_business_name: data.legal_business_name.unwrap_or_default(),
                     business_location: data
                         .business_location
                         .unwrap_or(common_enums::CountryAlpha2::AD)
                         .to_string(),
-
-                    business_website: String::from(
-                        data.business_website.clone().unwrap_or(String::from("")),
-                    ),
+                    business_website: data.business_website.unwrap_or_default(),
                 };
 
                 let send_email_result = state

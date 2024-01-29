@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{configs, consts};
 #[cfg(feature = "olap")]
@@ -275,8 +275,8 @@ pub struct ReconActivation {
 impl EmailData for BizEmailProd {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::BizEmailProd {
-            user_name: self.user_name.clone().get_secret().expose(),
-            poc_email: self.poc_email.clone().get_secret().expose(),
+            user_name: self.user_name.clone().expose(),
+            poc_email: self.poc_email.clone().expose(),
             legal_business_name: self.legal_business_name.clone(),
             business_location: self.business_location.clone(),
             business_website: self.business_website.clone(),
@@ -292,8 +292,8 @@ impl EmailData for BizEmailProd {
 
 pub struct BizEmailProd {
     pub recipient_email: domain::UserEmail,
-    pub user_name: domain::UserName,
-    pub poc_email: domain::UserEmail,
+    pub user_name: Secret<String>,
+    pub poc_email: Secret<String>,
     pub legal_business_name: String,
     pub business_location: String,
     pub business_website: String,
