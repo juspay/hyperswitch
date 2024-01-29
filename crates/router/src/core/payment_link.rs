@@ -92,7 +92,11 @@ pub async fn intiate_payment_link_flow(
     let profile_id = payment_link
         .profile_id
         .or(payment_intent.profile_id)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable(format!(
+            "Profile id missing in payment link and payment intent"
+        ))?;
 
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
@@ -530,7 +534,11 @@ pub async fn get_payment_link_status(
     let profile_id = payment_link
         .profile_id
         .or(payment_intent.profile_id)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable(format!(
+            "Profile id missing in payment link and payment intent"
+        ))?;
 
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
