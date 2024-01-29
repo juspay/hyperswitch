@@ -196,6 +196,15 @@ impl Default for Mandates {
                     ])),
                 ),
             ])),
+            revoke_mandate_supported: SupportedConnectorsForMandate {
+                connector_list: HashSet::from([
+                    enums::Connector::Cybersource,
+                    enums::Connector::Noon,
+                ]),
+            },
+            update_mandate_supported: SupportedConnectorsForMandate {
+                connector_list: HashSet::from([enums::Connector::Cybersource]),
+            },
         }
     }
 }

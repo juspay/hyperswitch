@@ -248,6 +248,12 @@ bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
 bank_redirect.ideal = {connector_list = "stripe,adyen"}
 
+[mandates.revoke_mandate_supported]
+connector_list = "cybersource,noon"
+
+[mandates.update_mandate_supported]
+connector_list = "cybersource"
+
 [analytics]
 source = "sqlx"
 
