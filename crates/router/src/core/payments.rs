@@ -404,12 +404,6 @@ where
                 ))
                 .await?;
             }
-
-            // Validating the blocklist
-            operation
-                .to_domain()?
-                .guard_payment_against_blocklist(state, &merchant_account, &mut payment_data)
-                .await?;
         } else {
             (_, payment_data) = operation
                 .to_update_tracker()?
@@ -1024,7 +1018,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     key_store: &domain::MerchantKeyStore,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
-    payment_data: &mut PaymentData<F>,
+    mut payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     validate_result: &operations::ValidateResult<'_>,
@@ -1081,6 +1075,12 @@ where
     .await?;
 
     *payment_data = pd;
+
+    // Validating the blocklist guard and generate the fingerprint
+    operation
+        .to_domain()?
+        .guard_payment_against_blocklist(state, &merchant_account, &mut payment_data)
+        .await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,

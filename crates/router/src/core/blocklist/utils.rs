@@ -535,8 +535,16 @@ where
             reason: "Blocked".to_string(),
         }
         .into());
+    } else {
+        payment_data.payment_intent.fingerprint_id = generate_payment_fingerprint(
+            state,
+            payment_data.payment_attempt.merchant_id.clone(),
+            payment_data.payment_method_data.clone(),
+        )
+        .await?;
+
+        Ok(false)
     }
-    Ok(false)
 }
 
 pub async fn generate_payment_fingerprint(
