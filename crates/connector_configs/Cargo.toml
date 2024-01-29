@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["payouts", "dummy_connector"]
+default = ["payouts"]
 production = []
 development = []
 sandbox = []
