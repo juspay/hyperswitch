@@ -15,9 +15,7 @@ pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY,
-    errors::{ErrorSwitch, ReportSwitchExt},
-    request::RequestContent,
+    consts::X_HS_LATENCY, errors::{ErrorSwitch, ReportSwitchExt}, request::RequestContent
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -552,8 +550,7 @@ pub async fn send_request(
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
     };
-
-    let send_request = async {
+    let request = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -607,6 +604,34 @@ pub async fn send_request(
         .timeout(Duration::from_secs(
             option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
         ))
+    };
+
+    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    let cloned_send_request =
+        match request.try_clone() {
+            Some (cloned_request) => Some (async {
+                cloned_request
+                .send()
+                .await
+                .map_err(|error| match error {
+                    error if error.is_timeout() => {
+                        metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                        errors::ApiClientError::RequestTimeoutReceived
+                    }
+                    error if is_connection_closed(&error) => {
+                        metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                        errors::ApiClientError::ConnectionClosed
+                    }
+                    _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+                })
+                .into_report()
+                .attach_printable("Unable to send request to connector")
+            }),
+            None => None,
+        };
+
+    let send_request = async {
+        request
         .send()
         .await
         .map_err(|error| match error {
@@ -624,12 +649,43 @@ pub async fn send_request(
         .attach_printable("Unable to send request to connector")
     };
 
-    metrics_request::record_operation_time(
+
+    let response = metrics_request::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &[metrics_tag],
-    )
-    .await
+        &[metrics_tag.clone()],
+    ).await;
+    // Retry once if the response is connection closed.
+    //
+    // This is just due to the racy nature of networking.
+    // hyper has a connection pool of idle connections, and it selected one to send your request.
+    // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
+    // But occasionally, a connection will be selected from the pool
+    // and written to at the same time the server is deciding to close the connection.
+    // Since hyper already wrote some of the request,
+    // it can’t really retry it automatically on a new connection, since the server may have acted already
+    match response {
+        Ok(response) => Ok(response),
+        Err(error) => {
+            if error.current_context() == &errors::ApiClientError::ConnectionClosed {
+                metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+                match cloned_send_request {
+                    Some(cloned_request) =>
+                        metrics_request::record_operation_time(
+                            cloned_request,
+                            &metrics::EXTERNAL_REQUEST_TIME,
+                            &[metrics_tag],
+                        )
+                        .await,
+                    None => Err(error),
+                }
+
+            } else {
+                Err(error)
+            }
+        }
+    }
+
 }
 
 fn is_connection_closed(error: &reqwest::Error) -> bool {
@@ -1674,7 +1730,7 @@ pub fn build_redirection_form(
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',
