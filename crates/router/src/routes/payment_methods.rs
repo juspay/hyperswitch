@@ -44,7 +44,13 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req| async move {
-            cards::add_payment_method(state, req, &auth.merchant_account, &auth.key_store).await
+            Box::pin(cards::add_payment_method(
+                state,
+                req,
+                &auth.merchant_account,
+                &auth.key_store,
+            ))
+            .await
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
@@ -242,7 +248,7 @@ pub async fn payment_method_retrieve_api(
         state,
         &req,
         payload,
-        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
+        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.key_store),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))

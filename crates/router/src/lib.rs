@@ -165,6 +165,12 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
+
+    #[cfg(feature = "recon")]
+    {
+        server_app = server_app.service(routes::Recon::server(state.clone()));
+    }
+
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
@@ -261,5 +267,6 @@ pub fn get_application_builder(
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
