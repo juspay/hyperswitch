@@ -461,6 +461,13 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: format!("{} by {}", message, connector),
                     }
                 }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                            reason.to_string(),
+                        ),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
