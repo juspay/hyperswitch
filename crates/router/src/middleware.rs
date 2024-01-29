@@ -142,7 +142,8 @@ where
                     "golden_log_line",
                     payment_id = Empty,
                     merchant_id = Empty,
-                    connector_name = Empty
+                    connector_name = Empty,
+                    flow = Empty
                 )
                 .or_current(),
             ),
