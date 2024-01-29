@@ -89,10 +89,25 @@ pub async fn intiate_payment_link_flow(
         }
     };
 
+    let profile_id = payment_intent
+        .profile_id
+        .unwrap_or(payment_link.profile_id.ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id",
+            },
+        )?);
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
         payment_create_return_url
     } else {
-        merchant_account
+        business_profile
             .return_url
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "return_url",
