@@ -52,3 +52,9 @@ pub struct PayPalOnboardingDone {
 pub struct PayPalIntegrationDone {
     pub connector_id: String,
 }
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub struct ResetTrackingIdRequest {
+    pub connector_id: String,
+    pub connector: enums::Connector,
+}

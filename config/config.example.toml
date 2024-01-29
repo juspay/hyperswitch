@@ -45,25 +45,25 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 [redis]
 host = "127.0.0.1"
 port = 6379
-pool_size = 5              # Number of connections to keep open
-reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
-reconnect_delay = 5        # Delay between reconnection attempts, in milliseconds
-default_ttl = 300          # Default TTL for entries, in seconds
-default_hash_ttl = 900     # Default TTL for hashes entries, in seconds
-use_legacy_version = false # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
-stream_read_count = 1      # Default number of entries to read from stream if not provided in stream read options
-auto_pipeline = true       # Whether or not the client should automatically pipeline commands across tasks when possible.
+pool_size = 5                     # Number of connections to keep open
+reconnect_max_attempts = 5        # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
+reconnect_delay = 5               # Delay between reconnection attempts, in milliseconds
+default_ttl = 300                 # Default TTL for entries, in seconds
+default_hash_ttl = 900            # Default TTL for hashes entries, in seconds
+use_legacy_version = false        # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
+stream_read_count = 1             # Default number of entries to read from stream if not provided in stream read options
+auto_pipeline = true              # Whether or not the client should automatically pipeline commands across tasks when possible.
 disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
-max_in_flight_commands = 5000 # The maximum number of in-flight commands (per connection) before backpressure will be applied.
-default_command_timeout = 0  # An optional timeout to apply to all commands.
-max_feed_count = 200       # The maximum number of frames that will be fed to a socket before flushing.
+max_in_flight_commands = 5000     # The maximum number of in-flight commands (per connection) before backpressure will be applied.
+default_command_timeout = 0       # An optional timeout to apply to all commands.
+max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
 
 # This section provides configs for currency conversion api
 [forex_api]
 call_delay = 21600                # Api calls are made after every 6 hrs
 local_fetch_retry_count = 5       # Fetch from Local cache has retry count as 5
 local_fetch_retry_delay = 1000    # Retry delay for checking write condition
-api_timeout = 20000               # Api timeouts once it crosses 2000 ms
+api_timeout = 20000               # Api timeouts once it crosses 20000 ms
 api_key = "YOUR API KEY HERE"     # Api key for making request to foreign exchange Api
 fallback_api_key = "YOUR API KEY" # Api key for the fallback service
 redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
@@ -126,11 +126,11 @@ kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) cipher
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""                      # Locker host
-host_rs = ""                   # Rust Locker host
-mock_locker = true             # Emulate a locker locally using Postgres
-basilisk_host = ""             # Basilisk host
-locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
+host = ""                   # Locker host
+host_rs = ""                # Rust Locker host
+mock_locker = true          # Emulate a locker locally using Postgres
+locker_signing_key_id = "1" # Key_id to sign basilisk hs locker
+locker_enabled = true       # Boolean to enable or disable saving cards in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -142,7 +142,6 @@ connectors_with_webhook_source_verification_call = "paypal" # List of connectors
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
-
 
 # Refund configuration
 [refund]
@@ -335,7 +334,6 @@ active_email_client = "SES"          # The currently active email client
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
-
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
@@ -351,8 +349,9 @@ stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
-cybersource = {payment_method = "card"}
-nmi = {payment_method = "card"}
+bankofamerica = { payment_method = "card" }
+cybersource = { payment_method = "card" }
+nmi = { payment_method = "card" }
 
 [dummy_connector]
 enabled = true                                  # Whether dummy connector is enabled or not
@@ -375,13 +374,13 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource" }   # Mandate supported payment method type and connector for card
-wallet.paypal = { connector_list = "adyen" }        # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment method type and connector for pay_later
-bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
-bank_redirect.ideal = {connector_list = "stripe,adyen"} # Mandate supported payment method type and connector for bank_redirect
+card.credit = { connector_list = "stripe,adyen,cybersource" } # Mandate supported payment method type and connector for card
+wallet.paypal = { connector_list = "adyen" }                  # Mandate supported payment method type and connector for wallets
+pay_later.klarna = { connector_list = "adyen" }               # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless" }            # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless" }           # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless" }           # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = { connector_list = "stripe,adyen" }     # Mandate supported payment method type and connector for bank_redirect
 
 
 # Required fields info used while listing the payment_method_data
@@ -462,10 +461,27 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 supported_connectors = "braintree"
 
 [applepay_decrypt_keys]
-apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
-apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY" #Private key generate by Elliptic-curve prime256v1 curve
-apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
-apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" #Private key generate by RSA:2048 algorithm
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         # Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY" # Private key generated by Elliptic-curve prime256v1 curve. You can use `openssl ecparam -out private.key -name prime256v1 -genkey` to generate the private key
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" # Private key generated by RSA:2048 algorithm. Refer Hyperswitch Docs (https://docs.hyperswitch.io/hyperswitch-cloud/payment-methods-setup/wallets/apple-pay/ios-application/) to generate the private key
+
+[applepay_merchant_configs]
+# Run below command to get common merchant identifier for applepay in shell
+#
+# CERT_PATH="path/to/certificate.pem"
+# MERCHANT_ID=$(openssl x509 -in "$CERT_PATH" -noout -text |
+#               awk -v oid="1.2.840.113635.100.6.32" '
+#               BEGIN { RS = "\n\n" }
+#               /X509v3 extensions/ { in_extension=1 }
+#               in_extension && /'"$oid"'/ { print $0; exit }' |
+#               grep -oE '\.@[A-F0-9]+' | sed 's/^\.@//'
+# )
+# echo "Merchant ID: $MERCHANT_ID"
+common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"                        # This can be obtained by decrypting the apple_pay_ppc_key as shown above in comments
+merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"                                           # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"                                   # Private key generate by RSA:2048 algorithm. Refer Hyperswitch Docs (https://docs.hyperswitch.io/hyperswitch-cloud/payment-methods-setup/wallets/apple-pay/ios-application/) to generate the private key
+applepay_endpoint = "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant" # Apple pay gateway merchant endpoint
 
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
@@ -503,28 +519,19 @@ ttl = 900
 enabled = true
 
 [paypal_onboarding]
-client_id = "paypal_client_id" # Client ID for PayPal onboarding
+client_id = "paypal_client_id"      # Client ID for PayPal onboarding
 client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
-partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
-enabled = true # Switch to enable or disable PayPal onboarding
-
-[frm]
-enabled = true
-
-[paypal_onboarding]
-client_id = "paypal_client_id" # Client ID for PayPal onboarding
-client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
-partner_id = "paypal_partner_id" # Partner ID for PayPal onboarding
-enabled = true # Switch to enable or disable PayPal onboarding
+partner_id = "paypal_partner_id"    # Partner ID for PayPal onboarding
+enabled = true                      # Switch to enable or disable PayPal onboarding
 
 [events]
-source = "logs"                    # The event sink to push events supports kafka or logs (stdout)
+source = "logs" # The event sink to push events supports kafka or logs (stdout)
 
 [events.kafka]
-brokers = []                              # Kafka broker urls for bootstrapping the client
-intent_analytics_topic = "topic"          # Kafka topic to be used for PaymentIntent events
-attempt_analytics_topic = "topic"         # Kafka topic to be used for PaymentAttempt events
-refund_analytics_topic = "topic"          # Kafka topic to be used for Refund events
-api_logs_topic = "topic"                  # Kafka topic to be used for incoming api events
-connector_logs_topic = "topic"            # Kafka topic to be used for connector api events
-outgoing_webhook_logs_topic = "topic"     # Kafka topic to be used for outgoing webhook events
+brokers = []                          # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"      # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"     # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
+api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events

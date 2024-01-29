@@ -5,6 +5,8 @@ mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+#[cfg(feature = "recon")]
+pub mod recon;
 pub mod refund;
 pub mod routing;
 pub mod user;
@@ -15,10 +17,12 @@ use common_utils::{
     impl_misc_api_event_type,
 };
 
+#[allow(unused_imports)]
 use crate::{
     admin::*,
     analytics::{
-        api_event::*, outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
+        api_event::*, connector_events::ConnectorEventsRequest,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
     },
     api_keys::*,
     cards_info::*,
@@ -35,7 +39,6 @@ impl ApiEventMetric for TimeRange {}
 impl_misc_api_event_type!(
     PaymentMethodId,
     PaymentsSessionResponse,
-    PaymentMethodListResponse,
     PaymentMethodCreate,
     PaymentLinkInitiateRequest,
     RetrievePaymentLinkResponse,
@@ -92,6 +95,7 @@ impl_misc_api_event_type!(
     GetApiEventMetricRequest,
     SdkEventsRequest,
     ReportRequest,
+    ConnectorEventsRequest,
     OutgoingWebhookLogsRequest
 );
 

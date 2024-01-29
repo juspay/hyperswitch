@@ -785,7 +785,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.is_three_ds() && req.request.is_card() {
+        if req.is_three_ds()
+            && req.request.is_card()
+            && req.request.connector_mandate_id().is_none()
+        {
             Ok(format!(
                 "{}risk/v1/authentication-setups",
                 api::ConnectorCommon::base_url(self, connectors)
@@ -809,7 +812,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        if req.is_three_ds() && req.request.is_card() {
+        if req.is_three_ds()
+            && req.request.is_card()
+            && req.request.connector_mandate_id().is_none()
+        {
             let connector_req =
                 cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;
             Ok(RequestContent::Json(Box::new(connector_req)))
@@ -845,7 +851,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.is_three_ds() && data.request.is_card() {
+        if data.is_three_ds()
+            && data.request.is_card()
+            && data.request.connector_mandate_id().is_none()
+        {
             let response: cybersource::CybersourceAuthSetupResponse = res
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
@@ -873,6 +882,33 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: cybersource::CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+        })
     }
 }
 

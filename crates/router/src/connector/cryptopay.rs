@@ -69,14 +69,24 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let api_method = self.get_http_method().to_string();
-        let body = types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
-            .peek()
-            .to_owned();
-        let md5_payload = crypto::Md5
-            .generate_digest(body.as_bytes())
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let payload = encode(md5_payload);
+        let method = self.get_http_method();
+        let payload = match method {
+            common_utils::request::Method::Get => String::default(),
+            common_utils::request::Method::Post
+            | common_utils::request::Method::Put
+            | common_utils::request::Method::Delete
+            | common_utils::request::Method::Patch => {
+                let body =
+                    types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?)
+                        .peek()
+                        .to_owned();
+                let md5_payload = crypto::Md5
+                    .generate_digest(body.as_bytes())
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                encode(md5_payload)
+            }
+        };
+        let api_method = method.to_string();
 
         let now = date_time::date_as_yyyymmddthhmmssmmmz()
             .into_report()

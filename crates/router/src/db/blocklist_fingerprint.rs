@@ -80,16 +80,20 @@ impl BlocklistFingerprintInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_blocklist_fingerprint_entry(
         &self,
-        _pm_fingerprint_new: storage::BlocklistFingerprintNew,
+        pm_fingerprint_new: storage::BlocklistFingerprintNew,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .insert_blocklist_fingerprint_entry(pm_fingerprint_new)
+            .await
     }
 
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
-        _merchant_id: &str,
-        _fingerprint_id: &str,
+        merchant_id: &str,
+        fingerprint: &str,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        Err(errors::StorageError::KafkaError)?
+        self.diesel_store
+            .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
+            .await
     }
 }

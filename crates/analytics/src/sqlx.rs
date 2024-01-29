@@ -429,6 +429,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::PaymentIntent => Ok("payment_intent".to_string()),
+            Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
         }
