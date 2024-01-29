@@ -424,7 +424,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -559,6 +559,17 @@
             {
               "name": "Payments - Retrieve",
               "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "setTimeout(function(){",
+                      "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                      "}, 3000);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
                 {
                   "listen": "test",
                   "script": {
@@ -1001,6 +1012,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -1516,6 +1538,17 @@
                 {
                   "name": "Payments - Retrieve-copy",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -2337,6 +2370,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -2970,6 +3014,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -3234,6 +3289,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -3915,6 +3981,17 @@
                   "name": "Payments - Retrieve-copy",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -4222,6 +4299,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -4699,6 +4787,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -5191,6 +5290,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -5848,6 +5958,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -6324,6 +6445,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -6802,6 +6934,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -7231,6 +7374,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -7507,6 +7661,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -8029,6 +8194,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -8588,6 +8764,17 @@
                 {
                   "name": "Payments - Retrieve-copy",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -9343,7 +9530,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -9816,7 +10005,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -10061,7 +10252,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -10305,7 +10498,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -11173,7 +11368,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -12358,6 +12555,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -13153,6 +13361,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -13547,6 +13766,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {

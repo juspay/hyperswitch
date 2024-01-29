@@ -342,11 +342,13 @@ fn make_card_request(
     req: &PaymentsAuthorizeData,
     ccard: &payments::Card,
 ) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
-    let expiry_year = ccard.card_exp_year.peek().clone();
+    let expiry_year = ccard.card_exp_year.peek();
     let secret_value = format!(
         "{}{}",
         ccard.card_exp_month.peek(),
-        &expiry_year[expiry_year.len() - 2..]
+        &expiry_year
+            .get(expiry_year.len() - 2..)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {

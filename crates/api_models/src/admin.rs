@@ -95,15 +95,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
-
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
-
-    pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -185,16 +178,10 @@ pub struct MerchantAccountUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
-    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
-    ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<u32>,
-
     /// The default business profile that must be used for creating merchant accounts and payments
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -288,8 +275,6 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
-
-    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -359,7 +344,7 @@ pub mod payout_routing_algorithm {
         where
             A: de::MapAccess<'de>,
         {
-            let mut output = serde_json::Value::Object(Map::new());
+            let mut output = Map::new();
             let mut routing_data: String = "".to_string();
             let mut routing_type: String = "".to_string();
 
@@ -367,14 +352,20 @@ pub mod payout_routing_algorithm {
                 match key {
                     "type" => {
                         routing_type = map.next_value()?;
-                        output["type"] = serde_json::Value::String(routing_type.to_owned());
+                        output.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(routing_type.to_owned()),
+                        );
                     }
                     "data" => {
                         routing_data = map.next_value()?;
-                        output["data"] = serde_json::Value::String(routing_data.to_owned());
+                        output.insert(
+                            "data".to_string(),
+                            serde_json::Value::String(routing_data.to_owned()),
+                        );
                     }
                     f => {
-                        output[f] = map.next_value()?;
+                        output.insert(f.to_string(), map.next_value()?);
                     }
                 }
             }
@@ -392,7 +383,7 @@ pub mod payout_routing_algorithm {
                 }
                 u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
             }?;
-            Ok(output)
+            Ok(serde_json::Value::Object(output))
         }
     }
 
@@ -452,26 +443,6 @@ pub struct PrimaryBusinessDetails {
     pub country: api_enums::CountryAlpha2,
     #[schema(example = "food")]
     pub business: String,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentLinkConfig {
-    #[schema(
-        max_length = 255,
-        max_length = 255,
-        example = "https://i.imgur.com/RfxPFQo.png"
-    )]
-    pub merchant_logo: Option<String>,
-    pub color_scheme: Option<PaymentLinkColorSchema>,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-
-pub struct PaymentLinkColorSchema {
-    pub background_primary_color: Option<String>,
-    pub sdk_theme: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1042,6 +1013,13 @@ pub struct BusinessProfileCreate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1106,6 +1084,13 @@ pub struct BusinessProfileResponse {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<i64>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1163,4 +1148,46 @@ pub struct BusinessProfileUpdate {
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    /// Client Secret Default expiry for all payments created under this business profile
+    #[schema(example = 900)]
+    pub session_expiry: Option<u32>,
+
+    /// Default Payment Link config for all payment links created under this business profile
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct BusinessPaymentLinkConfig {
+    pub domain_name: Option<String>,
+    #[serde(flatten)]
+    pub config: PaymentLinkConfigRequest,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkConfigRequest {
+    /// custom theme for the payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
+    pub theme: Option<String>,
+    /// merchant display logo
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://i.pinimg.com/736x/4d/83/5c/4d835ca8aafbbb15f84d07d926fda473.jpg")]
+    pub logo: Option<String>,
+    /// Custom merchant name for payment link
+    #[schema(value_type = Option<String>, max_length = 255, example = "hyperswitch")]
+    pub seller_name: Option<String>,
+    /// Custom layout for sdk
+    #[schema(value_type = Option<String>, max_length = 255, example = "accordion")]
+    pub sdk_layout: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+pub struct PaymentLinkConfig {
+    /// custom theme for the payment link
+    pub theme: String,
+    /// merchant display logo
+    pub logo: String,
+    /// Custom merchant name for payment link
+    pub seller_name: String,
+    /// Custom layout for sdk
+    pub sdk_layout: String,
 }

@@ -55,6 +55,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Kafka error")]
+    KafkaError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
     #[error("Deserialization failure")]
@@ -103,6 +105,7 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::KVError => DataStorageError::KVError,
             StorageError::SerializationFailed => DataStorageError::SerializationFailed,
             StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::KafkaError => DataStorageError::KafkaError,
             StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
             StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
             StorageError::EncryptionError => DataStorageError::EncryptionError,
@@ -375,4 +378,54 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HealthCheckDBError {
+    #[error("Error while connecting to database")]
+    DBError,
+    #[error("Error while writing to database")]
+    DBWriteError,
+    #[error("Error while reading element in the database")]
+    DBReadError,
+    #[error("Error while deleting element in the database")]
+    DBDeleteError,
+    #[error("Unpredictable error occurred")]
+    UnknownError,
+    #[error("Error in database transaction")]
+    TransactionError,
+}
+
+impl From<diesel::result::Error> for HealthCheckDBError {
+    fn from(error: diesel::result::Error) -> Self {
+        match error {
+            diesel::result::Error::DatabaseError(_, _) => Self::DBError,
+
+            diesel::result::Error::RollbackErrorOnCommit { .. }
+            | diesel::result::Error::RollbackTransaction
+            | diesel::result::Error::AlreadyInTransaction
+            | diesel::result::Error::NotInTransaction
+            | diesel::result::Error::BrokenTransactionManager => Self::TransactionError,
+
+            _ => Self::UnknownError,
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HealthCheckRedisError {
+    #[error("Failed to establish Redis connection")]
+    RedisConnectionError,
+    #[error("Failed to set key value in Redis")]
+    SetFailed,
+    #[error("Failed to get key value in Redis")]
+    GetFailed,
+    #[error("Failed to delete key value in Redis")]
+    DeleteFailed,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckLockerError {
+    #[error("Failed to establish Locker connection")]
+    FailedToCallLocker,
 }

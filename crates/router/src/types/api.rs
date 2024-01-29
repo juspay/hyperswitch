@@ -70,6 +70,18 @@ pub trait ConnectorVerifyWebhookSource:
 {
 }
 
+#[derive(Clone, Debug)]
+pub struct MandateRevoke;
+
+pub trait ConnectorMandateRevoke:
+    ConnectorIntegration<
+    MandateRevoke,
+    types::MandateRevokeRequestData,
+    types::MandateRevokeResponseData,
+>
+{
+}
+
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
@@ -159,6 +171,7 @@ pub trait Connector:
     + Payouts
     + ConnectorVerifyWebhookSource
     + FraudCheck
+    + ConnectorMandateRevoke
 {
 }
 
@@ -179,7 +192,8 @@ impl<
             + ConnectorTransactionId
             + Payouts
             + ConnectorVerifyWebhookSource
-            + FraudCheck,
+            + FraudCheck
+            + ConnectorMandateRevoke,
     > Connector for T
 {
 }

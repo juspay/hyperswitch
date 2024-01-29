@@ -135,7 +135,7 @@ pub struct PaymentIntentRequest {
 pub struct StripeMetadata {
     // merchant_reference_id
     #[serde(rename(serialize = "metadata[order_id]"))]
-    pub order_id: String,
+    pub order_id: Option<String>,
     // to check whether the order_id is refund_id or payemnt_id
     // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
     // it is set as string instead of bool because stripe pass it as string even if we set it as bool
@@ -1082,16 +1082,30 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
     }
 }
 
-impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
-    type Error = errors::ConnectorError;
+impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddress {
+    type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(bank_redirection_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (bank_redirection_data, is_customer_initiated_mandate_payment): (
+            &payments::BankRedirectData,
+            Option<bool>,
+        ),
+    ) -> Result<Self, Self::Error> {
         match bank_redirection_data {
             payments::BankRedirectData::Eps {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                ..Self::default()
+            } => Ok({
+                let billing_data = billing_details.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_details",
+                    },
+                )?;
+                Self {
+                    name: Some(connector_util::BankRedirectBillingData::get_billing_name(
+                        &billing_data,
+                    )?),
+                    ..Self::default()
+                }
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
@@ -1101,11 +1115,36 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                email: billing_details.email.clone(),
-                ..Self::default()
-            }),
+            } => {
+                let billing_name = billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.billing_name.clone());
+
+                let billing_email = billing_details
+                    .clone()
+                    .and_then(|billing_data| billing_data.email.clone());
+                match is_customer_initiated_mandate_payment {
+                    Some(true) => Ok(Self {
+                        name: Some(billing_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_name",
+                            },
+                        )?),
+
+                        email: Some(billing_email.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_email",
+                            },
+                        )?),
+                        ..Self::default()
+                    }),
+                    Some(false) | None => Ok(Self {
+                        name: billing_name,
+                        email: billing_email,
+                        ..Self::default()
+                    }),
+                }
+            }
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
@@ -1230,6 +1269,7 @@ fn create_stripe_payment_method(
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
+    is_customer_initiated_mandate_payment: Option<bool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1262,7 +1302,10 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            let billing_address = StripeBillingAddress::try_from(bank_redirect_data)?;
+            let billing_address = StripeBillingAddress::try_from((
+                bank_redirect_data,
+                is_customer_initiated_mandate_payment,
+            ))?;
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
             let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
 
@@ -1751,6 +1794,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             &item.request.payment_method_data,
                             item.auth_type,
                             item.payment_method_token.clone(),
+                            Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                                &item.request,
+                            )),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1861,7 +1907,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
             meta_data: StripeMetadata {
-                order_id,
+                order_id: Some(order_id),
                 is_refund_id_as_reference: None,
             },
             return_url: item
@@ -1957,6 +2003,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             &item.request.payment_method_data,
             item.auth_type,
             item.payment_method_token.clone(),
+            None,
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -1971,7 +2018,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             description: item.request.description.to_owned(),
             email: item.request.email.to_owned(),
             phone: item.request.phone.to_owned(),
-            name: item.request.name.to_owned().map(Secret::new),
+            name: item.request.name.to_owned(),
             source: item.request.preprocessing_id.to_owned(),
         })
     }
@@ -2336,7 +2383,7 @@ pub fn get_connector_metadata(
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                let bank_instructions = response.financial_addresses.get(0);
+                let bank_instructions = response.financial_addresses.first();
                 let (sepa_bank_instructions, bacs_bank_instructions) =
                     bank_instructions.map_or((None, None), |financial_address| {
                         (
@@ -2696,7 +2743,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
             amount: Some(amount),
             payment_intent,
             meta_data: StripeMetadata {
-                order_id: item.request.refund_id.clone(),
+                order_id: Some(item.request.refund_id.clone()),
                 is_refund_id_as_reference: Some("true".to_string()),
             },
         })
@@ -3203,7 +3250,7 @@ pub struct WebhookPaymentMethodDetails {
     pub payment_method: WebhookPaymentMethodType,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
@@ -3218,7 +3265,7 @@ pub struct WebhookEventObjectData {
     pub metadata: Option<StripeMetadata>,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Debug, Clone, Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventObjectType {
     PaymentIntent,
@@ -3268,7 +3315,7 @@ pub enum WebhookEventType {
     PaymentIntentProcessing,
     #[serde(rename = "payment_intent.requires_action")]
     PaymentIntentRequiresAction,
-    #[serde(rename = "amount_capturable_updated")]
+    #[serde(rename = "payment_intent.amount_capturable_updated")]
     PaymentIntentAmountCapturableUpdated,
     #[serde(rename = "source.chargeable")]
     SourceChargeable,
@@ -3280,7 +3327,7 @@ pub enum WebhookEventType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, strum::Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventStatus {
     WarningNeedsResponse,
@@ -3304,7 +3351,7 @@ pub enum WebhookEventStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct EvidenceDetails {
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub due_by: PrimitiveDateTime,
@@ -3649,7 +3696,10 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.first_name");
+        assert_eq!(
+            *missing_fields.first().unwrap(),
+            "shipping.address.first_name"
+        );
     }
 
     #[test]
@@ -3674,7 +3724,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.line1");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.line1");
     }
 
     #[test]
@@ -3699,7 +3749,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.country");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.country");
     }
 
     #[test]
@@ -3723,7 +3773,7 @@ mod test_validate_shipping_address_against_payment_method {
         assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
-        assert_eq!(missing_fields[0], "shipping.address.zip");
+        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.zip");
     }
 
     #[test]

@@ -14,6 +14,8 @@ use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
+#[cfg(feature = "olap")]
+use super::blocklist;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
@@ -38,6 +40,8 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(all(feature = "recon", feature = "olap"))]
+use crate::routes::recon as recon_routes;
 #[cfg(feature = "olap")]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
@@ -253,9 +257,10 @@ pub struct Health;
 
 impl Health {
     pub fn server(state: AppState) -> Scope {
-        web::scope("")
+        web::scope("health")
             .app_data(web::Data::new(state))
-            .service(web::resource("/health").route(web::get().to(health)))
+            .service(web::resource("").route(web::get().to(health)))
+            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
     }
 }
 
@@ -562,6 +567,43 @@ impl PaymentMethods {
             )
             .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
             .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+pub struct Recon;
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+impl Recon {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/recon")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/update_merchant")
+                    .route(web::post().to(recon_routes::update_merchant)),
+            )
+            .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
+            .service(
+                web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
+            )
+            .service(web::resource("/verify_token").route(web::get().to(verify_recon_token)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Blocklist;
+
+#[cfg(feature = "olap")]
+impl Blocklist {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/blocklist")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::get().to(blocklist::list_blocked_payment_methods))
+                    .route(web::post().to(blocklist::add_entry_to_blocklist))
+                    .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
+            )
     }
 }
 
@@ -877,7 +919,11 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
             .service(web::resource("/role/list").route(web::get().to(list_roles)))
+            .service(web::resource("/role").route(web::get().to(get_role_from_token)))
             .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
+            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
+            .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
+            .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
@@ -900,7 +946,6 @@ impl User {
                 )
                 .service(web::resource("/forgot_password").route(web::post().to(forgot_password)))
                 .service(web::resource("/reset_password").route(web::post().to(reset_password)))
-                .service(web::resource("/user/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
@@ -941,5 +986,6 @@ impl ConnectorOnboarding {
             .app_data(web::Data::new(state))
             .service(web::resource("/action_url").route(web::post().to(get_action_url)))
             .service(web::resource("/sync").route(web::post().to(sync_onboarding_status)))
+            .service(web::resource("/reset_tracking_id").route(web::post().to(reset_tracking_id)))
     }
 }

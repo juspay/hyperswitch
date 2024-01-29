@@ -196,16 +196,6 @@ impl QrImage {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
-    }
-}
-
 pub async fn find_payment_intent_from_payment_id_type(
     db: &dyn StorageInterface,
     payment_id_type: payments::PaymentIdType,
@@ -802,5 +792,15 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
     }
 }

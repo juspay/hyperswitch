@@ -75,10 +75,12 @@ impl ConnectorCommon for Nmi {
             .parse_struct("StandardResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
-            message: response.responsetext,
+            message: response.responsetext.to_owned(),
             status_code: res.status_code,
-            reason: None,
-            ..Default::default()
+            reason: Some(response.responsetext),
+            code: response.response_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response.transactionid),
         })
     }
 }
@@ -867,6 +869,21 @@ impl api::IncomingWebhook for Nmi {
 
         let object_reference_id = match reference_body.event_body.action.action_type {
             nmi::NmiActionType::Sale => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Auth => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Capture => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    reference_body.event_body.order_id,
+                ),
+            ),
+            nmi::NmiActionType::Void => api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::PaymentAttemptId(
                     reference_body.event_body.order_id,
                 ),

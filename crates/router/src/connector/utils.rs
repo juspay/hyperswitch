@@ -117,7 +117,7 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let captured_amount =
-                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                    types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
@@ -273,6 +273,7 @@ pub trait PaymentsPreProcessingData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -317,6 +318,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -332,6 +338,18 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+pub trait RevokeMandateRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl RevokeMandateRequestData for types::MandateRevokeRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 }
 
@@ -359,6 +377,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
@@ -498,6 +517,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
     }
+
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -575,6 +598,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -598,6 +622,11 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 }
                 .into(),
             )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -757,23 +786,27 @@ pub enum CardIssuer {
 }
 
 pub trait CardData {
-    fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Secret<String>;
+    ) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_expiry_date_as_yymm(&self) -> Secret<String>;
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl CardData for api::Card {
-    fn get_card_expiry_year_2_digit(&self) -> Secret<String> {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
-        Secret::new(year[year.len() - 2..].to_string())
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.card_number.peek())
@@ -781,14 +814,14 @@ impl CardData for api::Card {
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
         delimiter: String,
-    ) -> Secret<String> {
-        let year = self.get_card_expiry_year_2_digit();
-        Secret::new(format!(
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
-        ))
+        )))
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
@@ -796,14 +829,14 @@ impl CardData for api::Card {
             "{}{}{}",
             year.peek(),
             delimiter,
-            self.card_exp_month.peek().clone()
+            self.card_exp_month.peek()
         ))
     }
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         ))
@@ -815,10 +848,10 @@ impl CardData for api::Card {
         }
         Secret::new(year)
     }
-    fn get_expiry_date_as_yymm(&self) -> Secret<String> {
-        let year = self.get_card_expiry_year_2_digit().expose();
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
-        Secret::new(format!("{year}{month}"))
+        Ok(Secret::new(format!("{year}{month}")))
     }
 }
 
@@ -1190,7 +1223,7 @@ where
 {
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    let json = connector_meta_secret.peek().clone();
+    let json = connector_meta_secret.expose();
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
@@ -1508,86 +1541,6 @@ pub fn get_error_code_error_message_based_on_priority(
         .cloned()
 }
 
-#[cfg(test)]
-mod error_code_error_message_tests {
-    #![allow(clippy::unwrap_used)]
-    use super::*;
-
-    struct TestConnector;
-
-    impl ConnectorErrorTypeMapping for TestConnector {
-        fn get_connector_error_type(
-            &self,
-            error_code: String,
-            error_message: String,
-        ) -> ConnectorErrorType {
-            match (error_code.as_str(), error_message.as_str()) {
-                ("01", "INVALID_MERCHANT") => ConnectorErrorType::BusinessError,
-                ("03", "INVALID_CVV") => ConnectorErrorType::UserError,
-                ("04", "04") => ConnectorErrorType::TechnicalError,
-                _ => ConnectorErrorType::UnknownError,
-            }
-        }
-    }
-
-    #[test]
-    fn test_get_error_code_error_message_based_on_priority() {
-        let error_code_message_list_unknown = vec![
-            ErrorCodeAndMessage {
-                error_code: "01".to_string(),
-                error_message: "INVALID_MERCHANT".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "05".to_string(),
-                error_message: "05".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "04".to_string(),
-                error_message: "04".to_string(),
-            },
-        ];
-        let error_code_message_list_user = vec![
-            ErrorCodeAndMessage {
-                error_code: "01".to_string(),
-                error_message: "INVALID_MERCHANT".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            },
-        ];
-        let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
-            TestConnector,
-            error_code_message_list_unknown,
-        );
-        let error_code_error_message_user = get_error_code_error_message_based_on_priority(
-            TestConnector,
-            error_code_message_list_user,
-        );
-        let error_code_error_message_none =
-            get_error_code_error_message_based_on_priority(TestConnector, vec![]);
-        assert_eq!(
-            error_code_error_message_unknown,
-            Some(ErrorCodeAndMessage {
-                error_code: "05".to_string(),
-                error_message: "05".to_string(),
-            })
-        );
-        assert_eq!(
-            error_code_error_message_user,
-            Some(ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            })
-        );
-        assert_eq!(error_code_error_message_none, None);
-    }
-}
-
 pub trait MultipleCaptureSyncResponse {
     fn get_connector_capture_id(&self) -> String;
     fn get_capture_attempt_status(&self) -> enums::AttemptStatus;
@@ -1779,5 +1732,124 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
         }
+    }
+}
+
+pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
+    match status {
+        common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::Failure => true,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+    }
+}
+
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
+#[cfg(test)]
+mod error_code_error_message_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    struct TestConnector;
+
+    impl ConnectorErrorTypeMapping for TestConnector {
+        fn get_connector_error_type(
+            &self,
+            error_code: String,
+            error_message: String,
+        ) -> ConnectorErrorType {
+            match (error_code.as_str(), error_message.as_str()) {
+                ("01", "INVALID_MERCHANT") => ConnectorErrorType::BusinessError,
+                ("03", "INVALID_CVV") => ConnectorErrorType::UserError,
+                ("04", "04") => ConnectorErrorType::TechnicalError,
+                _ => ConnectorErrorType::UnknownError,
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_error_code_error_message_based_on_priority() {
+        let error_code_message_list_unknown = vec![
+            ErrorCodeAndMessage {
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "04".to_string(),
+                error_message: "04".to_string(),
+            },
+        ];
+        let error_code_message_list_user = vec![
+            ErrorCodeAndMessage {
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            },
+        ];
+        let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_unknown,
+        );
+        let error_code_error_message_user = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_user,
+        );
+        let error_code_error_message_none =
+            get_error_code_error_message_based_on_priority(TestConnector, vec![]);
+        assert_eq!(
+            error_code_error_message_unknown,
+            Some(ErrorCodeAndMessage {
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
+            })
+        );
+        assert_eq!(
+            error_code_error_message_user,
+            Some(ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            })
+        );
+        assert_eq!(error_code_error_message_none, None);
     }
 }

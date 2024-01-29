@@ -290,7 +290,12 @@ fn get_payment_source(
             bank_name: _,
             country,
         } => Ok(PaymentSourceItem::Eps(RedirectRequest {
-            name: billing_details.get_billing_name()?,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "eps.billing_details",
+                })?
+                .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "eps.country",
             })?,
@@ -330,7 +335,12 @@ fn get_payment_source(
             bank_name: _,
             country,
         } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
-            name: billing_details.get_billing_name()?,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "ideal.billing_details",
+                })?
+                .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "ideal.country",
             })?,

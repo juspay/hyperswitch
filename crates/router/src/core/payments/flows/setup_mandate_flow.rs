@@ -208,6 +208,7 @@ impl types::SetupMandateRouterData {
                 .to_setup_mandate_failed_response()?;
 
                 let payment_method_type = self.request.payment_method_type;
+
                 let pm_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,

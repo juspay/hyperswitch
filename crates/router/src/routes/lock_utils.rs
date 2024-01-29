@@ -24,12 +24,14 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    Blocklist,
     Forex,
     RustLockerMigration,
     Gsm,
     User,
     UserRole,
     ConnectorOnboarding,
+    Recon,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -56,6 +58,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerUpsertConfig => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
+
+            Flow::AddToBlocklist => Self::Blocklist,
+            Flow::DeleteFromBlocklist => Self::Blocklist,
+            Flow::ListBlocklist => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
@@ -172,13 +178,24 @@ impl From<Flow> for ApiIdentifier {
             | Flow::InviteUser
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmail
-            | Flow::VerifyEmailRequest => Self::User,
+            | Flow::VerifyEmailRequest
+            | Flow::UpdateUserAccountDetails => Self::User,
 
-            Flow::ListRoles | Flow::GetRole | Flow::UpdateUserRole | Flow::GetAuthorizationInfo => {
-                Self::UserRole
+            Flow::ListRoles
+            | Flow::GetRole
+            | Flow::GetRoleFromToken
+            | Flow::UpdateUserRole
+            | Flow::GetAuthorizationInfo
+            | Flow::AcceptInvitation => Self::UserRole,
+
+            Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
+                Self::ConnectorOnboarding
             }
 
-            Flow::GetActionUrl | Flow::SyncOnboardingStatus => Self::ConnectorOnboarding,
+            Flow::ReconMerchantUpdate
+            | Flow::ReconTokenRequest
+            | Flow::ReconServiceRequest
+            | Flow::ReconVerifyToken => Self::Recon,
         }
     }
 }

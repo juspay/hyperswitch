@@ -52,7 +52,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     currency_code: item.request.currency,
                     card_number: ccard.card_number.clone(),
                     expiration_date: ccard
-                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvv2: ccard.card_cvc,
                     terminal_capability: "ICC_CHIP_READ_ONLY".to_string(),
                     terminal_operating_environment: "ON_MERCHANT_PREMISES_ATTENDED".to_string(),

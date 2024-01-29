@@ -12,6 +12,8 @@ use diesel::{
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy, WithType};
+#[cfg(feature = "logs")]
+use router_env::logger;
 
 use crate::{
     crypto::Encryptable,
@@ -41,13 +43,14 @@ where
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
 
-        // masks everything but the last 4 digits
-        write!(
-            f,
-            "{}{}",
-            "*".repeat(val_str.len() - 4),
-            &val_str[val_str.len() - 4..]
-        )
+        if let Some(val_str) = val_str.get(val_str.len() - 4..) {
+            // masks everything but the last 4 digits
+            write!(f, "{}{}", "*".repeat(val_str.len() - 4), val_str)
+        } else {
+            #[cfg(feature = "logs")]
+            logger::error!("Invalid phone number: {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 
@@ -174,16 +177,26 @@ where
         {
             return WithType::fmt(val, f);
         }
-        write!(
-            f,
-            "{}_{}_{}",
-            client_secret_segments[0],
-            client_secret_segments[1],
-            "*".repeat(
-                val_str.len()
-                    - (client_secret_segments[0].len() + client_secret_segments[1].len() + 2)
+
+        if let Some((client_secret_segments_0, client_secret_segments_1)) = client_secret_segments
+            .first()
+            .zip(client_secret_segments.get(1))
+        {
+            write!(
+                f,
+                "{}_{}_{}",
+                client_secret_segments_0,
+                client_secret_segments_1,
+                "*".repeat(
+                    val_str.len()
+                        - (client_secret_segments_0.len() + client_secret_segments_1.len() + 2)
+                )
             )
-        )
+        } else {
+            #[cfg(feature = "logs")]
+            logger::error!("Invalid client secret: {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 
@@ -228,12 +241,6 @@ impl TryFrom<String> for Email {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(&value).change_context(errors::ParsingError::EmailParsingError)
-    }
-}
-
-impl From<Secret<String, EmailStrategy>> for Email {
-    fn from(value: Secret<String, EmailStrategy>) -> Self {
-        Self(value)
     }
 }
 
@@ -325,7 +332,13 @@ where
             }
         }
 
-        write!(f, "{}.**.**.**", segments[0])
+        if let Some(segments) = segments.first() {
+            write!(f, "{}.**.**.**", segments)
+        } else {
+            #[cfg(feature = "logs")]
+            logger::error!("Invalid IP address: {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 

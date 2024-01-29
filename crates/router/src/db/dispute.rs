@@ -572,7 +572,7 @@ mod tests {
 
             assert_eq!(1, found_disputes.len());
 
-            assert_eq!(created_dispute, found_disputes.get(0).unwrap().clone());
+            assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
 
         #[tokio::test]
@@ -611,7 +611,7 @@ mod tests {
 
             assert_eq!(1, found_disputes.len());
 
-            assert_eq!(created_dispute, found_disputes.get(0).unwrap().clone());
+            assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
 
         mod update_dispute {

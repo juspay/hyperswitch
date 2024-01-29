@@ -34,6 +34,9 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
+    #[cfg(feature = "vergen")]
+    println!("Starting router (Version: {})", router_env::git_tag!());
+
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),

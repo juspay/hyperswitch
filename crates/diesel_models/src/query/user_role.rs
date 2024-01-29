@@ -19,6 +19,20 @@ impl UserRole {
         .await
     }
 
+    pub async fn find_by_user_id_merchant_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        merchant_id: String,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::user_id
+                .eq(user_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+        )
+        .await
+    }
+
     pub async fn update_by_user_id_merchant_id(
         conn: &PgPooledConn,
         user_id: String,

@@ -10,13 +10,12 @@ license.workspace = true
 
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
-s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
+aws_s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config", "olap"]
 frm = []
-basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "basilisk", "s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing"]
+release = ["kms", "stripe", "aws_s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon"]
 olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
@@ -31,6 +30,7 @@ connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connect
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
+recon = ["email", "api_models/recon"]
 retry = []
 
 [dependencies]
@@ -91,7 +91,7 @@ strum = { version = "0.25", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
@@ -134,7 +134,7 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.28.2"
+tokio = "1.35.1"
 wiremock = "0.5.18"
 
 # First party dev-dependencies

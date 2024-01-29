@@ -21,7 +21,10 @@ use common_utils::{
     ext_traits::{AsyncExt, StringExt, ValueExt},
     generate_id,
 };
-use diesel_models::{encryption::Encryption, enums as storage_enums, payment_method};
+use diesel_models::{
+    business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
+    payment_method,
+};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -44,6 +47,7 @@ use crate::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
         },
+        utils as core_utils,
     },
     db, logger,
     pii::prelude::*,
@@ -101,6 +105,29 @@ pub async fn create_payment_method(
     Ok(response)
 }
 
+pub fn store_default_payment_method(
+    req: &api::PaymentMethodCreate,
+    customer_id: &str,
+    merchant_id: &String,
+) -> (api::PaymentMethodResponse, bool) {
+    let pm_id = generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_response = api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_string(),
+        customer_id: Some(customer_id.to_owned()),
+        payment_method_id: pm_id,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata.clone(),
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           //[#219]
+        installment_payment_enabled: false, //[#219]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+    };
+    (payment_method_response, false)
+}
+
 #[instrument(skip_all)]
 pub async fn add_payment_method(
     state: routes::AppState,
@@ -111,30 +138,44 @@ pub async fn add_payment_method(
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
-    let response = match req.card.clone() {
-        Some(card) => {
-            add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Add Card Failed")
-        }
-        None => {
-            let pm_id = generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id.clone()),
-                payment_method_id: pm_id,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                card: None,
-                metadata: req.metadata.clone(),
-                created: Some(common_utils::date_time::now()),
-                recurring_enabled: false,           //[#219]
-                installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-            };
-            Ok((payment_method_response, false))
-        }
+
+    let response = match req.payment_method {
+        api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
+            Some(bank) => add_bank_to_locker(
+                &state,
+                req.clone(),
+                merchant_account,
+                key_store,
+                &bank,
+                &customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add PaymentMethod Failed"),
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
+        },
+        api_enums::PaymentMethod::Card => match req.card.clone() {
+            Some(card) => {
+                add_card_to_locker(&state, req.clone(), &card, &customer_id, merchant_account)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Add Card Failed")
+            }
+            _ => Ok(store_default_payment_method(
+                &req,
+                &customer_id,
+                merchant_id,
+            )),
+        },
+        _ => Ok(store_default_payment_method(
+            &req,
+            &customer_id,
+            merchant_id,
+        )),
     };
 
     let (resp, is_duplicate) = response?;
@@ -195,6 +236,7 @@ pub async fn update_customer_payment_method(
         payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
         payment_method_issuer_code: pm.payment_method_issuer_code,
+        bank_transfer: req.bank_transfer,
         card: req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
@@ -207,6 +249,64 @@ pub async fn update_customer_payment_method(
 }
 
 // Wrapper function to switch lockers
+
+pub async fn add_bank_to_locker(
+    state: &routes::AppState,
+    req: api::PaymentMethodCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    bank: &api::BankPayout,
+    customer_id: &String,
+) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
+    let key = key_store.key.get_inner().peek();
+    let payout_method_data = api::PayoutMethodData::Bank(bank.clone());
+    let enc_data = async {
+        serde_json::to_value(payout_method_data.to_owned())
+            .map_err(|err| {
+                logger::error!("Error while encoding payout method data: {}", err);
+                errors::VaultError::SavePaymentMethodFailed
+            })
+            .into_report()
+            .change_context(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("Unable to encode payout method data")
+            .ok()
+            .map(|v| {
+                let secret: Secret<String> = Secret::new(v.to_string());
+                secret
+            })
+            .async_lift(|inner| encrypt_optional(inner, key))
+            .await
+    }
+    .await
+    .change_context(errors::VaultError::SavePaymentMethodFailed)
+    .attach_printable("Failed to encrypt payout method data")?
+    .map(Encryption::from)
+    .map(|e| e.into_inner())
+    .map_or(Err(errors::VaultError::SavePaymentMethodFailed), |e| {
+        Ok(hex::encode(e.peek()))
+    })?;
+
+    let payload =
+        payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
+            merchant_id: &merchant_account.merchant_id,
+            merchant_customer_id: customer_id.to_owned(),
+            enc_data,
+        });
+    let store_resp = call_to_locker_hs(
+        state,
+        &payload,
+        customer_id,
+        api_enums::LockerChoice::Basilisk,
+    )
+    .await?;
+    let payment_method_resp = payment_methods::mk_add_bank_response_hs(
+        bank.clone(),
+        store_resp.card_reference,
+        req,
+        &merchant_account.merchant_id,
+    );
+    Ok((payment_method_resp, store_resp.duplicate.unwrap_or(false)))
+}
 
 /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
 pub async fn add_card_to_locker(
@@ -458,6 +558,7 @@ pub async fn add_card_hs(
         req,
         &merchant_account.merchant_id,
     );
+
     Ok((
         payment_method_resp,
         store_card_payload.duplicate.unwrap_or(false),
@@ -1077,6 +1178,12 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        profile_id.as_ref(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
 
     // filter out connectors based on the business country
     let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
@@ -1690,13 +1797,18 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
-
     let merchant_surcharge_configs =
-        if let Some((attempt, payment_intent)) = payment_attempt.as_ref().zip(payment_intent) {
+        if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+            .as_ref()
+            .zip(payment_intent)
+            .zip(business_profile)
+            .map(|((pa, pi), bp)| (pa, pi, bp))
+        {
             Box::pin(call_surcharge_decision_management(
                 state,
                 &merchant_account,
-                attempt,
+                &business_profile,
+                payment_attempt,
                 payment_intent,
                 billing_address,
                 &mut payment_method_responses,
@@ -1705,7 +1817,6 @@ pub async fn list_payment_methods(
         } else {
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
-
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
@@ -1747,6 +1858,7 @@ pub async fn list_payment_methods(
 pub async fn call_surcharge_decision_management(
     state: routes::AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     billing_address: Option<domain::Address>,
@@ -1777,7 +1889,7 @@ pub async fn call_surcharge_decision_management(
             .attach_printable("error performing surcharge decision operation")?;
         if !surcharge_results.is_empty_result() {
             surcharge_results
-                .persist_individual_surcharge_details_in_redis(&state, merchant_account)
+                .persist_individual_surcharge_details_in_redis(&state, business_profile)
                 .await?;
             let _ = state
                 .store
@@ -1800,6 +1912,7 @@ pub async fn call_surcharge_decision_management(
 pub async fn call_surcharge_decision_management_for_saved_card(
     state: &routes::AppState,
     merchant_account: &domain::MerchantAccount,
+    business_profile: &BusinessProfile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
@@ -1827,7 +1940,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .attach_printable("error performing surcharge decision operation")?;
         if !surcharge_results.is_empty_result() {
             surcharge_results
-                .persist_individual_surcharge_details_in_redis(state, merchant_account)
+                .persist_individual_surcharge_details_in_redis(state, business_profile)
                 .await?;
             let _ = state
                 .store
@@ -2396,11 +2509,19 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
         let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
-            enums::PaymentMethod::Card => (
-                Some(get_card_details(&pm, key, state).await?),
-                None,
-                PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
-            ),
+            enums::PaymentMethod::Card => {
+                let card_details = get_card_details_with_locker_fallback(&pm, key, state).await?;
+
+                if card_details.is_some() {
+                    (
+                        card_details,
+                        None,
+                        PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
+                    )
+                } else {
+                    continue;
+                }
+            }
 
             #[cfg(feature = "payouts")]
             enums::PaymentMethod::BankTransfer => {
@@ -2408,7 +2529,17 @@ pub async fn list_customer_payment_method(
                 let token_data = PaymentTokenData::temporary_generic(token.clone());
                 (
                     None,
-                    Some(get_lookup_key_for_payout_method(state, &key_store, &token, &pm).await?),
+                    Some(
+                        get_bank_from_hs_locker(
+                            state,
+                            &key_store,
+                            &token,
+                            &pm.customer_id,
+                            &pm.customer_id,
+                            &pm.payment_method_id,
+                        )
+                        .await?,
+                    ),
                     token_data,
                 )
             }
@@ -2449,6 +2580,7 @@ pub async fn list_customer_payment_method(
         };
 
         //Need validation for enabled payment method ,querying MCA
+
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
@@ -2536,10 +2668,38 @@ pub async fn list_customer_payment_method(
         .await
         .transpose()?;
 
-    if let Some((payment_attempt, payment_intent)) = payment_attempt.zip(payment_intent) {
+    let profile_id = payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            crate::core::utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                &merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+                false,
+            )
+            .await
+            .attach_printable("Could not find profile id from business details")
+        })
+        .await
+        .transpose()?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        profile_id.as_ref(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
+    if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
+        .zip(payment_intent)
+        .zip(business_profile)
+        .map(|((pa, pi), bp)| (pa, pi, bp))
+    {
         call_surcharge_decision_management_for_saved_card(
             state,
             &merchant_account,
+            &business_profile,
             &payment_attempt,
             payment_intent,
             &mut response,
@@ -2550,7 +2710,38 @@ pub async fn list_customer_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-async fn get_card_details(
+pub async fn get_card_details_with_locker_fallback(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+    state: &routes::AppState,
+) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
+    let card_decrypted =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt card details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
+            });
+
+    Ok(if let Some(mut crd) = card_decrypted {
+        if crd.saved_to_locker {
+            crd.scheme = pm.scheme.clone();
+            Some(crd)
+        } else {
+            None
+        }
+    } else {
+        Some(get_card_details_from_locker(state, pm).await?)
+    })
+}
+
+pub async fn get_card_details_without_locker_fallback(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
     state: &routes::AppState,
@@ -2694,18 +2885,20 @@ async fn get_bank_account_connector_details(
 }
 
 #[cfg(feature = "payouts")]
-pub async fn get_lookup_key_for_payout_method(
+pub async fn get_bank_from_hs_locker(
     state: &routes::AppState,
     key_store: &domain::MerchantKeyStore,
-    payout_token: &str,
-    pm: &storage::PaymentMethod,
+    temp_token: &str,
+    customer_id: &str,
+    merchant_id: &str,
+    token_ref: &str,
 ) -> errors::RouterResult<api::BankPayout> {
     let payment_method = get_payment_method_from_hs_locker(
         state,
         key_store,
-        &pm.customer_id,
-        &pm.merchant_id,
-        &pm.payment_method_id,
+        customer_id,
+        merchant_id,
+        token_ref,
         None,
     )
     .await
@@ -2720,9 +2913,9 @@ pub async fn get_lookup_key_for_payout_method(
         api::PayoutMethodData::Bank(bank) => {
             vault::Vault::store_payout_method_data_in_locker(
                 state,
-                Some(payout_token.to_string()),
+                Some(temp_token.to_string()),
                 &pm_parsed,
-                Some(pm.customer_id.to_owned()),
+                Some(customer_id.to_owned()),
                 key_store,
             )
             .await
@@ -2811,6 +3004,14 @@ impl TempLockerCardSupport {
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASKS_ADDED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::request::add_attributes(
+                "flow",
+                "DeleteTokenizeData",
+            )],
+        );
         Ok(card)
     }
 }
@@ -2819,25 +3020,32 @@ impl TempLockerCardSupport {
 pub async fn retrieve_payment_method(
     state: routes::AppState,
     pm: api::PaymentMethodId,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let key = key_store.key.peek();
     let card = if pm.payment_method == enums::PaymentMethod::Card {
-        let card = get_card_from_locker(
-            &state,
-            &pm.customer_id,
-            &pm.merchant_id,
-            &pm.payment_method_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting card from card vault")?;
-        let card_detail = payment_methods::get_card_detail(&pm, card)
+        let card_detail = if state.conf.locker.locker_enabled {
+            let card = get_card_from_locker(
+                &state,
+                &pm.customer_id,
+                &pm.merchant_id,
+                &pm.payment_method_id,
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card details from locker")?;
+            .attach_printable("Error getting card from card vault")?;
+            payment_methods::get_card_detail(&pm, card)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card details from locker")?
+        } else {
+            get_card_details_without_locker_fallback(&pm, key, &state).await?
+        };
         Some(card_detail)
     } else {
         None
@@ -2849,6 +3057,7 @@ pub async fn retrieve_payment_method(
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
+            bank_transfer: None,
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),
