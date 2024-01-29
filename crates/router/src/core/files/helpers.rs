@@ -103,7 +103,6 @@ pub async fn delete_file_using_file_id(
     match provider {
         diesel_models::enums::FileUploadProvider::Router => state
             .file_storage_client
-            .as_ref()
             .delete_file(&provider_file_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError),
@@ -203,7 +202,6 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     Some(
                         state
                             .file_storage_client
-                            .as_ref()
                             .retrieve_file(&provider_file_id)
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -333,7 +331,6 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
             } else {
                 state
                     .file_storage_client
-                    .as_ref()
                     .upload_file(&file_key, create_file_request.file.clone())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
