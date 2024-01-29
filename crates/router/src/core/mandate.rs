@@ -240,41 +240,32 @@ where
         Ok(types::PaymentsResponseData::TransactionResponse {
             mandate_reference, ..
         }) => mandate_reference,
-        _ => &None,
+        Ok(_) => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Unexpected response received")?,
+        Err(_) => return Ok(resp),
     };
 
-    let new_update_record = payments::UpdateHistory {
+    let old_record = payments::UpdateHistory {
         connector_mandate_id: mandate.connector_mandate_id,
         payment_method_id: mandate.payment_method_id,
         original_payment_id: mandate.original_payment_id,
     };
 
-    let mandate_ref = Some(
-        mandate
-            .connector_mandate_ids
-            .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
-            .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)?,
-    );
+    let mandate_ref = mandate
+        .connector_mandate_ids
+        .parse_value::<payments::ConnectorMandateReferenceId>("Connector Reference Id")
+        .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)?;
 
-    let updated_mandate_ref = match mandate_ref {
-        Some(mut man_ref) => {
-            match man_ref.update_history {
-                Some(ref mut uh) => uh.push(new_update_record),
-                None => {
-                    let v = vec![new_update_record];
-                    man_ref.update_history = Some(v)
-                }
-            };
-            man_ref.connector_mandate_id = mandate_details
-                .as_ref()
-                .and_then(|mr| mr.connector_mandate_id.clone());
-            man_ref
-        }
-        None => payments::ConnectorMandateReferenceId {
-            connector_mandate_id: None,
-            payment_method_id: None,
-            update_history: None,
-        },
+    let mut update_history = mandate_ref.update_history.unwrap_or_default();
+    update_history.push(old_record);
+
+    let updated_mandate_ref = payments::ConnectorMandateReferenceId {
+        connector_mandate_id: mandate_details
+            .as_ref()
+            .and_then(|mandate_ref| mandate_ref.connector_mandate_id.clone()),
+        payment_method_id: pm_id.clone(),
+        update_history: Some(update_history),
     };
 
     let connector_mandate_ids =

@@ -704,6 +704,13 @@ impl PaymentCreate {
         let tax_amount = request
             .surcharge_details
             .and_then(|surcharge_details| surcharge_details.tax_amount);
+
+        if request.mandate_data.as_ref().map_or(false, |mandate_data| {
+            mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
+        }) {
+            Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
+        }
+
         let mandate_dets = if let Some(update_id) = request
             .mandate_data
             .as_ref()

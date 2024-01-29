@@ -2406,7 +2406,10 @@ pub fn generate_mandate(
                 .set_merchant_connector_id(merchant_connector_id);
 
             Ok(Some(
-                match data.mandate_type.get_required_value("mandate_type")? {
+                match data
+                    .mandate_type
+                    .get_required_value("mandate_type and update_mandate_id")?
+                {
                     data_models::mandates::MandateDataType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency))
