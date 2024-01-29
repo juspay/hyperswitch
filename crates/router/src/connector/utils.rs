@@ -17,6 +17,7 @@ use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -24,7 +25,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::PaymentData,
+        payments::{PaymentData, RecurringMandatePaymentData},
     },
     pii::PeekInterface,
     types::{
@@ -80,6 +81,7 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -117,7 +119,7 @@ where
             }
             enums::AttemptStatus::Charged => {
                 let captured_amount =
-                    types::Capturable::get_capture_amount(&self.request, payment_data);
+                    types::Capturable::get_captured_amount(&self.request, payment_data);
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount {
                     enums::AttemptStatus::Charged
@@ -249,6 +251,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+        self.recurring_mandate_payment_data
+            .to_owned()
+            .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
         self.payout_method_data
@@ -273,6 +281,7 @@ pub trait PaymentsPreProcessingData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -317,6 +326,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -332,6 +346,18 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+pub trait RevokeMandateRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl RevokeMandateRequestData for types::MandateRevokeRequestData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 }
 
@@ -359,6 +385,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
@@ -498,6 +525,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
     }
+
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -575,6 +606,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -598,6 +630,11 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 }
                 .into(),
             )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
     }
 }
 
@@ -789,7 +826,7 @@ impl CardData for api::Card {
         let year = self.get_card_expiry_year_2_digit()?;
         Ok(Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         )))
@@ -800,14 +837,14 @@ impl CardData for api::Card {
             "{}{}{}",
             year.peek(),
             delimiter,
-            self.card_exp_month.peek().clone()
+            self.card_exp_month.peek()
         ))
     }
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            self.card_exp_month.peek().clone(),
+            self.card_exp_month.peek(),
             delimiter,
             year.peek()
         ))
@@ -1103,6 +1140,22 @@ impl MandateData for payments::MandateAmountData {
     }
 }
 
+pub trait RecurringMandateData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error>;
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+}
+
+impl RecurringMandateData for RecurringMandatePaymentData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error> {
+        self.original_payment_authorized_amount
+            .ok_or_else(missing_field_err("original_payment_authorized_amount"))
+    }
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+        self.original_payment_authorized_currency
+            .ok_or_else(missing_field_err("original_payment_authorized_currency"))
+    }
+}
+
 pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
@@ -1169,23 +1222,6 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-pub fn to_connector_meta_from_secret_with_required_field<T>(
-    connector_meta: Option<Secret<serde_json::Value>>,
-    error_message: &'static str,
-) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let connector_error = errors::ConnectorError::MissingRequiredField {
-        field_name: error_message,
-    };
-    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
-    match parsed_meta {
-        Some(meta) => Ok(meta),
-        _ => Err(connector_error.into()),
-    }
-}
-
 pub fn to_connector_meta_from_secret<T>(
     connector_meta: Option<Secret<serde_json::Value>>,
 ) -> Result<T, Error>
@@ -1194,7 +1230,7 @@ where
 {
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    let json = connector_meta_secret.peek().clone();
+    let json = connector_meta_secret.expose();
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
@@ -1578,6 +1614,11 @@ pub fn validate_currency(
     Ok(())
 }
 
+pub fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
+    let utc_datetime = datetime.assume_utc();
+    utc_datetime.unix_timestamp() * 1000
+}
+
 #[cfg(feature = "frm")]
 pub trait FraudCheckSaleRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -1706,6 +1747,45 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
     }
 }
 
+pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
+    match status {
+        common_enums::AttemptStatus::AuthenticationFailed
+        | common_enums::AttemptStatus::AuthorizationFailed
+        | common_enums::AttemptStatus::CaptureFailed
+        | common_enums::AttemptStatus::VoidFailed
+        | common_enums::AttemptStatus::Failure => true,
+        common_enums::AttemptStatus::Started
+        | common_enums::AttemptStatus::RouterDeclined
+        | common_enums::AttemptStatus::AuthenticationPending
+        | common_enums::AttemptStatus::AuthenticationSuccessful
+        | common_enums::AttemptStatus::Authorized
+        | common_enums::AttemptStatus::Charged
+        | common_enums::AttemptStatus::Authorizing
+        | common_enums::AttemptStatus::CodInitiated
+        | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidInitiated
+        | common_enums::AttemptStatus::CaptureInitiated
+        | common_enums::AttemptStatus::AutoRefunded
+        | common_enums::AttemptStatus::PartialCharged
+        | common_enums::AttemptStatus::PartialChargedAndChargeable
+        | common_enums::AttemptStatus::Unresolved
+        | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::PaymentMethodAwaited
+        | common_enums::AttemptStatus::ConfirmationAwaited
+        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+    }
+}
+
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]

@@ -1,0 +1,14 @@
+# Scheduler settings provides a point to modify the behaviour of scheduler flow.
+# It defines the the streams/queues name and configuration as well as event selection variables
+[scheduler]
+consumer_group = "scheduler_group"
+graceful_shutdown_interval = 60000 # Specifies how much time to wait while re-attempting shutdown for a service (in milliseconds)
+loop_interval = 30000              # Specifies how much time to wait before starting the defined behaviour of producer or consumer (in milliseconds)
+stream = "scheduler_stream"
+
+[scheduler.producer]
+batch_size = 50                   # Specifies the batch size the producer will push under a single entry in the redis queue
+lock_key = "producer_locking_key" # The following keys defines the producer lock that is created in redis with
+lock_ttl = 160                    # the ttl being the expiry (in seconds)
+lower_fetch_limit = 900           # Lower limit for fetching entries from redis queue (in seconds)
+upper_fetch_limit = 0             # Upper limit for fetching entries from the redis queue (in seconds)0
