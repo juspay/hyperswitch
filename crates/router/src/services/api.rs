@@ -15,7 +15,9 @@ pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::X_HS_LATENCY, errors::{ErrorSwitch, ReportSwitchExt}, request::RequestContent
+    consts::X_HS_LATENCY,
+    errors::{ErrorSwitch, ReportSwitchExt},
+    request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -607,10 +609,9 @@ pub async fn send_request(
     };
 
     // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
-    let cloned_send_request =
-        match request.try_clone() {
-            Some (cloned_request) => Some (async {
-                cloned_request
+    let cloned_send_request = match request.try_clone() {
+        Some(cloned_request) => Some(async {
+            cloned_request
                 .send()
                 .await
                 .map_err(|error| match error {
@@ -626,35 +627,35 @@ pub async fn send_request(
                 })
                 .into_report()
                 .attach_printable("Unable to send request to connector")
-            }),
-            None => None,
-        };
+        }),
+        None => None,
+    };
 
     let send_request = async {
         request
-        .send()
-        .await
-        .map_err(|error| match error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::RequestTimeoutReceived
-            }
-            error if is_connection_closed(&error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::ConnectionClosed
-            }
-            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-        })
-        .into_report()
-        .attach_printable("Unable to send request to connector")
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosed
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
     };
-
 
     let response = metrics_request::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
         &[metrics_tag.clone()],
-    ).await;
+    )
+    .await;
     // Retry once if the response is connection closed.
     //
     // This is just due to the racy nature of networking.
@@ -670,22 +671,21 @@ pub async fn send_request(
             if error.current_context() == &errors::ApiClientError::ConnectionClosed {
                 metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
                 match cloned_send_request {
-                    Some(cloned_request) =>
+                    Some(cloned_request) => {
                         metrics_request::record_operation_time(
                             cloned_request,
                             &metrics::EXTERNAL_REQUEST_TIME,
                             &[metrics_tag],
                         )
-                        .await,
+                        .await
+                    }
                     None => Err(error),
                 }
-
             } else {
                 Err(error)
             }
         }
     }
-
 }
 
 fn is_connection_closed(error: &reqwest::Error) -> bool {
