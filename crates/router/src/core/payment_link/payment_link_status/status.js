@@ -285,7 +285,6 @@ function renderStatusDetails(paymentDetails) {
             var queryParams = {
               payment_id: paymentDetails.payment_id,
               status: paymentDetails.status,
-              amount: paymentDetails.amount,
             };
             var url = new URL(paymentDetails.return_url);
             var params = new URLSearchParams(url.search);
