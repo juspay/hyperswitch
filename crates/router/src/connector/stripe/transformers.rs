@@ -1901,16 +1901,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 }
             });
 
-        let meta_data = item.request.metadata.clone().map_or(
-            HashMap::from([("metadata[order_id]".to_string(), order_id.clone())]),
-            |metadata| {
-                let mut merchant_defined_metadata =
-                    get_merchant_defined_metadata(metadata.peek().to_owned());
-                merchant_defined_metadata
-                    .insert("metadata[order_id]".to_string(), order_id.clone());
-                merchant_defined_metadata
-            },
-        );
+        let meta_data = get_merchant_defined_metadata(item.request.metadata.clone(), order_id);
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -1987,21 +1978,17 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
 
         let mut meta_data = HashMap::from([
             (
-                "metadata[order_id]".to_string(),
-                item.connector_request_reference_id.clone(),
-            ),
-            (
                 "metadata[txn_id]".to_string(),
                 format!("{}_{}_{}", item.merchant_id, item.payment_id, "1"),
             ),
             ("metadata[txn_uuid]".to_owned(), Uuid::new_v4().to_string()),
         ]);
 
-        if let Some(metadata) = item.request.metadata.clone() {
-            let merchant_defined_metadata =
-                get_merchant_defined_metadata(metadata.peek().to_owned());
-            meta_data.extend(merchant_defined_metadata)
-        };
+        let merchant_defined_metadata = get_merchant_defined_metadata(
+            item.request.metadata.clone(),
+            item.connector_request_reference_id.clone(),
+        );
+        meta_data.extend(merchant_defined_metadata);
 
         Ok(Self {
             confirm: true,
@@ -3104,24 +3091,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         {
             let order_id = value.connector_request_reference_id.clone();
+            let meta_data = Some(get_merchant_defined_metadata(
+                value.request.metadata.clone(),
+                order_id,
+            ));
             Ok(Self {
                 amount: value.request.amount.to_string(),
                 currency: value.request.currency.to_string(),
                 customer: Secret::new(value.get_connector_customer_id()?),
                 source: Secret::new(value.get_preprocessing_id()?),
-                meta_data: value.request.metadata.clone().map_or(
-                    Some(HashMap::from([(
-                        "metadata[order_id]".to_string(),
-                        order_id.clone(),
-                    )])),
-                    |metadata| {
-                        let mut merchant_defined_metadata =
-                            get_merchant_defined_metadata(metadata.peek().to_owned());
-                        merchant_defined_metadata
-                            .insert("metadata[order_id]".to_string(), order_id.clone());
-                        Some(merchant_defined_metadata)
-                    },
-                ),
+                meta_data,
             })
         }
     }
@@ -3674,16 +3653,24 @@ pub struct DisputeObj {
     pub status: String,
 }
 
-fn get_merchant_defined_metadata(metadata: Value) -> HashMap<String, String> {
-    let hashmap: HashMap<String, Value> =
-        serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+fn get_merchant_defined_metadata(
+    merchant_metadata: Option<Secret<Value>>,
+    order_id: String,
+) -> HashMap<String, String> {
+    let mut meta_data = HashMap::from([("metadata[order_id]".to_string(), order_id)]);
     let mut request_hash_map = HashMap::new();
 
-    for (key, value) in hashmap {
-        request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
-    }
+    if let Some(metadata) = merchant_metadata {
+        let hashmap: HashMap<String, Value> =
+            serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
 
-    request_hash_map
+        for (key, value) in hashmap {
+            request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
+        }
+
+        meta_data.extend(request_hash_map)
+    };
+    meta_data
 }
 
 #[cfg(test)]
