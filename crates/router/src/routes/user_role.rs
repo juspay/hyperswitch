@@ -115,3 +115,21 @@ pub async fn accept_invitation(
     ))
     .await
 }
+
+pub async fn delete_user_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_role_api::DeleteUserRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_role_core::delete_user_role,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
