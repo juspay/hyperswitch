@@ -117,6 +117,7 @@ pay_later.klarna.connector_list = "adyen"
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource"
 wallet.google_pay.connector_list = "stripe,adyen,cybersource"
 wallet.paypal.connector_list = "adyen"
+bank_redirect.ideal.connector_list = "adyen,globalpay"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
