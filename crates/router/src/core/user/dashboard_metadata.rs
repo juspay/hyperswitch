@@ -447,8 +447,14 @@ async fn insert_metadata(
             #[cfg(feature = "email")]
             {
                 use crate::services::email::types as email_types;
+                use crate::{
+                    db::user::UserInterface,
+                    types::domain::{self},
+                };
+                use masking::ExposeInterface;
                 use masking::Secret;
                 use router_env::logger;
+
                 let user_data =
                     UserInterface::find_user_by_id(&*state.store, &user.user_id.clone())
                         .await
