@@ -41,8 +41,6 @@ pub async fn get_api_event<T>(
                         Flow::PaymentsCreate,
                         Flow::PaymentsStart,
                         Flow::PaymentsUpdate,
-                        Flow::RefundsCreate,
-                        Flow::IncomingWebhookReceive,
                     ]
                 )
                 .switch()?;
