@@ -3,6 +3,8 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use router_env::logger;
 
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
@@ -15,8 +17,6 @@ use crate::{
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
-#[cfg(feature = "email")]
-use router_env::logger;
 
 pub async fn set_metadata(
     state: AppState,
