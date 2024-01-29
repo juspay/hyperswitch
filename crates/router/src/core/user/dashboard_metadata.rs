@@ -3,12 +3,14 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
+    db::user::UserInterface,
     routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
 
@@ -434,15 +436,60 @@ async fn insert_metadata(
             if utils::is_update_required(&metadata) {
                 metadata = utils::update_user_scoped_metadata(
                     state,
-                    user.user_id,
+                    user.user_id.clone(),
                     user.merchant_id,
                     user.org_id,
                     metadata_key,
-                    data,
+                    data.clone(),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError);
             }
+
+            #[cfg(feature = "email")]
+            {
+                use crate::services::email::types as email_types;
+                use masking::Secret;
+                use router_env::logger;
+                let user_data =
+                    UserInterface::find_user_by_id(&*state.store, &user.user_id.clone())
+                        .await
+                        .change_context(UserErrors::InternalServerError)?;
+
+                let email_contents = email_types::BizEmailProd {
+                    recipient_email: domain::UserEmail::new(Secret::new(
+                        "biz@hyperswitch.io".to_string(),
+                    ))?,
+                    settings: state.conf.clone(),
+                    subject: "Bizz Email",
+                    user_name: domain::UserName::new(Secret::new(user_data.name.expose()))?,
+                    link: String::from(data.business_website.clone().unwrap_or(String::from(""))),
+                    poc_email: domain::UserEmail::new(Secret::new(
+                        data.poc_email.unwrap_or(String::from("")),
+                    ))?,
+                    legal_business_name: String::from(
+                        data.legal_business_name.unwrap_or(String::from("")),
+                    ),
+                    business_location: data
+                        .business_location
+                        .unwrap_or(common_enums::CountryAlpha2::AD)
+                        .to_string(),
+
+                    business_website: String::from(
+                        data.business_website.clone().unwrap_or(String::from("")),
+                    ),
+                };
+
+                let send_email_result = state
+                    .email_client
+                    .compose_and_send_email(
+                        Box::new(email_contents),
+                        state.conf.proxy.https_url.as_ref(),
+                    )
+                    .await;
+                logger::info!(?send_email_result);
+            }
+
             metadata
         }
         types::MetaData::SPTestPayment(data) => {

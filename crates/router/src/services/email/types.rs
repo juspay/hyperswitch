@@ -23,6 +23,14 @@ pub enum EmailBody {
         link: String,
         user_name: String,
     },
+    BizEmailProd {
+        link: String,
+        user_name: String,
+        poc_email: String,
+        legal_business_name: String,
+        business_location: String,
+        business_website: String,
+    },
     ReconActivation {
         user_name: String,
     },
@@ -66,6 +74,24 @@ pub mod html {
             EmailBody::ReconActivation { user_name } => {
                 format!(
                     include_str!("assets/recon_activation.html"),
+                    username = user_name,
+                )
+            }
+            EmailBody::BizEmailProd {
+                user_name,
+                link,
+                poc_email,
+                legal_business_name,
+                business_location,
+                business_website,
+            } => {
+                format!(
+                    include_str!("assets/bizemailprod.html"),
+                    link = link,
+                    poc_email = poc_email,
+                    legal_business_name = legal_business_name,
+                    business_location = business_location,
+                    business_website = business_website,
                     username = user_name,
                 )
             }
@@ -244,6 +270,41 @@ impl EmailData for InviteUser {
 pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub subject: &'static str,
+}
+
+#[async_trait::async_trait]
+impl EmailData for BizEmailProd {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let token = EmailToken::new_token(self.recipient_email.clone(), &self.settings)
+            .await
+            .change_context(EmailError::TokenGenerationFailure)?;
+
+        let invite_user_link =
+            get_link_with_token(&self.settings.email.base_url, token, "set_password");
+
+        let body = html::get_html_body(EmailBody::MagicLink {
+            link: invite_user_link,
+            user_name: self.user_name.clone().get_secret().expose(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+
+pub struct BizEmailProd {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: domain::UserName,
+    pub link: String,
+    pub poc_email: domain::UserEmail,
+    pub legal_business_name: String,
+    pub business_location: String,
+    pub business_website: String,
     pub settings: std::sync::Arc<configs::settings::Settings>,
     pub subject: &'static str,
 }
