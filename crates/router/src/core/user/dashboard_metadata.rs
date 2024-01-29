@@ -6,11 +6,13 @@ use error_stack::ResultExt;
 
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
+#[cfg(feature = "email")]
+use crate::types::domain::{self};
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
-    types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
+    types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
 #[cfg(feature = "email")]
@@ -451,7 +453,9 @@ async fn insert_metadata(
             #[cfg(feature = "email")]
             {
                 let email_contents = email_types::BizEmailProd {
-                    recipient_email: domain::UserEmail::new("biz@hyperswitch.io".to_string().into())?,
+                    recipient_email: domain::UserEmail::new(
+                        "biz@hyperswitch.io".to_string().into(),
+                    )?,
                     settings: state.conf.clone(),
                     subject: "Bizz Email",
                     user_name: data.poc_name.unwrap_or_default().into(),
