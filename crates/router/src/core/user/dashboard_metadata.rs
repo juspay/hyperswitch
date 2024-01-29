@@ -463,7 +463,6 @@ async fn insert_metadata(
                     settings: state.conf.clone(),
                     subject: "Bizz Email",
                     user_name: domain::UserName::new(Secret::new(user_data.name.expose()))?,
-                    link: String::from(data.business_website.clone().unwrap_or(String::from(""))),
                     poc_email: domain::UserEmail::new(Secret::new(
                         data.poc_email.unwrap_or(String::from("")),
                     ))?,

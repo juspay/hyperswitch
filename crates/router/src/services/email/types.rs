@@ -24,7 +24,6 @@ pub enum EmailBody {
         user_name: String,
     },
     BizEmailProd {
-        link: String,
         user_name: String,
         poc_email: String,
         legal_business_name: String,
@@ -79,7 +78,6 @@ pub mod html {
             }
             EmailBody::BizEmailProd {
                 user_name,
-                link,
                 poc_email,
                 legal_business_name,
                 business_location,
@@ -87,7 +85,6 @@ pub mod html {
             } => {
                 let x = format!(
                     include_str!("assets/bizemailprod.html"),
-                    link = link,
                     poc_email = poc_email,
                     legal_business_name = legal_business_name,
                     business_location = business_location,
@@ -279,15 +276,7 @@ pub struct ReconActivation {
 #[async_trait::async_trait]
 impl EmailData for BizEmailProd {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(self.recipient_email.clone(), &self.settings)
-            .await
-            .change_context(EmailError::TokenGenerationFailure)?;
-
-        let invite_user_link =
-            get_link_with_token(&self.settings.email.base_url, token, "set_password");
-
         let body = html::get_html_body(EmailBody::BizEmailProd {
-            link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
             poc_email: self.poc_email.clone().get_secret().expose(),
             legal_business_name: self.legal_business_name.clone(),
@@ -307,7 +296,6 @@ impl EmailData for BizEmailProd {
 pub struct BizEmailProd {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub link: String,
     pub poc_email: domain::UserEmail,
     pub legal_business_name: String,
     pub business_location: String,
