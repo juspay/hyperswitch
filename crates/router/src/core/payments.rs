@@ -1012,7 +1012,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     key_store: &domain::MerchantKeyStore,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
-    mut payment_data: &mut PaymentData<F>,
+    payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     validate_result: &operations::ValidateResult<'_>,
@@ -1073,7 +1073,7 @@ where
     // Validating the blocklist guard and generate the fingerprint
     operation
         .to_domain()?
-        .guard_payment_against_blocklist(state, &merchant_account, &mut payment_data)
+        .guard_payment_against_blocklist(state, merchant_account, payment_data)
         .await?;
 
     let updated_customer = call_create_connector_customer_if_required(

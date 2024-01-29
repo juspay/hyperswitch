@@ -528,13 +528,13 @@ where
             "Failed to update status in Payment Attempt to failed, due to it being blocklisted",
         )?;
 
-        return Err(errors::ApiErrorResponse::PaymentBlockedError {
+        Err(errors::ApiErrorResponse::PaymentBlockedError {
             code: 200,
             message: "This payment was blocked".to_string(),
             status: "Failed".to_string(),
             reason: "Blocked".to_string(),
         }
-        .into());
+        .into())
     } else {
         payment_data.payment_intent.fingerprint_id = generate_payment_fingerprint(
             state,
