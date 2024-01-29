@@ -89,13 +89,10 @@ pub async fn intiate_payment_link_flow(
         }
     };
 
-    let profile_id = payment_intent
+    let profile_id = payment_link
         .profile_id
-        .unwrap_or(payment_link.profile_id.ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id",
-            },
-        )?);
+        .or(payment_intent.profile_id)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
@@ -530,13 +527,10 @@ pub async fn get_payment_link_status(
     let merchant_name = capitalize_first_char(&payment_link_config.seller_name);
     let css_script = get_color_scheme_css(payment_link_config.clone());
 
-    let profile_id = payment_intent
+    let profile_id = payment_link
         .profile_id
-        .unwrap_or(payment_link.profile_id.ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id",
-            },
-        )?);
+        .or(payment_intent.profile_id)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
