@@ -1,5 +1,7 @@
-use async_bb8_diesel::AsyncConnection;
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+use diesel_models::ConfigNew;
 use error_stack::ResultExt;
+use router_env::logger;
 
 use super::{MockDb, Store};
 use crate::{
@@ -7,10 +9,6 @@ use crate::{
     core::errors::{self, CustomResult},
     types::storage,
 };
-use diesel_models::ConfigNew;
-use router_env::logger;
-
-use async_bb8_diesel::AsyncRunQueryDsl;
 
 #[async_trait::async_trait]
 pub trait HealthCheckDbInterface {

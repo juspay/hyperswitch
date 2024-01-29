@@ -1,5 +1,3 @@
-use crate::routes::app;
-
 use analytics::health_check::HealthCheck;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -7,6 +5,7 @@ use router_env::logger;
 use crate::{
     consts::LOCKER_HEALTH_CALL_PATH,
     core::errors::{self, CustomResult},
+    routes::app,
     services::api as services,
 };
 

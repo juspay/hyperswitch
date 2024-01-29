@@ -27,7 +27,6 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
-
 use crate::{
     core::errors::{self, ProcessTrackerError},
     db::{
