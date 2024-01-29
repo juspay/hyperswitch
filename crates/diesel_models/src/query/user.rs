@@ -60,7 +60,27 @@ impl User {
         .first()
         .cloned()
         .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound).attach_printable("Error while updating user")
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable(format!("Error while updating user by user_id={}", user_id))
+        })
+    }
+
+    pub async fn update_by_user_email(
+        conn: &PgPooledConn,
+        user_email: &str,
+        user: UserUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            users_dsl::email.eq(user_email.to_owned()),
+            UserUpdateInternal::from(user),
+        )
+        .await?
+        .first()
+        .cloned()
+        .ok_or_else(|| {
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable(format!("Error while updating user by email={}", user_email))
         })
     }
 
