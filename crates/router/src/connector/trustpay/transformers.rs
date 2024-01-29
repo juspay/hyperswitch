@@ -1070,6 +1070,7 @@ pub struct GooglePayTransactionInfo {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayMerchantInfo {
     pub merchant_name: String,
+    pub merchant_id: String,
 }
 
 #[derive(Clone, Default, Debug, Deserialize)]
@@ -1290,7 +1291,7 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
-            merchant_id: None,
+            merchant_id: Some(value.merchant_id),
             merchant_name: value.merchant_name,
         }
     }
