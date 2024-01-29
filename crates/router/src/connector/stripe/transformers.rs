@@ -1901,7 +1901,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 }
             });
 
-        let meta_data = get_merchant_defined_metadata(item.request.metadata.clone(), order_id);
+        let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -1984,7 +1984,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             ("metadata[txn_uuid]".to_owned(), Uuid::new_v4().to_string()),
         ]);
 
-        let merchant_defined_metadata = get_merchant_defined_metadata(
+        let merchant_defined_metadata = get_transaction_metadata(
             item.request.metadata.clone(),
             item.connector_request_reference_id.clone(),
         );
@@ -3091,7 +3091,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         {
             let order_id = value.connector_request_reference_id.clone();
-            let meta_data = Some(get_merchant_defined_metadata(
+            let meta_data = Some(get_transaction_metadata(
                 value.request.metadata.clone(),
                 order_id,
             ));
@@ -3653,7 +3653,7 @@ pub struct DisputeObj {
     pub status: String,
 }
 
-fn get_merchant_defined_metadata(
+fn get_transaction_metadata(
     merchant_metadata: Option<Secret<Value>>,
     order_id: String,
 ) -> HashMap<String, String> {
