@@ -268,5 +268,7 @@ pub fn get_application_builder(
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
         .wrap(middleware::LogSpanInitializer)
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
