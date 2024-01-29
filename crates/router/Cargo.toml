@@ -21,7 +21,7 @@ olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "dep:analytic
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
-openapi = ["olap", "oltp", "payouts"]
+openapi = ["olap", "oltp", "payouts", "dep:openapi"]
 vergen = ["router_env/vergen"]
 backwards_compatibility = ["api_models/backwards_compatibility"]
 business_profile_routing = ["api_models/business_profile_routing"]
@@ -96,7 +96,6 @@ tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
-utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
 validator = "0.16.0"
 x509-parser = "0.15.0"
@@ -121,6 +120,7 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+openapi = { version = "0.1.0", path = "../openapi", optional = true }
 erased-serde = "0.3.31"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rdkafka = "0.36.0"
@@ -138,6 +138,7 @@ serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.35.1"
 wiremock = "0.5.18"
+
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }
