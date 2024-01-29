@@ -2277,6 +2277,11 @@ pub struct PaymentsResponse {
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
+    /// Date Time expiry of the payment
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub expires_on: Option<PrimitiveDateTime>,
+
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
 }
