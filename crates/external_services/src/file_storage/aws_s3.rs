@@ -7,7 +7,7 @@ use aws_sdk_s3::{
 };
 use aws_sdk_sts::config::Region;
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use super::InvalidFileStorageConfig;
 use crate::file_storage::{FileStorageError, FileStorageInterface};
@@ -58,6 +58,52 @@ impl AwsFileStorageClient {
             bucket_name: config.bucket_name.clone(),
         }
     }
+
+    /// Uploads a file to AWS S3.
+    async fn upload_file(
+        &self,
+        file_key: &str,
+        file: Vec<u8>,
+    ) -> CustomResult<(), AwsS3StorageError> {
+        self.inner_client
+            .put_object()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .body(file.into())
+            .send()
+            .await
+            .map_err(AwsS3StorageError::UploadFailure)?;
+        Ok(())
+    }
+
+    /// Deletes a file from AWS S3.
+    async fn delete_file(&self, file_key: &str) -> CustomResult<(), AwsS3StorageError> {
+        self.inner_client
+            .delete_object()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .send()
+            .await
+            .map_err(AwsS3StorageError::DeleteFailure)?;
+        Ok(())
+    }
+
+    /// Retrieves a file from AWS S3.
+    async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, AwsS3StorageError> {
+        Ok(self
+            .inner_client
+            .get_object()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .send()
+            .await
+            .map_err(AwsS3StorageError::RetrieveFailure)?
+            .body
+            .collect()
+            .await
+            .map_err(AwsS3StorageError::UnknownError)?
+            .to_vec())
+    }
 }
 
 #[async_trait::async_trait]
@@ -68,29 +114,16 @@ impl FileStorageInterface for AwsFileStorageClient {
         file_key: &str,
         file: Vec<u8>,
     ) -> CustomResult<(), FileStorageError> {
-        self.inner_client
-            .put_object()
-            .bucket(&self.bucket_name)
-            .key(file_key)
-            .body(file.into())
-            .send()
+        self.upload_file(file_key, file)
             .await
-            .map_err(AwsS3StorageError::UploadFailure)
-            .into_report()
             .change_context(FileStorageError::UploadFailed)?;
         Ok(())
     }
 
     /// Deletes a file from AWS S3.
     async fn delete_file(&self, file_key: &str) -> CustomResult<(), FileStorageError> {
-        self.inner_client
-            .delete_object()
-            .bucket(&self.bucket_name)
-            .key(file_key)
-            .send()
+        self.delete_file(file_key)
             .await
-            .map_err(AwsS3StorageError::DeleteFailure)
-            .into_report()
             .change_context(FileStorageError::DeleteFailed)?;
         Ok(())
     }
@@ -98,22 +131,9 @@ impl FileStorageInterface for AwsFileStorageClient {
     /// Retrieves a file from AWS S3.
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError> {
         Ok(self
-            .inner_client
-            .get_object()
-            .bucket(&self.bucket_name)
-            .key(file_key)
-            .send()
+            .retrieve_file(file_key)
             .await
-            .map_err(AwsS3StorageError::RetrieveFailure)
-            .into_report()
-            .change_context(FileStorageError::RetrieveFailed)?
-            .body
-            .collect()
-            .await
-            .map_err(AwsS3StorageError::UnknownError)
-            .into_report()
-            .change_context(FileStorageError::RetrieveFailed)?
-            .to_vec())
+            .change_context(FileStorageError::RetrieveFailed)?)
     }
 }
 
