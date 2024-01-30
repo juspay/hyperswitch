@@ -82,6 +82,7 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
             })
         })?;
 
+    #[cfg(feature = "olap")]
     let analytics_status = state
         .health_check_analytics()
         .await
@@ -99,6 +100,7 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
         database: db_status,
         redis: redis_status,
         locker: locker_status,
+        #[cfg(feature = "olap")]
         analytics: analytics_status,
     };
 

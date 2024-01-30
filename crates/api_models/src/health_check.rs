@@ -3,6 +3,7 @@ pub struct RouterHealthCheckResponse {
     pub database: bool,
     pub redis: bool,
     pub locker: bool,
+    #[cfg(feature = "olap")]
     pub analytics: bool,
 }
 

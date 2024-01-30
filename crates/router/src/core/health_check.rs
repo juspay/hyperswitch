@@ -1,4 +1,6 @@
+#[cfg(feature = "olap")]
 use analytics::health_check::HealthCheck;
+
 use error_stack::ResultExt;
 use router_env::logger;
 
@@ -14,6 +16,7 @@ pub trait HealthCheckInterface {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError>;
     async fn health_check_redis(&self) -> CustomResult<(), errors::HealthCheckRedisError>;
     async fn health_check_locker(&self) -> CustomResult<(), errors::HealthCheckLockerError>;
+    #[cfg(feature = "olap")]
     async fn health_check_analytics(&self) -> CustomResult<(), errors::HealthCheckDBError>;
 }
 
@@ -71,6 +74,8 @@ impl HealthCheckInterface for app::AppState {
 
         Ok(())
     }
+
+    #[cfg(feature = "olap")]
     async fn health_check_analytics(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         let analytics = &self.pool;
         match analytics {
