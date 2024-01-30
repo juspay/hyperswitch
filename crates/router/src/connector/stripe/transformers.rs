@@ -1976,14 +1976,10 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             pm_type,
         ))?;
 
-        let mut meta_data =
-            HashMap::from([("metadata[txn_uuid]".to_owned(), Uuid::new_v4().to_string())]);
-
-        let merchant_defined_metadata = get_transaction_metadata(
+        let mut meta_data = get_transaction_metadata(
             item.request.metadata.clone(),
             item.connector_request_reference_id.clone(),
         );
-        meta_data.extend(merchant_defined_metadata);
 
         Ok(Self {
             confirm: true,
