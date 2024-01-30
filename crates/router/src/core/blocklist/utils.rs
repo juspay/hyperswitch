@@ -510,7 +510,7 @@ where
             status: common_enums::AttemptStatus::Failure,
             error_code: Some(Some("HE-03".to_string())),
             error_message: Some(Some(
-                "Failed to update status in Payment Attempt to failed, due to it being blocklisted"
+                "This payment was blocked"
                     .to_string(),
             )),
             updated_by: merchant_account.storage_scheme.to_string(),
