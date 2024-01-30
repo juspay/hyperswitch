@@ -313,8 +313,6 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         updated_by: String,
-        connector: Option<Option<String>>,
-        merchant_connector_id: Option<Option<String>>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,

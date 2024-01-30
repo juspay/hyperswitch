@@ -476,11 +476,11 @@ where
 
     let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
 
-    let mut db_operations_successful = false;
+    let mut should_payment_be_blocked = false;
     for lookup in blocklist_lookups {
         match lookup {
             Ok(_) => {
-                db_operations_successful = true;
+                should_payment_be_blocked = true;
             }
             Err(e) => {
                 logger::error!(blocklist_db_error=?e, "failed db operations for blocklist");
@@ -488,7 +488,7 @@ where
         }
     }
 
-    if db_operations_successful {
+    if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
             payment_data.payment_intent.clone(),
@@ -514,8 +514,6 @@ where
                     .to_string(),
             )),
             updated_by: merchant_account.storage_scheme.to_string(),
-            connector: Some(None),
-            merchant_connector_id: Some(None),
         };
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
