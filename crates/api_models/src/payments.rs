@@ -403,6 +403,15 @@ pub struct HeaderPayload {
     pub x_hs_latency: Option<bool>,
 }
 
+impl HeaderPayload {
+    pub fn with_source(payment_confirm_source: api_enums::PaymentSource) -> Self {
+        Self {
+            payment_confirm_source: Some(payment_confirm_source),
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(
     Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
 )]
