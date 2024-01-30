@@ -167,10 +167,8 @@ impl
                 req.request.amount,
                 req,
             ))?;
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
-        let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some({{project-name | downcase}}_req))
+        let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -385,10 +383,8 @@ impl
                 req.request.refund_amount,
                 req,
             ))?;
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
-        let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest>::encode_to_string_of_json)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some({{project-name | downcase}}_req))
+        let connector_req = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {

@@ -89,6 +89,16 @@ pub struct InviteUserResponse {
     pub password: Option<Secret<String>>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct InviteMultipleUserResponse {
+    pub email: pii::Email,
+    pub is_email_sent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
@@ -146,4 +156,10 @@ pub struct UserMerchantAccount {
 pub struct VerifyTokenResponse {
     pub merchant_id: String,
     pub user_email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateUserAccountDetailsRequest {
+    pub name: Option<Secret<String>>,
+    pub preferred_merchant_id: Option<String>,
 }

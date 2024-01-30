@@ -1,6 +1,6 @@
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{StringExt, ValueExt},
+    ext_traits::{AsyncExt, StringExt, ValueExt},
 };
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
@@ -19,6 +19,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, enums as api_enums},
         domain::{
@@ -184,6 +185,10 @@ pub async fn save_payout_data_to_locker(
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
                 nick_name: None,
+                card_issuing_country: None,
+                card_network: None,
+                card_issuer: None,
+                card_type: None,
             };
             let payload = StoreLockerReq::LockerCard(StoreCardReq {
                 merchant_id: &merchant_account.merchant_id,
@@ -267,20 +272,65 @@ pub async fn save_payout_data_to_locker(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error updating payouts in saved payout method")?;
 
-    let pm_data = api::payment_methods::PaymentMethodsData::Card(
-        api::payment_methods::CardDetailsPaymentMethod {
-            last4_digits: card_details
-                .as_ref()
-                .map(|c| c.card_number.clone().get_last4()),
-            issuer_country: None,
-            expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
-            expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
-            nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
-            card_holder_name: card_details
-                .as_ref()
-                .and_then(|c| c.card_holder_name.clone()),
-        },
-    );
+    // fetch card info from db
+    let card_isin = card_details
+        .as_ref()
+        .map(|c| c.card_number.clone().get_card_isin());
+
+    let pm_data = card_isin
+        .clone()
+        .async_and_then(|card_isin| async move {
+            db.get_card_info(&card_isin)
+                .await
+                .map_err(|error| services::logger::warn!(card_info_error=?error))
+                .ok()
+        })
+        .await
+        .flatten()
+        .map(|card_info| {
+            api::payment_methods::PaymentMethodsData::Card(
+                api::payment_methods::CardDetailsPaymentMethod {
+                    last4_digits: card_details
+                        .as_ref()
+                        .map(|c| c.card_number.clone().get_last4()),
+                    issuer_country: card_info.card_issuing_country,
+                    expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+                    expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+                    nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+                    card_holder_name: card_details
+                        .as_ref()
+                        .and_then(|c| c.card_holder_name.clone()),
+
+                    card_isin: card_isin.clone(),
+                    card_issuer: card_info.card_issuer,
+                    card_network: card_info.card_network,
+                    card_type: card_info.card_type,
+                    saved_to_locker: true,
+                },
+            )
+        })
+        .unwrap_or_else(|| {
+            api::payment_methods::PaymentMethodsData::Card(
+                api::payment_methods::CardDetailsPaymentMethod {
+                    last4_digits: card_details
+                        .as_ref()
+                        .map(|c| c.card_number.clone().get_last4()),
+                    issuer_country: None,
+                    expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+                    expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+                    nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+                    card_holder_name: card_details
+                        .as_ref()
+                        .and_then(|c| c.card_holder_name.clone()),
+
+                    card_isin: card_isin.clone(),
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    saved_to_locker: true,
+                },
+            )
+        });
 
     let card_details_encrypted =
         cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await;

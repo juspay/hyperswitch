@@ -56,7 +56,7 @@ impl UserFromToken {
 }
 
 pub async fn generate_jwt_auth_token(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     user_role: &UserRole,
 ) -> UserResult<Secret<String>> {
@@ -89,17 +89,13 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     Ok(Secret::new(token))
 }
 
-#[allow(unused_variables)]
 pub fn get_dashboard_entry_response(
-    state: AppState,
+    state: &AppState,
     user: UserFromStorage,
     user_role: UserRole,
     token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
-    #[cfg(feature = "email")]
-    let verification_days_left = user.get_verification_days_left(state)?;
-    #[cfg(not(feature = "email"))]
-    let verification_days_left = None;
+    let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
         merchant_id: user_role.merchant_id,
@@ -110,4 +106,15 @@ pub fn get_dashboard_entry_response(
         verification_days_left,
         user_role: user_role.role_id,
     })
+}
+
+#[allow(unused_variables)]
+pub fn get_verification_days_left(
+    state: &AppState,
+    user: &UserFromStorage,
+) -> UserResult<Option<i64>> {
+    #[cfg(feature = "email")]
+    return user.get_verification_days_left(state);
+    #[cfg(not(feature = "email"))]
+    return Ok(None);
 }

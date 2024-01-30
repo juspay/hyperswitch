@@ -36,6 +36,8 @@ pub struct MandateResponse {
     pub payment_method_id: String,
     /// The payment method
     pub payment_method: String,
+    /// The payment method type
+    pub payment_method_type: Option<String>,
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
@@ -66,6 +68,15 @@ pub struct MandateCardDetails {
     #[schema(value_type = Option<String>)]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
+    /// The first 6 digits of card
+    pub card_isin: Option<String>,
+    /// The bank that issued the card
+    pub card_issuer: Option<String>,
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// The type of the payment card
+    pub card_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

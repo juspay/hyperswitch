@@ -74,19 +74,17 @@ pub mod html {
                 merchant_id,
                 user_name,
                 user_email,
-            } => {
-                format!(
-                    "Dear Hyperswitch Support Team,
-    
-    Dashboard Pro Feature Request,
-    Feature name  : {feature_name}
-    Merchant ID   : {merchant_id}
-    Merchant Name : {user_name}
-    Email         : {user_email}
-    
-    (note: This is an auto generated email. use merchant email for any further comunications)",
-                )
-            }
+            } => format!(
+                "Dear Hyperswitch Support Team,
+
+Dashboard Pro Feature Request,
+Feature name  : {feature_name}
+Merchant ID   : {merchant_id}
+Merchant Name : {user_name}
+Email         : {user_email}
+
+(note: This is an auto generated email. Use merchant email for any further communications)",
+            ),
         }
     }
 }

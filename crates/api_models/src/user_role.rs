@@ -1,3 +1,7 @@
+use common_utils::pii;
+
+use crate::user::DashboardEntryResponse;
+
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -43,6 +47,7 @@ pub enum Permission {
     SurchargeDecisionManagerRead,
     UsersRead,
     UsersWrite,
+    MerchantAccountCreate,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -60,6 +65,7 @@ pub enum PermissionModule {
     Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
+    AccountCreate,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -88,4 +94,17 @@ pub struct UpdateUserRoleRequest {
 pub enum UserStatus {
     Active,
     InvitationSent,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AcceptInvitationRequest {
+    pub merchant_ids: Vec<String>,
+    pub need_dashboard_entry_response: Option<bool>,
+}
+
+pub type AcceptInvitationResponse = DashboardEntryResponse;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
 }

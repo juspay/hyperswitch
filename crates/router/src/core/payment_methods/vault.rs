@@ -1027,7 +1027,18 @@ pub async fn retry_delete_tokenize(
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
+        Some(s_time) => {
+            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes(
+                    "flow",
+                    "DeleteTokenizeData",
+                )],
+            );
+            retry_schedule
+        }
         None => {
             pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await

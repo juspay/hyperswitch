@@ -297,6 +297,8 @@ pub enum Flow {
     ListRoles,
     /// Get role
     GetRole,
+    /// Get role from token
+    GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
@@ -319,6 +321,10 @@ pub enum Flow {
     ResetPassword,
     /// Invite users
     InviteUser,
+    /// Invite multiple users
+    InviteMultipleUser,
+    /// Delete user
+    DeleteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
@@ -331,6 +337,10 @@ pub enum Flow {
     VerifyEmail,
     /// Send verify email
     VerifyEmailRequest,
+    /// Update user account details
+    UpdateUserAccountDetails,
+    /// Accept user invitation
+    AcceptInvitation,
 }
 
 ///

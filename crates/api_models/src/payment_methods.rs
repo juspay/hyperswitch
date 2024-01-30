@@ -21,7 +21,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -109,6 +109,19 @@ pub struct CardDetail {
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -126,7 +139,7 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType, example = "card")]
+    #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -177,6 +190,12 @@ pub struct CardDetailsPaymentMethod {
     pub expiry_year: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
     pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -227,6 +246,18 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_type: Option<String>,
+    pub saved_to_locker: bool,
+}
+
+fn saved_in_locker_default() -> bool {
+    true
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
@@ -242,6 +273,11 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_holder_name: item.card_holder_name,
             card_fingerprint: None,
             nick_name: item.nick_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
@@ -255,6 +291,11 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             expiry_year: item.expiry_year,
             nick_name: item.nick_name,
             card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
@@ -686,7 +727,7 @@ pub struct CustomerPaymentMethod {
     pub customer_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.

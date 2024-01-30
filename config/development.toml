@@ -69,6 +69,8 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
+
 
 [forex_api]
 call_delay = 21600

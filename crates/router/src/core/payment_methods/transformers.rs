@@ -352,18 +352,26 @@ pub fn mk_add_card_response_hs(
     req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
-    let mut card_number = card.card_number.peek().to_owned();
+    let card_number = card.card_number.clone();
+    let last4_digits = card_number.clone().get_last4();
+    let card_isin = card_number.get_card_isin();
+
     let card = api::CardDetailFromLocker {
         scheme: None,
-        last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-        issuer_country: None, // [#256] bin mapping
-        card_number: Some(card.card_number),
-        expiry_month: Some(card.card_exp_month),
-        expiry_year: Some(card.card_exp_year),
-        card_token: None,       // [#256]
-        card_fingerprint: None, // fingerprint not send by basilisk-hs need to have this feature in case we need it in future
-        card_holder_name: card.card_holder_name,
-        nick_name: card.nick_name,
+        last4_digits: Some(last4_digits),
+        issuer_country: None,
+        card_number: Some(card.card_number.clone()),
+        expiry_month: Some(card.card_exp_month.clone()),
+        expiry_year: Some(card.card_exp_year.clone()),
+        card_token: None,
+        card_fingerprint: None,
+        card_holder_name: card.card_holder_name.clone(),
+        nick_name: card.nick_name.clone(),
+        card_isin: Some(card_isin),
+        card_issuer: card.card_issuer,
+        card_network: card.card_network,
+        card_type: card.card_type,
+        saved_to_locker: true,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -399,6 +407,11 @@ pub fn mk_add_card_response(
         card_fingerprint: Some(response.card_fingerprint),
         card_holder_name: card.card_holder_name,
         nick_name: card.nick_name,
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -597,6 +610,8 @@ pub fn get_card_detail(
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
     let mut last4_digits = card_number.peek().to_owned();
+    //fetch form card bin
+
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
@@ -608,6 +623,11 @@ pub fn get_card_detail(
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
         nick_name: response.nick_name.map(masking::Secret::new),
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
     };
     Ok(card_detail)
 }

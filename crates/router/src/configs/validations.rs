@@ -127,7 +127,7 @@ impl super::settings::DrainerSettings {
     }
 }
 
-#[cfg(feature = "s3")]
+#[cfg(feature = "aws_s3")]
 impl super::settings::FileUploadConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

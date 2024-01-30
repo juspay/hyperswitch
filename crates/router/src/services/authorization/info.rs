@@ -15,16 +15,13 @@ pub struct PermissionInfo {
 
 impl PermissionInfo {
     pub fn new(permissions: &[Permission]) -> Vec<Self> {
-        let mut permission_infos = Vec::with_capacity(permissions.len());
-        for permission in permissions {
-            if let Some(description) = Permission::get_permission_description(permission) {
-                permission_infos.push(Self {
-                    enum_name: permission.clone(),
-                    description,
-                })
-            }
-        }
-        permission_infos
+        permissions
+            .iter()
+            .map(|&per| Self {
+                description: Permission::get_permission_description(&per),
+                enum_name: per,
+            })
+            .collect()
     }
 }
 
@@ -43,6 +40,7 @@ pub enum PermissionModule {
     Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
+    AccountCreate,
 }
 
 impl PermissionModule {
@@ -60,7 +58,8 @@ impl PermissionModule {
             Self::Disputes => "Everything related to disputes - like creating and viewing dispute related information are within this module",
             Self::Files => "Permissions for uploading, deleting and viewing files for disputes",
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
-            Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant"
+            Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant",
+            Self::AccountCreate => "Create new account within your organization"
         }
     }
 }
@@ -172,6 +171,11 @@ impl ModuleInfo {
                     Permission::SurchargeDecisionManagerWrite,
                     Permission::SurchargeDecisionManagerRead,
                 ]),
+            },
+            PermissionModule::AccountCreate => Self {
+                module: module_name,
+                description,
+                permissions: PermissionInfo::new(&[Permission::MerchantAccountCreate]),
             },
         }
     }

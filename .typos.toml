@@ -36,6 +36,7 @@ ba = "ba" # ignore minor commit conversions
 ede = "ede" # ignore minor commit conversions
 daa = "daa" # Commit id
 afe = "afe" # Commit id
+Hashi = "Hashi" # HashiCorp
 
 [files]
 extend-exclude = [
