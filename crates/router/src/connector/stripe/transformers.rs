@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
@@ -1976,10 +1975,10 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             pm_type,
         ))?;
 
-        let mut meta_data = get_transaction_metadata(
+        let meta_data = Some(get_transaction_metadata(
             item.request.metadata.clone(),
             item.connector_request_reference_id.clone(),
-        );
+        ));
 
         Ok(Self {
             confirm: true,
@@ -1989,7 +1988,7 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             usage: item.request.setup_future_usage,
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
-            meta_data: Some(meta_data),
+            meta_data,
         })
     }
 }
