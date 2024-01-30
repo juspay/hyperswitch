@@ -64,6 +64,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
                 payment_intent.amount,
+                false,
             )?;
         }
 
@@ -254,10 +255,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             api_models::payments::MandateIds {
                                 mandate_id: mandate_obj.mandate_id,
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: connector_id.connector_mandate_id,
-                                        payment_method_id: connector_id.payment_method_id,
-                                    },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
                                 ))
                             }
                          }),
@@ -616,6 +614,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     metadata,
                     payment_confirm_source: None,
                     updated_by: storage_scheme.to_string(),
+                    fingerprint_id: None,
                     session_expiry,
                 },
                 storage_scheme,

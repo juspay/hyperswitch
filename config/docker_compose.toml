@@ -56,6 +56,7 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
 
 [jwekey]
 vault_encryption_key = ""
@@ -229,7 +230,7 @@ consumer_group = "SCHEDULER_GROUP"
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
@@ -241,6 +242,8 @@ stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
 shift4 = {payment_method = "card"}
 bluesnap = {payment_method = "card"}
+bankofamerica = {payment_method = "card"}
+cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
 
 [dummy_connector]
@@ -396,3 +399,6 @@ enabled = true
 
 [events]
 source = "logs"
+
+[file_storage]
+file_storage_backend = "file_system"

@@ -1269,8 +1269,15 @@
           appearance: appearance,
           clientSecret: client_secret,
         });
+        var type = (paymentDetails.sdk_layout === "spaced_accordion" || paymentDetails.sdk_layout === "accordion")
+              ? "accordion"
+              : paymentDetails.sdk_layout;
+
         var unifiedCheckoutOptions = {
-          layout: "tabs",
+          layout: {
+            type: type, //accordion , tabs, spaced accordion
+            spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion"
+          },
           branding: "never",
           wallets: {
             walletReturnUrl: paymentDetails.return_url,

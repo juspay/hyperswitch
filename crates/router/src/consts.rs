@@ -27,6 +27,9 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// The length of a merchant fingerprint secret
+pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
@@ -73,6 +76,9 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";
+
+#[cfg(feature = "olap")]
+pub const CONNECTOR_ONBOARDING_CONFIG_PREFIX: &str = "onboarding";
 
 /// Max payment session expiry
 pub const MAX_SESSION_EXPIRY: u32 = 7890000;

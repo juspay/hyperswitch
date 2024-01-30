@@ -49,6 +49,10 @@ pub enum ApiEventsType {
     Miscellaneous,
     RustLocker,
     FraudCheck,
+    Recon,
+    Dispute {
+        dispute_id: String,
+    },
 }
 
 impl ApiEventMetric for serde_json::Value {}

@@ -1,6 +1,6 @@
 use strum::Display;
 
-#[derive(PartialEq, Display, Clone, Debug)]
+#[derive(PartialEq, Display, Clone, Debug, Copy)]
 pub enum Permission {
     PaymentRead,
     PaymentWrite,
@@ -34,45 +34,43 @@ pub enum Permission {
 }
 
 impl Permission {
-    pub fn get_permission_description(&self) -> Option<&'static str> {
+    pub fn get_permission_description(&self) -> &'static str {
         match self {
-            Self::PaymentRead => Some("View all payments"),
-            Self::PaymentWrite => Some("Create payment, download payments data"),
-            Self::RefundRead => Some("View all refunds"),
-            Self::RefundWrite => Some("Create refund, download refunds data"),
-            Self::ApiKeyRead => Some("View API keys (masked generated for the system"),
-            Self::ApiKeyWrite => Some("Create and update API keys"),
-            Self::MerchantAccountRead => Some("View merchant account details"),
+            Self::PaymentRead => "View all payments",
+            Self::PaymentWrite => "Create payment, download payments data",
+            Self::RefundRead => "View all refunds",
+            Self::RefundWrite => "Create refund, download refunds data",
+            Self::ApiKeyRead => "View API keys (masked generated for the system",
+            Self::ApiKeyWrite => "Create and update API keys",
+            Self::MerchantAccountRead => "View merchant account details",
             Self::MerchantAccountWrite => {
-                Some("Update merchant account details, configure webhooks, manage api keys")
+                "Update merchant account details, configure webhooks, manage api keys"
             }
-            Self::MerchantConnectorAccountRead => Some("View connectors configured"),
+            Self::MerchantConnectorAccountRead => "View connectors configured",
             Self::MerchantConnectorAccountWrite => {
-                Some("Create, update, verify and delete connector configurations")
+                "Create, update, verify and delete connector configurations"
             }
-            Self::ForexRead => Some("Query Forex data"),
-            Self::RoutingRead => Some("View routing configuration"),
-            Self::RoutingWrite => Some("Create and activate routing configurations"),
-            Self::DisputeRead => Some("View disputes"),
-            Self::DisputeWrite => Some("Create and update disputes"),
-            Self::MandateRead => Some("View mandates"),
-            Self::MandateWrite => Some("Create and update mandates"),
-            Self::CustomerRead => Some("View customers"),
-            Self::CustomerWrite => Some("Create, update and delete customers"),
-            Self::FileRead => Some("View files"),
-            Self::FileWrite => Some("Create, update and delete files"),
-            Self::Analytics => Some("Access to analytics module"),
-            Self::ThreeDsDecisionManagerWrite => Some("Create and update 3DS decision rules"),
+            Self::ForexRead => "Query Forex data",
+            Self::RoutingRead => "View routing configuration",
+            Self::RoutingWrite => "Create and activate routing configurations",
+            Self::DisputeRead => "View disputes",
+            Self::DisputeWrite => "Create and update disputes",
+            Self::MandateRead => "View mandates",
+            Self::MandateWrite => "Create and update mandates",
+            Self::CustomerRead => "View customers",
+            Self::CustomerWrite => "Create, update and delete customers",
+            Self::FileRead => "View files",
+            Self::FileWrite => "Create, update and delete files",
+            Self::Analytics => "Access to analytics module",
+            Self::ThreeDsDecisionManagerWrite => "Create and update 3DS decision rules",
             Self::ThreeDsDecisionManagerRead => {
-                Some("View all 3DS decision rules configured for a merchant")
+                "View all 3DS decision rules configured for a merchant"
             }
-            Self::SurchargeDecisionManagerWrite => {
-                Some("Create and update the surcharge decision rules")
-            }
-            Self::SurchargeDecisionManagerRead => Some("View all the surcharge decision rules"),
-            Self::UsersRead => Some("View all the users for a merchant"),
-            Self::UsersWrite => Some("Invite users, assign and update roles"),
-            Self::MerchantAccountCreate => None,
+            Self::SurchargeDecisionManagerWrite => "Create and update the surcharge decision rules",
+            Self::SurchargeDecisionManagerRead => "View all the surcharge decision rules",
+            Self::UsersRead => "View all the users for a merchant",
+            Self::UsersWrite => "Invite users, assign and update roles",
+            Self::MerchantAccountCreate => "Create merchant account",
         }
     }
 }
