@@ -1440,6 +1440,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
+            metadata: payment_data.payment_intent.metadata.clone(),
         })
     }
 }
