@@ -9,21 +9,21 @@ use crate::{admin, enums};
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
-    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
-    #[schema(
-        max_length = 30,
-        min_length = 30,
-        example = "ref_mbabizu24mvu3mela5njyhpit4"
-    )]
-    pub refund_id: Option<String>,
-
-    /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc. If not provided, this will default to the full payment amount
+    /// The payment id against which refund is to be intiated
     #[schema(
         max_length = 30,
         min_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     pub payment_id: String,
+
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub refund_id: Option<String>,
 
     /// The identifier for the Merchant Account
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -33,11 +33,11 @@ pub struct RefundRequest {
     #[schema(minimum = 100, example = 6540)]
     pub amount: Option<i64>,
 
-    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
+    /// Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
 
-    /// The type of refund based on waiting time for processing: Scheduled or Instant Refund
+    /// To indicate whether to refund needs to be instant or scheduled. Default value is instant
     #[schema(default = "Instant", example = "Instant")]
     pub refund_type: Option<RefundType>,
 
@@ -87,6 +87,7 @@ pub struct RefundUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+/// To indicate whether to refund needs to be instant or scheduled
 #[derive(
     Default, Debug, Clone, Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
 )]
@@ -99,18 +100,18 @@ pub enum RefundType {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundResponse {
-    /// The identifier for refund
+    /// Unique Identifier for the refund
     pub refund_id: String,
-    /// The identifier for payment
+    /// The payment id against which refund is intiated
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     pub amount: i64,
     /// The three-letter ISO currency code
     pub currency: String,
-    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
-    pub reason: Option<String>,
     /// The status for refund
     pub status: RefundStatus,
+    /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
+    pub reason: Option<String>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -127,7 +128,10 @@ pub struct RefundResponse {
     /// The connector used for the refund and the corresponding payment
     #[schema(example = "stripe")]
     pub connector: String,
+    /// The id of business profile for this refund
     pub profile_id: Option<String>,
+    /// The merchant_connector_id of the processor through which this payment went through
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

@@ -545,6 +545,13 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
+                let country_code = item
+                    .data
+                    .address
+                    .billing
+                    .as_ref()
+                    .and_then(|billing| billing.address.as_ref())
+                    .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
@@ -559,7 +566,7 @@ impl<F>
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
-                                    country_code: item.data.get_billing_country()?,
+                                    country_code,
                                     currency_code,
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),
@@ -641,7 +648,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 let buyer_email = item.request.get_email()?;
@@ -748,7 +755,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 Ok(Self {

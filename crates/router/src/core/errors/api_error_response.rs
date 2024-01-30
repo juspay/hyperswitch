@@ -186,6 +186,8 @@ pub enum ApiErrorResponse {
     PaymentNotSucceeded,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "The specified merchant connector account is disabled")]
     MerchantConnectorAccountDisabled,
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "The specified payment is blocked")]
+    PaymentBlocked,
     #[error(error_type= ErrorType::ObjectNotFound, code = "HE_04", message = "Successful payment not found for the given payment id")]
     SuccessfulPaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "The connector provided in the request is incorrect or not available")]

@@ -33,6 +33,7 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
 
 [forex_api]
 call_delay = 21600
@@ -51,12 +52,6 @@ max_attempts = 10
 max_age = 365
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
 vault_encryption_key = ""
 rust_locker_encryption_key = ""
 vault_private_key = ""
@@ -206,7 +201,7 @@ red_pagos = { country = "UY", currency = "UYU" }
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
@@ -251,6 +246,8 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalp
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 
 [analytics]
 source = "sqlx"

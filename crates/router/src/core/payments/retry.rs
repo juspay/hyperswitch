@@ -40,6 +40,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -90,6 +91,7 @@ where
             validate_result,
             schedule_time,
             true,
+            frm_suggestion,
         )
         .await?;
     }
@@ -133,6 +135,7 @@ where
                         schedule_time,
                         //this is an auto retry payment, but not step-up
                         false,
+                        frm_suggestion,
                     )
                     .await?;
 
@@ -275,6 +278,7 @@ pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -310,6 +314,7 @@ where
         validate_result,
         schedule_time,
         api::HeaderPayload::default(),
+        frm_suggestion,
     )
     .await
 }

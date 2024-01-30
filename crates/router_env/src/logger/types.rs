@@ -165,6 +165,14 @@ pub enum Flow {
     RefundsList,
     // Retrieve forex flow.
     RetrieveForexFlow,
+    /// Toggles recon service for a merchant.
+    ReconMerchantUpdate,
+    /// Recon token request flow.
+    ReconTokenRequest,
+    /// Initial request for recon service.
+    ReconServiceRequest,
+    /// Recon token verification flow
+    ReconVerifyToken,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -185,6 +193,12 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Add record to blocklist
+    AddToBlocklist,
+    /// Delete record from blocklist
+    DeleteFromBlocklist,
+    /// List entries from blocklist
+    ListBlocklist,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -253,6 +267,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// User Sign In without invite checks
+    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -283,6 +299,8 @@ pub enum Flow {
     ListRoles,
     /// Get role
     GetRole,
+    /// Get role from token
+    GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
@@ -305,16 +323,28 @@ pub enum Flow {
     ResetPassword,
     /// Invite users
     InviteUser,
+    /// Invite multiple users
+    InviteMultipleUser,
+    /// Delete user
+    DeleteUser,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
     GetActionUrl,
     /// Sync connector onboarding status
     SyncOnboardingStatus,
+    /// Reset tracking id
+    ResetTrackingId,
+    /// Verify email token without invite checks
+    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
     VerifyEmailRequest,
+    /// Update user account details
+    UpdateUserAccountDetails,
+    /// Accept user invitation
+    AcceptInvitation,
 }
 
 ///

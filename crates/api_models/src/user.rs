@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -39,7 +39,21 @@ pub struct DashboardEntryResponse {
 
 pub type SignInRequest = SignUpRequest;
 
-pub type SignInResponse = DashboardEntryResponse;
+#[derive(Debug, serde::Serialize)]
+#[serde(tag = "flow_type", rename_all = "snake_case")]
+pub enum SignInResponse {
+    MerchantSelect(MerchantSelectResponse),
+    DashboardEntry(DashboardEntryResponse),
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MerchantSelectResponse {
+    pub token: Secret<String>,
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub verification_days_left: Option<i64>,
+    pub merchants: Vec<UserMerchantAccount>,
+}
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct ConnectAccountRequest {
@@ -86,6 +100,17 @@ pub struct InviteUserRequest {
 #[derive(Debug, serde::Serialize)]
 pub struct InviteUserResponse {
     pub is_email_sent: bool,
+    pub password: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct InviteMultipleUserResponse {
+    pub email: pii::Email,
+    pub is_email_sent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -127,9 +152,29 @@ pub struct VerifyEmailRequest {
     pub token: Secret<String>,
 }
 
-pub type VerifyEmailResponse = DashboardEntryResponse;
+pub type VerifyEmailResponse = SignInResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UserMerchantAccount {
+    pub merchant_id: String,
+    pub merchant_name: OptionalEncryptableName,
+    pub is_active: bool,
+}
+
+#[cfg(feature = "recon")]
+#[derive(serde::Serialize, Debug)]
+pub struct VerifyTokenResponse {
+    pub merchant_id: String,
+    pub user_email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateUserAccountDetailsRequest {
+    pub name: Option<Secret<String>>,
+    pub preferred_merchant_id: Option<String>,
 }

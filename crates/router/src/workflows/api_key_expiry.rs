@@ -115,6 +115,12 @@ Team Hyperswitch"),
             let task_ids = vec![task_id];
             db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
                 .await?;
+            // Remaining tasks are re-scheduled, so will be resetting the added count
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+            );
         }
 
         Ok(())

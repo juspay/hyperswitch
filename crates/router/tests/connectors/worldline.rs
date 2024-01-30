@@ -92,6 +92,7 @@ impl WorldlineTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
@@ -103,6 +104,7 @@ impl WorldlineTest {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         })
     }
 }

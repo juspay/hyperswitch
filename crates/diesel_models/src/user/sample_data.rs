@@ -5,7 +5,7 @@ use common_enums::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums::MandateDataType, schema::payment_attempt, PaymentAttemptNew};
+use crate::{enums::MandateTypeDetails, schema::payment_attempt, PaymentAttemptNew};
 
 #[derive(
     Clone, Debug, Default, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
@@ -50,7 +50,7 @@ pub struct PaymentAttemptBatchNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateDataType>,
+    pub mandate_details: Option<MandateTypeDetails>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub connector_transaction_id: Option<String>,
@@ -62,6 +62,7 @@ pub struct PaymentAttemptBatchNew {
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub net_amount: Option<i64>,
 }
 
 #[allow(dead_code)]
@@ -114,6 +115,7 @@ impl PaymentAttemptBatchNew {
             encoded_data: self.encoded_data,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
+            net_amount: self.net_amount,
         }
     }
 }
