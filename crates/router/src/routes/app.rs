@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+use external_services::file_storage::FileStorageInterface;
 #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
@@ -68,6 +69,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -266,6 +268,8 @@ impl AppState {
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
 
+            let file_storage_client = conf.file_storage.get_file_storage_client().await;
+
             Self {
                 flow_name: String::from("default"),
                 store,
@@ -279,6 +283,7 @@ impl AppState {
                 #[cfg(feature = "olap")]
                 pool,
                 request_id: None,
+                file_storage_client,
             }
         })
         .await
@@ -886,6 +891,10 @@ impl PaymentLink {
             .service(
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
+            )
+            .service(
+                web::resource("status/{merchant_id}/{payment_id}")
+                    .route(web::get().to(payment_link_status)),
             )
     }
 }
