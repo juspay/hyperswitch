@@ -458,7 +458,7 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::get().to(cloud_routing::list_routing_configs))
                     .route(web::post().to(cloud_routing::routing_create_config)),
             )
             .service(
@@ -970,6 +970,9 @@ impl User {
             .service(web::resource("/user/invite").route(web::post().to(invite_user)))
             .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
+            .service(
+                web::resource("/user/invite_multiple").route(web::post().to(invite_multiple_user)),
+            )
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
