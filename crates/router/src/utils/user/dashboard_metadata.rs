@@ -2,7 +2,7 @@ use std::{net::IpAddr, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
-    GetMetaDataRequest, GetMultipleMetaDataPayload, SetMetaDataRequest,
+    GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
@@ -275,4 +275,11 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
             .map_err(|_| UserErrors::InvalidMetadataRequest.into())
             .attach_printable("Error Parsing to DashboardMetadata enums")?,
     })
+}
+
+pub fn is_prod_email_required(data: &ProdIntent) -> bool {
+    !(data
+        .poc_email
+        .as_ref()
+        .map_or(false, |mail| mail.contains("juspay")))
 }

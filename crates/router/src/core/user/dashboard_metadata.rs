@@ -451,12 +451,7 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                if !(data
-                    .poc_email
-                    .as_ref()
-                    .map(|mail| mail.contains("juspay"))
-                    .unwrap_or(false))
-                {
+                if utils::is_prod_email_required(&data) {
                     let email_contents = email_types::BizEmailProd {
                         recipient_email: domain::UserEmail::new(
                             consts::user::BUSINESS_EMAIL.to_string().into(),
