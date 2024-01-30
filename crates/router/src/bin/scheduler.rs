@@ -8,7 +8,10 @@ use diesel_models::process_tracker as storage;
 use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        health_check::HealthCheckInterface,
+    },
     logger, routes, services,
     types::storage::ProcessTrackerExt,
     workflows,
@@ -115,7 +118,7 @@ impl Health {
             .app_data(web::Data::new(state))
             .app_data(web::Data::new(service))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::get().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
@@ -124,50 +127,60 @@ pub async fn health() -> impl actix_web::Responder {
     logger::info!("Scheduler health was called");
     actix_web::HttpResponse::Ok().body("Scheduler health is good")
 }
-
 #[instrument(skip_all)]
 pub async fn deep_health_check(
     state: web::Data<routes::AppState>,
     service: web::Data<String>,
 ) -> impl actix_web::Responder {
-    let db = &*state.store;
-    let mut status_code = 200;
+    let report = deep_health_check_func(state, service).await;
+    match report {
+        Ok(response) => {
+            services::http_response_json(serde_json::to_string(&response).unwrap_or_default())
+        }
+        Err(err) => services::http_server_error_json_response(
+            serde_json::to_string(&err.current_context()).unwrap_or_default(),
+        ),
+    }
+}
+#[instrument(skip_all)]
+pub async fn deep_health_check_func(
+    state: web::Data<routes::AppState>,
+    service: web::Data<String>,
+) -> errors::RouterResult<SchedulerHealthCheckResponse> {
     logger::info!("{} deep health check was called", service.into_inner());
 
     logger::debug!("Database health check begin");
 
-    let db_status = match db.health_check_db().await {
-        Ok(_) => "Health is good".to_string(),
-        Err(err) => {
-            status_code = 500;
-            err.to_string()
-        }
-    };
+    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Database",
+            message: err.to_string()
+        })
+    })?;
+
     logger::debug!("Database health check end");
 
     logger::debug!("Redis health check begin");
 
-    let redis_status = match db.health_check_redis(db).await {
-        Ok(_) => "Health is good".to_string(),
-        Err(err) => {
-            status_code = 500;
-            err.to_string()
-        }
-    };
+    let redis_status = state
+        .health_check_redis()
+        .await
+        .map(|_| true)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Redis",
+                message: err.to_string()
+            })
+        })?;
 
     logger::debug!("Redis health check end");
 
-    let response = serde_json::to_string(&SchedulerHealthCheckResponse {
+    let response = SchedulerHealthCheckResponse {
         database: db_status,
         redis: redis_status,
-    })
-    .unwrap_or_default();
+    };
 
-    if status_code == 200 {
-        services::http_response_json(response)
-    } else {
-        services::http_server_error_json_response(response)
-    }
+    Ok(response)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, EnumString)]

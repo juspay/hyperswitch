@@ -13,3 +13,5 @@ pub struct SchedulerHealthCheckResponse {
     pub database: bool,
     pub redis: bool,
 }
+
+impl common_utils::events::ApiEventMetric for SchedulerHealthCheckResponse {}
