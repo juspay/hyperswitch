@@ -544,3 +544,6 @@ client_id = ""
 client_secret = ""
 partner_id = ""
 enabled = true
+
+[file_storage]
+file_storage_backend = "file_system"
