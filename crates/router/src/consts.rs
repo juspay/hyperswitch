@@ -66,10 +66,10 @@ pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;
 pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+// #[cfg(any(feature = "olap", feature = "oltp"))]
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+// #[cfg(any(feature = "olap", feature = "oltp"))]
 pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 #[cfg(feature = "email")]

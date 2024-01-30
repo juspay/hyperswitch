@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
-use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
+#[cfg(feature = "olap")]
+use crate::core::errors::{UserErrors, UserResult};
+#[cfg(feature = "olap")]
+use common_utils::date_time;
+#[cfg(feature = "olap")]
+use crate::routes::AppState;
 use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, USER_BLACKLIST_PREFIX},
-    core::errors::{ApiErrorResponse, RouterResult, UserErrors, UserResult},
-    routes::{app::AppStateInfo, AppState},
+    core::errors::{ApiErrorResponse, RouterResult},
+    routes::app::AppStateInfo,
 };
 
+#[cfg(feature = "olap")]
 pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {
     let token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let expiry =
@@ -33,7 +39,7 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .get_key::<Option<i64>>(token.as_str())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp.is_some_and(|timestamp| timestamp > token_issued_at))
+        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
 fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
