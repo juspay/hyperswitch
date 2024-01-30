@@ -26,11 +26,12 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     services::{
+        authentication as auth,
         authentication::UserFromToken,
         authorization::{info, predefined_permissions},
     },
     types::transformers::ForeignFrom,
-    utils::user::password,
+    utils::{self, user::password},
 };
 
 pub mod dashboard_metadata;
@@ -733,7 +734,15 @@ impl UserFromStorage {
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
         state
             .store
-            .find_user_role_by_user_id(self.get_user_id())
+            .find_user_role_by_user_id(&self.0.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+    }
+
+    pub async fn get_roles_from_db(&self, state: &AppState) -> UserResult<Vec<UserRole>> {
+        state
+            .store
+            .list_user_roles_by_user_id(&self.0.user_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -759,6 +768,29 @@ impl UserFromStorage {
 
         let days_left_for_verification = last_date_for_verification - today;
         Ok(Some(days_left_for_verification.whole_days()))
+    }
+
+    pub fn get_preferred_merchant_id(&self) -> Option<String> {
+        self.0.preferred_merchant_id.clone()
+    }
+
+    pub async fn get_role_from_db_by_merchant_id(
+        &self,
+        state: &AppState,
+        merchant_id: &str,
+    ) -> UserResult<UserRole> {
+        state
+            .store
+            .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    UserErrors::RoleNotFound
+                } else {
+                    UserErrors::InternalServerError
+                }
+            })
+            .into_report()
     }
 }
 
@@ -826,5 +858,103 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             role_name,
             last_modified_at: user_and_role.0.last_modified_at,
         })
+    }
+}
+
+pub enum SignInWithRoleStrategyType {
+    SingleRole(SignInWithSingleRoleStrategy),
+    MultipleRoles(SignInWithMultipleRolesStrategy),
+}
+
+impl SignInWithRoleStrategyType {
+    pub async fn decide_signin_strategy_by_user_roles(
+        user: UserFromStorage,
+        user_roles: Vec<UserRole>,
+    ) -> UserResult<Self> {
+        if user_roles.is_empty() {
+            return Err(UserErrors::InternalServerError.into());
+        }
+
+        if let Some(user_role) = user_roles
+            .iter()
+            .find(|role| role.status == UserStatus::Active)
+        {
+            Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
+                user,
+                user_role: user_role.clone(),
+            }))
+        } else {
+            Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
+                user,
+                user_roles,
+            }))
+        }
+    }
+
+    pub async fn get_signin_response(
+        self,
+        state: &AppState,
+    ) -> UserResult<user_api::SignInResponse> {
+        match self {
+            Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
+            Self::MultipleRoles(strategy) => strategy.get_signin_response(state).await,
+        }
+    }
+}
+
+pub struct SignInWithSingleRoleStrategy {
+    pub user: UserFromStorage,
+    pub user_role: UserRole,
+}
+
+impl SignInWithSingleRoleStrategy {
+    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let token =
+            utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        let dashboard_entry_response =
+            utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+        Ok(user_api::SignInResponse::DashboardEntry(
+            dashboard_entry_response,
+        ))
+    }
+}
+
+pub struct SignInWithMultipleRolesStrategy {
+    pub user: UserFromStorage,
+    pub user_roles: Vec<UserRole>,
+}
+
+impl SignInWithMultipleRolesStrategy {
+    async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
+        let merchant_accounts = state
+            .store
+            .list_multiple_merchant_accounts(
+                self.user_roles
+                    .iter()
+                    .map(|role| role.merchant_id.clone())
+                    .collect(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let merchant_details = utils::user::get_multiple_merchant_details_with_status(
+            self.user_roles,
+            merchant_accounts,
+        )?;
+
+        Ok(user_api::SignInResponse::MerchantSelect(
+            user_api::MerchantSelectResponse {
+                name: self.user.get_name(),
+                email: self.user.get_email(),
+                token: auth::UserAuthToken::new_token(
+                    self.user.get_user_id().to_string(),
+                    &state.conf,
+                )
+                .await?
+                .into(),
+                merchants: merchant_details,
+                verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
+            },
+        ))
     }
 }

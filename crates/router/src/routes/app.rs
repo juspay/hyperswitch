@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(all(feature = "kms", feature = "olap"))]
+#[cfg(all(feature = "olap", any(feature = "hashicorp-vault", feature = "kms")))]
 use analytics::AnalyticsConfig;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
+use external_services::file_storage::FileStorageInterface;
+#[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(all(feature = "olap", feature = "kms"))]
@@ -66,6 +69,7 @@ pub struct AppState {
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -146,6 +150,12 @@ impl AppState {
         Box::pin(async move {
             #[cfg(feature = "kms")]
             let kms_client = kms::get_kms_client(&conf.kms).await;
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            let hc_client =
+                external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                    .await
+                    .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -153,6 +163,7 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -180,6 +191,22 @@ impl AppState {
                 ),
             };
 
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = sqlx
+                        .password
+                        .clone()
+                        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                        .await
+                        .expect("Failed while fetching from hashicorp vault");
+                }
+            };
+
             #[cfg(all(feature = "kms", feature = "olap"))]
             #[allow(clippy::expect_used)]
             match conf.analytics {
@@ -195,6 +222,16 @@ impl AppState {
                 }
             };
 
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
             #[cfg(all(feature = "kms", feature = "olap"))]
             #[allow(clippy::expect_used)]
             {
@@ -208,6 +245,17 @@ impl AppState {
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.jwekey = conf
+                    .jwekey
+                    .clone()
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
             #[cfg(feature = "kms")]
             #[allow(clippy::expect_used)]
             let kms_secrets = settings::ActiveKmsSecrets {
@@ -219,6 +267,8 @@ impl AppState {
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
+
+            let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
             Self {
                 flow_name: String::from("default"),
@@ -233,6 +283,7 @@ impl AppState {
                 #[cfg(feature = "olap")]
                 pool,
                 request_id: None,
+                file_storage_client,
             }
         })
         .await
@@ -412,7 +463,7 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::get().to(cloud_routing::list_routing_configs))
                     .route(web::post().to(cloud_routing::routing_create_config)),
             )
             .service(
@@ -906,7 +957,10 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(web::resource("/signin").route(web::post().to(user_signin)))
+            .service(
+                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
+            )
+            .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -915,20 +969,34 @@ impl User {
                     .route(web::post().to(user_merchant_account_create)),
             )
             .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
-            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
-            .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
-            .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role").route(web::get().to(get_role_from_token)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
-            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
-            .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
+            .service(
+                web::resource("/user/invite_multiple").route(web::post().to(invite_multiple_user)),
+            )
             .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            );
+            )
+            .service(web::resource("/user/delete").route(web::delete().to(delete_user_role)));
+
+        // User management
+        route = route.service(
+            web::scope("/user")
+                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("/invite").route(web::post().to(invite_user)))
+                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(web::resource("/update_role").route(web::post().to(update_user_role))),
+        );
+
+        // Role information
+        route = route.service(
+            web::scope("/role")
+                .service(web::resource("").route(web::get().to(get_role_from_token)))
+                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(web::resource("/{role_id}").route(web::get().to(get_role))),
+        );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -950,7 +1018,11 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+                .service(
+                    web::resource("/verify_email")
+                        .route(web::post().to(verify_email_without_invite_checks)),
+                )
+                .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
