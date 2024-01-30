@@ -423,24 +423,25 @@ pub fn get_http_status_code_type(
     Ok(status_code_type.to_string())
 }
 
-pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
+pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>, connector_name: String) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
+        let metric_attributes = metrics::request::add_attributes("connector_name", connector_name);
         match status_code_type.as_deref() {
             Some("1xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[metric_attributes])
             }
             Some("2xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[metric_attributes])
             }
             Some("3xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[metric_attributes])
             }
             Some("4xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[metric_attributes])
             }
             Some("5xx") => {
-                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[metric_attributes])
             }
             _ => logger::info!("Skip metrics as invalid http status code received from connector"),
         };

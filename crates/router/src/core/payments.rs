@@ -237,6 +237,7 @@ where
                     } else {
                         None
                     };
+                    let connector_name = connector.connector_name.to_string();
                     let router_data = call_connector_service(
                         state,
                         &merchant_account,
@@ -260,7 +261,7 @@ where
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
-                    add_connector_http_status_code_metrics(connector_http_status_code);
+                    add_connector_http_status_code_metrics(connector_http_status_code,connector_name);
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -277,6 +278,7 @@ where
                     let mut connectors = connectors.into_iter();
 
                     let connector_data = get_connector_data(&mut connectors)?;
+                    let connector_name = connector_data.connector_name.to_string();
 
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
@@ -348,7 +350,7 @@ where
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
-                    add_connector_http_status_code_metrics(connector_http_status_code);
+                    add_connector_http_status_code_metrics(connector_http_status_code, connector_name);
                     operation
                         .to_post_update_tracker()?
                         .update_tracker(
