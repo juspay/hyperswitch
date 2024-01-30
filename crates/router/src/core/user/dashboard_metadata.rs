@@ -1,3 +1,11 @@
+use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+use diesel_models::{
+    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
+};
+use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use router_env::logger;
+
 #[cfg(feature = "email")]
 use crate::consts;
 #[cfg(feature = "email")]
@@ -11,13 +19,6 @@ use crate::{
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
-use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-use diesel_models::{
-    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
-};
-use error_stack::ResultExt;
-#[cfg(feature = "email")]
-use router_env::logger;
 
 pub async fn set_metadata(
     state: AppState,
