@@ -329,12 +329,12 @@ pub async fn reset_password(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    if let Some(invited_merchant_id) = token.get_merchant_id() {
+    if let Some(inviter_merchant_id) = token.get_merchant_id() {
         state
             .store
             .update_user_role_by_user_id_merchant_id(
                 user.user_id.clone().as_str(),
-                invited_merchant_id,
+                inviter_merchant_id,
                 UserRoleUpdate::UpdateStatus {
                     status: UserStatus::Active,
                     modified_by: user.user_id,

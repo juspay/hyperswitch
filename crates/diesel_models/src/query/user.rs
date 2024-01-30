@@ -49,12 +49,12 @@ impl User {
     pub async fn update_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,
-        user: UserUpdate,
+        user_update: UserUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             users_dsl::user_id.eq(user_id.to_owned()),
-            UserUpdateInternal::from(user),
+            UserUpdateInternal::from(user_update),
         )
         .await?
         .first()
@@ -68,12 +68,12 @@ impl User {
     pub async fn update_by_user_email(
         conn: &PgPooledConn,
         user_email: &str,
-        user: UserUpdate,
+        user_update: UserUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             users_dsl::email.eq(user_email.to_owned()),
-            UserUpdateInternal::from(user),
+            UserUpdateInternal::from(user_update),
         )
         .await?
         .first()
