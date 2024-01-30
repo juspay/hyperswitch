@@ -161,6 +161,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::UserConnectAccount
             | Flow::UserSignUp
+            | Flow::UserSignInWithoutInviteChecks
             | Flow::UserSignIn
             | Flow::Signout
             | Flow::ChangePassword
@@ -180,6 +181,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::InviteMultipleUser
             | Flow::DeleteUser
             | Flow::UserSignUpWithMerchantId
+            | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails => Self::User,

@@ -636,6 +636,7 @@ where
                                         api::MandateType::MultiUse(None)
                                     }
                                 }),
+                                update_mandate_id: d.update_mandate_id,
                             }),
                             auth_flow == services::AuthFlow::Merchant,
                         )

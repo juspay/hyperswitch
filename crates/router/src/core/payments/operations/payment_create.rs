@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
+use data_models::{
+    mandates::{MandateData, MandateDetails, MandateTypeDetails},
+    payments::payment_attempt::PaymentAttempt,
+};
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use masking::PeekInterface;
@@ -255,7 +258,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-
+        // connector mandate reference update history
         let mandate_id = request
             .mandate_id
             .as_ref()
@@ -284,10 +287,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             api_models::payments::MandateIds {
                                 mandate_id: mandate_obj.mandate_id,
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: connector_id.connector_mandate_id,
-                                        payment_method_id: connector_id.payment_method_id,
-                                    },
+                                api_models::payments::ConnectorMandateReferenceId{
+                                    connector_mandate_id: connector_id.connector_mandate_id,
+                                    payment_method_id: connector_id.payment_method_id,
+                                    update_history: None
+                                }
                                 ))
                             }
                          }),
@@ -701,6 +705,35 @@ impl PaymentCreate {
             .surcharge_details
             .and_then(|surcharge_details| surcharge_details.tax_amount);
 
+        if request.mandate_data.as_ref().map_or(false, |mandate_data| {
+            mandate_data.update_mandate_id.is_some() && mandate_data.mandate_type.is_some()
+        }) {
+            Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
+        }
+
+        let mandate_dets = if let Some(update_id) = request
+            .mandate_data
+            .as_ref()
+            .and_then(|inner| inner.update_mandate_id.clone())
+        {
+            let mandate_data = MandateDetails {
+                update_mandate_id: Some(update_id),
+                mandate_type: None,
+            };
+            Some(MandateTypeDetails::MandateDetails(mandate_data))
+        } else {
+            // let mandate_type: data_models::mandates::MandateDataType =
+
+            let mandate_data = MandateDetails {
+                update_mandate_id: None,
+                mandate_type: request
+                    .mandate_data
+                    .as_ref()
+                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+            };
+            Some(MandateTypeDetails::MandateDetails(mandate_data))
+        };
+
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_string(),
@@ -727,10 +760,7 @@ impl PaymentCreate {
                 business_sub_label: request.business_sub_label.clone(),
                 surcharge_amount,
                 tax_amount,
-                mandate_details: request
-                    .mandate_data
-                    .as_ref()
-                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                mandate_details: mandate_dets,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
