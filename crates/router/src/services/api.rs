@@ -1674,7 +1674,7 @@ pub fn build_redirection_form(
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',
