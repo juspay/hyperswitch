@@ -290,7 +290,7 @@ pub struct StripeSofort {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_options[sofort][preferred_language]")]
-    preferred_language: String,
+    preferred_language: Option<String>,
     #[serde(rename = "payment_method_data[sofort][country]")]
     country: api_enums::CountryAlpha2,
 }
@@ -1115,36 +1115,10 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => {
-                let billing_name = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.billing_name.clone());
-
-                let billing_email = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.email.clone());
-                match is_customer_initiated_mandate_payment {
-                    Some(true) => Ok(Self {
-                        name: Some(billing_name.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_name",
-                            },
-                        )?),
-
-                        email: Some(billing_email.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_email",
-                            },
-                        )?),
-                        ..Self::default()
-                    }),
-                    Some(false) | None => Ok(Self {
-                        name: billing_name,
-                        email: billing_email,
-                        ..Self::default()
-                    }),
-                }
-            }
+            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment,
+            )?),
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
@@ -1183,11 +1157,11 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }
             payments::BankRedirectData::Sofort {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                email: billing_details.email.clone(),
-                ..Self::default()
-            }),
+            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment,
+            )?),
+
             payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Blik { .. }
             | payments::BankRedirectData::Interac { .. }
@@ -1674,8 +1648,10 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: country.to_owned(),
-                    preferred_language: preferred_language.to_owned(),
+                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "sofort.country",
+                    })?,
+                    preferred_language: preferred_language.clone(),
                 }),
             ))),
             payments::BankRedirectData::OnlineBankingFpx { .. } => {
@@ -3591,6 +3567,41 @@ pub struct Evidence {
     #[serde(rename = "evidence[uncategorized_text]")]
     pub uncategorized_text: Option<String>,
     pub submit: bool,
+}
+
+// Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe
+fn get_stripe_sepa_dd_mandate_billing_details(
+    billing_details: &Option<payments::BankRedirectBilling>,
+    is_customer_initiated_mandate_payment: Option<bool>,
+) -> Result<StripeBillingAddress, errors::ConnectorError> {
+    let billing_name = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.billing_name.clone());
+
+    let billing_email = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.email.clone());
+    match is_customer_initiated_mandate_payment {
+        Some(true) => Ok(StripeBillingAddress {
+            name: Some(
+                billing_name.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                })?,
+            ),
+
+            email: Some(
+                billing_email.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_email",
+                })?,
+            ),
+            ..StripeBillingAddress::default()
+        }),
+        Some(false) | None => Ok(StripeBillingAddress {
+            name: billing_name,
+            email: billing_email,
+            ..StripeBillingAddress::default()
+        }),
+    }
 }
 
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {

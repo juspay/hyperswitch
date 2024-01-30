@@ -5367,13 +5367,16 @@
               "sofort": {
                 "type": "object",
                 "required": [
-                  "billing_details",
-                  "country",
-                  "preferred_language"
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -5381,7 +5384,8 @@
                   "preferred_language": {
                     "type": "string",
                     "description": "The preferred language",
-                    "example": "en"
+                    "example": "en",
+                    "nullable": true
                   }
                 }
               }
