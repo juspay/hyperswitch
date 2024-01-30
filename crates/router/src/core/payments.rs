@@ -1071,10 +1071,31 @@ where
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
-    operation
-        .to_domain()?
-        .guard_payment_against_blocklist(state, merchant_account, payment_data)
-        .await?;
+    let merchant_id = &payment_data.payment_attempt.merchant_id;
+    let blocklist_enabled_key = format!("guard_blocklist_for_{merchant_id}");
+    let blocklist_guard_enabled = state
+        .store
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .await;
+
+    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
+        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+
+        // If it is not present in db we are defaulting it to false
+        Err(inner) => {
+            if !inner.current_context().is_db_not_found() {
+                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
+            }
+            false
+        }
+    };
+
+    if blocklist_guard_enabled {
+        operation
+            .to_domain()?
+            .guard_payment_against_blocklist(state, merchant_account, payment_data)
+            .await?;
+    }
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
