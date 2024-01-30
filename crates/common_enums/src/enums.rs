@@ -6,12 +6,13 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
-        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
-        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
+        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
+        DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
+        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
+        DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
     };
 }
@@ -73,10 +74,12 @@ pub enum AttemptStatus {
     strum::EnumString,
     strum::EnumIter,
     strum::EnumVariantNames,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Connectors eligible for payments routing
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -277,6 +280,27 @@ pub enum AuthorizationStatus {
 
 #[derive(
     Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BlocklistDataKind {
+    PaymentMethod,
+    CardBin,
+    ExtendedCardBin,
+}
+
+#[derive(
+    Clone,
     Copy,
     Debug,
     Default,
@@ -306,6 +330,7 @@ pub enum CaptureMethod {
     Scheduled,
 }
 
+/// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
 #[derive(
     Clone,
     Copy,
@@ -342,6 +367,7 @@ pub enum ConnectorType {
     PaymentMethodAuth,
 }
 
+/// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
     Clone,
@@ -921,10 +947,14 @@ impl Currency {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
+    /// Authorize + Capture success
     PaymentSucceeded,
+    /// Authorize + Capture failed
     PaymentFailed,
     PaymentProcessing,
     PaymentCancelled,
+    PaymentAuthorized,
+    PaymentCaptured,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -1048,6 +1078,7 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+/// To indicate the type of payment experience that the customer would go through
 #[derive(
     Eq,
     strum::EnumString,
@@ -1083,6 +1114,7 @@ pub enum PaymentExperience {
     DisplayWaitScreen,
 }
 
+/// Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.
 #[derive(
     Clone,
     Copy,
@@ -1188,6 +1220,7 @@ pub enum PaymentMethodType {
     PayEasy,
 }
 
+/// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
     Clone,
     Copy,
@@ -1223,6 +1256,7 @@ pub enum PaymentMethod {
     GiftCard,
 }
 
+/// To be used to specify the type of payment. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
     Copy,
@@ -1271,7 +1305,7 @@ pub enum RefundStatus {
     TransactionFailure,
 }
 
-/// The status of the mandate, which indicates whether it can be used to initiate a payment
+/// The status of the mandate, which indicates whether it can be used to initiate a payment.
 #[derive(
     Clone,
     Copy,
@@ -1296,6 +1330,7 @@ pub enum MandateStatus {
     Revoked,
 }
 
+/// Indicates the card network.
 #[derive(
     Clone,
     Debug,

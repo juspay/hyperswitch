@@ -13,9 +13,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin,
-    customers::CustomerId,
-    enums as api_enums,
+    admin, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
@@ -23,7 +21,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -57,6 +55,11 @@ pub struct PaymentMethodCreate {
     /// The card network
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -73,6 +76,11 @@ pub struct PaymentMethodUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<CardNetwork>,example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -101,6 +109,19 @@ pub struct CardDetail {
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Issuing Country
+    pub card_issuing_country: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card Type
+    pub card_type: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -118,7 +139,7 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType, example = "card")]
+    #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -149,6 +170,11 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -164,6 +190,12 @@ pub struct CardDetailsPaymentMethod {
     pub expiry_year: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
     pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    #[serde(default = "saved_in_locker_default")]
+    pub saved_to_locker: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -214,6 +246,18 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    pub card_isin: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_type: Option<String>,
+    pub saved_to_locker: bool,
+}
+
+fn saved_in_locker_default() -> bool {
+    true
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
@@ -229,6 +273,11 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_holder_name: item.card_holder_name,
             card_fingerprint: None,
             nick_name: item.nick_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
@@ -242,6 +291,11 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             expiry_year: item.expiry_year,
             nick_name: item.nick_name,
             card_holder_name: item.card_holder_name,
+            card_isin: item.card_isin,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type,
+            saved_to_locker: item.saved_to_locker,
         }
     }
 }
@@ -459,8 +513,6 @@ pub struct RequestPaymentMethodTypes {
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
-    #[serde(skip_deserializing)]
-    pub customer_id: Option<CustomerId>,
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
     pub client_secret: Option<String>,
@@ -675,7 +727,7 @@ pub struct CustomerPaymentMethod {
     pub customer_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.

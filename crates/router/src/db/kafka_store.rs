@@ -43,6 +43,7 @@ use crate::{
         events::EventInterface,
         file::FileMetadataInterface,
         gsm::GsmInterface,
+        health_check::HealthCheckInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -57,6 +58,7 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         MasterKeyInterface, StorageInterface,
     },
+    routes,
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
@@ -658,6 +660,16 @@ impl MerchantAccountInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_account_by_merchant_id(merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_merchant_accounts(merchant_ids)
             .await
     }
 }
@@ -1613,6 +1625,17 @@ impl MerchantKeyStoreInterface for KafkaStore {
             .delete_merchant_key_store_by_merchant_id(merchant_id)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_key_stores(merchant_ids, key)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -1904,12 +1927,24 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
+
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.find_user_role_by_user_id(user_id).await
     }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
+    }
+
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1920,9 +1955,16 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
-    async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.delete_user_role(user_id).await
+    async fn delete_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
     }
+
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -1978,6 +2020,16 @@ impl DashboardMetadataInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
             .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
+            .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
             .await
     }
 }
@@ -2129,5 +2181,26 @@ impl AuthorizationInterface for KafkaStore {
                 authorization,
             )
             .await
+    }
+}
+
+#[async_trait::async_trait]
+impl HealthCheckInterface for KafkaStore {
+    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
+        self.diesel_store.health_check_db().await
+    }
+
+    async fn health_check_redis(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> CustomResult<(), errors::HealthCheckRedisError> {
+        self.diesel_store.health_check_redis(db).await
+    }
+
+    async fn health_check_locker(
+        &self,
+        state: &routes::AppState,
+    ) -> CustomResult<(), errors::HealthCheckLockerError> {
+        self.diesel_store.health_check_locker(state).await
     }
 }

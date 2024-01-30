@@ -252,7 +252,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
     T: SchedulerAppState,
 {
-    consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
+    consumer_operation_counter.fetch_add(1, atomic::Ordering::SeqCst);
     let start_time = std_time::Instant::now();
 
     match consumer::consumer_operations(&state, &settings, workflow_selector).await {
@@ -263,7 +263,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     let duration = end_time.saturating_duration_since(start_time).as_secs_f64();
     logger::debug!("Time taken to execute consumer_operation: {}s", duration);
 
-    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Release);
+    let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::SeqCst);
     logger::info!("Current tasks being executed: {}", current_count);
 }
 

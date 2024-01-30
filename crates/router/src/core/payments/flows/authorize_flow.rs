@@ -99,7 +99,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            if resp.request.setup_mandate_details.clone().is_some() {
+            let is_mandate = resp.request.setup_mandate_details.is_some();
+
+            if is_mandate {
                 let payment_method_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -381,7 +383,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
-            name: None,
+            name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
         })
     }
@@ -419,6 +421,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
+            redirect_response: None,
         })
     }
 }
@@ -438,10 +441,11 @@ impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData 
             order_details: None,
             router_return_url: None,
             webhook_url: None,
-            complete_authorize_url: None,
+            complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             surcharge_details: None,
             connector_transaction_id: data.connector_transaction_id,
+            redirect_response: data.redirect_response,
         })
     }
 }

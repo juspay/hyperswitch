@@ -66,18 +66,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "create a session token for",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            &payment_intent,
-            intent_fulfillment_time,
-        )?;
+        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -323,6 +312,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,

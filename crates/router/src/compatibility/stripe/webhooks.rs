@@ -183,6 +183,13 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::DisputeLost => "dispute.lost",
         api_models::enums::EventType::MandateActive => "mandate.active",
         api_models::enums::EventType::MandateRevoked => "mandate.revoked",
+
+        // as per this doc https://stripe.com/docs/api/events/types#event_types-payment_intent.amount_capturable_updated
+        api_models::enums::EventType::PaymentAuthorized => {
+            "payment_intent.amount_capturable_updated"
+        }
+        // stripe treats partially captured payments as succeeded.
+        api_models::enums::EventType::PaymentCaptured => "payment_intent.succeeded",
     }
 }
 

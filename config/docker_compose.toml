@@ -56,14 +56,9 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
 vault_encryption_key = ""
 rust_locker_encryption_key = ""
 vault_private_key = ""
@@ -235,7 +230,7 @@ consumer_group = "SCHEDULER_GROUP"
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
@@ -247,6 +242,9 @@ stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
 shift4 = {payment_method = "card"}
 bluesnap = {payment_method = "card"}
+bankofamerica = {payment_method = "card"}
+cybersource = {payment_method = "card"}
+nmi = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true
@@ -342,6 +340,7 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalp
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+bank_redirect.ideal = {connector_list = "stripe,adyen"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -365,6 +364,7 @@ attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
+outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 
 [analytics]
 source = "sqlx"
@@ -399,3 +399,6 @@ enabled = true
 
 [events]
 source = "logs"
+
+[file_storage]
+file_storage_backend = "file_system"

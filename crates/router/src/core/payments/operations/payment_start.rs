@@ -66,17 +66,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "update",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
         helpers::authenticate_client_secret(
             payment_intent.client_secret.as_ref(),
             &payment_intent,
-            intent_fulfillment_time,
         )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -286,6 +278,7 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -297,7 +290,14 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+            helpers::make_pm_data(
+                Box::new(self),
+                state,
+                payment_data,
+                merchant_key_store,
+                customer,
+            )
+            .await
         } else {
             Ok((Box::new(self), None))
         }

@@ -387,18 +387,35 @@ where
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
-
+                    let status_code = response
+                        .as_ref()
+                        .map(|i| {
+                            i.as_ref()
+                                .map_or_else(|value| value.status_code, |value| value.status_code)
+                        })
+                        .unwrap_or_default();
                     let connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        None,
+                        response
+                            .as_ref()
+                            .map(|response| {
+                                response
+                                    .as_ref()
+                                    .map_or_else(|value| value, |value| value)
+                                    .response
+                                    .escape_ascii()
+                                    .to_string()
+                            })
+                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        status_code,
                     );
 
                     match connector_event.try_into() {
@@ -738,9 +755,15 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkFormData>),
+    PaymenkLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentLinkAction {
+    PaymentLinkFormData(PaymentLinkFormData),
+    PaymentLinkStatus(PaymentLinkStatusData),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
@@ -748,6 +771,12 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub sdk_url: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkStatusData {
+    pub js_script: String,
+    pub css_script: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -782,6 +811,15 @@ pub enum RedirectForm {
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
+    CybersourceAuthSetup {
+        access_token: String,
+        ddc_url: String,
+        reference_id: String,
+    },
+    CybersourceConsumerAuth {
+        access_token: String,
+        step_up_url: String,
+    },
     Payme,
     Braintree {
         client_token: String,
@@ -793,6 +831,7 @@ pub enum RedirectForm {
         currency: Currency,
         public_key: Secret<String>,
         customer_vault_id: String,
+        order_id: String,
     },
 }
 
@@ -952,7 +991,7 @@ where
         error,
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
-        Some(request.method().to_string()),
+        request.method(),
     );
     match api_event.clone().try_into() {
         Ok(event) => {
@@ -1055,16 +1094,32 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
-                Err(_) => http_response_err(
-                    r#"{
-                            "error": {
-                                "message": "Error while rendering payment link html page"
-                            }
-                        }"#,
-                ),
+        Ok(ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match get_payment_link_status(payment_link_data) {
+                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Err(_) => http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
 
@@ -1098,7 +1153,6 @@ where
         status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
-
     res
 }
 
@@ -1148,6 +1202,14 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
+pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
+    response: T,
+) -> HttpResponse {
+    HttpResponse::InternalServerError()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
@@ -1394,6 +1456,105 @@ pub fn build_redirection_form(
                 ")))
                 }}
         }
+        RedirectForm::CybersourceAuthSetup {
+            access_token,
+            ddc_url,
+            reference_id,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                (PreEscaped(r#"<iframe id="cardinal_collection_iframe" name="collectionIframe" height="10" width="10" style="display: none;"></iframe>"#))
+                (PreEscaped(format!("<form id=\"cardinal_collection_form\" method=\"POST\" target=\"collectionIframe\" action=\"{ddc_url}\">
+                <input id=\"cardinal_collection_form_input\" type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(r#"<script>
+              window.onload = function() {
+              var cardinalCollectionForm = document.querySelector('#cardinal_collection_form'); if(cardinalCollectionForm) cardinalCollectionForm.submit();
+              }
+              </script>"#))
+              (PreEscaped(format!("<script>
+                window.addEventListener(\"message\", function(event) {{
+                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                    }}
+                  }}, false);
+                </script>
+                ")))
+            }}
+        }
+        RedirectForm::CybersourceConsumerAuth {
+            access_token,
+            step_up_url,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                // This is the iframe recommended by cybersource but the redirection happens inside this iframe once otp
+                // is received and we lose control of the redirection on user client browser, so to avoid that we have removed this iframe and directly consumed it.
+                // (PreEscaped(r#"<iframe id="step_up_iframe" style="border: none; margin-left: auto; margin-right: auto; display: block" height="800px" width="400px" name="stepUpIframe"></iframe>"#))
+                (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
+                <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(r#"<script>
+              window.onload = function() {
+              var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
+              }
+              </script>"#))
+            }}
+        }
         RedirectForm::Payme => {
             maud::html! {
                 (maud::DOCTYPE)
@@ -1522,6 +1683,7 @@ pub fn build_redirection_form(
             currency,
             public_key,
             customer_vault_id,
+            order_id,
         } => {
             let public_key_val = public_key.peek();
             maud::html! {
@@ -1534,7 +1696,7 @@ pub fn build_redirection_form(
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',
@@ -1544,16 +1706,16 @@ pub fn build_redirection_form(
                     var responseForm = document.createElement('form');
                     responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
                     responseForm.method='POST';
-            
+
                     const threeDSsecureInterface = threeDS.createUI(options);
                     threeDSsecureInterface.start('body');
-            
+
                     threeDSsecureInterface.on('challenge', function(e) {{
                         console.log('Challenged');
                     }});
-            
+
                     threeDSsecureInterface.on('complete', function(e) {{
-                        
+
                         var item1=document.createElement('input');
                         item1.type='hidden';
                         item1.name='cavv';
@@ -1578,26 +1740,24 @@ pub fn build_redirection_form(
                         item4.value=e.threeDsVersion;
                         responseForm.appendChild(item4);
 
+                        var item5=document.createElement('input');
+                        item4.type='hidden';
+                        item4.name='orderId';
+                        item4.value='{order_id}';
+                        responseForm.appendChild(item5);
+
                         document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
-            
+
                     threeDSsecureInterface.on('failure', function(e) {{
                         responseForm.submit();
                     }});
-            
+
             </script>"
             )))
                 }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_mime_essence() {
-        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
 }
 
@@ -1628,5 +1788,33 @@ pub fn build_payment_link_html(
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
-    format!("<script src=\"{sdk_url}\"></script>")
+    format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
+}
+
+pub fn get_payment_link_status(
+    payment_link_data: PaymentLinkStatusData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/status.html").to_string();
+    let mut tera = Tera::default();
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
+
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link_status", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mime_essence() {
+        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
+    }
 }

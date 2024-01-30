@@ -7,6 +7,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, MetricsResponse,
     SdkEventFiltersResponse,
 };
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
 
@@ -28,16 +29,18 @@ pub async fn sdk_events_core(
     publishable_key: String,
 ) -> AnalyticsResult<Vec<SdkEventsResult>> {
     match pool {
-        AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented)
-            .into_report()
-            .attach_printable("SQL Analytics is not implemented for Sdk Events"),
+        AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
+            "SDK Events not implemented for SQLX",
+        ))
+        .into_report()
+        .attach_printable("SQL Analytics is not implemented for Sdk Events"),
         AnalyticsProvider::Clickhouse(pool) => get_sdk_event(&publishable_key, req, pool).await,
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
             get_sdk_event(&publishable_key, req, ckh_pool).await
         }
     }
-    .change_context(AnalyticsError::UnknownError)
+    .switch()
 }
 
 #[instrument(skip_all)]
@@ -159,9 +162,11 @@ pub async fn get_filters(
     if let Some(publishable_key) = publishable_key {
         for dim in req.group_by_names {
             let values = match pool {
-                AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented)
-                    .into_report()
-                    .attach_printable("SQL Analytics is not implemented for SDK Events"),
+                AnalyticsProvider::Sqlx(_pool) => Err(FiltersError::NotImplemented(
+                    "SDK Events not implemented for SQLX",
+                ))
+                .into_report()
+                .attach_printable("SQL Analytics is not implemented for SDK Events"),
                 AnalyticsProvider::Clickhouse(pool) => {
                     get_sdk_event_filter_for_dimension(dim, publishable_key, &req.time_range, pool)
                         .await

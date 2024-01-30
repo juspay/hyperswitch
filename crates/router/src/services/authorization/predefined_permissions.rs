@@ -9,6 +9,7 @@ pub struct RoleInfo {
     permissions: Vec<Permission>,
     name: Option<&'static str>,
     is_invitable: bool,
+    is_deletable: bool,
 }
 
 impl RoleInfo {
@@ -52,6 +53,8 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::DisputeWrite,
                 Permission::MandateRead,
                 Permission::MandateWrite,
+                Permission::CustomerRead,
+                Permission::CustomerWrite,
                 Permission::FileRead,
                 Permission::FileWrite,
                 Permission::Analytics,
@@ -61,6 +64,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             ],
             name: None,
             is_invitable: false,
+            is_deletable: false,
         },
     );
     roles.insert(
@@ -79,11 +83,13 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::Analytics,
                 Permission::DisputeRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::UsersRead,
             ],
             name: None,
             is_invitable: false,
+            is_deletable: false,
         },
     );
 
@@ -112,6 +118,8 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::DisputeWrite,
                 Permission::MandateRead,
                 Permission::MandateWrite,
+                Permission::CustomerRead,
+                Permission::CustomerWrite,
                 Permission::FileRead,
                 Permission::FileWrite,
                 Permission::Analytics,
@@ -121,6 +129,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             ],
             name: Some("Organization Admin"),
             is_invitable: false,
+            is_deletable: false,
         },
     );
 
@@ -150,6 +159,8 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::DisputeWrite,
                 Permission::MandateRead,
                 Permission::MandateWrite,
+                Permission::CustomerRead,
+                Permission::CustomerWrite,
                 Permission::FileRead,
                 Permission::FileWrite,
                 Permission::Analytics,
@@ -158,6 +169,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             ],
             name: Some("Admin"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles.insert(
@@ -175,12 +187,14 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::SurchargeDecisionManagerRead,
                 Permission::DisputeRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::Analytics,
                 Permission::UsersRead,
             ],
             name: Some("View Only"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles.insert(
@@ -198,6 +212,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::SurchargeDecisionManagerRead,
                 Permission::DisputeRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::Analytics,
                 Permission::UsersRead,
@@ -205,6 +220,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             ],
             name: Some("IAM"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles.insert(
@@ -223,12 +239,14 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::SurchargeDecisionManagerRead,
                 Permission::DisputeRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::Analytics,
                 Permission::UsersRead,
             ],
             name: Some("Developer"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles.insert(
@@ -252,12 +270,14 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::SurchargeDecisionManagerWrite,
                 Permission::DisputeRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::Analytics,
                 Permission::UsersRead,
             ],
             name: Some("Operator"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles.insert(
@@ -273,12 +293,14 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
                 Permission::MerchantAccountRead,
                 Permission::MerchantConnectorAccountRead,
                 Permission::MandateRead,
+                Permission::CustomerRead,
                 Permission::FileRead,
                 Permission::FileWrite,
                 Permission::Analytics,
             ],
             name: Some("Customer Support"),
             is_invitable: true,
+            is_deletable: true,
         },
     );
     roles
@@ -294,4 +316,10 @@ pub fn is_role_invitable(role_id: &str) -> bool {
     PREDEFINED_PERMISSIONS
         .get(role_id)
         .map_or(false, |role_info| role_info.is_invitable)
+}
+
+pub fn is_role_deletable(role_id: &str) -> bool {
+    PREDEFINED_PERMISSIONS
+        .get(role_id)
+        .map_or(false, |role_info| role_info.is_deletable)
 }

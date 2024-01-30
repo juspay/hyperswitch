@@ -722,7 +722,10 @@ mod test {
             };
             let display_str = key.to_string();
 
-            assert_eq!(&json_str[1..json_str.len() - 1], display_str);
+            assert_eq!(
+                json_str.get(1..json_str.len() - 1).expect("Value metadata"),
+                display_str
+            );
             key_names.insert(key, display_str);
         }
 

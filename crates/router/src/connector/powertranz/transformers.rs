@@ -220,7 +220,7 @@ impl TryFrom<&Card> for Source {
                 .clone()
                 .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
-            card_expiration: card.get_expiry_date_as_yymm(),
+            card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),
         };
         Ok(Self::Card(card))

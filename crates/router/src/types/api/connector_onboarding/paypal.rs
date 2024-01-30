@@ -177,7 +177,7 @@ pub enum VettingStatus {
 impl SellerStatusResponse {
     pub fn extract_merchant_details_url(self, paypal_base_url: &str) -> RouterResult<String> {
         self.links
-            .get(0)
+            .first()
             .and_then(|link| link.href.strip_prefix('/'))
             .map(|link| format!("{}{}", paypal_base_url, link))
             .ok_or(ApiErrorResponse::InternalServerError)

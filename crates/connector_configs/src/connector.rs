@@ -2,24 +2,31 @@ use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
-use api_models::{
-    enums::{CardNetwork, Connector, PaymentMethodType},
-    payments,
-};
+use api_models::{enums::Connector, payments};
 use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
 
-use crate::common_config::{GooglePayData, ZenApplePay};
+use crate::common_config::{CardProvider, GooglePayData, Provider, ZenApplePay};
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Classic {
+    pub password_classic: String,
+    pub username_classic: String,
+    pub merchant_id_classic: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Evoucher {
+    pub password_evoucher: String,
+    pub username_evoucher: String,
+    pub merchant_id_evoucher: String,
+}
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CurrencyAuthKeyType {
-    pub password_classic: Option<String>,
-    pub username_classic: Option<String>,
-    pub merchant_id_classic: Option<String>,
-    pub password_evoucher: Option<String>,
-    pub username_evoucher: Option<String>,
-    pub merchant_id_evoucher: Option<String>,
+    pub classic: Classic,
+    pub evoucher: Evoucher,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -75,19 +82,19 @@ pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<ConfigMetadata>,
-    pub credit: Option<Vec<CardNetwork>>,
-    pub debit: Option<Vec<CardNetwork>>,
-    pub bank_transfer: Option<Vec<PaymentMethodType>>,
-    pub bank_redirect: Option<Vec<PaymentMethodType>>,
-    pub bank_debit: Option<Vec<PaymentMethodType>>,
-    pub pay_later: Option<Vec<PaymentMethodType>>,
-    pub wallet: Option<Vec<PaymentMethodType>>,
-    pub crypto: Option<Vec<PaymentMethodType>>,
-    pub reward: Option<Vec<PaymentMethodType>>,
-    pub upi: Option<Vec<PaymentMethodType>>,
-    pub voucher: Option<Vec<PaymentMethodType>>,
-    pub gift_card: Option<Vec<PaymentMethodType>>,
-    pub card_redirect: Option<Vec<PaymentMethodType>>,
+    pub credit: Option<Vec<CardProvider>>,
+    pub debit: Option<Vec<CardProvider>>,
+    pub bank_transfer: Option<Vec<Provider>>,
+    pub bank_redirect: Option<Vec<Provider>>,
+    pub bank_debit: Option<Vec<Provider>>,
+    pub pay_later: Option<Vec<Provider>>,
+    pub wallet: Option<Vec<Provider>>,
+    pub crypto: Option<Vec<Provider>>,
+    pub reward: Option<Vec<Provider>>,
+    pub upi: Option<Vec<Provider>>,
+    pub voucher: Option<Vec<Provider>>,
+    pub gift_card: Option<Vec<Provider>>,
+    pub card_redirect: Option<Vec<Provider>>,
     pub is_verifiable: Option<bool>,
 }
 #[serde_with::skip_serializing_none]
