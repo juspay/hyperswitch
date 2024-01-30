@@ -191,7 +191,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 message,
                 reason,
                 ..
-            } => AER::GenericError(ApiError::new("HE", 3, message, Some(Extra { reason: Some(reason.clone()), ..Default::default() }))),
+            } => AER::DomainError(ApiError::new("HE", 3, message, Some(Extra { reason: Some(reason.clone()), ..Default::default() }))),
             Self::SuccessfulPaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
             }
