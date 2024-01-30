@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use api_models::user as user_api;
-use diesel_models::user_role::UserRole;
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -117,4 +119,30 @@ pub fn get_verification_days_left(
     return user.get_verification_days_left(state);
     #[cfg(not(feature = "email"))]
     return Ok(None);
+}
+
+pub fn get_multiple_merchant_details_with_status(
+    user_roles: Vec<UserRole>,
+    merchant_accounts: Vec<MerchantAccount>,
+) -> UserResult<Vec<user_api::UserMerchantAccount>> {
+    let roles: HashMap<_, _> = user_roles
+        .into_iter()
+        .map(|user_role| (user_role.merchant_id.clone(), user_role))
+        .collect();
+
+    merchant_accounts
+        .into_iter()
+        .map(|merchant| {
+            let role = roles
+                .get(merchant.merchant_id.as_str())
+                .ok_or(UserErrors::InternalServerError.into())
+                .attach_printable("Merchant exists but user role doesn't")?;
+
+            Ok(user_api::UserMerchantAccount {
+                merchant_id: merchant.merchant_id.clone(),
+                merchant_name: merchant.merchant_name.clone(),
+                is_active: role.status == UserStatus::Active,
+            })
+        })
+        .collect()
 }

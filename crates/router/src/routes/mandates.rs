@@ -10,7 +10,7 @@ use crate::{
 
 /// Mandates - Retrieve Mandate
 ///
-/// Retrieve a mandate
+/// Retrieves a mandate created using the Payments/Create API
 #[utoipa::path(
     get,
     path = "/mandates/{mandate_id}",
@@ -49,12 +49,12 @@ pub async fn get_mandate(
 }
 /// Mandates - Revoke Mandate
 ///
-/// Revoke a mandate
+/// Revokes a mandate created using the Payments/Create API
 #[utoipa::path(
     post,
     path = "/mandates/revoke/{mandate_id}",
     params(
-        ("mandate_id" = String, Path, description = "The identifier for mandate")
+        ("mandate_id" = String, Path, description = "The identifier for a mandate")
     ),
     responses(
         (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),

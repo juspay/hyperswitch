@@ -12,6 +12,7 @@ pub mod cors;
 pub mod db;
 pub mod env;
 pub(crate) mod macros;
+
 pub mod routes;
 pub mod workflows;
 
@@ -19,7 +20,6 @@ pub mod workflows;
 pub mod analytics;
 pub mod events;
 pub mod middleware;
-pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -92,15 +92,6 @@ pub fn mk_app(
     >,
 > {
     let mut server_app = get_application_builder(request_body_limit);
-
-    #[cfg(feature = "openapi")]
-    {
-        use utoipa::OpenApi;
-        server_app = server_app.service(
-            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
-                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
-        );
-    }
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -268,5 +259,7 @@ pub fn get_application_builder(
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
         .wrap(middleware::LogSpanInitializer)
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
