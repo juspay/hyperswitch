@@ -92,7 +92,7 @@ impl Visit for Storage<'_> {
     }
 }
 
-const PERSISTENT_KEYS: [&str; 3] = ["payment_id", "connector_name", "merchant_id"];
+const PERSISTENT_KEYS: [&str; 4] = ["payment_id", "connector_name", "merchant_id", "flow"];
 
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for StorageSubscription

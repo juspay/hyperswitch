@@ -241,6 +241,8 @@ pub enum Flow {
     PaymentLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
+    /// Payment Link Status
+    PaymentLinkStatus,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
