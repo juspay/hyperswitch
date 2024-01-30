@@ -932,12 +932,23 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
-
-                kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_scan()
-                    .change_context(errors::StorageError::KVError)
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
+                            .await?
+                            .try_into_scan()
+                    },
+                    || async {
+                        self.router_store
+                            .find_attempts_by_merchant_id_payment_id(
+                                merchant_id,
+                                payment_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
+                ))
+                .await
             }
         }
     }
