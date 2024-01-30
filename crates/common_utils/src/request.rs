@@ -46,12 +46,19 @@ pub struct Request {
 
 impl std::fmt::Debug for RequestContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
+        let mut tuple = f.debug_tuple(match self {
             Self::Json(_) => "JsonRequestBody",
             Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
             Self::FormData(_) => "FormDataRequestBody",
             Self::Xml(_) => "XmlRequestBody",
-        })
+        });
+        match self {
+            RequestContent::Json(i) |
+            RequestContent::FormUrlEncoded(i)|
+            RequestContent::Xml(i) => {tuple.field(masked_serialize());},
+            RequestContent::FormData(_) => ()
+        };
+        tuple.finish()
     }
 }
 
