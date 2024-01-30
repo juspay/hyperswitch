@@ -23,7 +23,11 @@ pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserRe
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
     let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
     redis_conn
-        .set_key_with_expiry(user_blacklist_key.as_str(), date_time::now_unix_timestamp(), expiry)
+        .set_key_with_expiry(
+            user_blacklist_key.as_str(),
+            date_time::now_unix_timestamp(),
+            expiry,
+        )
         .await
         .change_context(UserErrors::InternalServerError)
 }
