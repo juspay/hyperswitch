@@ -31,11 +31,13 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -337,6 +339,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 NoonSubscriptionData {
                     subscription_type: NoonSubscriptionType::Unscheduled,
                     name: name.clone(),
+                    max_amount: item
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .and_then(|mandate_details| match mandate_details.mandate_type {
+                            Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                            | Some(data_models::mandates::MandateDataType::MultiUse(Some(
+                                mandate,
+                            ))) => Some(
+                                conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
+                                    .ok(),
+                            ),
+                            _ => None,
+                        })
+                        .flatten(),
                 },
                 true,
             )) {
