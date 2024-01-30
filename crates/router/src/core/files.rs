@@ -1,9 +1,4 @@
 pub mod helpers;
-#[cfg(feature = "aws_s3")]
-pub mod s3_utils;
-
-#[cfg(not(feature = "aws_s3"))]
-pub mod fs_utils;
 
 use api_models::files;
 use error_stack::{IntoReport, ResultExt};
@@ -29,10 +24,7 @@ pub async fn files_create_core(
     )
     .await?;
     let file_id = common_utils::generate_id(consts::ID_LENGTH, "file");
-    #[cfg(feature = "aws_s3")]
     let file_key = format!("{}/{}", merchant_account.merchant_id, file_id);
-    #[cfg(not(feature = "aws_s3"))]
-    let file_key = format!("{}_{}", merchant_account.merchant_id, file_id);
     let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_account.merchant_id.clone(),
