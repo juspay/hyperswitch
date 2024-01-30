@@ -43,6 +43,10 @@ pub struct DisputeResponse {
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    /// The `profile_id` associated with the dispute
+    pub profile_id: Option<String>,
+    /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
+    pub merchant_connector_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]

@@ -692,6 +692,8 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
