@@ -1713,9 +1713,9 @@ pub(crate) fn validate_auth_and_metadata_type(
             checkout::transformers::CheckoutAuthType::try_from(val)?;
             Ok(())
         }
-
         api_enums::Connector::Coinbase => {
             coinbase::transformers::CoinbaseAuthType::try_from(val)?;
+            coinbase::transformers::CoinbaseConnectorMeta::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Cryptopay => {
