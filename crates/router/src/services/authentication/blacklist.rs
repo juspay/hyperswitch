@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+#[cfg(feature = "olap")]
+use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
 #[cfg(feature = "olap")]
 use crate::core::errors::{UserErrors, UserResult};
-#[cfg(feature = "olap")]
-use common_utils::date_time;
 #[cfg(feature = "olap")]
 use crate::routes::AppState;
 use crate::{
