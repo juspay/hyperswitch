@@ -1,6 +1,9 @@
-use std::{ collections::hash_map::DefaultHasher, hash::{ Hash, Hasher } };
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
-use super::{ NameDescription, TimeRange };
+use super::{NameDescription, TimeRange};
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApiLogsRequest {
     #[serde(flatten)]
@@ -40,7 +43,7 @@ pub enum QueryType {
     strum::Display,
     strum::EnumIter,
     Clone,
-    Copy
+    Copy,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -77,7 +80,7 @@ pub struct ApiEventFilters {
     serde::Deserialize,
     strum::Display,
     strum::EnumIter,
-    strum::AsRefStr
+    strum::AsRefStr,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]

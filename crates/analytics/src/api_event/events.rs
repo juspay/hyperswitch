@@ -1,36 +1,42 @@
-use api_models::analytics::{ api_event::{ ApiLogsRequest, QueryType }, Granularity };
+use api_models::analytics::{
+    api_event::{ApiLogsRequest, QueryType},
+    Granularity,
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use router_env::Flow;
 use time::PrimitiveDateTime;
 
 use crate::{
-    query::{ Aggregate, GroupByClause, QueryBuilder, ToSql, Window },
-    types::{ AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow },
+    query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
+    types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 pub trait ApiLogsFilterAnalytics: LoadRow<ApiLogsResult> {}
 
 pub async fn get_api_event<T>(
     merchant_id: &String,
     query_param: ApiLogsRequest,
-    pool: &T
-)
-    -> FiltersResult<Vec<ApiLogsResult>>
-    where
-        T: AnalyticsDataSource + ApiLogsFilterAnalytics,
-        PrimitiveDateTime: ToSql<T>,
-        AnalyticsCollection: ToSql<T>,
-        Granularity: GroupByClause<T>,
-        Aggregate<&'static str>: ToSql<T>,
-        Window<&'static str>: ToSql<T>
+    pool: &T,
+) -> FiltersResult<Vec<ApiLogsResult>>
+where
+    T: AnalyticsDataSource + ApiLogsFilterAnalytics,
+    PrimitiveDateTime: ToSql<T>,
+    AnalyticsCollection: ToSql<T>,
+    Granularity: GroupByClause<T>,
+    Aggregate<&'static str>: ToSql<T>,
+    Window<&'static str>: ToSql<T>,
 {
     let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::ApiEvents);
     query_builder.add_select_column("*").switch()?;
 
-    query_builder.add_filter_clause("merchant_id", merchant_id).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant_id)
+        .switch()?;
     match query_param.query_param {
         QueryType::Payment { payment_id } => {
-            query_builder.add_filter_clause("payment_id", payment_id).switch()?;
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
             query_builder
                 .add_filter_in_range_clause(
                     "api_flow",
@@ -41,19 +47,28 @@ pub async fn get_api_event<T>(
                         Flow::PaymentsCreate,
                         Flow::PaymentsStart,
                         Flow::PaymentsUpdate,
-                    ]
+                    ],
                 )
                 .switch()?;
         }
-        QueryType::Refund { payment_id, refund_id } => {
-            query_builder.add_filter_clause("payment_id", payment_id).switch()?;
-            query_builder.add_filter_clause("refund_id", refund_id).switch()?;
+        QueryType::Refund {
+            payment_id,
+            refund_id,
+        } => {
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
+            query_builder
+                .add_filter_clause("refund_id", refund_id)
+                .switch()?;
             query_builder
                 .add_filter_in_range_clause("api_flow", &[Flow::RefundsCreate, Flow::RefundsUpdate])
                 .switch()?;
         }
         QueryType::Dispute { dispute_id } => {
-            query_builder.add_filter_clause("dispute_id", dispute_id).switch()?;
+            query_builder
+                .add_filter_clause("dispute_id", dispute_id)
+                .switch()?;
             query_builder
                 .add_filter_in_range_clause(
                     "api_flow",
@@ -61,14 +76,15 @@ pub async fn get_api_event<T>(
                         Flow::DisputesEvidenceSubmit,
                         Flow::AttachDisputeEvidence,
                         Flow::RetrieveDisputeEvidence,
-                    ]
+                    ],
                 )
                 .switch()?;
         }
     }
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder
-        .execute_query::<ApiLogsResult, _>(pool).await
+        .execute_query::<ApiLogsResult, _>(pool)
+        .await
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }

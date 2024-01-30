@@ -36,6 +36,20 @@ where
         QueryType::Payment { payment_id } => query_builder
             .add_filter_clause("payment_id", payment_id)
             .switch()?,
+        QueryType::Refund {
+            payment_id,
+            refund_id,
+        } => {
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
+            query_builder
+                .add_filter_clause("refund_id", refund_id)
+                .switch()?;
+        }
+        QueryType::Dispute { dispute_id } => query_builder
+            .add_filter_clause("dispute_id", dispute_id)
+            .switch()?,
     }
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder
