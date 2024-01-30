@@ -109,7 +109,10 @@ pub fn store_default_payment_method(
     req: &api::PaymentMethodCreate,
     customer_id: &str,
     merchant_id: &String,
-) -> (api::PaymentMethodResponse, bool) {
+) -> (
+    api::PaymentMethodResponse,
+    Option<payment_methods::DataDuplicationCheck>,
+) {
     let pm_id = generate_id(consts::ID_LENGTH, "pm");
     let payment_method_response = api::PaymentMethodResponse {
         merchant_id: merchant_id.to_string(),
@@ -125,7 +128,7 @@ pub fn store_default_payment_method(
         installment_payment_enabled: false, //[#219]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
     };
-    (payment_method_response, false)
+    (payment_method_response, None)
 }
 
 #[instrument(skip_all)]
@@ -468,7 +471,7 @@ pub async fn add_bank_to_locker(
         req,
         &merchant_account.merchant_id,
     );
-    Ok((payment_method_resp, store_resp.duplicate.unwrap_or(false)))
+    Ok((payment_method_resp, store_resp.duplication_check))
 }
 
 /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method

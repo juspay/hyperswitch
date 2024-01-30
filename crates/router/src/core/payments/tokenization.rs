@@ -194,7 +194,7 @@ where
                                     .await;
                                 match existing_pm {
                                     Ok(pm) => {
-                                        let updated_card = Some(api::CardDetailFromLocker {
+                                        let updated_card = Some(CardDetailFromLocker {
                                             scheme: None,
                                             last4_digits: Some(
                                                 card.card_number.to_string().split_off(
@@ -308,7 +308,10 @@ where
 async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
-) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = payment_method_request
         .clone()
@@ -361,7 +364,7 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
             };
 
-            Ok((pm_resp, false))
+            Ok((pm_resp, None))
         }
         None => {
             let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
@@ -379,7 +382,7 @@ async fn skip_saving_card_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 bank_transfer: None,
             };
-            Ok((payment_method_response, false))
+            Ok((payment_method_response, None))
         }
     }
 }
