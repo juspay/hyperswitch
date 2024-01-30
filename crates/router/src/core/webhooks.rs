@@ -340,6 +340,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
