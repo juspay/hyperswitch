@@ -58,7 +58,7 @@ where
                 let request_id = request_id_fut.await?;
                 let request_id = request_id.as_hyphenated().to_string();
                 if let Some(upstream_request_id) = old_x_request_id {
-                    router_env::logger::info!(?request_id, ?upstream_request_id);
+                    router_env::logger::info!(?upstream_request_id);
                 }
                 let mut response = response_fut.await?;
                 response.headers_mut().append(
