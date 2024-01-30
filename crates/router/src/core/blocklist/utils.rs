@@ -509,10 +509,7 @@ where
         let attempt_update = storage::PaymentAttemptUpdate::BlocklistUpdate {
             status: common_enums::AttemptStatus::Failure,
             error_code: Some(Some("HE-03".to_string())),
-            error_message: Some(Some(
-                "This payment was blocked"
-                    .to_string(),
-            )),
+            error_message: Some(Some("This payment was blocked".to_string())),
             updated_by: merchant_account.storage_scheme.to_string(),
         };
         db.update_payment_attempt_with_attempt_id(
