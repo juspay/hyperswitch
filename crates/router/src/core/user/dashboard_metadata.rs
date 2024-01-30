@@ -1,11 +1,5 @@
-use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-use diesel_models::{
-    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
-};
-use error_stack::ResultExt;
 #[cfg(feature = "email")]
-use router_env::logger;
-
+use crate::consts;
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 #[cfg(feature = "email")]
@@ -17,6 +11,13 @@ use crate::{
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+use diesel_models::{
+    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
+};
+use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use router_env::logger;
 
 pub async fn set_metadata(
     state: AppState,
@@ -454,7 +455,7 @@ async fn insert_metadata(
             {
                 let email_contents = email_types::BizEmailProd {
                     recipient_email: domain::UserEmail::new(
-                        "biz@hyperswitch.io".to_string().into(),
+                        consts::user::BUSINESS_EMAIL.to_string().into(),
                     )?,
                     settings: state.conf.clone(),
                     subject: "Bizz Email",
