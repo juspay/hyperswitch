@@ -421,6 +421,7 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     event_type: api_models::webhooks::IncomingWebhookEvent,
@@ -464,8 +465,12 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
         let mandates_response = Box::new(
-            api::mandates::MandateResponse::from_db_mandate(&state, updated_mandate.clone())
-                .await?,
+            api::mandates::MandateResponse::from_db_mandate(
+                &state,
+                key_store,
+                updated_mandate.clone(),
+            )
+            .await?,
         );
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
         if let Some(outgoing_event_type) = event_type {
@@ -598,7 +603,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
             None,
-            HeaderPayload::default(),
+            HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))
         .await
     } else {
@@ -1237,6 +1242,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 state.clone(),
                 merchant_account,
                 business_profile,
+                key_store,
                 webhook_details,
                 source_verified,
                 event_type,

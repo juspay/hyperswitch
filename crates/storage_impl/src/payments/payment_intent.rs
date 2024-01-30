@@ -101,6 +101,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     request_incremental_authorization: new.request_incremental_authorization,
                     incremental_authorization_allowed: new.incremental_authorization_allowed,
                     authorization_count: new.authorization_count,
+                    fingerprint_id: new.fingerprint_id.clone(),
                     session_expiry: new.session_expiry,
                 };
                 let redis_entry = kv::TypedSql {
@@ -769,6 +770,7 @@ impl DataModelExt for PaymentIntentNew {
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
             authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
         }
     }
@@ -813,6 +815,7 @@ impl DataModelExt for PaymentIntentNew {
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
             authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
             session_expiry: storage_model.session_expiry,
         }
     }
@@ -862,6 +865,7 @@ impl DataModelExt for PaymentIntent {
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
             authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
         }
     }
@@ -907,6 +911,7 @@ impl DataModelExt for PaymentIntent {
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
             authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
             session_expiry: storage_model.session_expiry,
         }
     }
@@ -990,6 +995,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
                 session_expiry,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
@@ -1009,6 +1015,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
                 session_expiry,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {

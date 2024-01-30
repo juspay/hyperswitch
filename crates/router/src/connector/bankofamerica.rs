@@ -12,6 +12,7 @@ use time::OffsetDateTime;
 use transformers as bankofamerica;
 use url::Url;
 
+use super::utils::{PaymentsAuthorizeRequestData, RouterData};
 use crate::{
     configs::settings,
     connector::{utils as connector_utils, utils::RefundsRequestData},
@@ -48,6 +49,8 @@ impl api::Refund for Bankofamerica {}
 impl api::RefundExecute for Bankofamerica {}
 impl api::RefundSync for Bankofamerica {}
 impl api::PaymentToken for Bankofamerica {}
+impl api::PaymentsPreProcessing for Bankofamerica {}
+impl api::PaymentsCompleteAuthorize for Bankofamerica {}
 
 impl Bankofamerica {
     pub fn generate_digest(&self, payload: &[u8]) -> String {
@@ -84,7 +87,9 @@ impl Bankofamerica {
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret.expose())
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "connector_account_details.api_secret",
+            })?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
@@ -205,7 +210,7 @@ impl ConnectorCommon for Bankofamerica {
         };
         match response {
             transformers::BankOfAmericaErrorResponse::StandardError(response) => {
-                let (code, message) = match response.error_information {
+                let (code, connector_reason) = match response.error_information {
                     Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
                     None => (
                         response
@@ -218,13 +223,13 @@ impl ConnectorCommon for Bankofamerica {
                             .map_or(error_message.to_string(), |message| message),
                     ),
                 };
-                let connector_reason = match response.details {
+                let message = match response.details {
                     Some(details) => details
                         .iter()
                         .map(|det| format!("{} : {}", det.field, det.reason))
                         .collect::<Vec<_>>()
                         .join(", "),
-                    None => message.clone(),
+                    None => connector_reason.clone(),
                 };
 
                 Ok(ErrorResponse {
@@ -299,6 +304,113 @@ impl
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Bankofamerica
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let redirect_response = req.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+        match redirect_response.params {
+            Some(param) if !param.clone().peek().is_empty() => Ok(format!(
+                "{}risk/v1/authentications",
+                self.base_url(connectors)
+            )),
+            Some(_) | None => Ok(format!(
+                "{}risk/v1/authentication-results",
+                self.base_url(connectors)
+            )),
+        }
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+            req.request
+                .amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            req,
+        ))?;
+        let connector_req =
+            bankofamerica::BankOfAmericaPreProcessingRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPreProcessingRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: bankofamerica::BankOfAmericaPreProcessingResponse = res
+            .response
+            .parse_struct("BankOfAmerica AuthEnrollmentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Bankofamerica
 {
@@ -316,13 +428,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}pts/v2/payments/",
-            api::ConnectorCommon::base_url(self, connectors)
-        ))
+        if req.is_three_ds() && req.request.is_card() {
+            Ok(format!(
+                "{}risk/v1/authentication-setups",
+                self.base_url(connectors)
+            ))
+        } else {
+            Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
+        }
     }
 
     fn get_request_body(
@@ -336,9 +452,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_req =
-            bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        if req.is_three_ds() && req.request.is_card() {
+            let connector_req =
+                bankofamerica::BankOfAmericaAuthSetupRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            let connector_req =
+                bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -368,6 +490,130 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        if data.is_three_ds() && data.request.is_card() {
+            let response: bankofamerica::BankOfAmericaAuthSetupResponse = res
+                .response
+                .parse_struct("Bankofamerica AuthSetupResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: bankofamerica::BankOfAmericaPaymentsResponse = res
+                .response
+                .parse_struct("Bankofamerica PaymentResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: bankofamerica::BankOfAmericaServerErrorResponse = res
+            .response
+            .parse_struct("BankOfAmericaServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+        })
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Bankofamerica
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}pts/v2/payments/", self.base_url(connectors)))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req =
+            bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: bankofamerica::BankOfAmericaPaymentsResponse = res
             .response
             .parse_struct("BankOfAmerica PaymentResponse")

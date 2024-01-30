@@ -1927,12 +1927,24 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
+
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.find_user_role_by_user_id(user_id).await
     }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
+    }
+
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1943,9 +1955,16 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
-    async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.delete_user_role(user_id).await
+    async fn delete_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
     }
+
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -2001,6 +2020,16 @@ impl DashboardMetadataInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
             .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
+            .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
             .await
     }
 }

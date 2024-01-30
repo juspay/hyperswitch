@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
+use diesel_models::configs;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
@@ -140,6 +141,17 @@ pub async fn create_merchant_account(
         })
         .transpose()?
         .map(Secret::new);
+
+    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
+    if let Some(fingerprint) = fingerprint {
+        db.insert_config(configs::ConfigNew {
+            key: format!("fingerprint_secret_{}", req.merchant_id),
+            config: fingerprint,
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Mot able to generate Merchant fingerprint")?;
+    };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
@@ -1160,6 +1172,34 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let connector_name = mca.connector_name.as_ref();
+    let connector_enum = api_models::enums::Connector::from_str(connector_name)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
+        |err| match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The connector name is invalid".to_string(),
+                })
+            }
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("The {} is invalid", field_name),
+                }),
+            errors::ConnectorError::FailedToObtainAuthType => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The auth type is invalid for the connector".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The request body is invalid".to_string(),
+            }),
+        },
+    )?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
@@ -1673,9 +1713,9 @@ pub(crate) fn validate_auth_and_metadata_type(
             checkout::transformers::CheckoutAuthType::try_from(val)?;
             Ok(())
         }
-
         api_enums::Connector::Coinbase => {
             coinbase::transformers::CoinbaseAuthType::try_from(val)?;
+            coinbase::transformers::CoinbaseConnectorMeta::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Cryptopay => {

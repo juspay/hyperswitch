@@ -520,6 +520,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 connector_name,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::PaymentBlocked => Self::PaymentFailed,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
             },

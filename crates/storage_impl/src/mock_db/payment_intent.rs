@@ -109,6 +109,7 @@ impl PaymentIntentInterface for MockDb {
             request_incremental_authorization: new.request_incremental_authorization,
             incremental_authorization_allowed: new.incremental_authorization_allowed,
             authorization_count: new.authorization_count,
+            fingerprint_id: new.fingerprint_id,
             session_expiry: new.session_expiry,
         };
         payment_intents.push(payment_intent.clone());
