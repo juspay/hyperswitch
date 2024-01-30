@@ -373,8 +373,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .or(payment_attempt.payment_experience);
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
-        payment_attempt.external_3ds_authentication_requested =
-            request.request_separate_authentication;
+        payment_attempt.external_3ds_authentication_requested = request
+            .request_separate_authentication
+            .or(payment_attempt.external_3ds_authentication_requested);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
@@ -721,11 +722,25 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     storage_enums::AttemptStatus::Unresolved,
                     (None, None),
                 ),
-                _ => (
-                    storage_enums::IntentStatus::Processing,
-                    storage_enums::AttemptStatus::Pending,
-                    (None, None),
-                ),
+                _ => {
+                    if payment_data
+                        .payment_attempt
+                        .external_3ds_authentication_requested
+                        == Some(true)
+                    {
+                        (
+                            storage_enums::IntentStatus::RequiresCustomerAction,
+                            storage_enums::AttemptStatus::AuthenticationPending,
+                            (None, None),
+                        )
+                    } else {
+                        (
+                            storage_enums::IntentStatus::Processing,
+                            storage_enums::AttemptStatus::Pending,
+                            (None, None),
+                        )
+                    }
+                }
             };
 
         let connector = payment_data.payment_attempt.connector.clone();

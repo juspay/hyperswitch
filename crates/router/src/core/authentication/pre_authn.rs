@@ -67,12 +67,41 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 authentication_id: Some(authentication.authentication_id.clone()),
                 updated_by: merchant_account.storage_scheme.to_string(),
             };
-
-            payment_data.payment_attempt = state
+            payment_data.payment_attempt.status =
+                common_enums::AttemptStatus::foreign_from(authentication.authentication_status);
+            payment_data
+                .payment_attempt
+                .external_3ds_authentication_requested =
+                Some(external_3ds_authentication_requested);
+            payment_data.payment_attempt.authentication_id =
+                Some(authentication.authentication_id.clone());
+            payment_data.payment_attempt.authentication_provider =
+                Some(three_ds_connector_account.connector_name.clone());
+            state
                 .store
                 .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt.to_owned(),
                     attempt_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(ApiErrorResponse::PaymentNotFound)?;
+            let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+                status: api_models::enums::IntentStatus::foreign_from(
+                    payment_data.payment_attempt.status,
+                ),
+                updated_by: merchant_account.storage_scheme.to_string(),
+                incremental_authorization_allowed: payment_data
+                    .payment_intent
+                    .incremental_authorization_allowed,
+            };
+            payment_data.payment_intent.status =
+                api_models::enums::IntentStatus::foreign_from(payment_data.payment_attempt.status);
+            state
+                .store
+                .update_payment_intent(
+                    payment_data.payment_intent.clone(),
+                    payment_intent_update,
                     merchant_account.storage_scheme,
                 )
                 .await

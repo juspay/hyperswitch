@@ -3009,7 +3009,7 @@ pub async fn payment_external_authentication(
     helpers::validate_payment_status_against_allowed_statuses(
         &payment_intent.status,
         &[
-            storage_enums::IntentStatus::Processing,
+            storage_enums::IntentStatus::RequiresCustomerAction,
             storage_enums::IntentStatus::RequiresConfirmation,
         ],
         "authenticate",

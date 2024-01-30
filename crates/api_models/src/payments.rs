@@ -1921,7 +1921,7 @@ pub enum NextActionData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct ThreeDsData {
     pub authentication_url: String,
-    pub three_ds_method_data: ThreeDsMethodData,
+    pub three_ds_method_details: ThreeDsMethodData,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
