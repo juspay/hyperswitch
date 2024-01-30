@@ -40,7 +40,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
     let state = Box::pin(routes::AppState::new(
-        conf.clone(),
+        conf,
         redis_shutdown_signal_tx,
         api_client,
     ))
@@ -79,7 +79,10 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await
     .expect("Failed to create the server");
 
-    tokio::spawn(web_server);
+    tokio::spawn(async move {
+        let _ = web_server.await;
+        logger::error!("The health check probe stopped working!");
+    });
 
     logger::debug!(startup_config=?state.conf);
 
