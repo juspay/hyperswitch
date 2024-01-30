@@ -372,7 +372,13 @@ where
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
-
+                    let status_code = response
+                        .as_ref()
+                        .map(|i| {
+                            i.as_ref()
+                                .map_or_else(|value| value.status_code, |value| value.status_code)
+                        })
+                        .unwrap_or_default();
                     let connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
@@ -394,6 +400,7 @@ where
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        status_code,
                     );
 
                     match connector_event.try_into() {
@@ -1131,7 +1138,6 @@ where
         status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
-
     res
 }
 
@@ -1675,7 +1681,7 @@ pub fn build_redirection_form(
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',

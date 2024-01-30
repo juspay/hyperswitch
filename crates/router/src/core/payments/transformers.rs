@@ -522,10 +522,7 @@ where
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                            api_models::payments::NextActionData::QrCodeInformation {
-                                image_data_url: qr_code_data.image_data_url,
-                                display_to_timestamp: qr_code_data.display_to_timestamp,
-                            }
+                            api_models::payments::NextActionData::foreign_from(qr_code_data)
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
@@ -639,6 +636,7 @@ where
                                         api::MandateType::MultiUse(None)
                                     }
                                 }),
+                                update_mandate_id: d.update_mandate_id,
                             }),
                             auth_flow == services::AuthFlow::Merchant,
                         )
@@ -830,11 +828,10 @@ where
 
 pub fn qr_code_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
-    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeInformation, _>> = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
@@ -904,17 +901,24 @@ pub fn bank_transfer_next_steps_check(
     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
-        bank_transfer_next_steps
+        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        {
+            let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
+                payment_attempt
+                    .connector_metadata
+                    .map(|metadata| {
+                        metadata
+                            .parse_value("NextStepsRequirements")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse the Value to NextRequirements struct",
+                            )
+                    })
+                    .transpose()?;
+            bank_transfer_next_steps
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -958,6 +962,38 @@ pub fn change_order_details_to_new_type(
         brand: order_details.brand,
         product_type: order_details.product_type,
     }])
+}
+
+impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
+    fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
+        match qr_info {
+            api_models::payments::QrCodeInformation::QrCodeUrl {
+                image_data_url,
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+            },
+            api_models::payments::QrCodeInformation::QrDataUrl {
+                image_data_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(image_data_url),
+                display_to_timestamp,
+                qr_code_url: None,
+            },
+            api_models::payments::QrCodeInformation::QrCodeImageUrl {
+                qr_code_url,
+                display_to_timestamp,
+            } => Self::QrCodeInformation {
+                qr_code_url: Some(qr_code_url),
+                display_to_timestamp,
+                image_data_url: None,
+            },
+        }
+    }
 }
 
 #[derive(Clone)]
