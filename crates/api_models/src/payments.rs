@@ -617,10 +617,18 @@ pub enum MandateReferenceId {
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub update_history: Option<Vec<UpdateHistory>>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct UpdateHistory {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: String,
+    pub original_payment_id: Option<String>,
 }
 
 impl MandateIds {
@@ -637,6 +645,8 @@ impl MandateIds {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
+    /// A way to update the mandate's payment method details
+    pub update_mandate_id: Option<String>,
     /// A concent from the customer to store the payment method
     pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
@@ -1326,15 +1336,15 @@ pub enum BankRedirectData {
     },
     Sofort {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
-        country: api_enums::CountryAlpha2,
+        country: Option<api_enums::CountryAlpha2>,
 
         /// The preferred language
         #[schema(example = "en")]
-        preferred_language: String,
+        preferred_language: Option<String>,
     },
     Trustly {
         /// The country for bank payment
