@@ -431,7 +431,29 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         setup_mandate = setup_mandate.map(|mut sm| {
-            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm.mandate_type = payment_attempt
+                .mandate_details
+                .clone()
+                .and_then(|mandate| match mandate {
+                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
+                        Some(mandate_type)
+                    }
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        mandate_details.mandate_type
+                    }
+                })
+                .or(sm.mandate_type);
+            sm.update_mandate_id = payment_attempt
+                .mandate_details
+                .clone()
+                .and_then(|mandate| match mandate {
+                    data_models::mandates::MandateTypeDetails::MandateType(_) => None,
+                    data_models::mandates::MandateTypeDetails::MandateDetails(update_id) => {
+                        Some(update_id.update_mandate_id)
+                    }
+                })
+                .flatten()
+                .or(sm.update_mandate_id);
             sm
         });
 

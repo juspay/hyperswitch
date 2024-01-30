@@ -1,4 +1,5 @@
-#[cfg(feature = "openapi")]
+use crate::routes;
+
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
@@ -59,97 +60,138 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Customers", description = "Create and manage customers"),
         (name = "Payment Methods", description = "Create and manage payment methods of customers"),
         (name = "Disputes", description = "Manage disputes"),
-        // (name = "API Key", description = "Create and manage API Keys"),
+        (name = "API Key", description = "Create and manage API Keys"),
         (name = "Payouts", description = "Create and manage payouts"),
         (name = "payment link", description = "Create payment link"),
+        (name = "Routing", description = "Create and manage routing configurations"),
     ),
+    // The paths will be displayed in the same order as they are registered here
     paths(
-        crate::routes::refunds::refunds_create,
-        crate::routes::refunds::refunds_retrieve,
-        crate::routes::refunds::refunds_update,
-        crate::routes::refunds::refunds_list,
-        // Commenting this out as these are admin apis and not to be used by the merchant
-        // crate::routes::admin::merchant_account_create,
-        // crate::routes::admin::retrieve_merchant_account,
-        // crate::routes::admin::update_merchant_account,
-        // crate::routes::admin::delete_merchant_account,
-        crate::routes::admin::payment_connector_create,
-        crate::routes::admin::payment_connector_retrieve,
-        crate::routes::admin::payment_connector_list,
-        crate::routes::admin::payment_connector_update,
-        crate::routes::admin::payment_connector_delete,
-        crate::routes::mandates::get_mandate,
-        crate::routes::mandates::revoke_mandate,
-        crate::routes::payments::payments_create,
-    // crate::routes::payments::payments_start,
-        crate::routes::payments::payments_retrieve,
-        crate::routes::payments::payments_update,
-        crate::routes::payments::payments_confirm,
-        crate::routes::payments::payments_capture,
-        crate::routes::payments::payments_connector_session,
-    // crate::routes::payments::payments_redirect_response,
-        crate::routes::payments::payments_cancel,
-        crate::routes::payments::payments_list,
-        crate::routes::payment_methods::create_payment_method_api,
-        crate::routes::payment_methods::list_payment_method_api,
-        crate::routes::payment_methods::list_customer_payment_method_api,
-        crate::routes::payment_methods::list_customer_payment_method_api_client,
-        crate::routes::payment_methods::payment_method_retrieve_api,
-        crate::routes::payment_methods::payment_method_update_api,
-        crate::routes::payment_methods::payment_method_delete_api,
-        crate::routes::customers::customers_create,
-        crate::routes::customers::customers_retrieve,
-        crate::routes::customers::customers_update,
-        crate::routes::customers::customers_delete,
-        crate::routes::customers::customers_list,
-        // crate::routes::api_keys::api_key_create,
-        // crate::routes::api_keys::api_key_retrieve,
-        // crate::routes::api_keys::api_key_update,
-        // crate::routes::api_keys::api_key_revoke,
-        // crate::routes::api_keys::api_key_list,
-        crate::routes::disputes::retrieve_disputes_list,
-        crate::routes::disputes::retrieve_dispute,
-        crate::routes::payouts::payouts_create,
-        crate::routes::payouts::payouts_cancel,
-        crate::routes::payouts::payouts_fulfill,
-        crate::routes::payouts::payouts_retrieve,
-        crate::routes::payouts::payouts_update,
-        crate::routes::payment_link::payment_link_retrieve,
-        crate::routes::gsm::create_gsm_rule,
-        crate::routes::gsm::get_gsm_rule,
-        crate::routes::gsm::update_gsm_rule,
-        crate::routes::gsm::delete_gsm_rule,
-        crate::routes::blocklist::add_entry_to_blocklist,
-        crate::routes::blocklist::list_blocked_payment_methods,
-        crate::routes::blocklist::remove_entry_from_blocklist
+        // Routes for payments
+        routes::payments::payments_create,
+        routes::payments::payments_update,
+        routes::payments::payments_confirm,
+        routes::payments::payments_retrieve,
+        routes::payments::payments_capture,
+        routes::payments::payments_connector_session,
+        routes::payments::payments_cancel,
+        routes::payments::payments_list,
+        routes::payments::payments_incremental_authorization,
+        routes::payment_link::payment_link_retrieve,
+
+        // Routes for refunds
+        routes::refunds::refunds_create,
+        routes::refunds::refunds_retrieve,
+        routes::refunds::refunds_update,
+        routes::refunds::refunds_list,
+
+        // Routes for merchant account
+        routes::merchant_account::merchant_account_create,
+        routes::merchant_account::retrieve_merchant_account,
+        routes::merchant_account::update_merchant_account,
+        routes::merchant_account::delete_merchant_account,
+
+        // Routes for merchant connector account
+        routes::merchant_connector_account::payment_connector_create,
+        routes::merchant_connector_account::payment_connector_retrieve,
+        routes::merchant_connector_account::payment_connector_list,
+        routes::merchant_connector_account::payment_connector_update,
+        routes::merchant_connector_account::payment_connector_delete,
+
+        //Routes for gsm
+        routes::gsm::create_gsm_rule,
+        routes::gsm::get_gsm_rule,
+        routes::gsm::update_gsm_rule,
+        routes::gsm::delete_gsm_rule,
+
+        // Routes for mandates
+        routes::mandates::get_mandate,
+        routes::mandates::revoke_mandate,
+
+        //Routes for customers
+        routes::customers::customers_create,
+        routes::customers::customers_retrieve,
+        routes::customers::customers_list,
+        routes::customers::customers_update,
+        routes::customers::customers_delete,
+
+        //Routes for payment methods
+        routes::payment_method::create_payment_method_api,
+        routes::payment_method::list_payment_method_api,
+        routes::payment_method::list_customer_payment_method_api,
+        routes::payment_method::list_customer_payment_method_api_client,
+        routes::payment_method::payment_method_retrieve_api,
+        routes::payment_method::payment_method_update_api,
+        routes::payment_method::payment_method_delete_api,
+
+        // Routes for Business Profile
+        routes::business_profile::business_profile_create,
+        routes::business_profile::business_profiles_list,
+        routes::business_profile::business_profiles_update,
+        routes::business_profile::business_profiles_delete,
+        routes::business_profile::business_profiles_retrieve,
+
+        // Routes for disputes
+        routes::disputes::retrieve_dispute,
+        routes::disputes::retrieve_disputes_list,
+
+        // Routes for routing
+        routes::routing::routing_create_config,
+        routes::routing::routing_link_config,
+        routes::routing::routing_retrieve_config,
+        routes::routing::list_routing_configs,
+        routes::routing::routing_unlink_config,
+        routes::routing::routing_update_default_config,
+        routes::routing::routing_retrieve_default_config,
+        routes::routing::routing_retrieve_linked_config,
+        routes::routing::routing_retrieve_default_config_for_profiles,
+        routes::routing::routing_update_default_config_for_profile,
+
+        // Routes for blocklist
+        routes::blocklist::remove_entry_from_blocklist,
+        routes::blocklist::list_blocked_payment_methods,
+        routes::blocklist::add_entry_to_blocklist,
+
+        // Routes for payouts
+        routes::payouts::payouts_create,
+        routes::payouts::payouts_retrieve,
+        routes::payouts::payouts_update,
+        routes::payouts::payouts_cancel,
+        routes::payouts::payouts_fulfill,
+
+        // Routes for api keys
+        routes::api_keys::api_key_create,
+        routes::api_keys::api_key_retrieve,
+        routes::api_keys::api_key_update,
+        routes::api_keys::api_key_revoke
     ),
     components(schemas(
-        crate::types::api::refunds::RefundRequest,
-        crate::types::api::refunds::RefundType,
-        crate::types::api::refunds::RefundResponse,
-        crate::types::api::refunds::RefundStatus,
-        crate::types::api::refunds::RefundUpdateRequest,
-        crate::types::api::admin::MerchantAccountCreate,
-        crate::types::api::admin::MerchantAccountUpdate,
-        crate::types::api::admin::MerchantAccountDeleteResponse,
-        crate::types::api::admin::MerchantConnectorDeleteResponse,
-        crate::types::api::admin::MerchantConnectorResponse,
-        crate::types::api::customers::CustomerRequest,
-        crate::types::api::customers::CustomerDeleteResponse,
-        crate::types::api::payment_methods::PaymentMethodCreate,
-        crate::types::api::payment_methods::PaymentMethodResponse,
-        crate::types::api::payment_methods::PaymentMethodList,
-        crate::types::api::payment_methods::CustomerPaymentMethod,
-        crate::types::api::payment_methods::PaymentMethodListResponse,
-        crate::types::api::payment_methods::CustomerPaymentMethodsListResponse,
-        crate::types::api::payment_methods::PaymentMethodDeleteResponse,
-        crate::types::api::payment_methods::PaymentMethodUpdate,
-        crate::types::api::payment_methods::CardDetailFromLocker,
-        crate::types::api::payment_methods::CardDetail,
+        api_models::refunds::RefundRequest,
+        api_models::refunds::RefundType,
+        api_models::refunds::RefundResponse,
+        api_models::refunds::RefundStatus,
+        api_models::refunds::RefundUpdateRequest,
+        api_models::admin::MerchantAccountCreate,
+        api_models::admin::MerchantAccountUpdate,
+        api_models::admin::MerchantAccountDeleteResponse,
+        api_models::admin::MerchantConnectorDeleteResponse,
+        api_models::admin::MerchantConnectorResponse,
+        api_models::customers::CustomerRequest,
+        api_models::customers::CustomerDeleteResponse,
+        api_models::payment_methods::PaymentMethodCreate,
+        api_models::payment_methods::PaymentMethodResponse,
+        api_models::payment_methods::PaymentMethodList,
+        api_models::payment_methods::CustomerPaymentMethod,
+        api_models::payment_methods::PaymentMethodListResponse,
+        api_models::payment_methods::CustomerPaymentMethodsListResponse,
+        api_models::payment_methods::PaymentMethodDeleteResponse,
+        api_models::payment_methods::PaymentMethodUpdate,
+        api_models::payment_methods::CardDetailFromLocker,
+        api_models::payment_methods::CardDetail,
+        api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
-        api_models::enums::RoutingAlgorithm,
         api_models::enums::PaymentType,
         api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
@@ -189,6 +231,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
+        api_models::admin::BusinessProfileCreate,
+        api_models::admin::BusinessProfileResponse,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkConfigRequest,
         api_models::admin::PaymentLinkConfig,
@@ -257,6 +301,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsCreateRequest,
+        api_models::payments::PaymentsUpdateRequest,
+        api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
@@ -321,14 +367,15 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
+        api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
+        api_models::payments::BrowserInformation,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
         api_models::payment_methods::SurchargeResponse,
         api_models::payment_methods::SurchargePercentage,
-        api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::TimeRange,
@@ -359,25 +406,50 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,
         api_models::enums::EventType,
-        crate::types::api::admin::MerchantAccountResponse,
-        crate::types::api::admin::MerchantConnectorId,
-        crate::types::api::admin::MerchantDetails,
-        crate::types::api::admin::WebhookDetails,
-        crate::types::api::api_keys::ApiKeyExpiration,
-        crate::types::api::api_keys::CreateApiKeyRequest,
-        crate::types::api::api_keys::CreateApiKeyResponse,
-        crate::types::api::api_keys::RetrieveApiKeyResponse,
-        crate::types::api::api_keys::RevokeApiKeyResponse,
-        crate::types::api::api_keys::UpdateApiKeyRequest,
+        api_models::admin::MerchantAccountResponse,
+        api_models::admin::MerchantConnectorId,
+        api_models::admin::MerchantDetails,
+        api_models::admin::WebhookDetails,
+        api_models::api_keys::ApiKeyExpiration,
+        api_models::api_keys::CreateApiKeyRequest,
+        api_models::api_keys::CreateApiKeyResponse,
+        api_models::api_keys::RetrieveApiKeyResponse,
+        api_models::api_keys::RevokeApiKeyResponse,
+        api_models::api_keys::UpdateApiKeyRequest,
         api_models::payments::RetrievePaymentLinkRequest,
         api_models::payments::PaymentLinkResponse,
         api_models::payments::RetrievePaymentLinkResponse,
         api_models::payments::PaymentLinkInitiateRequest,
+        api_models::routing::RoutingConfigRequest,
+        api_models::routing::RoutingDictionaryRecord,
+        api_models::routing::RoutingKind,
+        api_models::routing::RoutableConnectorChoice,
+        api_models::routing::LinkedRoutingConfigRetrieveResponse,
+        api_models::routing::RoutingRetrieveResponse,
+        api_models::routing::ProfileDefaultRoutingConfig,
+        api_models::routing::MerchantRoutingAlgorithm,
+        api_models::routing::RoutingAlgorithmKind,
+        api_models::routing::RoutingDictionary,
+        api_models::routing::RoutingAlgorithm,
+        api_models::routing::StraightThroughAlgorithm,
+        api_models::routing::ConnectorVolumeSplit,
+        api_models::routing::ConnectorSelection,
+        api_models::routing::ast::RoutableChoiceKind,
+        api_models::enums::RoutableConnectors,
+        api_models::routing::ast::ProgramConnectorSelection,
+        api_models::routing::ast::RuleConnectorSelection,
+        api_models::routing::ast::IfStatement,
+        api_models::routing::ast::Comparison,
+        api_models::routing::ast::ComparisonType,
+        api_models::routing::ast::ValueType,
+        api_models::routing::ast::MetadataValue,
+        api_models::routing::ast::NumberComparison,
+        api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payments::PaymentLinkStatus,
         api_models::blocklist::BlocklistRequest,
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
-        common_enums::enums::BlocklistDataKind
+        api_models::enums::BlocklistDataKind
     )),
     modifiers(&SecurityAddon)
 )]
@@ -395,8 +467,7 @@ impl utoipa::Modify for SecurityAddon {
                     "api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
-                        "API keys are the most common method of authentication and can be obtained \
-                        from the HyperSwitch dashboard."
+                        "Use the API key created under your merchant account from the HyperSwitch dashboard. API key is used to authenticate API requests from your merchant server only. Don't expose this key on a website or embed it in a mobile application."
                     ))),
                 ),
                 (
@@ -426,108 +497,4 @@ impl utoipa::Modify for SecurityAddon {
             ]);
         }
     }
-}
-
-pub mod examples {
-    /// Creating the payment with minimal fields
-    pub const PAYMENTS_CREATE_MINIMUM_FIELDS: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-    }"#;
-
-    /// Creating a manual capture payment
-    pub const PAYMENTS_CREATE_WITH_MANUAL_CAPTURE: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "capture_method":"manual"
-    }"#;
-
-    /// Creating a payment with billing and shipping address
-    pub const PAYMENTS_CREATE_WITH_ADDRESS: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "customer": {
-            "id" : "cus_abcdefgh"
-        },
-        "billing": {
-            "address": {
-                "line1": "1467",
-                "line2": "Harrison Street",
-                "line3": "Harrison Street",
-                "city": "San Fransico",
-                "state": "California",
-                "zip": "94122",
-                "country": "US",
-                "first_name": "joseph",
-                "last_name": "Doe"
-            },
-            "phone": {
-                "number": "8056594427",
-                "country_code": "+91"
-            }
-        }
-    }"#;
-
-    /// Creating a payment with customer details
-    pub const PAYMENTS_CREATE_WITH_CUSTOMER_DATA: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "customer": {
-            "id":"cus_abcdefgh",
-            "name":"John Dough",
-            "phone":"9999999999",
-            "email":"john@example.com"
-        }
-    }"#;
-
-    /// 3DS force payment
-    pub const PAYMENTS_CREATE_WITH_FORCED_3DS: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "authentication_type" : "three_ds"
-    }"#;
-
-    /// A payment with other fields
-    pub const PAYMENTS_CREATE: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "payment_id": "abcdefghijklmnopqrstuvwxyz",
-        "customer": {
-            "id":"cus_abcdefgh",
-            "name":"John Dough",
-            "phone":"9999999999",
-            "email":"john@example.com"
-        },
-        "description": "Its my first payment request",
-        "statement_descriptor_name": "joseph",
-        "statement_descriptor_suffix": "JS",
-        "metadata": {
-            "udf1": "some-value",
-            "udf2": "some-value"
-        }
-    }"#;
-
-    /// Creating the payment with order details
-    pub const PAYMENTS_CREATE_WITH_ORDER_DETAILS: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "order_details": [
-            {
-                "product_name": "Apple iPhone 15",
-                "quantity": 1,
-                "amount" : 6540
-            }
-        ]
-    }"#;
-
-    /// Creating the payment with connector metadata for noon
-    pub const PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY: &str = r#"{
-        "amount": 6540,
-        "currency": "USD",
-        "connector_metadata": {
-            "noon": {
-                "order_category":"shoes"
-            }
-        }
-    }"#;
 }
