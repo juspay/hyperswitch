@@ -608,9 +608,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let payload =
-            parse_jwt_payload::<A, AuthToken>(request_headers, state)
-                .await?;
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
         if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
@@ -660,9 +658,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
-        let payload =
-            parse_jwt_payload::<A, AuthToken>(request_headers, state)
-                .await?;
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
         if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
@@ -691,7 +687,7 @@ where
             key_store,
         };
         Ok((
-            (auth.clone(),payload.user_id.clone()),
+            (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwt {
                 merchant_id: auth.merchant_account.merchant_id.clone(),
                 user_id: None,
