@@ -7,11 +7,8 @@ use error_stack::ResultExt;
 use router_env::logger;
 
 #[cfg(feature = "email")]
-use crate::consts;
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
-#[cfg(feature = "email")]
-use crate::types::domain;
+use crate::{consts, services::email::types as email_types, types::domain};
+
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
@@ -456,7 +453,7 @@ async fn insert_metadata(
             {
                 if !(data
                     .poc_email
-                    .clone()
+                    .as_ref()
                     .map(|mail| mail.contains("juspay"))
                     .unwrap_or(false))
                 {
@@ -465,7 +462,7 @@ async fn insert_metadata(
                             consts::user::BUSINESS_EMAIL.to_string().into(),
                         )?,
                         settings: state.conf.clone(),
-                        subject: "",
+                        subject: "New Prod Intent",
                         user_name: data.poc_name.unwrap_or_default().into(),
                         poc_email: data.poc_email.unwrap_or_default().into(),
                         legal_business_name: data.legal_business_name.unwrap_or_default(),

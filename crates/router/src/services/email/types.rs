@@ -272,14 +272,10 @@ pub struct ReconActivation {
 }
 
 #[async_trait::async_trait]
-impl EmailData for BizEmailProd {
+impl EmailData for ReconActivation {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let body = html::get_html_body(EmailBody::BizEmailProd {
-            user_name: self.user_name.clone().expose(),
-            poc_email: self.poc_email.clone().expose(),
-            legal_business_name: self.legal_business_name.clone(),
-            business_location: self.business_location.clone(),
-            business_website: self.business_website.clone(),
+        let body = html::get_html_body(EmailBody::ReconActivation {
+            user_name: self.user_name.clone().get_secret().expose(),
         });
 
         Ok(EmailContents {
@@ -302,10 +298,14 @@ pub struct BizEmailProd {
 }
 
 #[async_trait::async_trait]
-impl EmailData for ReconActivation {
+impl EmailData for BizEmailProd {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let body = html::get_html_body(EmailBody::ReconActivation {
-            user_name: self.user_name.clone().get_secret().expose(),
+        let body = html::get_html_body(EmailBody::BizEmailProd {
+            user_name: self.user_name.clone().expose(),
+            poc_email: self.poc_email.clone().expose(),
+            legal_business_name: self.legal_business_name.clone(),
+            business_location: self.business_location.clone(),
+            business_website: self.business_website.clone(),
         });
 
         Ok(EmailContents {
