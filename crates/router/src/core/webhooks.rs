@@ -347,6 +347,7 @@ pub async fn get_or_update_dispute_object(
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -375,7 +376,7 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
-                profile_id: None,
+                profile_id: Some(business_profile.profile_id.clone()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
             };
