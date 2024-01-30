@@ -114,7 +114,6 @@ impl_misc_api_event_type!(
     CreateFileRequest,
     FileId,
     AttachEvidenceRequest,
-    DisputeId,
     PaymentLinkFormData,
     ConfigUpdate
 );
@@ -139,6 +138,14 @@ impl ApiEventMetric for PaymentsRedirectResponseData {
                 api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
                 _ => None,
             },
+        })
+    }
+}
+
+impl ApiEventMetric for DisputeId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Dispute {
+            dispute_id: self.dispute_id.clone(),
         })
     }
 }

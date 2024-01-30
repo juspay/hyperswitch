@@ -97,10 +97,10 @@ pub async fn signup(
     ))
 }
 
-pub async fn signin(
+pub async fn signin_without_invite_checks(
     state: AppState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::SignInResponse> {
+) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_from_db: domain::UserFromStorage = state
         .store
         .find_user_by_email(request.email.clone().expose().expose().as_str())
@@ -121,6 +121,50 @@ pub async fn signin(
 
     Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
+}
+
+pub async fn signin(
+    state: AppState,
+    request: user_api::SignInRequest,
+) -> UserResponse<user_api::SignInResponse> {
+    let user_from_db: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(request.email.clone().expose().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidCredentials)
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    user_from_db.compare_password(request.password)?;
+
+    let signin_strategy =
+        if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
+            let preferred_role = user_from_db
+                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("User role with preferred_merchant_id not found")?;
+            domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
+                user: user_from_db,
+                user_role: preferred_role,
+            })
+        } else {
+            let user_roles = user_from_db.get_roles_from_db(&state).await?;
+            domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
+                user_from_db,
+                user_roles,
+            )
+            .await?
+        };
+
+    Ok(ApplicationResponse::Json(
+        signin_strategy.get_signin_response(&state).await?,
     ))
 }
 
@@ -832,22 +876,22 @@ pub async fn list_merchant_ids_for_user(
     state: AppState,
     user: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
-    let merchant_ids = utils::user_role::get_merchant_ids_for_user(&state, &user.user_id).await?;
+    let user_roles =
+        utils::user_role::get_active_user_roles_for_user(&state, &user.user_id).await?;
 
     let merchant_accounts = state
         .store
-        .list_multiple_merchant_accounts(merchant_ids)
+        .list_multiple_merchant_accounts(
+            user_roles
+                .iter()
+                .map(|role| role.merchant_id.clone())
+                .collect(),
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(
-        merchant_accounts
-            .into_iter()
-            .map(|acc| user_api::UserMerchantAccount {
-                merchant_id: acc.merchant_id,
-                merchant_name: acc.merchant_name,
-            })
-            .collect(),
+        utils::user::get_multiple_merchant_details_with_status(user_roles, merchant_accounts)?,
     ))
 }
 
@@ -869,10 +913,37 @@ pub async fn get_users_for_merchant_account(
 }
 
 #[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: AppState,
+    req: user_api::VerifyEmailRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+    let user = state
+        .store
+        .find_user_by_email(token.get_email())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user = state
+        .store
+        .update_user_by_user_id(user.user_id.as_str(), storage_user::UserUpdate::VerifyUser)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    let user_from_db: domain::UserFromStorage = user.into();
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
+}
+
+#[cfg(feature = "email")]
 pub async fn verify_email(
     state: AppState,
     req: user_api::VerifyEmailRequest,
-) -> UserResponse<user_api::VerifyEmailResponse> {
+) -> UserResponse<user_api::SignInResponse> {
     let token = auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
         .await
         .change_context(UserErrors::LinkInvalid)?;
@@ -890,11 +961,29 @@ pub async fn verify_email(
         .change_context(UserErrors::InternalServerError)?;
 
     let user_from_db: domain::UserFromStorage = user.into();
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    let signin_strategy =
+        if let Some(preferred_merchant_id) = user_from_db.get_preferred_merchant_id() {
+            let preferred_role = user_from_db
+                .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("User role with preferred_merchant_id not found")?;
+            domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
+                user: user_from_db,
+                user_role: preferred_role,
+            })
+        } else {
+            let user_roles = user_from_db.get_roles_from_db(&state).await?;
+            domain::SignInWithRoleStrategyType::decide_signin_strategy_by_user_roles(
+                user_from_db,
+                user_roles,
+            )
+            .await?
+        };
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+        signin_strategy.get_signin_response(&state).await?,
     ))
 }
 
