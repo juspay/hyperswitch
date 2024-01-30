@@ -17,12 +17,6 @@ use crate::{
         payments::{self, PaymentRedirectFlow},
         utils as core_utils,
     },
-    // openapi::examples::{
-    //     PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-    //     PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-    //     PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-    //     PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-    // },
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
@@ -1153,7 +1147,7 @@ where
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment authorized amount incremented"),
+        (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",

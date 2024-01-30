@@ -56,6 +56,10 @@ pub enum UserErrors {
     ChangePasswordError,
     #[error("InvalidDeleteOperation")]
     InvalidDeleteOperation,
+    #[error("MaxInvitationsError")]
+    MaxInvitationsError,
+    #[error("RoleNotFound")]
+    RoleNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -64,107 +68,122 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
         let sub_code = "UR";
         match self {
             Self::InternalServerError => {
-                AER::InternalServerError(ApiError::new("HE", 0, "Something Went Wrong", None))
+                AER::InternalServerError(ApiError::new("HE", 0, self.get_error_message(), None))
             }
-            Self::InvalidCredentials => AER::Unauthorized(ApiError::new(
-                sub_code,
-                1,
-                "Incorrect email or password",
-                None,
-            )),
-            Self::UserNotFound => AER::Unauthorized(ApiError::new(
-                sub_code,
-                2,
-                "Email doesn’t exist. Register",
-                None,
-            )),
-            Self::UserExists => AER::BadRequest(ApiError::new(
-                sub_code,
-                3,
-                "An account already exists with this email",
-                None,
-            )),
+            Self::InvalidCredentials => {
+                AER::Unauthorized(ApiError::new(sub_code, 1, self.get_error_message(), None))
+            }
+            Self::UserNotFound => {
+                AER::Unauthorized(ApiError::new(sub_code, 2, self.get_error_message(), None))
+            }
+            Self::UserExists => {
+                AER::BadRequest(ApiError::new(sub_code, 3, self.get_error_message(), None))
+            }
             Self::LinkInvalid => {
-                AER::Unauthorized(ApiError::new(sub_code, 4, "Invalid or expired link", None))
+                AER::Unauthorized(ApiError::new(sub_code, 4, self.get_error_message(), None))
             }
-            Self::UnverifiedUser => AER::Unauthorized(ApiError::new(
-                sub_code,
-                5,
-                "Kindly verify your account",
-                None,
-            )),
-            Self::InvalidOldPassword => AER::BadRequest(ApiError::new(
-                sub_code,
-                6,
-                "Old password incorrect. Please enter the correct password",
-                None,
-            )),
+            Self::UnverifiedUser => {
+                AER::Unauthorized(ApiError::new(sub_code, 5, self.get_error_message(), None))
+            }
+            Self::InvalidOldPassword => {
+                AER::BadRequest(ApiError::new(sub_code, 6, self.get_error_message(), None))
+            }
             Self::EmailParsingError => {
-                AER::BadRequest(ApiError::new(sub_code, 7, "Invalid Email", None))
+                AER::BadRequest(ApiError::new(sub_code, 7, self.get_error_message(), None))
             }
             Self::NameParsingError => {
-                AER::BadRequest(ApiError::new(sub_code, 8, "Invalid Name", None))
+                AER::BadRequest(ApiError::new(sub_code, 8, self.get_error_message(), None))
             }
             Self::PasswordParsingError => {
-                AER::BadRequest(ApiError::new(sub_code, 9, "Invalid Password", None))
+                AER::BadRequest(ApiError::new(sub_code, 9, self.get_error_message(), None))
             }
             Self::UserAlreadyVerified => {
-                AER::Unauthorized(ApiError::new(sub_code, 11, "User already verified", None))
+                AER::Unauthorized(ApiError::new(sub_code, 11, self.get_error_message(), None))
             }
             Self::CompanyNameParsingError => {
-                AER::BadRequest(ApiError::new(sub_code, 14, "Invalid Company Name", None))
+                AER::BadRequest(ApiError::new(sub_code, 14, self.get_error_message(), None))
             }
             Self::MerchantAccountCreationError(error_message) => {
                 AER::InternalServerError(ApiError::new(sub_code, 15, error_message, None))
             }
             Self::InvalidEmailError => {
-                AER::BadRequest(ApiError::new(sub_code, 16, "Invalid Email", None))
+                AER::BadRequest(ApiError::new(sub_code, 16, self.get_error_message(), None))
             }
             Self::MerchantIdNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 18, "Invalid Merchant ID", None))
+                AER::BadRequest(ApiError::new(sub_code, 18, self.get_error_message(), None))
             }
             Self::MetadataAlreadySet => {
-                AER::BadRequest(ApiError::new(sub_code, 19, "Metadata already set", None))
+                AER::BadRequest(ApiError::new(sub_code, 19, self.get_error_message(), None))
             }
             Self::DuplicateOrganizationId => AER::InternalServerError(ApiError::new(
                 sub_code,
                 21,
-                "An Organization with the id already exists",
+                self.get_error_message(),
                 None,
             )),
             Self::InvalidRoleId => {
-                AER::BadRequest(ApiError::new(sub_code, 22, "Invalid Role ID", None))
+                AER::BadRequest(ApiError::new(sub_code, 22, self.get_error_message(), None))
             }
-            Self::InvalidRoleOperation => AER::BadRequest(ApiError::new(
+            Self::InvalidRoleOperation => {
+                AER::BadRequest(ApiError::new(sub_code, 23, self.get_error_message(), None))
+            }
+            Self::IpAddressParsingFailed => AER::InternalServerError(ApiError::new(
                 sub_code,
-                23,
-                "User Role Operation Not Supported",
+                24,
+                self.get_error_message(),
                 None,
             )),
-            Self::IpAddressParsingFailed => {
-                AER::InternalServerError(ApiError::new(sub_code, 24, "Something Went Wrong", None))
+            Self::InvalidMetadataRequest => {
+                AER::BadRequest(ApiError::new(sub_code, 26, self.get_error_message(), None))
             }
-            Self::InvalidMetadataRequest => AER::BadRequest(ApiError::new(
-                sub_code,
-                26,
-                "Invalid Metadata Request",
-                None,
-            )),
             Self::MerchantIdParsingError => {
-                AER::BadRequest(ApiError::new(sub_code, 28, "Invalid Merchant Id", None))
+                AER::BadRequest(ApiError::new(sub_code, 28, self.get_error_message(), None))
             }
-            Self::ChangePasswordError => AER::BadRequest(ApiError::new(
-                sub_code,
-                29,
-                "Old and new password cannot be same",
-                None,
-            )),
-            Self::InvalidDeleteOperation => AER::BadRequest(ApiError::new(
-                sub_code,
-                30,
-                "Delete Operation Not Supported",
-                None,
-            )),
+            Self::ChangePasswordError => {
+                AER::BadRequest(ApiError::new(sub_code, 29, self.get_error_message(), None))
+            }
+            Self::InvalidDeleteOperation => {
+                AER::BadRequest(ApiError::new(sub_code, 30, self.get_error_message(), None))
+            }
+            Self::MaxInvitationsError => {
+                AER::BadRequest(ApiError::new(sub_code, 31, self.get_error_message(), None))
+            }
+            Self::RoleNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 32, self.get_error_message(), None))
+            }
+        }
+    }
+}
+
+impl UserErrors {
+    pub fn get_error_message(&self) -> &str {
+        match self {
+            Self::InternalServerError => "Something went wrong",
+            Self::InvalidCredentials => "Incorrect email or password",
+            Self::UserNotFound => "Email doesn’t exist. Register",
+            Self::UserExists => "An account already exists with this email",
+            Self::LinkInvalid => "Invalid or expired link",
+            Self::UnverifiedUser => "Kindly verify your account",
+            Self::InvalidOldPassword => "Old password incorrect. Please enter the correct password",
+            Self::EmailParsingError => "Invalid Email",
+            Self::NameParsingError => "Invalid Name",
+            Self::PasswordParsingError => "Invalid Password",
+            Self::UserAlreadyVerified => "User already verified",
+            Self::CompanyNameParsingError => "Invalid Company Name",
+            Self::MerchantAccountCreationError(error_message) => error_message,
+            Self::InvalidEmailError => "Invalid Email",
+            Self::MerchantIdNotFound => "Invalid Merchant ID",
+            Self::MetadataAlreadySet => "Metadata already set",
+            Self::DuplicateOrganizationId => "An Organization with the id already exists",
+            Self::InvalidRoleId => "Invalid Role ID",
+            Self::InvalidRoleOperation => "User Role Operation Not Supported",
+            Self::IpAddressParsingFailed => "Something went wrong",
+            Self::InvalidMetadataRequest => "Invalid Metadata Request",
+            Self::MerchantIdParsingError => "Invalid Merchant Id",
+            Self::ChangePasswordError => "Old and new password cannot be the same",
+            Self::InvalidDeleteOperation => "Delete Operation Not Supported",
+            Self::MaxInvitationsError => "Maximum invite count per request exceeded",
+            Self::RoleNotFound => "Role Not Found",
         }
     }
 }
