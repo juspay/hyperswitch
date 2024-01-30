@@ -454,30 +454,37 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                let email_contents = email_types::BizEmailProd {
-                    recipient_email: domain::UserEmail::new(
-                        consts::user::BUSINESS_EMAIL.to_string().into(),
-                    )?,
-                    settings: state.conf.clone(),
-                    subject: "Bizz Email",
-                    user_name: data.poc_name.unwrap_or_default().into(),
-                    poc_email: data.poc_email.unwrap_or_default().into(),
-                    legal_business_name: data.legal_business_name.unwrap_or_default(),
-                    business_location: data
-                        .business_location
-                        .unwrap_or(common_enums::CountryAlpha2::AD)
-                        .to_string(),
-                    business_website: data.business_website.unwrap_or_default(),
-                };
+                if !(data
+                    .poc_email
+                    .clone()
+                    .unwrap_or_default()
+                    .contains("juspay"))
+                {
+                    let email_contents = email_types::BizEmailProd {
+                        recipient_email: domain::UserEmail::new(
+                            consts::user::BUSINESS_EMAIL.to_string().into(),
+                        )?,
+                        settings: state.conf.clone(),
+                        subject: "",
+                        user_name: data.poc_name.unwrap_or_default().into(),
+                        poc_email: data.poc_email.unwrap_or_default().into(),
+                        legal_business_name: data.legal_business_name.unwrap_or_default(),
+                        business_location: data
+                            .business_location
+                            .unwrap_or(common_enums::CountryAlpha2::AD)
+                            .to_string(),
+                        business_website: data.business_website.unwrap_or_default(),
+                    };
 
-                let send_email_result = state
-                    .email_client
-                    .compose_and_send_email(
-                        Box::new(email_contents),
-                        state.conf.proxy.https_url.as_ref(),
-                    )
-                    .await;
-                logger::info!(?send_email_result);
+                    let send_email_result = state
+                        .email_client
+                        .compose_and_send_email(
+                            Box::new(email_contents),
+                            state.conf.proxy.https_url.as_ref(),
+                        )
+                        .await;
+                    logger::info!(?send_email_result);
+                }
             }
 
             metadata
