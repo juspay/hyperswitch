@@ -1,5 +1,5 @@
 use api_models::user_role as user_role_api;
-use diesel_models::enums::UserStatus;
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 
 use crate::{
@@ -17,19 +17,17 @@ pub fn is_internal_role(role_id: &str) -> bool {
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
 }
 
-pub async fn get_merchant_ids_for_user(state: &AppState, user_id: &str) -> UserResult<Vec<String>> {
+pub async fn get_active_user_roles_for_user(
+    state: &AppState,
+    user_id: &str,
+) -> UserResult<Vec<UserRole>> {
     Ok(state
         .store
         .list_user_roles_by_user_id(user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .filter_map(|ele| {
-            if ele.status == UserStatus::Active {
-                return Some(ele.merchant_id);
-            }
-            None
-        })
+        .filter(|ele| ele.status == UserStatus::Active)
         .collect())
 }
 

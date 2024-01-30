@@ -68,7 +68,7 @@ use crate::{
     workflows::payment_sync,
 };
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
@@ -129,6 +129,7 @@ where
             &merchant_account,
             &key_store,
             auth_flow,
+            header_payload.payment_confirm_source,
         )
         .await?;
 
@@ -181,6 +182,8 @@ where
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
+        let mut should_continue_capture: bool = true;
+        #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
             frm_core::call_frm_before_connector_call(
                 db,
@@ -191,6 +194,7 @@ where
                 &mut frm_info,
                 &customer,
                 &mut should_continue_transaction,
+                &mut should_continue_capture,
                 key_store.clone(),
             )
             .await?
@@ -199,12 +203,25 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "should_cancel_transaction: {:?} {:?} ",
+            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
-            should_continue_transaction
+            should_continue_transaction,
+            should_continue_capture,
         );
 
         if should_continue_transaction {
+            #[cfg(feature = "frm")]
+            match (
+                should_continue_capture,
+                payment_data.payment_attempt.capture_method,
+            ) {
+                (false, Some(storage_enums::CaptureMethod::Automatic))
+                | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+                    payment_data.payment_attempt.capture_method =
+                        Some(storage_enums::CaptureMethod::Manual);
+                }
+                _ => (),
+            };
             payment_data = match connector_details {
                 api::ConnectorCallType::PreDetermined(connector) => {
                     let schedule_time = if should_add_task_to_process_tracker {
@@ -233,6 +250,10 @@ where
                         &validate_result,
                         schedule_time,
                         header_payload,
+                        #[cfg(feature = "frm")]
+                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                        #[cfg(not(feature = "frm"))]
+                        None,
                     )
                     .await?;
                     let operation = Box::new(PaymentResponse);
@@ -284,6 +305,10 @@ where
                         &validate_result,
                         schedule_time,
                         header_payload,
+                        #[cfg(feature = "frm")]
+                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                        #[cfg(not(feature = "frm"))]
+                        None,
                     )
                     .await?;
 
@@ -311,6 +336,10 @@ where
                                 &customer,
                                 &validate_result,
                                 schedule_time,
+                                #[cfg(feature = "frm")]
+                                frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                                #[cfg(not(feature = "frm"))]
+                                None,
                             )
                             .await?;
                         };
@@ -338,7 +367,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -571,7 +599,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -615,10 +642,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -996,6 +1019,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -1172,7 +1196,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
-            None,
+            frm_suggestion,
             header_payload,
         )
         .await?;
@@ -2016,6 +2040,8 @@ pub struct IncrementalAuthorizationDetails {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2110,6 +2136,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
+        "PaymentReject" => true,
         "PaymentSession" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,

@@ -343,6 +343,7 @@ pub struct QrCodeResponseResponse {
     action: AdyenQrCodeAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    additional_data: Option<QrCodeAdditionalData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,8 +353,15 @@ pub struct AdyenQrCodeAction {
     #[serde(rename = "type")]
     type_of_response: ActionType,
     #[serde(rename = "url")]
-    mobile_redirection_url: Option<Url>,
+    qr_code_url: Option<Url>,
     qr_code_data: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QrCodeAdditionalData {
+    #[serde(rename = "pix.expirationDate")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pix_expiration_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -402,20 +410,20 @@ pub struct Amount {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum AdyenPaymentMethod<'a> {
-    AdyenAffirm(Box<AdyenPayLaterData>),
+    AdyenAffirm(Box<PmdForPaymentType>),
     AdyenCard(Box<AdyenCard>),
-    AdyenKlarna(Box<AdyenPayLaterData>),
-    AdyenPaypal(Box<AdyenPaypal>),
+    AdyenKlarna(Box<PmdForPaymentType>),
+    AdyenPaypal(Box<PmdForPaymentType>),
     #[serde(rename = "afterpaytouch")]
-    AfterPay(Box<AdyenPayLaterData>),
-    AlmaPayLater(Box<AdyenPayLaterData>),
-    AliPay(Box<AliPayData>),
-    AliPayHk(Box<AliPayHkData>),
+    AfterPay(Box<PmdForPaymentType>),
+    AlmaPayLater(Box<PmdForPaymentType>),
+    AliPay(Box<PmdForPaymentType>),
+    AliPayHk(Box<PmdForPaymentType>),
     ApplePay(Box<AdyenApplePay>),
     #[serde(rename = "atome")]
     Atome,
     BancontactCard(Box<BancontactCardData>),
-    Bizum(Box<BankRedirectionPMData>),
+    Bizum(Box<PmdForPaymentType>),
     Blik(Box<BlikRedirectionData>),
     #[serde(rename = "boletobancario")]
     BoletoBancario,
@@ -426,7 +434,7 @@ pub enum AdyenPaymentMethod<'a> {
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     #[serde(rename = "gcash")]
     Gcash(Box<GcashData>),
-    Giropay(Box<BankRedirectionPMData>),
+    Giropay(Box<PmdForPaymentType>),
     Gpay(Box<AdyenGPay>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
@@ -435,7 +443,7 @@ pub enum AdyenPaymentMethod<'a> {
     Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
-    MobilePay(Box<MobilePayData>),
+    MobilePay(Box<PmdForPaymentType>),
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
     #[serde(rename = "momo_atm")]
@@ -443,7 +451,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "touchngo")]
     TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
-    OnlineBankingFinland(Box<OnlineBankingFinlandData>),
+    OnlineBankingFinland(Box<PmdForPaymentType>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
     #[serde(rename = "molpay_ebanking_fpx_MY")]
@@ -513,6 +521,13 @@ pub enum AdyenPaymentMethod<'a> {
     Seicomart(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     PayEasy(Box<JCSVoucherData>),
+    Pix(Box<PmdForPaymentType>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PmdForPaymentType {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -593,11 +608,6 @@ pub struct BancontactCardData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct MobilePayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MbwayData {
     #[serde(rename = "type")]
@@ -625,11 +635,6 @@ pub struct PayBrightData {
     payment_type: PaymentType,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct OnlineBankingFinlandData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
 #[derive(Debug, Clone, Serialize)]
 pub struct OnlineBankingCzechRepublicData {
     #[serde(rename = "type")]
@@ -1014,13 +1019,6 @@ pub struct BlikRedirectionData {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BankRedirectionPMData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BankRedirectionWithIssuer<'a> {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -1077,23 +1075,6 @@ pub enum CancelStatus {
     #[default]
     Processing,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdyenPaypal {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AliPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AliPayHkData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoPayData {}
@@ -1123,12 +1104,6 @@ pub struct AdyenApplePay {
     payment_type: PaymentType,
     #[serde(rename = "applePayToken")]
     apple_pay_token: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdyenPayLaterData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1270,6 +1245,7 @@ pub enum PaymentType {
     Seicomart,
     #[serde(rename = "econtext_stores")]
     PayEasy,
+    Pix,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1948,19 +1924,19 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
             }
             api_models::payments::WalletData::PaypalRedirect(_) => {
-                let wallet = AdyenPaypal {
+                let wallet = PmdForPaymentType {
                     payment_type: PaymentType::Paypal,
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
             api_models::payments::WalletData::AliPayRedirect(_) => {
-                let alipay_data = AliPayData {
+                let alipay_data = PmdForPaymentType {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
             api_models::payments::WalletData::AliPayHkRedirect(_) => {
-                let alipay_hk_data = AliPayHkData {
+                let alipay_hk_data = PmdForPaymentType {
                     payment_type: PaymentType::AlipayHk,
                 };
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
@@ -1993,7 +1969,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
             api_models::payments::WalletData::MobilePayRedirect(_) => {
-                let data = MobilePayData {
+                let data = PmdForPaymentType {
                     payment_type: PaymentType::MobilePay,
                 };
                 Ok(AdyenPaymentMethod::MobilePay(Box::new(data)))
@@ -2038,13 +2014,13 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
         let (pay_later_data, country_code) = value;
         match pay_later_data {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
-                let klarna = AdyenPayLaterData {
+                let klarna = PmdForPaymentType {
                     payment_type: PaymentType::Klarna,
                 };
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
             api_models::payments::PayLaterData::AffirmRedirect { .. } => Ok(
-                AdyenPaymentMethod::AdyenAffirm(Box::new(AdyenPayLaterData {
+                AdyenPaymentMethod::AdyenAffirm(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Affirm,
                 })),
             ),
@@ -2055,7 +2031,7 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                         | api_enums::CountryAlpha2::FR
                         | api_enums::CountryAlpha2::ES
                         | api_enums::CountryAlpha2::GB => Ok(AdyenPaymentMethod::ClearPay),
-                        _ => Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData {
+                        _ => Ok(AdyenPaymentMethod::AfterPay(Box::new(PmdForPaymentType {
                             payment_type: PaymentType::Afterpaytouch,
                         }))),
                     }
@@ -2072,7 +2048,7 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                 Ok(AdyenPaymentMethod::Walley)
             }
             api_models::payments::PayLaterData::AlmaRedirect { .. } => Ok(
-                AdyenPaymentMethod::AlmaPayLater(Box::new(AdyenPayLaterData {
+                AdyenPaymentMethod::AlmaPayLater(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Alma,
                 })),
             ),
@@ -2131,7 +2107,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 },
             ))),
             api_models::payments::BankRedirectData::Bizum { .. } => {
-                Ok(AdyenPaymentMethod::Bizum(Box::new(BankRedirectionPMData {
+                Ok(AdyenPaymentMethod::Bizum(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Bizum,
                 })))
             }
@@ -2158,11 +2134,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     ),
                 })),
             ),
-            api_models::payments::BankRedirectData::Giropay { .. } => Ok(
-                AdyenPaymentMethod::Giropay(Box::new(BankRedirectionPMData {
+            api_models::payments::BankRedirectData::Giropay { .. } => {
+                Ok(AdyenPaymentMethod::Giropay(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Giropay,
-                })),
-            ),
+                })))
+            }
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Ideal,
@@ -2185,7 +2161,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 )))
             }
             api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => Ok(
-                AdyenPaymentMethod::OnlineBankingFinland(Box::new(OnlineBankingFinlandData {
+                AdyenPaymentMethod::OnlineBankingFinland(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::OnlineBankingFinland,
                 })),
             ),
@@ -2296,8 +2272,12 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
                 last_name: billing_details.last_name.clone(),
                 shopper_email: billing_details.email.clone(),
             }))),
-            api_models::payments::BankTransferData::Pix {}
-            | api_models::payments::BankTransferData::AchBankTransfer { .. }
+            api_models::payments::BankTransferData::Pix {} => {
+                Ok(AdyenPaymentMethod::Pix(Box::new(PmdForPaymentType {
+                    payment_type: PaymentType::Pix,
+                })))
+            }
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
             | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
@@ -2735,10 +2715,7 @@ fn get_redirect_extra_details(
                     country,
                     preferred_language,
                     ..
-                } => Ok((
-                    Some(preferred_language.to_string()),
-                    Some(country.to_owned()),
-                )),
+                } => Ok((preferred_language.clone(), *country)),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
                     let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "country",
@@ -3314,20 +3291,50 @@ pub fn get_qr_metadata(
     let image_data = crate_utils::QrImage::new_from_data(response.action.qr_code_data.to_owned())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let image_data_url = Url::parse(image_data.data.as_str())
-        .ok()
-        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
+    let qr_code_url = response.action.qr_code_url.clone();
+    let display_to_timestamp = response
+        .additional_data
+        .clone()
+        .and_then(|additional_data| additional_data.pix_expiration_date)
+        .map(|time| utils::get_timestamp_in_milliseconds(&time));
 
-    let qr_code_instructions = payments::QrCodeNextStepsInstruction {
-        image_data_url,
-        display_to_timestamp: None,
-    };
+    if let (Some(image_data_url), Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone())
+    {
+        let qr_code_info = payments::QrCodeInformation::QrCodeUrl {
+            image_data_url,
+            qr_code_url,
+            display_to_timestamp,
+        };
+        Some(common_utils::ext_traits::Encode::<
+            payments::QrCodeInformation,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
+        let qr_code_info = payments::QrCodeInformation::QrCodeImageUrl {
+            qr_code_url,
+            display_to_timestamp,
+        };
+        Some(common_utils::ext_traits::Encode::<
+            payments::QrCodeInformation,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
+        let qr_code_info = payments::QrCodeInformation::QrDataUrl {
+            image_data_url,
+            display_to_timestamp,
+        };
 
-    Some(common_utils::ext_traits::Encode::<
-        payments::QrCodeNextStepsInstruction,
-    >::encode_to_value(&qr_code_instructions))
-    .transpose()
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(common_utils::ext_traits::Encode::<
+            payments::QrCodeInformation,
+        >::encode_to_value(&qr_code_info))
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3418,7 +3425,8 @@ pub fn get_wait_screen_metadata(
         | PaymentType::MiniStop
         | PaymentType::FamilyMart
         | PaymentType::Seicomart
-        | PaymentType::PayEasy => Ok(None),
+        | PaymentType::PayEasy
+        | PaymentType::Pix => Ok(None),
     }
 }
 
@@ -3521,7 +3529,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Vipps
         | PaymentType::Swish
         | PaymentType::PaySafeCard
-        | PaymentType::SevenEleven => Ok(None),
+        | PaymentType::SevenEleven
+        | PaymentType::Pix => Ok(None),
     }
 }
 

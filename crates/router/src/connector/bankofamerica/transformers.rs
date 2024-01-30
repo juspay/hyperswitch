@@ -442,7 +442,7 @@ pub struct ClientRiskInformationRules {
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
     code: String,
-    code_raw: String,
+    code_raw: Option<String>,
 }
 
 impl
@@ -489,7 +489,7 @@ impl
             })?
             .parse_value("BankOfAmericaThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "Merchant connector account metadata",
+                config: "metadata",
             })?;
 
         let processing_information =

@@ -3,9 +3,13 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+#[cfg(feature = "hashicorp-vault")]
+use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
@@ -55,6 +59,9 @@ pub enum AuthenticationType {
         merchant_id: String,
         user_id: Option<String>,
     },
+    UserJwt {
+        user_id: String,
+    },
     MerchantId {
         merchant_id: String,
     },
@@ -81,8 +88,29 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
-            Self::AdminApiKey | Self::NoAuth => None,
+            Self::AdminApiKey | Self::UserJwt { .. } | Self::NoAuth => None,
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithoutMerchantFromToken {
+    pub user_id: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct UserAuthToken {
+    pub user_id: String,
+    pub exp: u64,
+}
+
+#[cfg(feature = "olap")]
+impl UserAuthToken {
+    pub async fn new_token(user_id: String, settings: &settings::Settings) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let token_payload = Self { user_id, exp };
+        jwt::generate_jwt(&token_payload, settings).await
     }
 }
 
@@ -198,6 +226,10 @@ where
                 &config.api_keys,
                 #[cfg(feature = "kms")]
                 kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "hashicorp-vault")]
+                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
             )
             .await?
         };
@@ -257,9 +289,14 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
+            #[cfg(not(feature = "kms"))]
+            let admin_api_key = secrets.admin_api_key.clone();
+
             #[cfg(feature = "kms")]
             let admin_api_key = secrets
                 .kms_encrypted_admin_api_key
@@ -268,12 +305,44 @@ pub async fn get_admin_api_key(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt admin API key")?;
 
-            #[cfg(not(feature = "kms"))]
-            let admin_api_key = secrets.admin_api_key.clone();
+            #[cfg(feature = "hashicorp-vault")]
+            let admin_api_key = masking::Secret::new(admin_api_key)
+                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt admin API key")?
+                .expose();
 
             Ok(StrongSecret::new(admin_api_key))
         })
         .await
+}
+
+#[derive(Debug)]
+pub struct UserWithoutMerchantJWTAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMerchantJWTAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
+
+        Ok((
+            UserWithoutMerchantFromToken {
+                user_id: payload.user_id.clone(),
+            },
+            AuthenticationType::UserJwt {
+                user_id: payload.user_id,
+            },
+        ))
+    }
 }
 
 #[derive(Debug)]
@@ -297,6 +366,11 @@ where
             &conf.secrets,
             #[cfg(feature = "kms")]
             kms::get_kms_client(&conf.kms).await,
+            #[cfg(feature = "hashicorp-vault")]
+            external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting admin api key")?,
         )
         .await?;
 

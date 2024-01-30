@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface as redis;
@@ -35,6 +37,8 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    #[cfg(feature = "hashicorp-vault")]
+    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
