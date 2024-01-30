@@ -5,24 +5,25 @@ use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
-#[cfg(feature = "olap")]
-use crate::core::errors::{UserErrors, UserResult};
-#[cfg(feature = "olap")]
-use crate::routes::AppState;
 use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
     routes::app::AppStateInfo,
 };
+#[cfg(feature = "olap")]
+use crate::{
+    core::errors::{UserErrors, UserResult},
+    routes::AppState,
+};
 
 #[cfg(feature = "olap")]
 pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {
-    let token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
+    let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
     let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
     redis_conn
-        .set_key_with_expiry(token.as_str(), date_time::now_unix_timestamp(), expiry)
+        .set_key_with_expiry(user_blacklist_key.as_str(), date_time::now_unix_timestamp(), expiry)
         .await
         .change_context(UserErrors::InternalServerError)
 }
