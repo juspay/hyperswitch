@@ -58,6 +58,8 @@ pub enum UserErrors {
     InvalidDeleteOperation,
     #[error("MaxInvitationsError")]
     MaxInvitationsError,
+    #[error("RoleNotFound")]
+    RoleNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -146,6 +148,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MaxInvitationsError => {
                 AER::BadRequest(ApiError::new(sub_code, 31, self.get_error_message(), None))
             }
+            Self::RoleNotFound => {
+                AER::BadRequest(ApiError::new(sub_code, 32, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -178,6 +183,7 @@ impl UserErrors {
             Self::ChangePasswordError => "Old and new password cannot be the same",
             Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
+            Self::RoleNotFound => "Role Not Found",
         }
     }
 }

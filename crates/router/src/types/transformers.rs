@@ -323,6 +323,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     data_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
+            update_mandate_id: d.update_mandate_id,
         }
     }
 }
