@@ -454,11 +454,11 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                if !(data
+                if data
                     .poc_email
                     .clone()
-                    .unwrap_or_default()
-                    .contains("juspay"))
+                    .map(|mail| mail.contains("juspay"))
+                    .unwrap_or(false)
                 {
                     let email_contents = email_types::BizEmailProd {
                         recipient_email: domain::UserEmail::new(
