@@ -1823,24 +1823,14 @@ pub async fn list_payment_methods(
         } else {
             api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
         };
-    print!("PAMT{:?}", payment_attempt);
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt
-                .and_then(|inner| inner.mandate_details)
-                .and_then(|man_type_details| match man_type_details {
-                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
-                        Some(mandate_type)
-                    }
-                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
-                        mandate_details.mandate_type
-                    }
-                })
-                .map(|d| match d {
+            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
+                |d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -1862,7 +1852,8 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                }),
+                },
+            ),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
@@ -2459,6 +2450,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 cloned_secret,
             )
             .await?;
+
         let customer_id = payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
@@ -2482,6 +2474,15 @@ pub async fn list_customer_payment_method(
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
+
+    if let Some(ref payment_intent) = payment_intent {
+        if payment_intent.payment_link_id.is_some() {
+            Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "saved payment methods".to_string(),
+            })?
+        }
+    };
+
     db.find_customer_by_customer_id_merchant_id(
         customer_id,
         &merchant_account.merchant_id,
