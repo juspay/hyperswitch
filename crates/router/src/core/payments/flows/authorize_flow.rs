@@ -77,7 +77,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .validate_capture_method(self.request.capture_method)
             .to_payment_failed_response()?;
 
-        if types::MandateChecks::is_customer_initiated_transaction(&self.request) {
+        if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(&self.request) {
             connector
                 .connector
                 .validate_mandate_payment(self.request.payment_method_type)

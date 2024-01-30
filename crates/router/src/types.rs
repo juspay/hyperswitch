@@ -1357,23 +1357,6 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
     }
 }
 
-pub trait MandateChecks {
-    fn is_merchant_initiated_transaction(&self) -> bool;
-    fn is_customer_initiated_transaction(&self) -> bool;
-}
-
-impl MandateChecks for PaymentsAuthorizeData {
-    fn is_merchant_initiated_transaction(&self) -> bool {
-        self.mandate_id.is_some()
-    }
-
-    fn is_customer_initiated_transaction(&self) -> bool {
-        self.setup_mandate_details.is_some()
-            && self.mandate_id.is_none()
-            && self.setup_future_usage.is_some()
-    }
-}
-
 pub trait Tokenizable {
     fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData>;
     fn set_session_token(&mut self, token: Option<String>);
