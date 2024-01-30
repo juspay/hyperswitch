@@ -2,8 +2,6 @@ use actix_web::{web, HttpRequest};
 use api_models::health_check::RouterHealthCheckResponse;
 use router_env::{instrument, logger, tracing, Flow};
 
-use error_stack::ResultExt;
-
 use super::app;
 use crate::{
     core::{api_locking, health_check::HealthCheckInterface},
@@ -47,11 +45,12 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
 
     logger::debug!("Database health check begin");
 
-    let db_status = state
-        .health_check_db()
-        .await
-        .map(|_| true)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let db_status = state.health_check_db().await.map(|_| true).map_err(|err| {
+        error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+            component: "Database",
+            message: err.to_string()
+        })
+    })?;
 
     logger::debug!("Database health check end");
 
@@ -61,7 +60,12 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
         .health_check_redis()
         .await
         .map(|_| true)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Redis",
+                message: err.to_string()
+            })
+        })?;
 
     logger::debug!("Redis health check end");
 
@@ -71,13 +75,23 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
         .health_check_locker()
         .await
         .map(|_| true)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Locker",
+                message: err.to_string()
+            })
+        })?;
 
     let analytics_status = state
         .health_check_analytics()
         .await
         .map(|_| true)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Analytics",
+                message: err.to_string()
+            })
+        })?;
 
     logger::debug!("Locker health check end");
 
