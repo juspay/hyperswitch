@@ -8,7 +8,6 @@ use router_env::logger;
 
 #[cfg(feature = "email")]
 use crate::{consts, services::email::types as email_types, types::domain};
-
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
