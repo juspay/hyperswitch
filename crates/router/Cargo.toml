@@ -9,46 +9,48 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts"]
-s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
-kms = ["external_services/kms", "dep:aws-config"]
-email = ["external_services/email", "dep:aws-config"]
-basilisk = ["kms"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
+aws_s3 = ["external_services/aws_s3"]
+kms = ["external_services/kms"]
+hashicorp-vault = ["external_services/hashicorp-vault"]
+email = ["external_services/email", "olap"]
+frm = []
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "basilisk", "s3", "email", "business_profile_routing", "accounts_cache", "kv_store"]
-olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap"]
-oltp = ["data_models/oltp", "storage_impl/oltp"]
+release = ["kms", "stripe", "aws_s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon"]
+olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap","api_models/olap","dep:analytics"]
+oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
-openapi = ["olap", "oltp", "payouts"]
+openapi = ["olap", "oltp", "payouts", "dep:openapi"]
 vergen = ["router_env/vergen"]
-backwards_compatibility = ["api_models/backwards_compatibility", "euclid/backwards_compatibility", "kgraph_utils/backwards_compatibility"]
-business_profile_routing=["api_models/business_profile_routing"]
+backwards_compatibility = ["api_models/backwards_compatibility"]
+business_profile_routing = ["api_models/business_profile_routing"]
+profile_specific_fallback_routing = []
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgraph_utils/dummy_connector"]
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
-api_locking = []
-
+recon = ["email", "api_models/recon"]
+retry = []
 
 [dependencies]
-actix = "0.13.0"
 actix-cors = "0.6.4"
 actix-multipart = "0.6.0"
 actix-rt = "2.8.0"
 actix-web = "4.3.1"
-async-bb8-diesel = "0.1.0"
+async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
+argon2 = { version = "0.5.0", features = ["std"] }
 async-trait = "0.1.68"
-aws-config = { version = "0.55.3", optional = true }
-aws-sdk-s3 = { version = "0.28.0", optional = true }
 base64 = "0.21.2"
 bb8 = "0.8"
+bigdecimal = "0.3.1"
 blake3 = "1.3.3"
 bytes = "1.4.0"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 diesel = { version = "2.1.0", features = ["postgres"] }
+digest = "0.9"
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
 error-stack = "0.3.1"
@@ -60,13 +62,13 @@ image = "0.23.14"
 infer = "0.13.0"
 josekit = "0.8.3"
 jsonwebtoken = "8.3.0"
-literally = "0.1.3"
 maud = { version = "0.25", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.18.0"
+openssl = "0.10.60"
 qrcode = "0.12.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
@@ -74,46 +76,53 @@ regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = "0.16.20"
 roxmltree = "0.18.0"
+rust_decimal = { version = "1.30.0", features = ["serde-with-float", "serde-with-str"] }
 rustc-hash = "1.1.0"
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-serde_path_to_error = "0.1.11"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+serde_path_to_error = "0.1.14"
 serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
-serde_with = "3.0.0"
-signal-hook = "0.3.15"
-strum = { version = "0.24.1", features = ["derive"] }
+serde_with = "3.4.0"
+sha-1 = { version = "0.9" }
+sqlx = { version = "0.6.3", features = ["postgres", "runtime-actix", "runtime-actix-native-tls", "time", "bigdecimal"] }
+strum = { version = "0.25", features = ["derive"] }
+tera = "1.19.1"
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
-tera = "1.19.1"
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
-utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
-openssl = "0.10.55"
+validator = "0.16.0"
 x509-parser = "0.15.0"
-sha-1 = { version = "0.9"}
-digest = "0.9"
+tracing-futures = { version = "0.2.5", features = ["tokio"] }
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+analytics = { version = "0.1.0", path = "../analytics", optional = true }
 cards = { version = "0.1.0", path = "../cards" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
-external_services = { version = "0.1.0", path = "../external_services" }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
+data_models = { version = "0.1.0", path = "../data_models", default-features = false }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
+pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
+external_services = { version = "0.1.0", path = "../external_services" }
+kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
-scheduler = { version = "0.1.0", path = "../scheduler", default-features = false}
-data_models = { version = "0.1.0", path = "../data_models", default-features = false }
-kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
+scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
-
-[target.'cfg(not(target_os = "windows"))'.dependencies]
-signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
+openapi = { version = "0.1.0", path = "../openapi", optional = true }
+erased-serde = "0.3.31"
+quick-xml = { version = "0.31.0", features = ["serialize"] }
+rdkafka = "0.36.0"
+actix-http = "3.3.1"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
@@ -124,11 +133,10 @@ awc = { version = "3.1.1", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "2.0.0"
-thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.28.2"
-toml = "0.7.4"
-wiremock = "0.5"
+tokio = "1.35.1"
+wiremock = "0.5.18"
+
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }

@@ -1,0 +1,16 @@
+[package]
+name = "currency_conversion"
+description = "Currency conversion for cost based routing"
+version = "0.1.0"
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+# First party crates
+common_enums = { version = "0.1.0", path = "../common_enums", package = "common_enums" }
+
+# Third party crates
+rust_decimal = "1.29"
+rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }
+serde = { version = "1.0.193", features = ["derive"] }
+thiserror = "1.0.43"

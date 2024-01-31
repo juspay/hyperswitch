@@ -12,7 +12,7 @@ impl utils::Connector for GocardlessTest {
         use router::connector::Gocardless;
         types::api::ConnectorData {
             connector: Box::new(&Gocardless),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Gocardless,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

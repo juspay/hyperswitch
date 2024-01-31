@@ -5,10 +5,7 @@ use api_models::{
 };
 use euclid::{
     dssa::graph::{self, DomainIdentifier},
-    frontend::{
-        ast,
-        dir::{self, enums as dir_enums},
-    },
+    frontend::{ast, dir},
     types::{NumValue, NumValueRefinement},
 };
 
@@ -159,7 +156,7 @@ fn compile_request_pm_types(
 
         let or_node_neighbor_id = if amount_nodes.len() == 1 {
             amount_nodes
-                .get(0)
+                .first()
                 .copied()
                 .ok_or(KgraphError::IndexingError)?
         } else {
@@ -277,7 +274,7 @@ fn compile_merchant_connector_graph(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     mca: admin_api::MerchantConnectorResponse,
 ) -> Result<(), KgraphError> {
-    let connector = dir_enums::Connector::from_str(&mca.connector_name)
+    let connector = common_enums::RoutableConnectors::from_str(&mca.connector_name)
         .map_err(|_| KgraphError::InvalidConnectorName(mca.connector_name.clone()))?;
 
     let mut agg_nodes: Vec<(graph::NodeId, graph::Relation)> = Vec::new();
@@ -410,6 +407,7 @@ mod tests {
             profile_id: None,
             applepay_verified_domains: None,
             pm_auth_config: None,
+            status: api_enums::ConnectorStatus::Inactive,
         };
 
         make_mca_graph(vec![stripe_account]).expect("Failed graph construction")

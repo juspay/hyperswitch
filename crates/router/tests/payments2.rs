@@ -80,7 +80,7 @@ async fn payments_create_core() {
             card_number: "4242424242424242".to_string().try_into().unwrap(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
-            card_holder_name: "Arun Raj".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: None,
             card_network: None,
@@ -120,7 +120,7 @@ async fn payments_create_core() {
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
-    let actual_response = router::core::payments::payments_core::<
+    let actual_response = Box::pin(router::core::payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
@@ -137,7 +137,7 @@ async fn payments_create_core() {
         payments::CallConnectorAction::Trigger,
         None,
         api::HeaderPayload::default(),
-    )
+    ))
     .await
     .unwrap();
     assert_eq!(expected_response, actual_response);
@@ -217,6 +217,7 @@ async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let state = routes::AppState::with_storage(
         conf,
         StorageImpl::PostgresqlTest,
@@ -262,7 +263,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
-            card_holder_name: "JohnDoe".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "737".to_string().into(),
             bank_code: None,
             card_issuer: None,
@@ -299,7 +300,7 @@ async fn payments_create_core_adyen_no_redirect() {
         },
         vec![],
     ));
-    let actual_response = router::core::payments::payments_core::<
+    let actual_response = Box::pin(router::core::payments::payments_core::<
         api::Authorize,
         api::PaymentsResponse,
         _,
@@ -316,7 +317,7 @@ async fn payments_create_core_adyen_no_redirect() {
         payments::CallConnectorAction::Trigger,
         None,
         api::HeaderPayload::default(),
-    )
+    ))
     .await
     .unwrap();
     assert_eq!(expected_response, actual_response);

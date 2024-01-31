@@ -14,7 +14,7 @@ impl utils::Connector for PowertranzTest {
         use router::connector::Powertranz;
         types::api::ConnectorData {
             connector: Box::new(&Powertranz),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Powertranz,
             get_token: types::api::GetToken::Connector,
             merchant_connector_id: None,
         }

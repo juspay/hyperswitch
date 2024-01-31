@@ -14,3 +14,9 @@ pub struct EphemeralKey {
     pub expires: i64,
     pub secret: String,
 }
+
+impl common_utils::events::ApiEventMetric for EphemeralKey {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}

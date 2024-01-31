@@ -118,7 +118,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: card.holder_name.unwrap_or("name".to_string().into()),
+            card_holder_name: card.holder_name,
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
@@ -405,7 +405,9 @@ pub enum StripePaymentStatus {
 impl From<api_enums::IntentStatus> for StripePaymentStatus {
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
-            api_enums::IntentStatus::Succeeded => Self::Succeeded,
+            api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
+                Self::Succeeded
+            }
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
@@ -413,7 +415,7 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => Self::RequiresCapture,
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => Self::RequiresCapture,
             api_enums::IntentStatus::Cancelled => Self::Canceled,
         }
     }
@@ -751,6 +753,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         user_agent: online.user_agent,
                     }),
             }),
+            update_mandate_id: None,
         });
         Ok(mandate_data)
     }
@@ -792,8 +795,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_url: url::Url,
+        image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
+        qr_code_url: Option<url::Url>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -828,9 +832,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }

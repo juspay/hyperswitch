@@ -108,7 +108,7 @@ api_key = "API Key"
 [iatapay]
 key1 = "key1"
 api_key = "api_key"
-api_secret = "secrect"
+api_secret = "secret"
 
 [dummyconnector]
 api_key = "API Key"
@@ -189,3 +189,7 @@ api_key="API Key"
 api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
+
+[placetopay]
+api_key= "Login"
+key1= "Trankey"

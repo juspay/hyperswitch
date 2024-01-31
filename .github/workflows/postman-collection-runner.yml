@@ -50,29 +50,39 @@ jobs:
 
     steps:
       - name: Repository checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Decrypt connector auth file
+      - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
+          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
+          DESTINATION_FILE_NAME: "connector_auth.toml.gpg"
+          S3_SOURCE_FILE_NAME: "cf05a6ab-525e-4888-98b3-3b4a443b87c0.toml.gpg"
         shell: bash
-        run: ./scripts/decrypt_connector_auth.sh
+        run: |
+          mkdir -p ${HOME}/target/secrets ${HOME}/target/test
+
+          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
+          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output "${HOME}/target/test/connector_auth.toml" "${HOME}/target/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         id: config_path
         shell: bash
         run: |
-          echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+          echo "CONNECTOR_AUTH_FILE_PATH=${HOME}/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
-          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' $TOML_PATH)
-          echo "ADMIN_API_KEY=$LOCAL_ADMIN_API_KEY" >> $GITHUB_ENV
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
+          echo "ADMIN_API_KEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Rust
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -82,11 +92,11 @@ jobs:
 
       - name: Build and Cache Rust Dependencies
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: Swatinem/rust-cache@v2.4.0
+        uses: Swatinem/rust-cache@v2.7.0
 
       - name: Install Diesel CLI with Postgres Support
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-        uses: baptiste0928/cargo-install@v2.1.0
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: diesel_cli
           features: postgres
@@ -118,7 +128,7 @@ jobs:
           while ! nc -z localhost 8080; do
             if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
               echo "Server did not start within a reasonable time. Exiting."
-              kill $SERVER_PID
+              kill ${SERVER_PID}
               exit 1
             else
               COUNT=$((COUNT+1))
@@ -141,10 +151,10 @@ jobs:
           export PATH=${NEWMAN_PATH}:${PATH}
           failed_connectors=()
 
-          for i in $(echo "$CONNECTORS" | tr "," "\n"); do
-            echo $i
-            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
-              failed_connectors+=("$i")
+          for i in $(echo "${CONNECTORS}" | tr "," "\n"); do
+            echo "${i}"
+            if ! cargo run --bin test_utils -- --connector-name="${i}" --base-url="${BASE_URL}" --admin-api-key="${ADMIN_API_KEY}"; then
+              failed_connectors+=("${i}")
             fi
           done
 

@@ -17,6 +17,7 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
             connector: Box::new(&{{project-name | downcase | pascal_case}}),
             connector_name: types::Connector::{{project-name | downcase | pascal_case}},
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         }
     }
 

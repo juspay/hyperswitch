@@ -226,6 +226,8 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: pay_sale_response.status_error_details.to_owned(),
             status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -260,6 +262,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             ),
             network_txn_id: None,
             connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
         })
     }
 }
@@ -308,6 +311,8 @@ impl From<(&SaleQuery, u16)> for types::ErrorResponse {
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: sale_query_response.sale_error_text.clone(),
             status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         }
     }
 }
@@ -322,6 +327,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
         }
     }
 }
@@ -427,7 +433,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => {
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -530,6 +537,7 @@ impl<F>
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
                         }),
                         ..item.data
                     }),
@@ -537,6 +545,13 @@ impl<F>
             }
             _ => {
                 let currency_code = item.data.request.get_currency()?;
+                let country_code = item
+                    .data
+                    .address
+                    .billing
+                    .as_ref()
+                    .and_then(|billing| billing.address.as_ref())
+                    .and_then(|address| address.country);
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
                 let pmd = item.data.request.payment_method_data.to_owned();
@@ -551,7 +566,7 @@ impl<F>
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
-                                    country_code: item.data.get_billing_country()?,
+                                    country_code,
                                     currency_code,
                                     total: api_models::payments::AmountInfo {
                                         label: "Apple Pay".to_string(),
@@ -633,7 +648,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 let buyer_email = item.request.get_email()?;
@@ -662,7 +677,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("payme"),
             ))?,
         }
@@ -721,6 +737,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(api::PaymentMethodData::Upi(_))
             | Some(api::PaymentMethodData::Voucher(_))
             | Some(api::PaymentMethodData::GiftCard(_))
+            | Some(api::PaymentMethodData::CardToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -738,7 +755,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 Ok(Self {
@@ -757,7 +774,8 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }

@@ -1,10 +1,16 @@
+#[cfg(feature = "payouts")]
 use api_models::payments::{Address, AddressDetails};
+#[cfg(feature = "payouts")]
 use masking::Secret;
-use router::types::{self, api, storage::enums, PaymentAddress};
+use router::types;
+#[cfg(feature = "payouts")]
+use router::types::{api, storage::enums, PaymentAddress};
 
+#[cfg(feature = "payouts")]
+use crate::utils::PaymentInfo;
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions, PaymentInfo},
+    utils::{self, ConnectorActions},
 };
 
 struct WiseTest;
@@ -20,6 +26,7 @@ impl utils::Connector for WiseTest {
         }
     }
 
+    #[cfg(feature = "payouts")]
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Wise;
         Some(types::api::PayoutConnectorData {
@@ -44,6 +51,7 @@ impl utils::Connector for WiseTest {
 }
 
 impl WiseTest {
+    #[cfg(feature = "payouts")]
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -65,9 +73,9 @@ impl WiseTest {
                 api::BacsBankTransfer {
                     bank_sort_code: "231470".to_string().into(),
                     bank_account_number: "28821822".to_string().into(),
-                    bank_name: "Deutsche Bank".to_string(),
-                    bank_country_code: enums::CountryAlpha2::NL,
-                    bank_city: "Amsterdam".to_string(),
+                    bank_name: Some("Deutsche Bank".to_string()),
+                    bank_country_code: Some(enums::CountryAlpha2::NL),
+                    bank_city: Some("Amsterdam".to_string()),
                 },
             ))),
             ..Default::default()
@@ -75,6 +83,7 @@ impl WiseTest {
     }
 }
 
+#[cfg(feature = "payouts")]
 static CONNECTOR: WiseTest = WiseTest {};
 
 /******************** Payouts test cases ********************/

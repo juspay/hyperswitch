@@ -136,25 +136,81 @@ pub trait ConnectorErrorExt<T> {
 
 impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> {
     fn to_refund_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
-        self.map_err(|err| {
-            let data = match err.current_context() {
-                errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
-                    let response_str = std::str::from_utf8(bytes);
-                    match response_str {
-                        Ok(s) => serde_json::from_str(s)
-                            .map_err(
-                                |error| logger::error!(%error,"Failed to convert response to JSON"),
-                            )
-                            .ok(),
-                        Err(error) => {
-                            logger::error!(%error,"Failed to convert response to UTF8 string");
-                            None
-                        }
+        self.map_err(|err| match err.current_context() {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                let data = match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(
+                            |error| logger::error!(%error,"Failed to convert response to JSON"),
+                        )
+                        .ok(),
+                    Err(error) => {
+                        logger::error!(%error,"Failed to convert response to UTF8 string");
+                        None
                     }
+                };
+                err.change_context(errors::ApiErrorResponse::RefundFailed { data })
+            }
+            errors::ConnectorError::NotImplemented(reason) => {
+                errors::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        reason.to_string(),
+                    ),
                 }
-                _ => None,
-            };
-            err.change_context(errors::ApiErrorResponse::RefundFailed { data })
+                .into()
+            }
+            errors::ConnectorError::FailedToObtainIntegrationUrl
+            | errors::ConnectorError::RequestEncodingFailed
+            | errors::ConnectorError::RequestEncodingFailedWithReason(_)
+            | errors::ConnectorError::ParsingFailed
+            | errors::ConnectorError::ResponseDeserializationFailed
+            | errors::ConnectorError::UnexpectedResponseError(_)
+            | errors::ConnectorError::RoutingRulesParsingError
+            | errors::ConnectorError::FailedToObtainPreferredConnector
+            | errors::ConnectorError::ProcessingStepFailed(_)
+            | errors::ConnectorError::InvalidConnectorName
+            | errors::ConnectorError::InvalidWallet
+            | errors::ConnectorError::ResponseHandlingFailed
+            | errors::ConnectorError::MissingRequiredField { .. }
+            | errors::ConnectorError::MissingRequiredFields { .. }
+            | errors::ConnectorError::FailedToObtainAuthType
+            | errors::ConnectorError::FailedToObtainCertificate
+            | errors::ConnectorError::NoConnectorMetaData
+            | errors::ConnectorError::FailedToObtainCertificateKey
+            | errors::ConnectorError::NotSupported { .. }
+            | errors::ConnectorError::FlowNotSupported { .. }
+            | errors::ConnectorError::CaptureMethodNotSupported
+            | errors::ConnectorError::MissingConnectorMandateID
+            | errors::ConnectorError::MissingConnectorTransactionID
+            | errors::ConnectorError::MissingConnectorRefundID
+            | errors::ConnectorError::MissingApplePayTokenData
+            | errors::ConnectorError::WebhooksNotImplemented
+            | errors::ConnectorError::WebhookBodyDecodingFailed
+            | errors::ConnectorError::WebhookSignatureNotFound
+            | errors::ConnectorError::WebhookSourceVerificationFailed
+            | errors::ConnectorError::WebhookVerificationSecretNotFound
+            | errors::ConnectorError::WebhookVerificationSecretInvalid
+            | errors::ConnectorError::WebhookReferenceIdNotFound
+            | errors::ConnectorError::WebhookEventTypeNotFound
+            | errors::ConnectorError::WebhookResourceObjectNotFound
+            | errors::ConnectorError::WebhookResponseEncodingFailed
+            | errors::ConnectorError::InvalidDateFormat
+            | errors::ConnectorError::DateFormattingFailed
+            | errors::ConnectorError::InvalidDataFormat { .. }
+            | errors::ConnectorError::MismatchedPaymentData
+            | errors::ConnectorError::InvalidWalletToken
+            | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
+            | errors::ConnectorError::FileValidationFailed { .. }
+            | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
+            | errors::ConnectorError::FailedAtConnector { .. }
+            | errors::ConnectorError::MissingPaymentMethodType
+            | errors::ConnectorError::InSufficientBalanceInPaymentMethod
+            | errors::ConnectorError::RequestTimeoutReceived
+            | errors::ConnectorError::CurrencyNotSupported { .. }
+            | errors::ConnectorError::InvalidConnectorConfig { .. } => {
+                err.change_context(errors::ApiErrorResponse::RefundFailed { data: None })
+            }
         })
     }
 
@@ -400,6 +456,18 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         field_names: field_names.to_vec(),
                     }
                 }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: format!("{} by {}", message, connector),
+                    }
+                }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                            reason.to_string(),
+                        ),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -416,6 +484,28 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
                 _ => Err(error),
             },
+        }
+    }
+}
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<errors::RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
+        match self.current_context() {
+            errors::RedisError::NotFound => self.change_context(
+                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
+            ),
+            errors::RedisError::SetNxFailed => {
+                self.change_context(errors::StorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
+            _ => self.change_context(errors::StorageError::KVError),
         }
     }
 }

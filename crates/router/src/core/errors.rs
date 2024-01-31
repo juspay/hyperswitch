@@ -2,6 +2,8 @@ pub mod api_error_response;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
+#[cfg(feature = "olap")]
+pub mod user;
 pub mod utils;
 
 use std::fmt::Display;
@@ -13,9 +15,11 @@ use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
+#[cfg(feature = "olap")]
+pub use user::*;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
@@ -222,7 +226,7 @@ pub enum KmsError {
     Utf8DecodingFailed,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
     MerchantConfigNotFound,
@@ -370,4 +374,24 @@ pub enum RoutingError {
     VolumeSplitFailed,
     #[error("Unable to parse metadata")]
     MetadataParsingError,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConditionalConfigError {
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Error constructing the Input")]
+    InputConstructionError,
 }

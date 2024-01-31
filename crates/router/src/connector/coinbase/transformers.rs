@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use common_utils::pii;
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -146,6 +148,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.data.id.clone()),
+                incremental_authorization_allowed: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -249,6 +252,14 @@ pub struct CoinbaseConnectorMeta {
     pub pricing_type: String,
 }
 
+impl TryFrom<&Option<pii::SecretSerdeValue>> for CoinbaseConnectorMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        utils::to_connector_meta_from_secret(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
+    }
+}
+
 fn get_crypto_specific_payment_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<CoinbasePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
@@ -259,11 +270,10 @@ fn get_crypto_specific_payment_data(
     let name =
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
     let description = item.get_description().ok();
-    let connector_meta: CoinbaseConnectorMeta =
-        utils::to_connector_meta_from_secret_with_required_field(
-            item.connector_meta_data.clone(),
-            "Pricing Type Not present in connector meta data",
-        )?;
+    let connector_meta = CoinbaseConnectorMeta::try_from(&item.connector_meta_data)
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "Merchant connector account metadata",
+        })?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;

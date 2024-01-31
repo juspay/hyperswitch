@@ -10,7 +10,7 @@ use crate::{
 mod consts;
 mod core;
 mod errors;
-mod types;
+pub mod types;
 mod utils;
 
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]

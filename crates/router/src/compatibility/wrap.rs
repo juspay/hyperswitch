@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::{
     core::{api_locking, errors},
+    events::api_logs::ApiEventMetric,
     routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
@@ -25,12 +26,12 @@ where
     F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
-    Q: Serialize + std::fmt::Debug + 'a,
+    Q: Serialize + std::fmt::Debug + 'a + ApiEventMetric,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
-    T: std::fmt::Debug + Serialize,
+    T: std::fmt::Debug + Serialize + ApiEventMetric,
     A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();
@@ -132,19 +133,34 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            match api::build_payment_link_html(*payment_link_data) {
-                Ok(rendered_html) => api::http_response_html_data(rendered_html),
-                Err(_) => api::http_response_err(
-                    r#"{
-                        "error": {
-                            "message": "Error while rendering payment link html page"
-                        }
-                    }"#,
-                ),
+        Ok(api::ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+            match *boxed_payment_link_data {
+                api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
+                    match api::build_payment_link_html(payment_link_data) {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link html page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
+                api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
+                    match api::get_payment_link_status(payment_link_data) {
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Err(_) => api::http_response_err(
+                            r#"{
+                                "error": {
+                                    "message": "Error while rendering payment link status page"
+                                }
+                            }"#,
+                        ),
+                    }
+                }
             }
         }
-
         Err(error) => api::log_and_return_error_response(error),
     };
 
