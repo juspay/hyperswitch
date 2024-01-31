@@ -1895,6 +1895,16 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store
+            .update_user_by_email(user_email, user)
+            .await
+    }
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
