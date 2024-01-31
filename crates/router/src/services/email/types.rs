@@ -3,9 +3,14 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{configs, consts};
+use crate::{configs, consts, routes::AppState};
 #[cfg(feature = "olap")]
-use crate::{core::errors::UserErrors, services::jwt, types::domain};
+use crate::{
+    core::errors::{UserErrors, UserResult},
+    services::jwt,
+    types::domain,
+};
+use api_models::user::dashboard_metadata::ProdIntent;
 
 pub enum EmailBody {
     Verify {
@@ -295,6 +300,26 @@ pub struct BizEmailProd {
     pub business_website: String,
     pub settings: std::sync::Arc<configs::settings::Settings>,
     pub subject: &'static str,
+}
+
+impl BizEmailProd {
+    pub fn new(state: &AppState, data: ProdIntent) -> UserResult<BizEmailProd> {
+        Ok(BizEmailProd {
+            recipient_email: (domain::UserEmail::new(
+                consts::user::BUSINESS_EMAIL.to_string().into(),
+            ))?,
+            settings: state.conf.clone(),
+            subject: "New Prod Intent",
+            user_name: data.poc_name.unwrap_or_default().into(),
+            poc_email: data.poc_email.unwrap_or_default().into(),
+            legal_business_name: data.legal_business_name.unwrap_or_default(),
+            business_location: data
+                .business_location
+                .unwrap_or(common_enums::CountryAlpha2::AD)
+                .to_string(),
+            business_website: data.business_website.unwrap_or_default(),
+        })
+    }
 }
 
 #[async_trait::async_trait]

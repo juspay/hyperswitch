@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use router_env::logger;
 
 #[cfg(feature = "email")]
-use crate::{consts, services::email::types as email_types, types::domain};
+use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
@@ -451,22 +451,7 @@ async fn insert_metadata(
             #[cfg(feature = "email")]
             {
                 if utils::is_prod_email_required(&data) {
-                    let email_contents = email_types::BizEmailProd {
-                        recipient_email: domain::UserEmail::new(
-                            consts::user::BUSINESS_EMAIL.to_string().into(),
-                        )?,
-                        settings: state.conf.clone(),
-                        subject: "New Prod Intent",
-                        user_name: data.poc_name.unwrap_or_default().into(),
-                        poc_email: data.poc_email.unwrap_or_default().into(),
-                        legal_business_name: data.legal_business_name.unwrap_or_default(),
-                        business_location: data
-                            .business_location
-                            .unwrap_or(common_enums::CountryAlpha2::AD)
-                            .to_string(),
-                        business_website: data.business_website.unwrap_or_default(),
-                    };
-
+                    let email_contents = email_types::BizEmailProd::new(&state, data)?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
