@@ -1,4 +1,6 @@
 use api_models::user::{self as user_api, InviteMultipleUserResponse};
+#[cfg(feature = "email")]
+use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
@@ -362,18 +364,10 @@ pub async fn reset_password(
 
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    //TODO: Create Update by email query
-    let user_id = state
+    let user = state
         .store
-        .find_user_by_email(token.get_email())
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .user_id;
-
-    state
-        .store
-        .update_user_by_user_id(
-            user_id.as_str(),
+        .update_user_by_email(
+            token.get_email(),
             storage_user::UserUpdate::AccountUpdate {
                 name: None,
                 password: Some(hash_password),
@@ -384,7 +378,20 @@ pub async fn reset_password(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    //TODO: Update User role status for invited user
+    if let Some(inviter_merchant_id) = token.get_merchant_id() {
+        let update_status_result = state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user.user_id.clone().as_str(),
+                inviter_merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user.user_id,
+                },
+            )
+            .await;
+        logger::info!(?update_status_result);
+    }
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -467,7 +474,7 @@ pub async fn invite_user(
             .store
             .insert_user_role(UserRoleNew {
                 user_id: new_user.get_user_id().to_owned(),
-                merchant_id: user_from_token.merchant_id,
+                merchant_id: user_from_token.merchant_id.clone(),
                 role_id: request.role_id,
                 org_id: user_from_token.org_id,
                 status: invitation_status,
@@ -493,6 +500,7 @@ pub async fn invite_user(
                 user_name: domain::UserName::new(new_user.get_name())?,
                 settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id,
             };
             let send_email_result = state
                 .email_client
@@ -669,6 +677,7 @@ async fn handle_new_user_invitation(
             user_name: domain::UserName::new(new_user.get_name())?,
             settings: state.conf.clone(),
             subject: "You have been invited to join Hyperswitch Community!",
+            merchant_id: user_from_token.merchant_id.clone(),
         };
         let send_email_result = state
             .email_client
