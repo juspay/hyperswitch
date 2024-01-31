@@ -360,7 +360,7 @@ pub async fn payment_connector_update(
     let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -375,7 +375,7 @@ pub async fn payment_connector_update(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Connector - Delete
@@ -520,7 +520,7 @@ pub async fn business_profile_update(
     let flow = Flow::BusinessProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -535,7 +535,7 @@ pub async fn business_profile_update(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]

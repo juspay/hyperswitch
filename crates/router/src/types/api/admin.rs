@@ -14,6 +14,7 @@ use masking::Secret;
 use crate::{
     core::errors,
     types::{domain, storage, transformers::ForeignTryFrom},
+    utils::{self},
 };
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
@@ -46,7 +47,6 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
-            payment_link_config: item.payment_link_config,
         })
     }
 }
@@ -72,6 +72,8 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             frm_routing_algorithm: item.frm_routing_algorithm,
             payout_routing_algorithm: item.payout_routing_algorithm,
             applepay_verified_domains: item.applepay_verified_domains,
+            payment_link_config: item.payment_link_config,
+            session_expiry: item.session_expiry,
         })
     }
 }
@@ -104,6 +106,18 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             .payment_response_hash_key
             .or(merchant_account.payment_response_hash_key)
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
+
+        let payment_link_config_value = request
+            .payment_link_config
+            .map(|pl_config| {
+                utils::Encode::<api_models::admin::BusinessPaymentLinkConfig>::encode_to_value(
+                    &pl_config,
+                )
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config_value",
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             profile_id,
@@ -140,6 +154,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .or(merchant_account.payout_routing_algorithm),
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: request.applepay_verified_domains,
+            payment_link_config: payment_link_config_value,
+            session_expiry: request
+                .session_expiry
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
         })
     }
 }

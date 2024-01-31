@@ -1,0 +1,8 @@
+{
+  "method": "GET",
+  "url": {
+    "raw": "{{baseUrl}}/health",
+    "host": ["{{baseUrl}}"],
+    "path": ["health"]
+  }
+}

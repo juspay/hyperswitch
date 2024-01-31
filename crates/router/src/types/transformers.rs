@@ -212,6 +212,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
+            api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
@@ -225,6 +226,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
+            api_enums::Connector::Riskified => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "riskified is not a routable connector".to_string(),
                 })
                 .into_report()?
             }
@@ -316,6 +323,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     data_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
+            update_mandate_id: d.update_mandate_id,
         }
     }
 }
@@ -345,11 +353,15 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::ActionRequired)
             }
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Some(storage_enums::EventType::PaymentCaptured)
+            }
+            api_enums::IntentStatus::RequiresCapture => {
+                Some(storage_enums::EventType::PaymentAuthorized)
+            }
             api_enums::IntentStatus::RequiresPaymentMethod
-            | api_enums::IntentStatus::RequiresConfirmation
-            | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | api_enums::IntentStatus::RequiresConfirmation => None,
         }
     }
 }
@@ -685,6 +697,19 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
+impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationResponse {
+    fn foreign_from(authorization: storage::Authorization) -> Self {
+        Self {
+            authorization_id: authorization.authorization_id,
+            amount: authorization.amount,
+            status: authorization.status,
+            error_code: authorization.error_code,
+            error_message: authorization.error_message,
+            previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
@@ -747,7 +772,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                             field_name: "frm_configs".to_string(),
-                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -923,19 +948,27 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)>
-    for api_models::payments::RetrievePaymentLinkResponse
+impl
+    ForeignFrom<(
+        storage::PaymentLink,
+        api_models::payments::PaymentLinkStatus,
+    )> for api_models::payments::RetrievePaymentLinkResponse
 {
-    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
+    fn foreign_from(
+        (payment_link_config, status): (
+            storage::PaymentLink,
+            api_models::payments::PaymentLinkStatus,
+        ),
+    ) -> Self {
         Self {
-            payment_link_id: payment_link_object.payment_link_id,
-            merchant_id: payment_link_object.merchant_id,
-            link_to_pay: payment_link_object.link_to_pay,
-            amount: payment_link_object.amount,
-            created_at: payment_link_object.created_at,
-            link_expiry: payment_link_object.fulfilment_time,
-            description: payment_link_object.description,
-            currency: payment_link_object.currency,
+            payment_link_id: payment_link_config.payment_link_id,
+            merchant_id: payment_link_config.merchant_id,
+            link_to_pay: payment_link_config.link_to_pay,
+            amount: payment_link_config.amount,
+            created_at: payment_link_config.created_at,
+            expiry: payment_link_config.fulfilment_time,
+            description: payment_link_config.description,
+            currency: payment_link_config.currency,
             status,
         }
     }

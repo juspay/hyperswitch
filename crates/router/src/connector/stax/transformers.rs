@@ -147,7 +147,7 @@ pub struct StaxCustomerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    firstname: Option<String>,
+    firstname: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
@@ -225,8 +225,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             api::PaymentMethodData::Card(card_data) => {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    person_name: card_data.card_holder_name,
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+                    person_name: card_data
+                        .card_holder_name
+                        .unwrap_or(Secret::new("".to_string())),
                     card_number: card_data.card_number,
                     card_cvv: card_data.card_cvc,
                     customer_id: Secret::new(customer_id),

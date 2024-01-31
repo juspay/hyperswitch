@@ -458,7 +458,7 @@ pub trait ConnectorActions: Connector {
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
-                    email: TryFrom::try_from(Secret::new("john.doe@example".to_string())).ok(),
+                    email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                 }),
@@ -523,6 +523,7 @@ pub trait ConnectorActions: Connector {
             connector_http_status_code: None,
             apple_pay_flow: None,
             external_latency: None,
+            frm_metadata: None,
         }
     }
 
@@ -542,6 +543,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -868,7 +870,7 @@ impl Default for CCardType {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
+            card_holder_name: Some(masking::Secret::new("John Doe".to_string())),
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
@@ -898,6 +900,7 @@ impl Default for PaymentAuthorizeType {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
@@ -909,6 +912,7 @@ impl Default for PaymentAuthorizeType {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         };
         Self(data)
     }
@@ -993,7 +997,7 @@ impl Default for CustomerType {
         let data = types::ConnectorCustomerData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             description: None,
-            email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
+            email: Email::from_str("test@juspay.in").ok(),
             phone: None,
             name: None,
             preprocessing_id: None,
@@ -1029,6 +1033,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Err(_) => None,
     }
 }

@@ -643,7 +643,7 @@ fn get_card_data(
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
                     payment_instrument_id: item.request.connector_mandate_id(),
                 })),
-                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };
             let cof_contract = Some(CofContract {
                 recurring_type: RecurringType::Unscheduled,
@@ -651,7 +651,7 @@ fn get_card_data(
             (card_data, cof_contract)
         }
         false => (
-            CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             None,
         ),
     };
@@ -677,13 +677,15 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> CardDetails {
-    CardDetails {
+fn get_card_details(
+    req_card: &api_models::payments::Card,
+) -> Result<CardDetails, errors::ConnectorError> {
+    Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.get_card_expiry_year_2_digit(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
-    }
+    })
 }
 
 fn get_wallet_details(

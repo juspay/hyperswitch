@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use common_utils::{ext_traits::ValueExt, pii::Email};
+pub use common_utils::request::Method;
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -185,27 +186,54 @@ pub enum CashtocodePaymentsResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
-    pub pay_url: String,
+    pub pay_url: url::Url,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: i64,
+    pub amount: f64,
 }
 
-impl<F, T>
+fn get_redirect_form_data(
+    payment_method_type: &enums::PaymentMethodType,
+    response_data: CashtocodePaymentsResponseData,
+) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+    match payment_method_type {
+        enums::PaymentMethodType::ClassicReward => Ok(services::RedirectForm::Form {
+            //redirect form is manually constructed because the connector for this pm type expects query params in the url
+            endpoint: response_data.pay_url.to_string(),
+            method: services::Method::Post,
+            form_fields: Default::default(),
+        }),
+        enums::PaymentMethodType::Evoucher => Ok(services::RedirectForm::from((
+            //here the pay url gets parsed, and query params are sent as formfields as the connector expects
+            response_data.pay_url,
+            services::Method::Get,
+        ))),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("CashToCode"),
+        ))?,
+    }
+}
+
+impl<F>
     TryFrom<
-        types::ResponseRouterData<F, CashtocodePaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            F,
+            CashtocodePaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             CashtocodePaymentsResponse,
-            T,
+            types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -222,11 +250,13 @@ impl<F, T>
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
-                let redirection_data = services::RedirectForm::Form {
-                    endpoint: response_data.pay_url,
-                    method: services::Method::Post,
-                    form_fields: Default::default(),
-                };
+                let payment_method_type = item
+                    .data
+                    .request
+                    .payment_method_type
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+                let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
                     enums::AttemptStatus::AuthenticationPending,
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -272,10 +302,10 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::Charged,
+            status: enums::AttemptStatus::Charged, // Charged status is hardcoded because cashtocode do not support Psync, and we only receive webhooks when payment is succeeded, this tryFrom is used for CallConnectorAction.
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.attempt_id.clone(),
+                    item.data.attempt_id.clone(), //in response they only send PayUrl, so we use attempt_id as connector_transaction_id
                 ),
                 redirection_data: None,
                 mandate_reference: None,
@@ -284,7 +314,6 @@ impl<F, T>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(item.response.amount),
             ..item.data
         })
     }
@@ -300,7 +329,7 @@ pub struct CashtocodeErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
-    pub amount: i64,
+    pub amount: f64,
     pub currency: String,
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]

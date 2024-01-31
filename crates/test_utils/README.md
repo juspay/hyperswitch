@@ -22,9 +22,9 @@ The heart of `newman`(with directory support) and `UI-tests`
 
 Required fields:
 
-- `--admin_api_key` -- Admin API Key of the environment. `test_admin` is the Admin API Key for running locally
-- `--base_url` -- Base URL of the environment. `http://127.0.0.1:8080` / `http://localhost:8080` is the Base URL for running locally
-- `--connector_name` -- Name of the connector that you wish to run. Example: `adyen`, `shift4`, `stripe`
+- `--admin-api-key` -- Admin API Key of the environment. `test_admin` is the Admin API Key for running locally
+- `--base-url` -- Base URL of the environment. `http://127.0.0.1:8080` / `http://localhost:8080` is the Base URL for running locally
+- `--connector-name` -- Name of the connector that you wish to run. Example: `adyen`, `shift4`, `stripe`
 
 Optional fields:
 
@@ -46,7 +46,7 @@ Optional fields:
 
 - Tests can be run with the following command:
   ```shell
-  cargo run --package test_utils --bin test_utils -- --connector_name=<connector_name> --base_url=<base_url> --admin_api_key=<admin_api_key> \
+  cargo run --package test_utils --bin test_utils -- --connector-name=<connector_name> --base-url=<base_url> --admin-api-key=<admin_api_key> \
   # optionally
   --folder "<folder_name_1>,<folder_name_2>,...<folder_name_n>" --verbose
   ```

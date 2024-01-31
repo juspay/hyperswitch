@@ -8,12 +8,9 @@ use rdkafka::{
 };
 
 use crate::events::EventType;
-mod api_event;
-pub mod outgoing_request;
 mod payment_attempt;
 mod payment_intent;
 mod refund;
-pub use api_event::{ApiCallEventType, ApiEvents, ApiEventsType};
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::refund::Refund;
 use serde::Serialize;
@@ -83,6 +80,8 @@ pub struct KafkaSettings {
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
+    connector_logs_topic: String,
+    outgoing_webhook_logs_topic: String,
 }
 
 impl KafkaSettings {
@@ -119,7 +118,24 @@ impl KafkaSettings {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Kafka API event Analytics topic must not be empty".into(),
             ))
-        })
+        })?;
+
+        common_utils::fp_utils::when(self.connector_logs_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Connector Logs topic must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(
+            self.outgoing_webhook_logs_topic.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Kafka Outgoing Webhook Logs topic must not be empty".into(),
+                ))
+            },
+        )?;
+
+        Ok(())
     }
 }
 
@@ -130,6 +146,8 @@ pub struct KafkaProducer {
     attempt_analytics_topic: String,
     refund_analytics_topic: String,
     api_logs_topic: String,
+    connector_logs_topic: String,
+    outgoing_webhook_logs_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -166,6 +184,8 @@ impl KafkaProducer {
             attempt_analytics_topic: conf.attempt_analytics_topic.clone(),
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
             api_logs_topic: conf.api_logs_topic.clone(),
+            connector_logs_topic: conf.connector_logs_topic.clone(),
+            outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
         })
     }
 
@@ -286,17 +306,14 @@ impl KafkaProducer {
         })
     }
 
-    pub async fn log_api_event(&self, event: &ApiEvents) -> MQResult<()> {
-        self.log_kafka_event(&self.api_logs_topic, event)
-            .attach_printable_lazy(|| format!("Failed to add api log event {event:?}"))
-    }
-
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
             EventType::ApiLogs => &self.api_logs_topic,
             EventType::PaymentAttempt => &self.attempt_analytics_topic,
             EventType::PaymentIntent => &self.intent_analytics_topic,
             EventType::Refund => &self.refund_analytics_topic,
+            EventType::ConnectorApiLogs => &self.connector_logs_topic,
+            EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
         }
     }
 }

@@ -461,6 +461,13 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: format!("{} by {}", message, connector),
                     }
                 }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::api_error_response::NotImplementedMessage::Reason(
+                            reason.to_string(),
+                        ),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -477,6 +484,28 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
                 _ => Err(error),
             },
+        }
+    }
+}
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<errors::RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
+        match self.current_context() {
+            errors::RedisError::NotFound => self.change_context(
+                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
+            ),
+            errors::RedisError::SetNxFailed => {
+                self.change_context(errors::StorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
+            _ => self.change_context(errors::StorageError::KVError),
         }
     }
 }

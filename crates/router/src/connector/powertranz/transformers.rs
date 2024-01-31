@@ -101,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
+            api::PaymentMethodData::Card(card) => Source::try_from(&card),
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
@@ -211,15 +211,19 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl From<&Card> for Source {
-    fn from(card: &Card) -> Self {
+impl TryFrom<&Card> for Source {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(card: &Card) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
-            cardholder_name: card.card_holder_name.clone(),
+            cardholder_name: card
+                .card_holder_name
+                .clone()
+                .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
-            card_expiration: card.get_expiry_date_as_yymm(),
+            card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),
         };
-        Self::Card(card)
+        Ok(Self::Card(card))
     }
 }
 
