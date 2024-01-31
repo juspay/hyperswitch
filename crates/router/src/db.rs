@@ -110,7 +110,7 @@ pub trait StorageInterface:
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
-    + health_check::HealthCheckInterface
+    + health_check::HealthCheckDbInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

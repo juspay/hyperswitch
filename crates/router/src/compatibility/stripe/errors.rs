@@ -476,7 +476,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
             | errors::ApiErrorResponse::MandateDeserializationFailed
-            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            | errors::ApiErrorResponse::InternalServerError
+            | errors::ApiErrorResponse::HealthCheckError { .. } => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,

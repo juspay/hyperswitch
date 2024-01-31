@@ -123,7 +123,10 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::MandateUpdateFailed | Self::MandateSerializationFailed | Self::MandateDeserializationFailed | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
-            }
+            },
+            Self::HealthCheckError { message,component } => {
+                AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
+            },
             Self::PayoutFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 4, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
             },

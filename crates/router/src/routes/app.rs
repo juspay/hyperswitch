@@ -311,7 +311,7 @@ impl Health {
         web::scope("health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
@@ -965,6 +965,7 @@ impl User {
                 web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
             )
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
