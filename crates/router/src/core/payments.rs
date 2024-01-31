@@ -1237,8 +1237,7 @@ async fn blocklist_guard<F, ApiRequest, Ctx>(
     merchant_account: &domain::MerchantAccount,
     operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
     payment_data: &mut PaymentData<F>,
-
-) -> CustomResult<bool, errors::ApiErrorResponse> 
+) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
     Ctx: PaymentMethodRetrieve,
