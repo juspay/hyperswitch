@@ -1,3 +1,4 @@
+use api_models::user::dashboard_metadata::ProdIntent;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
@@ -10,7 +11,6 @@ use crate::{
     services::jwt,
     types::domain,
 };
-use api_models::user::dashboard_metadata::ProdIntent;
 
 pub enum EmailBody {
     Verify {
