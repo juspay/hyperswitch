@@ -1268,7 +1268,7 @@ where
             .guard_payment_against_blocklist(state, merchant_account, payment_data)
             .await?)
     } else {
-        Ok(true)
+        Ok(false)
     }
 }
 
