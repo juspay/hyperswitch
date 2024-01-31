@@ -281,5 +281,5 @@ pub fn is_prod_email_required(data: &ProdIntent) -> bool {
     !(data
         .poc_email
         .as_ref()
-        .map_or(false, |mail| mail.contains("juspay")))
+        .map_or(true, |mail| mail.contains("juspay")))
 }
