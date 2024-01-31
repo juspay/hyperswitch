@@ -827,16 +827,17 @@ impl<T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let id = item.response.transactionid.clone();
         let (response, status) = match item.response.response {
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(id.clone()),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(id),
+                    connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
