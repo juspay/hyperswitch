@@ -179,7 +179,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ResetPassword
             | Flow::InviteUser
             | Flow::InviteMultipleUser
-            | Flow::DeleteUser
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
@@ -191,7 +190,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
-            | Flow::AcceptInvitation => Self::UserRole,
+            | Flow::AcceptInvitation
+            | Flow::DeleteUserRole => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

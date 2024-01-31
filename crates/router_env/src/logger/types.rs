@@ -327,8 +327,8 @@ pub enum Flow {
     InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
-    /// Delete user
-    DeleteUser,
+    /// Delete user role
+    DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
