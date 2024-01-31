@@ -1,3 +1,5 @@
+use common_utils::pii;
+
 use crate::user::DashboardEntryResponse;
 
 #[derive(Debug, serde::Serialize)]
@@ -101,3 +103,8 @@ pub struct AcceptInvitationRequest {
 }
 
 pub type AcceptInvitationResponse = DashboardEntryResponse;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}

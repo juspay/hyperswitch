@@ -250,6 +250,7 @@ bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.giropay = {connector_list = "adyen,globalpay"}
 
+
 [analytics]
 source = "sqlx"
 

@@ -129,6 +129,7 @@ where
             &merchant_account,
             &key_store,
             auth_flow,
+            header_payload.payment_confirm_source,
         )
         .await?;
 
@@ -366,7 +367,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -599,7 +599,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -643,10 +642,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -2045,6 +2040,8 @@ pub struct IncrementalAuthorizationDetails {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]

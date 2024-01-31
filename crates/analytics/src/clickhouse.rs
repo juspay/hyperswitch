@@ -7,6 +7,7 @@ use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::{
+    health_check::HealthCheck,
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
     },
@@ -90,6 +91,18 @@ impl ClickhouseClient {
                 .change_context(ClickhouseError::ResponseError)?
                 .data)
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl HealthCheck for ClickhouseClient {
+    async fn deep_health_check(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), QueryExecutionError> {
+        self.execute_query("SELECT 1")
+            .await
+            .map(|_| ())
+            .change_context(QueryExecutionError::DatabaseError)
     }
 }
 

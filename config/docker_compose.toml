@@ -286,7 +286,7 @@ alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
 open_banking_uk = {country = "GB", currency = "GBP"}
 oxxo = {country = "MX", currency = "MXN"}
-pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 seven_eleven = {country = "JP", currency = "JPY"}
 lawson = {country = "JP", currency = "JPY"}
 mini_stop = {country = "JP", currency = "JPY"}
@@ -322,7 +322,7 @@ debit = { currency = "USD" }
 ach = { currency = "USD" }
 
 [bank_config.online_banking_fpx]
-adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
@@ -343,6 +343,7 @@ bank_debit.sepa = { connector_list = "gocardless"}
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -401,3 +402,6 @@ enabled = true
 
 [events]
 source = "logs"
+
+[file_storage]
+file_storage_backend = "file_system"
