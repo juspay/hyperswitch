@@ -2,7 +2,7 @@ use api_models::webhooks;
 use cards::CardNumber;
 use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii};
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -403,9 +403,33 @@ pub struct NmiPaymentsRequest {
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
-    #[serde(rename = "merchant_defined_field_#")]
-    merchant_defined_field: Option<pii::SecretSerdeValue>,
+    #[serde(flatten)]
+    merchant_defined_field: Option<NmiMerchantDefinedField>,
     orderid: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NmiMerchantDefinedField {
+    #[serde(flatten)]
+    inner: std::collections::BTreeMap<String, Secret<String>>,
+}
+
+impl NmiMerchantDefinedField {
+    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
+        let metadata_as_string = metadata.peek().to_string();
+        let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
+        let inner = hash_map
+            .into_iter()
+            .enumerate()
+            .map(|(index, (hs_key, hs_value))| {
+                let nmi_key = format!("merchant_defined_field_{}", index + 1);
+                let nmi_value = format!("{hs_key}={hs_value}");
+                (nmi_key, Secret::new(nmi_value))
+            })
+            .collect();
+        Self { inner }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -453,7 +477,12 @@ impl TryFrom<&NmiRouterData<&types::PaymentsAuthorizeRouterData>> for NmiPayment
             amount,
             currency: item.router_data.request.currency,
             payment_method,
-            merchant_defined_field: item.router_data.request.metadata.clone(),
+            merchant_defined_field: item
+                .router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(NmiMerchantDefinedField::new),
             orderid: item.router_data.connector_request_reference_id.clone(),
         })
     }
