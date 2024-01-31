@@ -489,7 +489,7 @@ impl
             })?
             .parse_value("BankOfAmericaThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "Merchant connector account metadata",
+                config: "metadata",
             })?;
 
         let processing_information =

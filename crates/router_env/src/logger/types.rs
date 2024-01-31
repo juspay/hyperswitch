@@ -287,6 +287,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Signout flow
+    Signout,
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
@@ -329,8 +331,8 @@ pub enum Flow {
     InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
-    /// Delete user
-    DeleteUser,
+    /// Delete user role
+    DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding

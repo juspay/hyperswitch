@@ -264,6 +264,11 @@ pub async fn connect_account(
     }
 }
 
+pub async fn signout(state: AppState, user_from_token: auth::UserFromToken) -> UserResponse<()> {
+    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
+    Ok(ApplicationResponse::StatusOk)
+}
+
 pub async fn change_password(
     state: AppState,
     request: user_api::ChangePasswordRequest,
