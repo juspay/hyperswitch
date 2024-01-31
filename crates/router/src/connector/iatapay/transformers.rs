@@ -384,7 +384,7 @@ impl<F> TryFrom<&IatapayRouterData<&types::RefundsRouterData<F>>> for IatapayRef
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     #[default]

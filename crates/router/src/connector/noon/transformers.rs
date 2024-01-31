@@ -536,7 +536,7 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                     attempt_status: Some(status),
-                    connector_transaction_id: order.reference.or(Some(order.id.to_string())),
+                    connector_transaction_id: Some(order.id.to_string()),
                 }),
                 _ => {
                     let connector_response_reference_id =
