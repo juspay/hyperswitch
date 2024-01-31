@@ -434,6 +434,7 @@ bluesnap = {payment_method = "card"}
 bankofamerica = {payment_method = "card"}
 cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
+payme = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
