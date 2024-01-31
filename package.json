@@ -5,8 +5,5 @@
   "description": "This is just to run automated newman tests for this service",
   "devDependencies": {
     "newman": "git+ssh://git@github.com:knutties/newman.git#7106e194c15d49d066fa09d9a2f18b2238f3dba8"
-  },
-  "dependencies": {
-    "swagger-cli": "^4.0.4"
   }
 }
