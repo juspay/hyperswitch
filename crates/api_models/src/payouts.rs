@@ -264,7 +264,7 @@ pub struct SepaBankTransfer {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum Wallet {
     Paypal(Paypal),
 }
