@@ -14618,6 +14618,19 @@
           "wallet"
         ]
       },
+      "Paypal": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with paypal account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -16407,6 +16420,21 @@
             "properties": {
               "pay_easy": {
                 "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          }
+        ]
+      },
+      "Wallet": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/Paypal"
               }
             }
           }
