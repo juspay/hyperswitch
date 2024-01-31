@@ -126,7 +126,8 @@ impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyReque
     fn try_from(value: (&types::SetupMandateRouterData, &api::Card)) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
-            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_expiry: req_card
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
@@ -173,10 +174,9 @@ impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_)
             | api_models::payments::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.request.payment_method_data),
-                    connector: "Helcim",
-                })?
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Helcim"),
+                ))?
             }
         }
     }
@@ -197,7 +197,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
-            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_expiry: req_card
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
@@ -274,10 +275,9 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.router_data.request.payment_method_data),
-                connector: "Helcim",
-            })?,
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Helcim"),
+            ))?,
         }
     }
 }
@@ -756,6 +756,13 @@ pub enum HelcimErrorTypes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct HelcimErrorResponse {
+pub struct HelcimPaymentsErrorResponse {
     pub errors: HelcimErrorTypes,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum HelcimErrorResponse {
+    Payment(HelcimPaymentsErrorResponse),
+    General(String),
 }

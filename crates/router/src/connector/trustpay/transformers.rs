@@ -297,9 +297,9 @@ fn get_card_request_data(
             currency: item.request.currency.to_string(),
             pan: ccard.card_number.clone(),
             cvv: ccard.card_cvc.clone(),
-            expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+            expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
             cardholder: get_full_name(params.billing_first_name, billing_last_name),
-            reference: item.payment_id.clone(),
+            reference: item.connector_request_reference_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
             billing_country: params.billing_country,
@@ -377,7 +377,7 @@ fn get_bank_redirection_request_data(
                     currency: item.request.currency.to_string(),
                 },
                 references: References {
-                    merchant_reference: item.payment_id.clone(),
+                    merchant_reference: item.connector_request_reference_id.clone(),
                 },
                 debtor: get_debtor_info(item, pm, params)?,
             },
@@ -813,7 +813,7 @@ fn handle_bank_redirects_sync_response(
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.payment_information.status);
-    let error = if status == enums::AttemptStatus::AuthorizationFailed {
+    let error = if utils::is_payment_failure(status) {
         let reason_info = response
             .payment_information
             .status_reason_information
@@ -856,6 +856,7 @@ fn handle_bank_redirects_sync_response(
 
 pub fn handle_webhook_response(
     payment_information: WebhookPaymentInformation,
+    status_code: u16,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -865,6 +866,22 @@ pub fn handle_webhook_response(
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::try_from(payment_information.status)?;
+    let error = if utils::is_payment_failure(status) {
+        let reason_info = payment_information
+            .status_reason_information
+            .unwrap_or_default();
+        Some(types::ErrorResponse {
+            code: reason_info.reason.code.clone(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: reason_info.reason.code,
+            reason: reason_info.reason.reject_reason,
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: payment_information.references.payment_request_id.clone(),
+        })
+    } else {
+        None
+    };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data: None,
@@ -874,7 +891,7 @@ pub fn handle_webhook_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
     };
-    Ok((status, None, payment_response_data))
+    Ok((status, error, payment_response_data))
 }
 
 pub fn get_trustpay_response(
@@ -901,7 +918,9 @@ pub fn get_trustpay_response(
         TrustpayPaymentsResponse::BankRedirectError(response) => {
             handle_bank_redirects_error_response(*response, status_code)
         }
-        TrustpayPaymentsResponse::WebhookResponse(response) => handle_webhook_response(*response),
+        TrustpayPaymentsResponse::WebhookResponse(response) => {
+            handle_webhook_response(*response, status_code)
+        }
     }
 }
 
@@ -1014,7 +1033,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsPreProcessingRouterData>>
             currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
-            reference: item.router_data.payment_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
@@ -1051,6 +1070,7 @@ pub struct GooglePayTransactionInfo {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayMerchantInfo {
     pub merchant_name: String,
+    pub merchant_id: String,
 }
 
 #[derive(Clone, Default, Debug, Deserialize)]
@@ -1181,7 +1201,7 @@ pub fn get_apple_pay_session<F, T>(
                             },
                         ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                        country_code: apple_pay_init_result.country_code,
+                        country_code: Some(apple_pay_init_result.country_code),
                         currency_code: apple_pay_init_result.currency_code,
                         supported_networks: Some(apple_pay_init_result.supported_networks.clone()),
                         merchant_capabilities: Some(
@@ -1271,7 +1291,7 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
-            merchant_id: None,
+            merchant_id: Some(value.merchant_id),
             merchant_name: value.merchant_name,
         }
     }
@@ -1452,9 +1472,24 @@ fn handle_cards_refund_response(
 
 fn handle_webhooks_refund_response(
     response: WebhookPaymentInformation,
+    status_code: u16,
 ) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
 {
     let refund_status = diesel_models::enums::RefundStatus::try_from(response.status)?;
+    let error = if utils::is_refund_failure(refund_status) {
+        let reason_info = response.status_reason_information.unwrap_or_default();
+        Some(types::ErrorResponse {
+            code: reason_info.reason.code.clone(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: reason_info.reason.code,
+            reason: reason_info.reason.reject_reason,
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: response.references.payment_request_id.clone(),
+        })
+    } else {
+        None
+    };
     let refund_response_data = types::RefundsResponseData {
         connector_refund_id: response
             .references
@@ -1462,7 +1497,7 @@ fn handle_webhooks_refund_response(
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
         refund_status,
     };
-    Ok((None, refund_response_data))
+    Ok((error, refund_response_data))
 }
 
 fn handle_bank_redirects_refund_response(
@@ -1495,7 +1530,7 @@ fn handle_bank_redirects_refund_sync_response(
     status_code: u16,
 ) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
     let refund_status = enums::RefundStatus::from(response.payment_information.status);
-    let error = if refund_status == enums::RefundStatus::Failure {
+    let error = if utils::is_refund_failure(refund_status) {
         let reason_info = response
             .payment_information
             .status_reason_information
@@ -1551,7 +1586,9 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
             }
-            RefundResponse::WebhookRefund(response) => handle_webhooks_refund_response(*response)?,
+            RefundResponse::WebhookRefund(response) => {
+                handle_webhooks_refund_response(*response, item.http_code)?
+            }
             RefundResponse::BankRedirectRefund(response) => {
                 handle_bank_redirects_refund_response(*response, item.http_code)
             }

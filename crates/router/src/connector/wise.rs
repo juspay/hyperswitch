@@ -90,7 +90,7 @@ impl ConnectorCommon for Wise {
         let default_status = response.status.unwrap_or_default().to_string();
         match response.errors {
             Some(errs) => {
-                if let Some(e) = errs.get(0) {
+                if let Some(e) = errs.first() {
                     Ok(types::ErrorResponse {
                         status_code: res.status_code,
                         code: e.code.clone(),
@@ -157,6 +157,20 @@ impl
         types::PaymentsResponseData,
     > for Wise
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Wise".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentSession for Wise {}
@@ -287,7 +301,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let def_res = response.status.unwrap_or_default().to_string();
         let errors = response.errors.unwrap_or_default();
-        let (code, message) = if let Some(e) = errors.get(0) {
+        let (code, message) = if let Some(e) = errors.first() {
             (e.code.clone(), e.message.clone())
         } else {
             (def_res, response.message.unwrap_or_default())
@@ -575,6 +589,17 @@ impl
         types::PayoutsResponseData,
     > for Wise
 {
+    fn build_request(
+        &self,
+        _req: &types::PayoutsRouterData<api::PoEligibility>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        // Eligiblity check for cards is not implemented
+        Err(
+            errors::ConnectorError::NotImplemented("Payout Eligibility for Wise".to_string())
+                .into(),
+        )
+    }
 }
 
 #[cfg(feature = "payouts")]

@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod conditional_config;
@@ -16,6 +17,7 @@ pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod gsm;
+pub mod health_check;
 pub mod locker_migration;
 pub mod mandate;
 pub mod metrics;

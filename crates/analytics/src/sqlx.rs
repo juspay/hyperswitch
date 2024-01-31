@@ -17,6 +17,7 @@ use storage_impl::config::Database;
 use time::PrimitiveDateTime;
 
 use super::{
+    health_check::HealthCheck,
     query::{Aggregate, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, QueryExecutionError,
@@ -162,6 +163,17 @@ impl AnalyticsDataSource for SqlxClient {
             .map(Self::load_row)
             .collect::<Result<Vec<_>, _>>()
             .change_context(QueryExecutionError::RowExtractionFailure)
+    }
+}
+#[async_trait::async_trait]
+impl HealthCheck for SqlxClient {
+    async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
+        sqlx::query("SELECT 1")
+            .fetch_all(&self.pool)
+            .await
+            .map(|_| ())
+            .into_report()
+            .change_context(QueryExecutionError::DatabaseError)
     }
 }
 
@@ -429,6 +441,10 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::PaymentIntent => Ok("payment_intent".to_string()),
+            Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
+            Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
         }
     }
 }

@@ -137,6 +137,17 @@ impl
     > for Aci
 {
     // Issue: #173
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("Setup Mandate flow for Aci".to_string()).into())
+    }
 }
 
 impl
@@ -203,9 +214,6 @@ impl
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }

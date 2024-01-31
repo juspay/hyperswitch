@@ -233,6 +233,20 @@ impl
         types::PaymentsResponseData,
     > for Bluesnap
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Bluesnap".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentVoid for Bluesnap {}
@@ -1029,11 +1043,19 @@ impl api::IncomingWebhook for Bluesnap {
             | bluesnap::BluesnapWebhookEvents::Charge
             | bluesnap::BluesnapWebhookEvents::Chargeback
             | bluesnap::BluesnapWebhookEvents::ChargebackStatusChanged => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        webhook_body.merchant_transaction_id,
-                    ),
-                ))
+                if webhook_body.merchant_transaction_id.is_empty() {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            webhook_body.reference_number,
+                        ),
+                    ))
+                } else {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(
+                            webhook_body.merchant_transaction_id,
+                        ),
+                    ))
+                }
             }
             bluesnap::BluesnapWebhookEvents::Refund => {
                 Ok(api_models::webhooks::ObjectReferenceId::RefundId(

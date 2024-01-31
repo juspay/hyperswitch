@@ -3,6 +3,7 @@ pub mod admin;
 pub mod analytics;
 pub mod api_keys;
 pub mod bank_accounts;
+pub mod blocklist;
 pub mod cards_info;
 pub mod conditional_configs;
 pub mod connector_onboarding;
@@ -16,6 +17,7 @@ pub mod errors;
 pub mod events;
 pub mod files;
 pub mod gsm;
+pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
 pub mod organization;
@@ -24,6 +26,8 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod pm_auth;
+#[cfg(feature = "recon")]
+pub mod recon;
 pub mod refunds;
 pub mod routing;
 pub mod surcharge_decision_configs;

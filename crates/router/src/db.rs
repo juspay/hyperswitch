@@ -1,6 +1,9 @@
 pub mod address;
 pub mod api_keys;
 pub mod authorization;
+pub mod blocklist;
+pub mod blocklist_fingerprint;
+pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod cache;
 pub mod capture;
@@ -14,6 +17,7 @@ pub mod events;
 pub mod file;
 pub mod fraud_check;
 pub mod gsm;
+pub mod health_check;
 mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -67,6 +71,7 @@ pub trait StorageInterface:
     + dyn_clone::DynClone
     + address::AddressInterface
     + api_keys::ApiKeyInterface
+    + blocklist_lookup::BlocklistLookupInterface
     + configs::ConfigInterface
     + capture::CaptureInterface
     + customers::CustomerInterface
@@ -84,6 +89,8 @@ pub trait StorageInterface:
     + PaymentAttemptInterface
     + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + blocklist::BlocklistInterface
+    + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface
@@ -103,6 +110,7 @@ pub trait StorageInterface:
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
+    + health_check::HealthCheckDbInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

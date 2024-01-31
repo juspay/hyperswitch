@@ -19,6 +19,8 @@ pub async fn retrieve_forex(
             state.conf.forex_api.local_fetch_retry_count,
             #[cfg(feature = "kms")]
             &state.conf.kms,
+            #[cfg(feature = "hashicorp-vault")]
+            &state.conf.hc_vault,
         )
         .await
         .change_context(ApiErrorResponse::GenericNotFoundError {
@@ -44,6 +46,8 @@ pub async fn convert_forex(
             from_currency,
             #[cfg(feature = "kms")]
             &state.conf.kms,
+            #[cfg(feature = "hashicorp-vault")]
+            &state.conf.hc_vault,
         ))
         .await
         .change_context(ApiErrorResponse::InternalServerError)?,

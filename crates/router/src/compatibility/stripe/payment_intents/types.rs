@@ -753,6 +753,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         user_agent: online.user_agent,
                     }),
             }),
+            update_mandate_id: None,
         });
         Ok(mandate_data)
     }
@@ -794,8 +795,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_url: url::Url,
+        image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
+        qr_code_url: Option<url::Url>,
     },
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
@@ -830,9 +832,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
+            qr_code_url,
         },
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }

@@ -13,19 +13,11 @@ impl KmsDecrypt for settings::Jwekey {
         kms_client: &KmsClient,
     ) -> CustomResult<Self::Output, KmsError> {
         (
-            self.locker_encryption_key1,
-            self.locker_encryption_key2,
-            self.locker_decryption_key1,
-            self.locker_decryption_key2,
             self.vault_encryption_key,
             self.rust_locker_encryption_key,
             self.vault_private_key,
             self.tunnel_private_key,
         ) = tokio::try_join!(
-            kms_client.decrypt(self.locker_encryption_key1),
-            kms_client.decrypt(self.locker_encryption_key2),
-            kms_client.decrypt(self.locker_decryption_key1),
-            kms_client.decrypt(self.locker_decryption_key2),
             kms_client.decrypt(self.vault_encryption_key),
             kms_client.decrypt(self.rust_locker_encryption_key),
             kms_client.decrypt(self.vault_private_key),

@@ -24,9 +24,11 @@ impl VerifyConnectorData {
         types::PaymentsAuthorizeData {
             payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
+            customer_name: None,
             amount: 1000,
             confirm: true,
             currency: storage_enums::Currency::USD,
+            metadata: None,
             mandate_id: None,
             webhook_url: None,
             customer_id: None,

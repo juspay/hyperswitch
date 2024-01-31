@@ -46,6 +46,7 @@ impl api::Refund for Noon {}
 impl api::RefundExecute for Noon {}
 impl api::RefundSync for Noon {}
 impl api::PaymentToken for Noon {}
+impl api::ConnectorMandateRevoke for Noon {}
 
 impl
     ConnectorIntegration<
@@ -183,6 +184,20 @@ impl
         types::PaymentsResponseData,
     > for Noon
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Noon".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -478,6 +493,81 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > for Noon
+{
+    fn get_headers(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+    }
+    fn build_request(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::MandateRevokeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::MandateRevokeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::MandateRevokeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = noon::NoonRevokeMandateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::MandateRevokeRouterData,
+        res: Response,
+    ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
+        let response: noon::NoonRevokeMandateResponse = res
+            .response
+            .parse_struct("Noon NoonRevokeMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Noon {
     fn get_headers(
         &self,
@@ -587,9 +677,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
