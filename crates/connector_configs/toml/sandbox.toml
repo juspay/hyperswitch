@@ -163,6 +163,8 @@ merchant_secret="Source verification key"
   payment_method_type = "danamon_va"
 [[adyen.bank_transfer]]
   payment_method_type = "mandiri_va"
+[[adyen.bank_transfer]]
+  payment_method_type = "pix"
 [[adyen.wallet]]
   payment_method_type = "apple_pay"
 [[adyen.wallet]]
