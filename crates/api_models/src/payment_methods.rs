@@ -21,7 +21,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -139,7 +139,7 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType, example = "card")]
+    #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -727,7 +727,7 @@ pub struct CustomerPaymentMethod {
     pub customer_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
