@@ -279,7 +279,10 @@ impl DecodeMessage for GcmAes256 {
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         let nonce_sequence = NonceSequence::from_bytes(
-            msg[..ring::aead::NONCE_LEN]
+            msg.get(..ring::aead::NONCE_LEN)
+                .ok_or(errors::CryptoError::DecodingFailed)
+                .into_report()
+                .attach_printable("Failed to read the nonce form the encrypted ciphertext")?
                 .try_into()
                 .into_report()
                 .change_context(errors::CryptoError::DecodingFailed)?,

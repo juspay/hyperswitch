@@ -20,17 +20,13 @@ use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
-
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
-    // console_subscriber::init();
-
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
-
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
@@ -40,7 +36,12 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, redis_shutdown_signal_tx, api_client).await;
+    let state = Box::pin(routes::AppState::new(
+        conf,
+        redis_shutdown_signal_tx,
+        api_client,
+    ))
+    .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(router::receiver_for_error(
@@ -54,6 +55,12 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     #[allow(clippy::expect_used)]
     let scheduler_flow = scheduler::SchedulerFlow::from_str(&scheduler_flow_str)
         .expect("Unable to parse SchedulerFlow from environment variable");
+
+    #[cfg(feature = "vergen")]
+    println!(
+        "Starting {scheduler_flow} (Version: {})",
+        router_env::git_tag!()
+    );
 
     let _guard = router_env::setup(
         &state.conf.log,

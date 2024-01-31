@@ -12,9 +12,9 @@ use router_env::{
 };
 
 use crate::{
-    core::{api_locking, routing},
+    core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
-    services::{api as oss_api, authentication as auth},
+    services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
 
 #[cfg(feature = "olap")]
@@ -34,9 +34,13 @@ pub async fn routing_create_config(
             routing::create_routing_config(state, auth.merchant_account, auth.key_store, payload)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -65,9 +69,13 @@ pub async fn routing_link_config(
             )
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -91,9 +99,13 @@ pub async fn routing_retrieve_config(
             routing::retrieve_routing_config(state, auth.merchant_account, algorithm_id)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -101,7 +113,7 @@ pub async fn routing_retrieve_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
-pub async fn routing_retrieve_dictionary(
+pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveQuery>,
@@ -122,9 +134,13 @@ pub async fn routing_retrieve_dictionary(
                 )
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingRead),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -142,9 +158,13 @@ pub async fn routing_retrieve_dictionary(
                 routing::retrieve_merchant_routing_dictionary(state, auth.merchant_account)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingRead),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -172,9 +192,13 @@ pub async fn routing_unlink_config(
                 routing::unlink_routing_config(state, auth.merchant_account, payload_req)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingWrite),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -192,9 +216,13 @@ pub async fn routing_unlink_config(
                 routing::unlink_routing_config(state, auth.merchant_account, auth.key_store)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingWrite),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -217,9 +245,13 @@ pub async fn routing_update_default_config(
             routing::update_default_routing_config(state, auth.merchant_account, updated_config)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -240,9 +272,203 @@ pub async fn routing_retrieve_default_config(
             routing::retrieve_default_routing_config(state, auth.merchant_account)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn upsert_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::surcharge_decision_configs::SurchargeDecisionConfigReq>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, update_decision| {
+            surcharge_decision_config::upsert_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                update_decision,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn delete_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerDeleteConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, ()| {
+            surcharge_decision_config::delete_surcharge_decision_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn retrieve_surcharge_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _| {
+            surcharge_decision_config::retrieve_surcharge_decision_config(
+                state,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn upsert_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::conditional_configs::DecisionManager>,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerUpsertConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, update_decision| {
+            conditional_config::upsert_conditional_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+                update_decision,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn delete_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerDeleteConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, ()| {
+            conditional_config::delete_conditional_config(
+                state,
+                auth.key_store,
+                auth.merchant_account,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn retrieve_decision_manager_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::DecisionManagerRetrieveConfig;
+    oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _| {
+            conditional_config::retrieve_conditional_config(state, auth.merchant_account)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -268,9 +494,13 @@ pub async fn routing_retrieve_linked_config(
                 routing::retrieve_linked_routing_config(state, auth.merchant_account, query_params)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingRead),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -288,9 +518,13 @@ pub async fn routing_retrieve_linked_config(
                 routing::retrieve_linked_routing_config(state, auth.merchant_account)
             },
             #[cfg(not(feature = "release"))]
-            auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+            auth::auth_type(
+                &auth::ApiKeyAuth,
+                &auth::JWTAuth(Permission::RoutingRead),
+                req.headers(),
+            ),
             #[cfg(feature = "release")]
-            &auth::JWTAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -312,9 +546,17 @@ pub async fn routing_retrieve_default_config_for_profiles(
             routing::retrieve_default_routing_config_for_profiles(state, auth.merchant_account)
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -346,9 +588,13 @@ pub async fn routing_update_default_config_for_profile(
             )
         },
         #[cfg(not(feature = "release"))]
-        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth,
+        &auth::JWTAuth(Permission::RoutingWrite),
         api_locking::LockAction::NotApplicable,
     )
     .await

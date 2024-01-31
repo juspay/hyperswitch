@@ -11,7 +11,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, RouterData},
     types::{
         api::payouts,
         storage::enums::{self as storage_enums, PayoutEntityType},
@@ -344,10 +344,9 @@ fn get_payout_bank_details(
             bic: b.bic,
             ..WiseBankDetails::default()
         }),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: "Card payout creation is not supported".to_string(),
-            connector: "Wise",
-        }),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Wise"),
+        ))?,
     }
 }
 
@@ -371,10 +370,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             }),
         }?;
         match request.payout_type.to_owned() {
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout creation is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            ))?,
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -432,10 +430,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
                 target_currency: request.destination_currency.to_string(),
                 pay_out: WisePayOutOption::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            ))?,
         }
     }
 }
@@ -489,10 +486,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
                     details: wise_transfer_details,
                 })
             }
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            ))?,
         }
     }
 }
@@ -533,10 +529,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             storage_enums::PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            ))?,
         }
     }
 }
@@ -599,10 +594,9 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             PayoutMethodData::Bank(api_models::payouts::Bank::Ach(_)) => Ok(Self::Aba),
             PayoutMethodData::Bank(api_models::payouts::Bank::Bacs(_)) => Ok(Self::SortCode),
             PayoutMethodData::Bank(api_models::payouts::Bank::Sepa(_)) => Ok(Self::Iban),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "Requested payout_method_type is not supported".to_string(),
-                connector: "Wise",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            )
             .into()),
         }
     }

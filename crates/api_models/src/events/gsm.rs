@@ -31,3 +31,9 @@ impl ApiEventMetric for gsm::GsmDeleteResponse {
         Some(ApiEventsType::Gsm)
     }
 }
+
+impl ApiEventMetric for gsm::GsmResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Gsm)
+    }
+}

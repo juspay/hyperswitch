@@ -59,3 +59,13 @@ if (jsonData?.client_secret) {
     "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
   );
 }
+
+// Response body should have value "cancellation succeeded" for "payment status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments/:id/cancel - Content check if value for 'jsonData.status' matches 'requires_capture'",
+    function () {
+      pm.expect(jsonData.status).to.eql("requires_capture");
+    },
+  );
+}

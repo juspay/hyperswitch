@@ -99,7 +99,7 @@ impl super::behaviour::Conversion for Customer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum CustomerUpdate {
     Update {
         name: crypto::OptionalEncryptableName,

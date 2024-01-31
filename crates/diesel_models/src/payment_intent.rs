@@ -1,3 +1,4 @@
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
@@ -51,18 +52,15 @@ pub struct PaymentIntent {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    Serialize,
-    Deserialize,
+    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
@@ -103,9 +101,14 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +118,7 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<i64>,
         return_url: Option<String>,
         updated_by: String,
+        incremental_authorization_allowed: Option<bool>,
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
@@ -137,6 +141,7 @@ pub enum PaymentIntentUpdate {
     PGStatusUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
+        incremental_authorization_allowed: Option<bool>,
     },
     Update {
         amount: i64,
@@ -156,6 +161,8 @@ pub enum PaymentIntentUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
         updated_by: String,
+        session_expiry: Option<PrimitiveDateTime>,
+        fingerprint_id: Option<String>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -180,6 +187,12 @@ pub enum PaymentIntentUpdate {
     SurchargeApplicableUpdate {
         surcharge_applicable: Option<bool>,
         updated_by: String,
+    },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+    },
+    AuthorizationCountUpdate {
+        authorization_count: i32,
     },
 }
 
@@ -213,54 +226,79 @@ pub struct PaymentIntentUpdateInternal {
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
+    pub incremental_authorization_allowed: Option<bool>,
+    pub authorization_count: Option<i32>,
+    pub session_expiry: Option<PrimitiveDateTime>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
     pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
-        let internal_update: PaymentIntentUpdateInternal = self.into();
+        let PaymentIntentUpdateInternal {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at: _,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            profile_id,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+        } = self.into();
         PaymentIntent {
-            amount: internal_update.amount.unwrap_or(source.amount),
-            currency: internal_update.currency.or(source.currency),
-            status: internal_update.status.unwrap_or(source.status),
-            amount_captured: internal_update.amount_captured.or(source.amount_captured),
-            customer_id: internal_update.customer_id.or(source.customer_id),
-            return_url: internal_update.return_url.or(source.return_url),
-            setup_future_usage: internal_update
-                .setup_future_usage
-                .or(source.setup_future_usage),
-            off_session: internal_update.off_session.or(source.off_session),
-            metadata: internal_update.metadata.or(source.metadata),
-            billing_address_id: internal_update
-                .billing_address_id
-                .or(source.billing_address_id),
-            shipping_address_id: internal_update
-                .shipping_address_id
-                .or(source.shipping_address_id),
+            amount: amount.unwrap_or(source.amount),
+            currency: currency.or(source.currency),
+            status: status.unwrap_or(source.status),
+            amount_captured: amount_captured.or(source.amount_captured),
+            customer_id: customer_id.or(source.customer_id),
+            return_url: return_url.or(source.return_url),
+            setup_future_usage: setup_future_usage.or(source.setup_future_usage),
+            off_session: off_session.or(source.off_session),
+            metadata: metadata.or(source.metadata),
+            billing_address_id: billing_address_id.or(source.billing_address_id),
+            shipping_address_id: shipping_address_id.or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
-            active_attempt_id: internal_update
-                .active_attempt_id
-                .unwrap_or(source.active_attempt_id),
-            business_country: internal_update.business_country.or(source.business_country),
-            business_label: internal_update.business_label.or(source.business_label),
-            description: internal_update.description.or(source.description),
-            statement_descriptor_name: internal_update
-                .statement_descriptor_name
+            active_attempt_id: active_attempt_id.unwrap_or(source.active_attempt_id),
+            business_country: business_country.or(source.business_country),
+            business_label: business_label.or(source.business_label),
+            description: description.or(source.description),
+            statement_descriptor_name: statement_descriptor_name
                 .or(source.statement_descriptor_name),
-            statement_descriptor_suffix: internal_update
-                .statement_descriptor_suffix
+            statement_descriptor_suffix: statement_descriptor_suffix
                 .or(source.statement_descriptor_suffix),
-            order_details: internal_update.order_details.or(source.order_details),
-            attempt_count: internal_update
-                .attempt_count
-                .unwrap_or(source.attempt_count),
-            profile_id: internal_update.profile_id.or(source.profile_id),
-            merchant_decision: internal_update
-                .merchant_decision
-                .or(source.merchant_decision),
-            payment_confirm_source: internal_update
-                .payment_confirm_source
-                .or(source.payment_confirm_source),
-            updated_by: internal_update.updated_by,
+            order_details: order_details.or(source.order_details),
+            attempt_count: attempt_count.unwrap_or(source.attempt_count),
+            profile_id: profile_id.or(source.profile_id),
+            merchant_decision: merchant_decision.or(source.merchant_decision),
+            payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
+            updated_by,
+            surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
+
+            incremental_authorization_allowed: incremental_authorization_allowed
+                .or(source.incremental_authorization_allowed),
+            authorization_count: authorization_count.or(source.authorization_count),
+            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
+            session_expiry: session_expiry.or(source.session_expiry),
             ..source
         }
     }
@@ -287,6 +325,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                session_expiry,
+                fingerprint_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -306,6 +346,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                session_expiry,
+                fingerprint_id,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -334,10 +376,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+            } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -361,6 +408,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 return_url,
                 updated_by,
+                incremental_authorization_allowed,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -370,6 +418,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                incremental_authorization_allowed,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -418,6 +467,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 surcharge_applicable,
                 updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
+                amount: Some(amount),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self {
+                authorization_count: Some(authorization_count),
                 ..Default::default()
             },
         }

@@ -2,11 +2,13 @@
   "childrenOrder": [
     "Scenario1-Create payment with confirm true",
     "Scenario2-Create payment with confirm false",
-    "Scenario3-Create payment without PMD",
-    "Scenario4-Create 3DS payment",
-    "Scenario5-Create 3DS payment with confrm false",
-    "Scenario6-Refund full payment",
+    "Scenario3-Create payment with confirm false card holder name null",
+    "Scenario3-Create payment with confirm false card holder name empty",
+    "Scenario4-Create payment without PMD",
+    "Scenario5-Create 3DS payment",
+    "Scenario6-Create 3DS payment with confrm false",
+    "Scenario7-Refund full payment",
     "Scenario8-Bank Redirect-Ideal",
-    "Scenario11-Bank Redirect-giropay"
+    "Scenario9-Bank Redirect-giropay"
   ]
 }

@@ -8,6 +8,7 @@
     "Scenario6-Create 3DS payment with greater capture",
     "Scenario7-Refund exceeds amount",
     "Scenario8-Refund for unsuccessful payment",
-    "Scenario9-Create a recurring payment with greater mandate amount"
+    "Scenario9-Create a recurring payment with greater mandate amount",
+    "Scenario10-Create payouts using unsupported methods"
   ]
 }
