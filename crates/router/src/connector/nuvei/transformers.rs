@@ -895,7 +895,7 @@ fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let browser_info = item.request.get_browser_info()?;
+    let browser_info = item.request.get_optional_browser_info();
     let related_transaction_id = if item.is_three_ds() {
         item.request.related_transaction_id.clone()
     } else {
@@ -955,15 +955,12 @@ fn get_card_info<F>(
                 _ => (None, None, None),
             };
         let three_d = if item.is_three_ds() {
-            Some(ThreeD {
-                browser_details: Some(BrowserDetails {
+            let browser_details = match browser_info {
+                Some(browser_info) => Some(BrowserDetails {
                     accept_header: browser_info.get_accept_header()?,
                     ip: browser_info.get_ip_address()?,
                     java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
-                    java_script_enabled: browser_info
-                        .get_java_script_enabled()?
-                        .to_string()
-                        .to_uppercase(),
+                    java_script_enabled: browser_info.get_java_script_enabled()?.to_string().to_uppercase(),
                     language: browser_info.get_language()?,
                     screen_height: browser_info.get_screen_height()?,
                     screen_width: browser_info.get_screen_width()?,
@@ -971,6 +968,10 @@ fn get_card_info<F>(
                     user_agent: browser_info.get_user_agent()?,
                     time_zone: browser_info.get_time_zone()?,
                 }),
+                None => None,
+            };
+            Some(ThreeD {
+                browser_details,
                 v2_additional_params: additional_params,
                 notification_url: item.request.complete_authorize_url.clone(),
                 merchant_url: item.return_url.clone(),

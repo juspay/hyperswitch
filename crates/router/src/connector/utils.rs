@@ -398,6 +398,8 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
+
+    fn get_optional_browser_info(&self) -> Option<BrowserInformation>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -427,6 +429,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+
+    fn get_optional_browser_info(&self) -> Option<BrowserInformation> {
+        self.browser_info.as_ref().map(|browser_info| browser_info.clone())
     }
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
