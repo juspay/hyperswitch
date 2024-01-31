@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable, debug_query, result::Error as DieselError, ExpressionMethods,
     JoinOnDsl, QueryDsl,
 };
-use error_stack::{report, IntoReport};
+use error_stack::IntoReport;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -51,18 +51,17 @@ impl User {
         user_id: &str,
         user_update: UserUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             users_dsl::user_id.eq(user_id.to_owned()),
             UserUpdateInternal::from(user_update),
         )
-        .await?
-        .first()
-        .cloned()
-        .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound)
-                .attach_printable(format!("Error while updating user by user_id={}", user_id))
-        })
+        .await
     }
 
     pub async fn update_by_user_email(
@@ -70,18 +69,17 @@ impl User {
         user_email: &str,
         user_update: UserUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             users_dsl::email.eq(user_email.to_owned()),
             UserUpdateInternal::from(user_update),
         )
-        .await?
-        .first()
-        .cloned()
-        .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound)
-                .attach_printable(format!("Error while updating user by email={}", user_email))
-        })
+        .await
     }
 
     pub async fn delete_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<bool> {
