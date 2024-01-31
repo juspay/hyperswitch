@@ -245,6 +245,7 @@ bluesnap = {payment_method = "card"}
 bankofamerica = {payment_method = "card"}
 cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
+payme = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true

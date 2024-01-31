@@ -51,6 +51,7 @@ where
             .add_filter_clause("dispute_id", dispute_id)
             .switch()?,
     }
+
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder
         .execute_query::<ConnectorEventsResult, _>(pool)

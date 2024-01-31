@@ -43,7 +43,7 @@ use crate::{
         events::EventInterface,
         file::FileMetadataInterface,
         gsm::GsmInterface,
-        health_check::HealthCheckInterface,
+        health_check::HealthCheckDbInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -58,7 +58,6 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         MasterKeyInterface, StorageInterface,
     },
-    routes,
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
@@ -1896,6 +1895,16 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store
+            .update_user_by_email(user_email, user)
+            .await
+    }
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -2185,22 +2194,8 @@ impl AuthorizationInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl HealthCheckInterface for KafkaStore {
+impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
-    }
-
-    async fn health_check_redis(
-        &self,
-        db: &dyn StorageInterface,
-    ) -> CustomResult<(), errors::HealthCheckRedisError> {
-        self.diesel_store.health_check_redis(db).await
-    }
-
-    async fn health_check_locker(
-        &self,
-        state: &routes::AppState,
-    ) -> CustomResult<(), errors::HealthCheckLockerError> {
-        self.diesel_store.health_check_locker(state).await
     }
 }

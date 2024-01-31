@@ -54,6 +54,8 @@ pub enum Tag {
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Deep health Check
+    DeepHealthCheck,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -285,6 +287,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Signout flow
+    Signout,
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
