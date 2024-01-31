@@ -625,9 +625,10 @@ impl TryFrom<&api_models::payments::CardRedirectData> for PaypalPaymentsRequest 
             | api_models::payments::CardRedirectData::Benefit {}
             | api_models::payments::CardRedirectData::MomoAtm {}
             | api_models::payments::CardRedirectData::CardRedirect {} => {
-                Err(errors::ConnectorError::Err(errors::ConnectorError::NotImplemented(
+                Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
-                ).into())
+                )
+                .into())
             }
         }
     }
