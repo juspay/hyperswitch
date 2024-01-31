@@ -603,7 +603,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
             None,
-            HeaderPayload::default(),
+            HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))
         .await
     } else {

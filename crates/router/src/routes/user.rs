@@ -257,7 +257,7 @@ pub async fn generate_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::generate_sample_data_for_user,
-        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        &auth::JWTAuth(Permission::PaymentWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -277,7 +277,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        &auth::JWTAuth(Permission::PaymentWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await

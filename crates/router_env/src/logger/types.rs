@@ -241,6 +241,8 @@ pub enum Flow {
     PaymentLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
+    /// Payment Link Status
+    PaymentLinkStatus,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -325,8 +327,8 @@ pub enum Flow {
     InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
-    /// Delete user
-    DeleteUser,
+    /// Delete user role
+    DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
