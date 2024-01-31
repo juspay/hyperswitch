@@ -118,9 +118,10 @@ pub mod iso8601 {
         where
             D: Deserializer<'a>,
         {
-            let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
             Option::deserialize(deserializer)?
                 .map(|time_string| {
+                    let format =
+                        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
                     PrimitiveDateTime::parse(time_string, format).map_err(|_| {
                         de::Error::custom(format!(
                             "Failed to parse PrimitiveDateTime from {time_string}"
