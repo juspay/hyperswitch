@@ -23,6 +23,7 @@ use scheduler::{
     workflows::ProcessTrackerWorkflows, SchedulerAppState,
 };
 use serde::{Deserialize, Serialize};
+use storage_impl::errors::ApplicationError;
 use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
@@ -100,11 +101,21 @@ pub async fn start_web_server(
     state: routes::AppState,
     service: String,
 ) -> errors::ApplicationResult<Server> {
-    let server = state.conf.server.clone();
+    let server = state
+        .conf
+        .scheduler
+        .as_ref()
+        .ok_or(ApplicationError::InvalidConfigurationValueError(
+            "Scheduler server is invalidly configured".into(),
+        ))?
+        .server
+        .clone();
+
     let web_server = actix_web::HttpServer::new(move || {
         actix_web::App::new().service(Health::server(state.clone(), service.clone()))
     })
     .bind((server.host.as_str(), server.port))?
+    .workers(server.workers)
     .run();
     let _ = web_server.handle();
 
@@ -135,9 +146,13 @@ pub async fn deep_health_check(
 ) -> impl actix_web::Responder {
     let report = deep_health_check_func(state, service).await;
     match report {
-        Ok(response) => {
-            services::http_response_json(serde_json::to_string(&response).unwrap_or_default())
-        }
+        Ok(response) => services::http_response_json(
+            serde_json::to_string(&response)
+                .map_err(|err| {
+                    logger::error!(serialization_error=?err);
+                })
+                .unwrap_or_default(),
+        ),
         Err(err) => api::log_and_return_error_response(err),
     }
 }
