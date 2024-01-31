@@ -29,7 +29,7 @@ pub async fn get_authorization_info(
     .await
 }
 
-pub async fn list_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
     Box::pin(api::server_wrap(
         flow,
@@ -111,6 +111,24 @@ pub async fn accept_invitation(
         payload,
         user_role_core::accept_invitation,
         &auth::UserWithoutMerchantJWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn delete_user_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_role_api::DeleteUserRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteUserRole;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_role_core::delete_user_role,
+        &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
