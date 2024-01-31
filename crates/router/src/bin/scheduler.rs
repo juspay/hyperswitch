@@ -12,7 +12,8 @@ use router::{
         errors::{self, CustomResult},
         health_check::HealthCheckInterface,
     },
-    logger, routes, services,
+    logger, routes,
+    services::{self, api},
     types::storage::ProcessTrackerExt,
     workflows,
 };
@@ -137,9 +138,7 @@ pub async fn deep_health_check(
         Ok(response) => {
             services::http_response_json(serde_json::to_string(&response).unwrap_or_default())
         }
-        Err(err) => services::http_server_error_json_response(
-            serde_json::to_string(&err.current_context()).unwrap_or_default(),
-        ),
+        Err(err) => api::log_and_return_error_response(err),
     }
 }
 #[instrument(skip_all)]
