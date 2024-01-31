@@ -127,7 +127,7 @@ fn get_card_details(
             utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
                 card_details,
                 "".to_string(),
-            ),
+            )?,
             card_details.card_cvc.clone(),
         )),
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -143,6 +143,7 @@ pub struct NmiVaultResponse {
     pub responsetext: String,
     pub customer_vault_id: Option<String>,
     pub response_code: String,
+    pub transactionid: String,
 }
 
 impl
@@ -205,7 +206,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.transactionid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::AuthenticationPending,
@@ -213,11 +214,11 @@ impl
             Response::Declined | Response::Error => (
                 Err(types::ErrorResponse {
                     code: item.response.response_code,
-                    message: item.response.responsetext,
-                    reason: None,
+                    message: item.response.responsetext.to_owned(),
+                    reason: Some(item.response.responsetext),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.transactionid),
                 }),
                 enums::AttemptStatus::Failure,
             ),
@@ -346,12 +347,14 @@ impl
         let (response, status) = match item.response.response {
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.orderid),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -382,11 +385,11 @@ impl ForeignFrom<(NmiCompleteResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (NmiCompleteResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
@@ -459,7 +462,7 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
         payment_method_data: &api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match &payment_method_data {
-            api::PaymentMethodData::Card(ref card) => Ok(Self::from(card)),
+            api::PaymentMethodData::Card(ref card) => Ok(Self::try_from(card)?),
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 api_models::payments::WalletData::GooglePay(ref googlepay_data) => {
                     Ok(Self::from(googlepay_data))
@@ -491,10 +494,9 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "nmi",
-                    })
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nmi"),
+                    ))
                     .into_report()
                 }
             },
@@ -509,27 +511,27 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "nmi",
-            })
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nmi"),
+            ))
             .into_report(),
         }
     }
 }
 
-impl From<&api_models::payments::Card> for PaymentMethod {
-    fn from(card: &api_models::payments::Card) -> Self {
+impl TryFrom<&api_models::payments::Card> for PaymentMethod {
+    type Error = Error;
+    fn try_from(card: &api_models::payments::Card) -> Result<Self, Self::Error> {
         let ccexp = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
             card,
             "".to_string(),
-        );
+        )?;
         let card = CardData {
             ccnumber: card.card_number.clone(),
             ccexp,
             cvv: card.card_cvc.clone(),
         };
-        Self::Card(Box::new(card))
+        Ok(Self::Card(Box::new(card)))
     }
 }
 
@@ -631,13 +633,13 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
@@ -725,13 +727,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::Charged,
@@ -756,11 +758,11 @@ impl ForeignFrom<(StandardResponse, u16)> for types::ErrorResponse {
     fn foreign_from((response, http_code): (StandardResponse, u16)) -> Self {
         Self {
             code: response.response_code,
-            message: response.responsetext,
-            reason: None,
+            message: response.responsetext.to_owned(),
+            reason: Some(response.responsetext),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.transactionid),
         }
     }
 }
@@ -781,13 +783,13 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 if let Some(diesel_models::enums::CaptureMethod::Automatic) =
@@ -831,13 +833,13 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid,
+                        item.response.transactionid.to_owned(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(item.response.orderid),
                     incremental_authorization_allowed: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
@@ -1167,15 +1169,15 @@ impl ForeignFrom<NmiWebhookEventType> for webhooks::IncomingWebhookEvent {
             NmiWebhookEventType::RefundSuccess => Self::RefundSuccess,
             NmiWebhookEventType::RefundFailure => Self::RefundFailure,
             NmiWebhookEventType::VoidSuccess => Self::PaymentIntentCancelled,
+            NmiWebhookEventType::AuthSuccess => Self::PaymentIntentAuthorizationSuccess,
+            NmiWebhookEventType::CaptureSuccess => Self::PaymentIntentCaptureSuccess,
+            NmiWebhookEventType::AuthFailure => Self::PaymentIntentAuthorizationFailure,
+            NmiWebhookEventType::CaptureFailure => Self::PaymentIntentCaptureFailure,
+            NmiWebhookEventType::VoidFailure => Self::PaymentIntentCancelFailure,
             NmiWebhookEventType::SaleUnknown
             | NmiWebhookEventType::RefundUnknown
-            | NmiWebhookEventType::AuthSuccess
-            | NmiWebhookEventType::AuthFailure
             | NmiWebhookEventType::AuthUnknown
-            | NmiWebhookEventType::VoidFailure
             | NmiWebhookEventType::VoidUnknown
-            | NmiWebhookEventType::CaptureSuccess
-            | NmiWebhookEventType::CaptureFailure
             | NmiWebhookEventType::CaptureUnknown => Self::EventNotSupported,
         }
     }

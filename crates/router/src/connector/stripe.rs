@@ -1858,10 +1858,15 @@ impl api::IncomingWebhook for Stripe {
 
         Ok(match details.event_data.event_object.object {
             stripe::WebhookEventObjectType::PaymentIntent => {
-                match details.event_data.event_object.metadata {
+                match details
+                    .event_data
+                    .event_object
+                    .metadata
+                    .and_then(|meta_data| meta_data.order_id)
+                {
                     // if order_id is present
-                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
+                    Some(order_id) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(order_id),
                     ),
                     // else used connector_transaction_id
                     None => api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -1872,10 +1877,15 @@ impl api::IncomingWebhook for Stripe {
                 }
             }
             stripe::WebhookEventObjectType::Charge => {
-                match details.event_data.event_object.metadata {
+                match details
+                    .event_data
+                    .event_object
+                    .metadata
+                    .and_then(|meta_data| meta_data.order_id)
+                {
                     // if order_id is present
-                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
+                    Some(order_id) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(order_id),
                     ),
                     // else used connector_transaction_id
                     None => api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -1908,14 +1918,25 @@ impl api::IncomingWebhook for Stripe {
                 )
             }
             stripe::WebhookEventObjectType::Refund => {
-                match details.event_data.event_object.metadata {
+                match details
+                    .event_data
+                    .event_object
+                    .metadata
+                    .clone()
+                    .and_then(|meta_data| meta_data.order_id)
+                {
                     // if meta_data is present
-                    Some(meta_data) => {
+                    Some(order_id) => {
                         // Issue: 2076
-                        match meta_data.is_refund_id_as_reference {
+                        match details
+                            .event_data
+                            .event_object
+                            .metadata
+                            .and_then(|meta_data| meta_data.is_refund_id_as_reference)
+                        {
                             // if the order_id is refund_id
                             Some(_) => api_models::webhooks::ObjectReferenceId::RefundId(
-                                api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
+                                api_models::webhooks::RefundIdType::RefundId(order_id),
                             ),
                             // if the order_id is payment_id
                             // since payment_id was being passed before the deployment of this pr
@@ -1955,6 +1976,9 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventType::PaymentIntentCanceled => {
                 api::IncomingWebhookEvent::PaymentIntentCancelled
+            }
+            stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated => {
+                api::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
             }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
@@ -2012,7 +2036,6 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargeRefunded
             | stripe::WebhookEventType::PaymentIntentCreated
             | stripe::WebhookEventType::PaymentIntentProcessing
-            | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
             | stripe::WebhookEventType::SourceTransactionCreated => {
                 api::IncomingWebhookEvent::EventNotSupported
             }

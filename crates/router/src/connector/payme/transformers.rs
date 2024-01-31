@@ -648,7 +648,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 let buyer_email = item.request.get_email()?;
@@ -755,7 +755,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                     credit_card_number: req_card.card_number,
                 };
                 Ok(Self {

@@ -2,7 +2,7 @@ use std::{net::IpAddr, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
-    GetMetaDataRequest, GetMultipleMetaDataPayload, SetMetaDataRequest,
+    GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
@@ -91,21 +91,12 @@ pub async fn get_merchant_scoped_metadata_from_db(
     org_id: String,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
-    match state
+    state
         .store
         .find_merchant_scoped_dashboard_metadata(&merchant_id, &org_id, metadata_keys)
         .await
-    {
-        Ok(data) => Ok(data),
-        Err(e) => {
-            if e.current_context().is_db_not_found() {
-                return Ok(Vec::with_capacity(0));
-            }
-            Err(e
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("DB Error Fetching DashboardMetaData"))
-        }
-    }
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("DB Error Fetching DashboardMetaData")
 }
 pub async fn get_user_scoped_metadata_from_db(
     state: &AppState,
@@ -284,4 +275,11 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
             .map_err(|_| UserErrors::InvalidMetadataRequest.into())
             .attach_printable("Error Parsing to DashboardMetadata enums")?,
     })
+}
+
+pub fn is_prod_email_required(data: &ProdIntent) -> bool {
+    !(data
+        .poc_email
+        .as_ref()
+        .map_or(true, |mail| mail.contains("juspay")))
 }

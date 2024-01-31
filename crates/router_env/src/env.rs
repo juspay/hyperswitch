@@ -167,3 +167,13 @@ macro_rules! profile {
         env!("CARGO_PROFILE")
     };
 }
+
+/// The latest git tag. If tags are not present in the repository, the short commit hash is used
+/// instead. Refer to the [`git describe`](https://git-scm.com/docs/git-describe) documentation for
+/// more details.
+#[macro_export]
+macro_rules! git_tag {
+    () => {
+        env!("VERGEN_GIT_DESCRIBE")
+    };
+}

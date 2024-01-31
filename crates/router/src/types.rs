@@ -19,8 +19,9 @@ use std::{collections::HashMap, marker::PhantomData};
 
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
-    payouts as payout_types,
+    mandates, payouts as payout_types,
 };
+use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
@@ -116,6 +117,11 @@ pub type SetupMandateType = dyn services::ConnectorIntegration<
     api::SetupMandate,
     SetupMandateRequestData,
     PaymentsResponseData,
+>;
+pub type MandateRevokeType = dyn services::ConnectorIntegration<
+    api::MandateRevoke,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
 >;
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
@@ -246,6 +252,9 @@ pub type RetrieveFileRouterData =
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
+pub type MandateRevokeRouterData =
+    RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
@@ -310,6 +319,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 
     pub frm_metadata: Option<serde_json::Value>,
+
+    pub dispute_id: Option<String>,
+    pub refund_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -373,8 +385,8 @@ pub struct PayoutsFulfillResponseData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
-    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)  
-    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately  
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```
     /// get_original_amount()
     /// get_surcharge_amount()
@@ -383,6 +395,7 @@ pub struct PaymentsAuthorizeData {
     /// ```
     pub amount: i64,
     pub email: Option<Email>,
+    pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -419,6 +432,8 @@ pub struct PaymentsCaptureData {
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Clone, Default)]
@@ -450,7 +465,7 @@ pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: payments::PaymentMethodData,
 }
@@ -479,6 +494,7 @@ pub struct PaymentsPreProcessingData {
     pub surcharge_details: Option<types::SurchargeDetails>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 }
 
 #[derive(Debug, Clone)]
@@ -499,6 +515,8 @@ pub struct CompleteAuthorizeData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+    pub complete_authorize_url: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -533,6 +551,8 @@ pub struct PaymentsCancelData {
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    // This metadata is used to store the metadata shared during the payment intent request.
 }
 
 #[derive(Debug, Default, Clone)]
@@ -570,9 +590,11 @@ pub struct SetupMandateRequestData {
     pub router_return_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_name: Option<Secret<String>>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -583,7 +605,17 @@ pub struct AccessTokenRequestData {
 }
 
 pub trait Capturable {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        None
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
     where
         F: Clone,
     {
@@ -592,7 +624,7 @@ pub trait Capturable {
 }
 
 impl Capturable for PaymentsAuthorizeData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
@@ -602,41 +634,171 @@ impl Capturable for PaymentsAuthorizeData {
             .map(|surcharge_details| surcharge_details.final_amount);
         final_amount.or(Some(self.amount))
     }
+
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        match payment_data
+            .payment_attempt
+            .capture_method
+            .unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Processing => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        }
+    }
 }
 
 impl Capturable for PaymentsCaptureData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount_to_capture)
     }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Processing => Some(0),
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
 }
 
 impl Capturable for CompleteAuthorizeData {
-    fn get_capture_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount)
     }
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        match payment_data
+            .payment_attempt
+            .capture_method
+            .unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded|
+                    common_enums::IntentStatus::Failed|
+                    common_enums::IntentStatus::Processing => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        }
+    }
 }
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsCancelData {
-    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         // return previously captured amount
         payment_data.payment_intent.amount_captured
     }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+        match intent_status {
+            common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        }
+    }
 }
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsIncrementalAuthorizationData {}
+impl Capturable for PaymentsIncrementalAuthorizationData {
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        _attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        Some(self.total_amount)
+    }
+}
 impl Capturable for PaymentsSyncData {
-    fn get_capture_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
@@ -644,6 +806,20 @@ impl Capturable for PaymentsSyncData {
             .payment_attempt
             .amount_to_capture
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+    }
+    fn get_amount_capturable<F>(
+        &self,
+        _payment_data: &PaymentData<F>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        if attempt_status.is_terminal_status() {
+            Some(0)
+        } else {
+            None
+        }
     }
 }
 
@@ -957,6 +1133,17 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
+#[derive(Debug, Clone)]
+pub struct MandateRevokeRequestData {
+    pub mandate_id: String,
+    pub connector_mandate_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MandateRevokeResponseData {
+    pub mandate_status: MandateStatus,
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -1161,19 +1348,6 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
-impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
-    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
-        Self {
-            email: data.request.email.to_owned(),
-            preprocessing_id: data.preprocessing_id.to_owned(),
-            payment_method_data: data.request.payment_method_data.to_owned(),
-            description: None,
-            phone: None,
-            name: None,
-        }
-    }
-}
-
 impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
     for PaymentMethodTokenizationData
 {
@@ -1230,6 +1404,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             router_return_url: data.request.router_return_url.clone(),
             email: data.request.email.clone(),
+            customer_name: data.request.customer_name.clone(),
             amount: 0,
             statement_descriptor: None,
             capture_method: None,
@@ -1295,6 +1470,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
             frm_metadata: data.frm_metadata.clone(),
+            dispute_id: data.dispute_id.clone(),
+            refund_id: data.refund_id.clone(),
         }
     }
 }
@@ -1351,6 +1528,8 @@ impl<F1, F2>
             external_latency: data.external_latency,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

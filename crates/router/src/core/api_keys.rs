@@ -2,8 +2,12 @@ use common_utils::date_time;
 #[cfg(feature = "email")]
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 #[cfg(feature = "kms")]
 use external_services::kms;
+#[cfg(not(feature = "kms"))]
+use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
@@ -35,19 +39,37 @@ static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_K
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
+            let hash_key = {
+                #[cfg(feature = "kms")]
+                {
+                    api_key_config.kms_encrypted_hash_key.clone()
+                }
+                #[cfg(not(feature = "kms"))]
+                {
+                    masking::Secret::<_, masking::WithType>::new(api_key_config.hash_key.clone())
+                }
+            };
+
+            #[cfg(feature = "hashicorp-vault")]
+            let hash_key = hash_key
+                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
             #[cfg(feature = "kms")]
-            let hash_key = api_key_config
-                .kms_encrypted_hash_key
+            let hash_key = hash_key
                 .decrypt_inner(kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt API key hashing key")?;
 
             #[cfg(not(feature = "kms"))]
-            let hash_key = &api_key_config.hash_key;
+            let hash_key = hash_key.expose();
 
             <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
                 hex::decode(hash_key)
@@ -132,6 +154,8 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     state: AppState,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
+    #[cfg(feature = "hashicorp-vault")]
+    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -153,6 +177,8 @@ pub async fn create_api_key(
         api_key_config,
         #[cfg(feature = "kms")]
         kms_client,
+        #[cfg(feature = "hashicorp-vault")]
+        hc_client,
     )
     .await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
@@ -270,6 +296,11 @@ pub async fn add_api_key_expiry_task(
                 api_key_expiry_tracker.key_id
             )
         })?;
+    metrics::TASKS_ADDED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("flow", "ApiKeyExpiry")],
+    );
 
     Ok(())
 }
@@ -560,6 +591,10 @@ mod tests {
             &settings.api_keys,
             #[cfg(feature = "kms")]
             external_services::kms::get_kms_client(&settings.kms).await,
+            #[cfg(feature = "hashicorp-vault")]
+            external_services::hashicorp_vault::get_hashicorp_client(&settings.hc_vault)
+                .await
+                .unwrap(),
         )
         .await
         .unwrap();

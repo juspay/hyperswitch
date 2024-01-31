@@ -46,6 +46,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
     > {
@@ -309,6 +310,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, Ctx>,
         Option<api::PaymentMethodData>,

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsRejectRequest};
+use api_models::{enums::FrmSuggestion, payments::PaymentsCancelRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive;
@@ -24,24 +24,25 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(operations = "all", flow = "reject")]
+#[operation(operations = "all", flow = "cancel")]
 pub struct PaymentReject;
 
 #[async_trait]
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
-    GetTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
+    GetTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        _request: &PaymentsRejectRequest,
+        _request: &PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRejectRequest, Ctx>> {
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -57,6 +58,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
+                enums::IntentStatus::Cancelled,
                 enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::Processing,
@@ -176,7 +178,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
 #[async_trait]
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
-    UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
+    UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -190,7 +192,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsRejectRequest, Ctx>,
+        BoxedOperation<'b, F, PaymentsCancelRequest, Ctx>,
         PaymentData<F>,
     )>
     where
@@ -242,16 +244,16 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsRejectRequest, Ctx>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsCancelRequest, Ctx>
     for PaymentReject
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &PaymentsRejectRequest,
+        request: &PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsRejectRequest, Ctx>,
+        BoxedOperation<'b, F, PaymentsCancelRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

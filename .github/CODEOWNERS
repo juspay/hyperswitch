@@ -23,6 +23,17 @@ postman/ @juspay/hyperswitch-framework
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
 
+crates/api_models/src/events/ @juspay/hyperswitch-analytics
+crates/api_models/src/events.rs @juspay/hyperswitch-analytics
+crates/api_models/src/analytics/ @juspay/hyperswitch-analytics
+crates/api_models/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/analytics.rs @juspay/hyperswitch-analytics
+crates/router/src/events/ @juspay/hyperswitch-analytics
+crates/router/src/events.rs @juspay/hyperswitch-analytics
+crates/common_utils/src/events/ @juspay/hyperswitch-analytics
+crates/common_utils/src/events.rs @juspay/hyperswitch-analytics
+crates/analytics/ @juspay/hyperswitch-analytics
+
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
 crates/router/tests/connectors/ @juspay/hyperswitch-connector
