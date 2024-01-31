@@ -2715,10 +2715,7 @@ fn get_redirect_extra_details(
                     country,
                     preferred_language,
                     ..
-                } => Ok((
-                    Some(preferred_language.to_string()),
-                    Some(country.to_owned()),
-                )),
+                } => Ok((preferred_language.clone(), *country)),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
                     let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "country",
