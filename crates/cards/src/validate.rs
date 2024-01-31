@@ -1,6 +1,8 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
 use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+#[cfg(not(target_arch = "wasm32"))]
+use router_env::logger;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -22,6 +24,13 @@ impl CardNumber {
     pub fn get_card_isin(self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
+
+    pub fn get_extended_card_bin(self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
+    }
+    pub fn get_card_no(self) -> String {
+        self.0.peek().chars().collect::<String>()
+    }
     pub fn get_last4(self) -> String {
         self.0
             .peek()
@@ -32,6 +41,9 @@ impl CardNumber {
             .chars()
             .rev()
             .collect::<String>()
+    }
+    pub fn get_card_extended_bin(self) -> String {
+        self.0.peek().chars().take(8).collect::<String>()
     }
 }
 
@@ -72,7 +84,7 @@ impl<'de> Deserialize<'de> for CardNumber {
     }
 }
 
-pub struct CardNumberStrategy;
+pub enum CardNumberStrategy {}
 
 impl<T> Strategy<T> for CardNumberStrategy
 where
@@ -85,7 +97,13 @@ where
             return WithType::fmt(val, f);
         }
 
-        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
+        if let Some(value) = val_str.get(..6) {
+            write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
+        } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            logger::error!("Invalid card number {val_str}");
+            WithType::fmt(val, f)
+        }
     }
 }
 

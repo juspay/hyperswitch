@@ -219,6 +219,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -292,10 +293,19 @@ fn get_card_token(
             let values = param.peek().split('&').collect::<Vec<&str>>();
             for value in values {
                 let pair = value.split('=').collect::<Vec<&str>>();
-                queries.insert(pair[0].to_string(), pair[1].to_string());
+                queries.insert(
+                    pair.first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                    pair.get(1)
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .to_string(),
+                );
             }
-            queries
+            Ok(queries)
         })
+        .transpose()
+        .into_report()?
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
@@ -306,8 +316,8 @@ fn get_card_token(
 
     Err(errors::ConnectorError::MissingRequiredField {
         field_name: "card_token",
-    })
-    .into_report()
+    }
+    .into())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -407,6 +417,7 @@ impl<F>
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -456,6 +467,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -505,6 +517,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })

@@ -7,21 +7,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub struct SurchargeDetails {
-    pub surcharge: Surcharge,
+pub struct SurchargeDetailsOutput {
+    pub surcharge: SurchargeOutput,
     pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
-pub enum Surcharge {
-    Fixed(i64),
+pub enum SurchargeOutput {
+    Fixed { amount: i64 },
     Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SurchargeDecisionConfigs {
-    pub surcharge_details: Option<SurchargeDetails>,
+    pub surcharge_details: Option<SurchargeDetailsOutput>,
 }
 impl EuclidDirFilter for SurchargeDecisionConfigs {
     const ALLOWED: &'static [DirKeyKind] = &[
@@ -30,7 +30,6 @@ impl EuclidDirFilter for SurchargeDecisionConfigs {
         DirKeyKind::PaymentAmount,
         DirKeyKind::PaymentCurrency,
         DirKeyKind::BillingCountry,
-        DirKeyKind::CardType,
         DirKeyKind::CardNetwork,
         DirKeyKind::PayLaterType,
         DirKeyKind::WalletType,

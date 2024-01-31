@@ -2,28 +2,27 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
+use common_enums::RoutableConnectors;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-use crate::{
-    enums::Connector,
-    types::{DataType, Metadata},
-};
+use crate::types::{DataType, Metadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
-    pub connector: Connector,
+    pub connector: RoutableConnectors,
     #[cfg(not(feature = "connector_choice_mca_id"))]
     pub sub_label: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MetadataValue {
     pub key: String,
     pub value: String,
 }
 
 /// Represents a value in the DSL
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum ValueType {
     /// Represents a number literal
@@ -62,7 +61,7 @@ impl ValueType {
 }
 
 /// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
@@ -70,7 +69,7 @@ pub struct NumberComparison {
 }
 
 /// Conditional comparison type
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ComparisonType {
     Equal,
@@ -82,7 +81,7 @@ pub enum ComparisonType {
 }
 
 /// Represents a single comparison condition.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparison {
     /// The left hand side which will always be a domain input identifier like "payment.method.cardtype"
@@ -94,6 +93,7 @@ pub struct Comparison {
     /// Additional metadata that the Static Analyzer and Backend does not touch.
     /// This can be used to store useful information for the frontend and is required for communication
     /// between the static analyzer and the frontend.
+    #[schema(value_type=HashMap<String, serde_json::Value>)]
     pub metadata: Metadata,
 }
 
@@ -114,9 +114,10 @@ pub type IfCondition = Vec<Comparison>;
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IfStatement {
+    #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
     pub nested: Option<Vec<IfStatement>>,
 }
@@ -136,8 +137,9 @@ pub struct IfStatement {
 /// }
 /// ```
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
 pub struct Rule<O> {
     pub name: String,
     #[serde(alias = "routingOutput")]
@@ -147,10 +149,43 @@ pub struct Rule<O> {
 
 /// The program, having a default connector selection and
 /// a bunch of rules. Also can hold arbitrary metadata.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
 pub struct Program<O> {
     pub default_selection: O,
+    #[schema(value_type=RuleConnectorSelection)]
     pub rules: Vec<Rule<O>>,
+    #[schema(value_type=HashMap<String, serde_json::Value>)]
     pub metadata: Metadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct RoutableConnectorChoice {
+    #[cfg(feature = "connector_choice_bcompat")]
+    #[serde(skip)]
+    pub choice_kind: RoutableChoiceKind,
+    #[cfg(feature = "connector_choice_mca_id")]
+    pub merchant_connector_id: Option<String>,
+    #[cfg(not(feature = "connector_choice_mca_id"))]
+    pub sub_label: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub enum RoutableChoiceKind {
+    OnlyConnector,
+    FullStruct,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ConnectorVolumeSplit {
+    pub connector: RoutableConnectorChoice,
+    pub split: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum ConnectorSelection {
+    Priority(Vec<RoutableConnectorChoice>),
+    VolumeSplit(Vec<ConnectorVolumeSplit>),
 }

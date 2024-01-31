@@ -9,7 +9,6 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
-use euclid::enums as dsl_enums;
 use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
@@ -174,25 +173,11 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
     }
 }
 
-impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
+impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
 
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
-            #[cfg(feature = "dummy_connector")]
-            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
             api_enums::Connector::Aci => Self::Aci,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Airwallex => Self::Airwallex,
@@ -227,6 +212,7 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
+            api_models::enums::Connector::Placetopay => Self::Placetopay,
             api_enums::Connector::Plaid => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "plaid is not a routable connector".to_string(),
@@ -243,6 +229,12 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
                 })
                 .into_report()?
             }
+            api_enums::Connector::Riskified => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "riskified is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
@@ -253,76 +245,21 @@ impl ForeignTryFrom<api_enums::Connector> for api_enums::RoutableConnectors {
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
         })
-    }
-}
-
-impl ForeignFrom<dsl_enums::Connector> for api_enums::RoutableConnectors {
-    fn foreign_from(from: dsl_enums::Connector) -> Self {
-        match from {
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector1 => Self::DummyConnector1,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector2 => Self::DummyConnector2,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector3 => Self::DummyConnector3,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector4 => Self::DummyConnector4,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector5 => Self::DummyConnector5,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector6 => Self::DummyConnector6,
-            #[cfg(feature = "dummy_connector")]
-            dsl_enums::Connector::DummyConnector7 => Self::DummyConnector7,
-            dsl_enums::Connector::Aci => Self::Aci,
-            dsl_enums::Connector::Adyen => Self::Adyen,
-            dsl_enums::Connector::Airwallex => Self::Airwallex,
-            dsl_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
-            dsl_enums::Connector::Bambora => Self::Bambora,
-            dsl_enums::Connector::Bankofamerica => Self::Bankofamerica,
-            dsl_enums::Connector::Bitpay => Self::Bitpay,
-            dsl_enums::Connector::Bluesnap => Self::Bluesnap,
-            dsl_enums::Connector::Boku => Self::Boku,
-            dsl_enums::Connector::Braintree => Self::Braintree,
-            dsl_enums::Connector::Cashtocode => Self::Cashtocode,
-            dsl_enums::Connector::Checkout => Self::Checkout,
-            dsl_enums::Connector::Coinbase => Self::Coinbase,
-            dsl_enums::Connector::Cryptopay => Self::Cryptopay,
-            dsl_enums::Connector::Cybersource => Self::Cybersource,
-            dsl_enums::Connector::Dlocal => Self::Dlocal,
-            dsl_enums::Connector::Fiserv => Self::Fiserv,
-            dsl_enums::Connector::Forte => Self::Forte,
-            dsl_enums::Connector::Globalpay => Self::Globalpay,
-            dsl_enums::Connector::Globepay => Self::Globepay,
-            dsl_enums::Connector::Gocardless => Self::Gocardless,
-            dsl_enums::Connector::Helcim => Self::Helcim,
-            dsl_enums::Connector::Iatapay => Self::Iatapay,
-            dsl_enums::Connector::Klarna => Self::Klarna,
-            dsl_enums::Connector::Mollie => Self::Mollie,
-            dsl_enums::Connector::Multisafepay => Self::Multisafepay,
-            dsl_enums::Connector::Nexinets => Self::Nexinets,
-            dsl_enums::Connector::Nmi => Self::Nmi,
-            dsl_enums::Connector::Noon => Self::Noon,
-            dsl_enums::Connector::Nuvei => Self::Nuvei,
-            dsl_enums::Connector::Opennode => Self::Opennode,
-            dsl_enums::Connector::Payme => Self::Payme,
-            dsl_enums::Connector::Paypal => Self::Paypal,
-            dsl_enums::Connector::Payu => Self::Payu,
-            dsl_enums::Connector::Powertranz => Self::Powertranz,
-            dsl_enums::Connector::Prophetpay => Self::Prophetpay,
-            dsl_enums::Connector::Rapyd => Self::Rapyd,
-            dsl_enums::Connector::Shift4 => Self::Shift4,
-            dsl_enums::Connector::Square => Self::Square,
-            dsl_enums::Connector::Stax => Self::Stax,
-            dsl_enums::Connector::Stripe => Self::Stripe,
-            dsl_enums::Connector::Trustpay => Self::Trustpay,
-            dsl_enums::Connector::Tsys => Self::Tsys,
-            dsl_enums::Connector::Volt => Self::Volt,
-            dsl_enums::Connector::Wise => Self::Wise,
-            dsl_enums::Connector::Worldline => Self::Worldline,
-            dsl_enums::Connector::Worldpay => Self::Worldpay,
-            dsl_enums::Connector::Zen => Self::Zen,
-        }
     }
 }
 
@@ -386,6 +323,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     data_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
+            update_mandate_id: d.update_mandate_id,
         }
     }
 }
@@ -415,11 +353,15 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::ActionRequired)
             }
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::PartiallyCaptured
+            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Some(storage_enums::EventType::PaymentCaptured)
+            }
+            api_enums::IntentStatus::RequiresCapture => {
+                Some(storage_enums::EventType::PaymentAuthorized)
+            }
             api_enums::IntentStatus::RequiresPaymentMethod
-            | api_enums::IntentStatus::RequiresConfirmation
-            | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+            | api_enums::IntentStatus::RequiresConfirmation => None,
         }
     }
 }
@@ -522,7 +464,8 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
         payment_method_data: api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Card(..)
+            | api_models::payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
             api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -754,6 +697,19 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
+impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationResponse {
+    fn foreign_from(authorization: storage::Authorization) -> Self {
+        Self {
+            authorization_id: authorization.authorization_id,
+            amount: authorization.amount,
+            status: authorization.status,
+            error_code: authorization.error_code,
+            error_message: authorization.error_message,
+            previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
@@ -816,7 +772,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                         .parse_value("FrmConfigs")
                         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                             field_name: "frm_configs".to_string(),
-                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                            expected_format: r#"[{ "gateway": "stripe", "payment_methods": [{ "payment_method": "card","payment_method_types": [{"payment_method_type": "credit","card_networks": ["Visa"],"flow": "pre","action": "cancel_txn"}]}]}]"#.to_string(),
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -992,19 +948,27 @@ impl
     }
 }
 
-impl ForeignFrom<(storage::PaymentLink, String)>
-    for api_models::payments::RetrievePaymentLinkResponse
+impl
+    ForeignFrom<(
+        storage::PaymentLink,
+        api_models::payments::PaymentLinkStatus,
+    )> for api_models::payments::RetrievePaymentLinkResponse
 {
-    fn foreign_from((payment_link_object, status): (storage::PaymentLink, String)) -> Self {
+    fn foreign_from(
+        (payment_link_config, status): (
+            storage::PaymentLink,
+            api_models::payments::PaymentLinkStatus,
+        ),
+    ) -> Self {
         Self {
-            payment_link_id: payment_link_object.payment_link_id,
-            merchant_id: payment_link_object.merchant_id,
-            link_to_pay: payment_link_object.link_to_pay,
-            amount: payment_link_object.amount,
-            created_at: payment_link_object.created_at,
-            link_expiry: payment_link_object.fulfilment_time,
-            description: payment_link_object.description,
-            currency: payment_link_object.currency,
+            payment_link_id: payment_link_config.payment_link_id,
+            merchant_id: payment_link_config.merchant_id,
+            link_to_pay: payment_link_config.link_to_pay,
+            amount: payment_link_config.amount,
+            created_at: payment_link_config.created_at,
+            expiry: payment_link_config.fulfilment_time,
+            description: payment_link_config.description,
+            currency: payment_link_config.currency,
             status,
         }
     }

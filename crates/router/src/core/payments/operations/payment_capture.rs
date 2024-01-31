@@ -41,6 +41,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -124,7 +125,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
@@ -215,6 +216,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -4,21 +4,19 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
     consts,
-    core::{
-        self,
-        errors::{self, CustomResult},
-    },
-    headers, logger, routes,
+    core::errors::{self, CustomResult},
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -30,7 +28,7 @@ use crate::{
         domain,
         transformers::ForeignFrom,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -174,7 +172,7 @@ impl
         &self,
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::from((
             req,
             types::PaymentsAuthorizeData::from(req),
@@ -187,12 +185,7 @@ impl
         ))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -205,7 +198,7 @@ impl
                 .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .body(types::SetupMandateType::get_request_body(
+                .set_body(types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -312,7 +305,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -320,12 +313,7 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -340,7 +328,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -408,71 +396,48 @@ impl
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
-        // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
-        // we rely on webhooks to obtain the payment status since there is no encoded data available.
-        // encoded_data only includes the redirect URL and is only relevant in redirection flows.
-        let encoded_value = req
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let encoded_data = req
             .request
             .encoded_data
             .clone()
-            .get_required_value("encoded_data");
+            .get_required_value("encoded_data")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let adyen_redirection_type = serde_urlencoded::from_str::<
+            transformers::AdyenRedirectRequestTypes,
+        >(encoded_data.as_str())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match encoded_value {
-            Ok(encoded_data) => {
-                let adyen_redirection_type = serde_urlencoded::from_str::<
-                    transformers::AdyenRedirectRequestTypes,
-                >(encoded_data.as_str())
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                let redirection_request = match adyen_redirection_type {
-                    adyen::AdyenRedirectRequestTypes::AdyenRedirection(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenRedirection(
-                                adyen::AdyenRedirection {
-                                    redirect_result: req.redirect_result,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                    adyen::AdyenRedirectRequestTypes::AdyenThreeDS(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenThreeDS(
-                                adyen::AdyenThreeDS {
-                                    three_ds_result: req.three_ds_result,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                    adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(
-                                adyen::AdyenRefusal {
-                                    payload: req.payload,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
-                };
-
-                let adyen_request = types::RequestBody::log_and_get_request_body(
-                    &redirection_request,
-                    utils::Encode::<adyen::AdyenRedirectRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                Ok(Some(adyen_request))
+        let connector_req = match adyen_redirection_type {
+            adyen::AdyenRedirectRequestTypes::AdyenRedirection(req) => {
+                adyen::AdyenRedirectRequest {
+                    details: adyen::AdyenRedirectRequestTypes::AdyenRedirection(
+                        adyen::AdyenRedirection {
+                            redirect_result: req.redirect_result,
+                            type_of_redirection_result: None,
+                            result_code: None,
+                        },
+                    ),
+                }
             }
-            Err(_) => Ok(None),
-        }
+            adyen::AdyenRedirectRequestTypes::AdyenThreeDS(req) => adyen::AdyenRedirectRequest {
+                details: adyen::AdyenRedirectRequestTypes::AdyenThreeDS(adyen::AdyenThreeDS {
+                    three_ds_result: req.three_ds_result,
+                    type_of_redirection_result: None,
+                    result_code: None,
+                }),
+            },
+            adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => adyen::AdyenRedirectRequest {
+                details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(adyen::AdyenRefusal {
+                    payload: req.payload,
+                    type_of_redirection_result: None,
+                    result_code: None,
+                }),
+            },
+        };
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn get_url(
@@ -492,20 +457,30 @@ impl
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request_body = self.get_request_body(req, connectors)?;
-        match request_body {
-            Some(_) => Ok(Some(
+        // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
+        // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
+        // we rely on webhooks to obtain the payment status since there is no encoded data available.
+        // encoded_data only includes the redirect URL and is only relevant in redirection flows.
+        if req
+            .request
+            .encoded_data
+            .clone()
+            .get_required_value("encoded_data")
+            .is_ok()
+        {
+            Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                    .body(types::PaymentsSyncType::get_request_body(
+                    .set_body(types::PaymentsSyncType::get_request_body(
                         self, req, connectors,
                     )?)
                     .build(),
-            )),
-            None => Ok(None),
+            ))
+        } else {
+            Ok(None)
         }
     }
 
@@ -560,7 +535,6 @@ impl
     }
 }
 
-#[async_trait::async_trait]
 impl
     services::ConnectorIntegration<
         api::Authorize,
@@ -568,49 +542,6 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match &router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::GiftCard(gift_card_data) => {
-                match gift_card_data.as_ref() {
-                    api_models::payments::GiftCardData::Givex(_) => {
-                        let integ: Box<
-                            &(dyn services::ConnectorIntegration<
-                                api::Balance,
-                                types::PaymentsAuthorizeData,
-                                types::PaymentsResponseData,
-                            > + Send
-                                  + Sync
-                                  + 'static),
-                        > = Box::new(&Self);
-
-                        let authorize_data = &types::PaymentsBalanceRouterData::from((
-                            &router_data.to_owned(),
-                            router_data.request.clone(),
-                        ));
-
-                        let resp = services::execute_connector_processing_step(
-                            app_state,
-                            integ,
-                            authorize_data,
-                            core::payments::CallConnectorAction::Trigger,
-                            None,
-                        )
-                        .await?;
-                        router_data.payment_method_balance = resp.payment_method_balance;
-
-                        Ok(())
-                    }
-                    _ => Ok(()),
-                }
-            }
-            _ => Ok(()),
-        }
-    }
-
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -646,7 +577,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -654,12 +585,7 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
-        let request_body = types::RequestBody::log_and_get_request_body(
-        &connector_req,
-        common_utils::ext_traits::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
-    )
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(request_body))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -667,7 +593,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -678,7 +603,7 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -725,28 +650,23 @@ impl
     }
 }
 
+impl api::PaymentsPreProcessing for Adyen {}
+
 impl
     services::ConnectorIntegration<
-        api::Balance,
-        types::PaymentsAuthorizeData,
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsBalanceRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError>
-    where
-        Self: services::ConnectorIntegration<
-            api::Balance,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsBalanceType::get_content_type(self)
+            types::PaymentsPreProcessingType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -757,7 +677,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsBalanceRouterData,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -768,33 +688,30 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsBalanceRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenBalanceRequest::try_from(req)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenBalanceRequest<'_>>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsBalanceRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsBalanceType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsBalanceType::get_headers(
+                .url(&types::PaymentsPreProcessingType::get_url(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsBalanceType::get_request_body(
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -803,19 +720,47 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::PaymentsBalanceRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsBalanceRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: adyen::AdyenBalanceResponse = res
             .response
             .parse_struct("AdyenBalanceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+
+        let currency = match data.request.currency {
+            Some(currency) => currency,
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?,
+        };
+        let amount = match data.request.amount {
+            Some(amount) => amount,
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?,
+        };
+
+        if response.balance.currency != currency || response.balance.value < amount {
+            Ok(types::RouterData {
+                response: Err(types::ErrorResponse {
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::LOW_BALANCE_ERROR_MESSAGE.to_string()),
+                    status_code: res.status_code,
+                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        }
     }
 
     fn get_error_response(
@@ -866,15 +811,10 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
         &self,
@@ -887,7 +827,7 @@ impl
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -980,14 +920,9 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         &self,
         req: &types::PayoutsRouterData<api::PoCancel>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutCancelRequest::try_from(req)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1000,7 +935,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCancelType::get_request_body(
+            .set_body(types::PayoutCancelType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1068,7 +1003,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.destination_currency,
@@ -1076,12 +1011,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutCreateRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutCreateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1094,7 +1024,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
-            .body(types::PayoutCreateType::get_request_body(
+            .set_body(types::PayoutCreateType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1163,7 +1093,7 @@ impl
         &self,
         req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.destination_currency,
@@ -1171,12 +1101,7 @@ impl
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutEligibilityRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1193,7 +1118,7 @@ impl
             .headers(types::PayoutEligibilityType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutEligibilityType::get_request_body(
+            .set_body(types::PayoutEligibilityType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1275,7 +1200,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.destination_currency,
@@ -1283,12 +1208,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             req,
         ))?;
         let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(&connector_router_data)?;
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenPayoutFulfillRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1303,7 +1223,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .headers(types::PayoutFulfillType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::PayoutFulfillType::get_request_body(
+            .set_body(types::PayoutFulfillType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -1376,7 +1296,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = adyen::AdyenRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -1385,12 +1305,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         ))?;
         let connector_req = adyen::AdyenRefundRequest::try_from(&connector_router_data)?;
 
-        let adyen_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<adyen::AdyenRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(adyen_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -1406,7 +1321,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::RefundExecuteType::get_request_body(
+                .set_body(types::RefundExecuteType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1634,7 +1549,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
-            currency: notif.amount.currency,
+            currency: notif.amount.currency.to_string(),
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,
             connector_reason: notif.reason,
@@ -1644,29 +1559,5 @@ impl api::IncomingWebhook for Adyen {
             created_at: notif.event_date,
             updated_at: notif.event_date,
         })
-    }
-}
-
-pub fn check_for_payment_method_balance(
-    req: &types::PaymentsAuthorizeRouterData,
-) -> CustomResult<(), errors::ConnectorError> {
-    match &req.request.payment_method_data {
-        api_models::payments::PaymentMethodData::GiftCard(gift_card) => match gift_card.as_ref() {
-            api_models::payments::GiftCardData::Givex(_) => {
-                let payment_method_balance = req
-                    .payment_method_balance
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                if payment_method_balance.currency != req.request.currency.to_string()
-                    || payment_method_balance.amount < req.request.amount
-                {
-                    Err(errors::ConnectorError::InSufficientBalanceInPaymentMethod.into())
-                } else {
-                    Ok(())
-                }
-            }
-            _ => Ok(()),
-        },
-        _ => Ok(()),
     }
 }

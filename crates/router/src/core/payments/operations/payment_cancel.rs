@@ -42,6 +42,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -102,7 +103,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         .await?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let amount = payment_attempt.amount.into();
+        let amount = payment_attempt.get_total_amount().into();
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
@@ -171,6 +172,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -212,6 +216,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
+                    incremental_authorization_allowed: None,
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

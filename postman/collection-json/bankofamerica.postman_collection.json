@@ -2391,9 +2391,9 @@
                           "// Response body should have value \"processing\" for \"status\" because payment gets succeeded after one day.",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -2431,7 +2431,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":1,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"24\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"24\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2518,9 +2518,9 @@
                           "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -2682,7 +2682,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":1,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"24\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"24\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2792,9 +2792,9 @@
                           "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -2957,9 +2957,9 @@
                           "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -3221,9 +3221,9 @@
                           "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments:id/confirm - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -3377,9 +3377,9 @@
                           "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments:id - Content check if value for 'status' matches 'succeeded'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                           "    },",
                           "  );",
                           "}",
@@ -3532,7 +3532,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"manual\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":1,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"3566111111111113\",\"card_exp_month\":\"12\",\"card_exp_year\":\"30\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"business_country\":\"US\",\"business_label\":\"default\",\"capture_method\":\"manual\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"bernard123\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"on_session\",\"payment_method\":\"card\",\"payment_method_type\":\"debit\",\"payment_method_data\":{\"card\":{\"card_number\":\"3566111111111113\",\"card_exp_month\":\"12\",\"card_exp_year\":\"30\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"sundari\",\"last_name\":\"sundari\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -3619,12 +3619,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"processing\" for \"status\"",
+                          "// Response body should have value \"partially_captured\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]:://payments/:id/capture - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]:://payments/:id/capture - Content check if value for 'status' matches 'partially_captured'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"partially_captured\");",
                           "    },",
                           "  );",
                           "}",
@@ -3766,12 +3766,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"processing\" for \"status\"",
+                          "// Response body should have value \"partially_captured\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'partially_captured'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
+                          "      pm.expect(jsonData.status).to.eql(\"partially_captured\");",
                           "    },",
                           "  );",
                           "}",

@@ -138,7 +138,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
                 )
@@ -254,6 +255,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -271,6 +273,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -294,11 +297,11 @@ fn build_error_response<T>(
 
     get_error_response(
         response
-            .get(0)
+            .first()
             .and_then(|err_details| err_details.extensions.as_ref())
             .and_then(|extensions| extensions.legacy_code.clone()),
         response
-            .get(0)
+            .first()
             .map(|err_details| err_details.message.clone()),
         reason,
         http_code,
@@ -434,6 +437,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -451,6 +455,7 @@ impl<F>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             }),
@@ -494,6 +499,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -538,6 +544,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -860,7 +867,9 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_year: card_data.card_exp_year,
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
-                        cardholder_name: card_data.card_holder_name,
+                        cardholder_name: card_data
+                            .card_holder_name
+                            .unwrap_or(Secret::new("".to_string())),
                     },
                 };
                 Ok(Self {
@@ -879,12 +888,11 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("braintree"),
+            )
+            .into()),
         }
     }
 }
@@ -1061,6 +1069,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1158,6 +1167,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1255,6 +1265,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
                     }),
                     ..item.data
                 })
@@ -1423,9 +1434,10 @@ fn get_braintree_redirect_form(
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("given payment method".to_owned()),
-            )?,
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                "given payment method".to_owned(),
+            ))?,
         },
     })
 }

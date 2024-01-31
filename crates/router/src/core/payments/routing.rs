@@ -523,8 +523,10 @@ pub async fn refresh_kgraph_cache(
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
-    merchant_connector_accounts
-        .retain(|mca| mca.connector_type != storage_enums::ConnectorType::PaymentVas);
+    merchant_connector_accounts.retain(|mca| {
+        mca.connector_type != storage_enums::ConnectorType::PaymentVas
+            && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
+    });
 
     #[cfg(feature = "business_profile_routing")]
     let merchant_connector_accounts = payments_oss::helpers::filter_mca_based_on_business_profile(

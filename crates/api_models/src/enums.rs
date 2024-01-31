@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 pub use common_enums::*;
 use utoipa::ToSchema;
 
@@ -11,11 +13,9 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    ToSchema,
 )]
 
 /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-#[schema(example = "custom")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithm {
@@ -25,6 +25,7 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
+/// A connector is an integration to fulfill payments
 #[derive(
     Clone,
     Copy,
@@ -107,6 +108,7 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
+    Placetopay,
     Powertranz,
     Prophetpay,
     Rapyd,
@@ -124,6 +126,7 @@ pub enum Connector {
     Zen,
     Signifyd,
     Plaid,
+    Riskified,
 }
 
 impl Connector {
@@ -145,104 +148,6 @@ impl Connector {
     pub fn requires_defend_dispute(&self) -> bool {
         matches!(self, Self::Checkout)
     }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::EnumVariantNames,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RoutableConnectors {
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "phonypay")]
-    #[strum(serialize = "phonypay")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "fauxpay")]
-    #[strum(serialize = "fauxpay")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "pretendpay")]
-    #[strum(serialize = "pretendpay")]
-    DummyConnector3,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "stripe_test")]
-    #[strum(serialize = "stripe_test")]
-    DummyConnector4,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "adyen_test")]
-    #[strum(serialize = "adyen_test")]
-    DummyConnector5,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "checkout_test")]
-    #[strum(serialize = "checkout_test")]
-    DummyConnector6,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "paypal_test")]
-    #[strum(serialize = "paypal_test")]
-    DummyConnector7,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bankofamerica,
-    Bitpay,
-    Bambora,
-    Bluesnap,
-    Boku,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Dlocal,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Globepay,
-    Gocardless,
-    Helcim,
-    Iatapay,
-    Klarna,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nmi,
-    Noon,
-    Nuvei,
-    // Opayo, added as template code for future usage
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Payme,
-    Paypal,
-    Payu,
-    Powertranz,
-    Prophetpay,
-    Rapyd,
-    Shift4,
-    Square,
-    Stax,
-    Stripe,
-    Trustpay,
-    // Tsys,
-    Tsys,
-    Volt,
-    Wise,
-    Worldline,
-    Worldpay,
-    Zen,
 }
 
 #[cfg(feature = "payouts")]
@@ -272,6 +177,38 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Wise => Self::Wise,
+        }
+    }
+}
+
+#[cfg(feature = "frm")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectors {
+    /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
+    Signifyd,
+    Riskified,
+}
+
+#[cfg(feature = "frm")]
+impl From<FrmConnectors> for RoutableConnectors {
+    fn from(value: FrmConnectors) -> Self {
+        match value {
+            FrmConnectors::Signifyd => Self::Signifyd,
+            FrmConnectors::Riskified => Self::Riskified,
         }
     }
 }
@@ -567,4 +504,27 @@ pub enum RetryAction {
 pub enum LockerChoice {
     Basilisk,
     Tartarus,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PmAuthConnectors {
+    Plaid,
+}
+
+pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
+    PmAuthConnectors::from_str(connector_name).ok()
 }

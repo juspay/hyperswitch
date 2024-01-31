@@ -27,6 +27,8 @@ pub enum Derives {
     Verify,
     Session,
     SessionData,
+    IncrementalAuthorization,
+    IncrementalAuthorizationData,
 }
 
 impl Derives {
@@ -95,6 +97,12 @@ impl Conversion {
             }
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
+            Derives::IncrementalAuthorization => {
+                syn::Ident::new("PaymentsIncrementalAuthorizationRequest", Span::call_site())
+            }
+            Derives::IncrementalAuthorizationData => {
+                syn::Ident::new("PaymentsIncrementalAuthorizationData", Span::call_site())
+            }
         }
     }
 
@@ -414,6 +422,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
                     CompleteAuthorizeData,
+                    PaymentsIncrementalAuthorizationData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -424,7 +433,8 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsRequest,
                         PaymentsStartRequest,
                         PaymentsSessionRequest,
-                        VerifyRequest
+                        VerifyRequest,
+                        PaymentsIncrementalAuthorizationRequest
                     }
                 };
                 #trait_derive

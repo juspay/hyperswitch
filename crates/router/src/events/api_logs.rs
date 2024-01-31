@@ -24,6 +24,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
+    merchant_id: Option<String>,
     api_flow: String,
     created_at_timestamp: i128,
     request_id: String,
@@ -31,20 +32,22 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
-    request: serde_json::Value,
+    request: String,
     user_agent: Option<String>,
     ip_addr: Option<String>,
     url_path: String,
-    response: Option<serde_json::Value>,
+    response: Option<String>,
     error: Option<serde_json::Value>,
     #[serde(flatten)]
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
+    http_method: String,
 }
 
 impl ApiEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        merchant_id: Option<String>,
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
         latency: u128,
@@ -56,15 +59,17 @@ impl ApiEvent {
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
+        http_method: &http::Method,
     ) -> Self {
         Self {
+            merchant_id,
             api_flow: api_flow.to_string(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id.as_hyphenated().to_string(),
             latency,
             status_code,
-            request,
-            response,
+            request: request.to_string(),
+            response: response.map(|resp| resp.to_string()),
             auth_type,
             error,
             ip_addr: http_req
@@ -78,6 +83,7 @@ impl ApiEvent {
             url_path: http_req.path().to_string(),
             event_type,
             hs_latency,
+            http_method: http_method.to_string(),
         }
     }
 }
@@ -108,9 +114,7 @@ impl_misc_api_event_type!(
     CreateFileRequest,
     FileId,
     AttachEvidenceRequest,
-    DisputeId,
     PaymentLinkFormData,
-    PaymentsRedirectResponseData,
     ConfigUpdate
 );
 
@@ -125,3 +129,23 @@ impl_misc_api_event_type!(
     DummyConnectorRefundResponse,
     DummyConnectorRefundRequest
 );
+
+impl ApiEventMetric for PaymentsRedirectResponseData {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentRedirectionResponse {
+            connector: self.connector.clone(),
+            payment_id: match &self.resource_id {
+                api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
+                _ => None,
+            },
+        })
+    }
+}
+
+impl ApiEventMetric for DisputeId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Dispute {
+            dispute_id: self.dispute_id.clone(),
+        })
+    }
+}

@@ -69,6 +69,7 @@ mod storage {
     use super::{ReverseLookupInterface, Store};
     use crate::{
         connection,
+        core::errors::utils::RedisErrorExt,
         errors::{self, CustomResult},
         types::storage::{
             enums, kv,
@@ -109,7 +110,7 @@ mod storage {
                         format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     )
                     .await
-                    .change_context(errors::StorageError::KVError)?
+                    .map_err(|err| err.to_redis_failed_response(&created_rev_lookup.lookup_id))?
                     .try_into_setnx()
                     {
                         Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),

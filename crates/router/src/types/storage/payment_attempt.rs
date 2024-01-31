@@ -7,7 +7,6 @@ use error_stack::ResultExt;
 use crate::{
     core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
 };
-
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
@@ -134,9 +133,7 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-
         let api_client = Box::new(services::MockApiClient);
-
         let state =
             routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
 
@@ -187,7 +184,6 @@ mod tests {
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
         let api_client = Box::new(services::MockApiClient);
-
         let state =
             routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
         let current_time = common_utils::date_time::now();

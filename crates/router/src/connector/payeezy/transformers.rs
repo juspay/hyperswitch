@@ -241,9 +241,12 @@ fn get_payment_method_data(
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
-                cardholder_name: card.card_holder_name.clone(),
+                cardholder_name: card
+                    .card_holder_name
+                    .clone()
+                    .unwrap_or(Secret::new("".to_string())),
                 card_number: card.card_number.clone(),
-                exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                 cvv: card.card_cvc.clone(),
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
@@ -260,7 +263,8 @@ fn get_payment_method_data(
         | api::PaymentMethodData::Reward
         | api::PaymentMethodData::Upi(_)
         | api::PaymentMethodData::Voucher(_)
-        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+        | api::PaymentMethodData::GiftCard(_)
+        | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Payeezy"),
         ))?,
     }
@@ -439,6 +443,7 @@ impl<F, T>
                         .reference
                         .unwrap_or(item.response.transaction_id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

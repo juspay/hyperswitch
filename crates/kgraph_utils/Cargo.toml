@@ -11,12 +11,13 @@ connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connect
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking/" }
 
 # Third party crates
-serde = "1.0.163"
-serde_json = "1.0.96"
+serde = "1.0.193"
+serde_json = "1.0.108"
 thiserror = "1.0.43"
 
 [dev-dependencies]

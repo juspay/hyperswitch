@@ -42,6 +42,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, Ctx>> {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
@@ -66,17 +67,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "update",
         )?;
 
-        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-            payment_intent.payment_link_id.clone(),
-            merchant_account.intent_fulfillment_time,
-            db,
-        )
-        .await?;
-
         helpers::authenticate_client_secret(
             payment_intent.client_secret.as_ref(),
             &payment_intent,
-            intent_fulfillment_time,
         )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -89,7 +82,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
@@ -169,6 +162,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -283,6 +279,7 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
@@ -294,7 +291,14 @@ where
             .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
-            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+            helpers::make_pm_data(
+                Box::new(self),
+                state,
+                payment_data,
+                merchant_key_store,
+                customer,
+            )
+            .await
         } else {
             Ok((Box::new(self), None))
         }
