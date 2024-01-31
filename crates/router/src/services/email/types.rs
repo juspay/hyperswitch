@@ -303,8 +303,8 @@ pub struct BizEmailProd {
 }
 
 impl BizEmailProd {
-    pub fn new(state: &AppState, data: ProdIntent) -> UserResult<BizEmailProd> {
-        Ok(BizEmailProd {
+    pub fn new(state: &AppState, data: ProdIntent) -> UserResult<Self> {
+        Ok(Self {
             recipient_email: (domain::UserEmail::new(
                 consts::user::BUSINESS_EMAIL.to_string().into(),
             ))?,

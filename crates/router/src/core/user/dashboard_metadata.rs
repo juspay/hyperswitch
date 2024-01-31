@@ -451,7 +451,7 @@ async fn insert_metadata(
             #[cfg(feature = "email")]
             {
                 if utils::is_prod_email_required(&data) {
-                    let email_contents = email_types::BizEmailProd::new(&state, data)?;
+                    let email_contents = email_types::BizEmailProd::new(state, data)?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
