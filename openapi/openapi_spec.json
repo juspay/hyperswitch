@@ -7738,7 +7738,7 @@
         "properties": {
           "expires_at": {
             "type": "string",
-            "example": "2023-07-26T17:33:00-07-21"
+            "example": "1706090247"
           },
           "reference": {
             "type": "string",
