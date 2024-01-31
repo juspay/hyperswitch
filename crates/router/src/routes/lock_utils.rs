@@ -11,6 +11,7 @@ pub enum ApiIdentifier {
     Configs,
     Customers,
     Ephemeral,
+    Health,
     Mandates,
     PaymentMethods,
     PaymentMethodAuth,
@@ -83,6 +84,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
 
+            Flow::DeepHealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
@@ -164,6 +166,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserSignUp
             | Flow::UserSignInWithoutInviteChecks
             | Flow::UserSignIn
+            | Flow::Signout
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
             | Flow::GetMutltipleDashboardMetadata

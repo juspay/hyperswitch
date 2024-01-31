@@ -116,6 +116,20 @@ pub async fn user_connect_account(
     .await
 }
 
+pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::Signout;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user, _| user_core::signout(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn change_password(
     state: web::Data<AppState>,
     http_req: HttpRequest,
