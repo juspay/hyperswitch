@@ -4,6 +4,7 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::logger;
 
+use super::errors::StorageErrorExt;
 use crate::{
     core::errors::{UserErrors, UserResponse},
     routes::AppState,
@@ -15,8 +16,6 @@ use crate::{
     types::domain,
     utils,
 };
-
-use super::errors::StorageErrorExt;
 
 pub async fn get_authorization_info(
     _state: AppState,
