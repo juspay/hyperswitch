@@ -352,6 +352,7 @@ bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi = { payment_method = "card" }
+payme = {payment_method = "card" }
 
 [dummy_connector]
 enabled = true                                  # Whether dummy connector is enabled or not
@@ -374,13 +375,14 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen,cybersource" } # Mandate supported payment method type and connector for card
-wallet.paypal = { connector_list = "adyen" }                  # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }               # Mandate supported payment method type and connector for pay_later
-bank_debit.ach = { connector_list = "gocardless" }            # Mandate supported payment method type and connector for bank_debit
-bank_debit.becs = { connector_list = "gocardless" }           # Mandate supported payment method type and connector for bank_debit
-bank_debit.sepa = { connector_list = "gocardless" }           # Mandate supported payment method type and connector for bank_debit
-bank_redirect.ideal = { connector_list = "stripe,adyen" }     # Mandate supported payment method type and connector for bank_redirect
+card.credit = { connector_list = "stripe,adyen,cybersource" }   # Mandate supported payment method type and connector for card
+wallet.paypal = { connector_list = "adyen" }        # Mandate supported payment method type and connector for wallets
+pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 
 
 # Required fields info used while listing the payment_method_data
@@ -415,7 +417,7 @@ alfamart = { country = "ID", currency = "IDR" }
 indomaret = { country = "ID", currency = "IDR" }
 open_banking_uk = { country = "GB", currency = "GBP" }
 oxxo = { country = "MX", currency = "MXN" }
-pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
+pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
 seven_eleven = { country = "JP", currency = "JPY" }
 lawson = { country = "JP", currency = "JPY" }
 mini_stop = { country = "JP", currency = "JPY" }
@@ -452,7 +454,7 @@ connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]
-adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
@@ -535,3 +537,11 @@ refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
 api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+
+# File storage configuration
+[file_storage]
+file_storage_backend = "aws_s3"            # File storage backend to be used
+
+[file_storage.aws_s3]
+region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
+bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage

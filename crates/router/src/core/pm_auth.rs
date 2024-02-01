@@ -375,9 +375,6 @@ async fn store_bank_details_in_payment_methods(
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    #[cfg(not(feature = "aws_kms"))]
-    let pm_auth_key = pm_auth_key;
-
     let mut update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)> =
         Vec::new();
     let mut new_entries: Vec<storage::PaymentMethodNew> = Vec::new();

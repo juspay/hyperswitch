@@ -9,6 +9,7 @@ pub mod email;
 #[cfg(feature = "aws_kms")]
 pub mod aws_kms;
 
+pub mod file_storage;
 #[cfg(feature = "hashicorp-vault")]
 pub mod hashicorp_vault;
 
