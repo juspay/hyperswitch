@@ -711,7 +711,7 @@ pub async fn resend_invite(
     state: AppState,
     user_from_token: auth::UserFromToken,
     request: user_api::ReInviteUserRequest,
-) -> UserResponse<user_api::InviteUserResponse> {
+) -> UserResponse<()> {
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
         .store
@@ -751,20 +751,15 @@ pub async fn resend_invite(
         subject: "You have been invited to join Hyperswitch Community!",
         merchant_id: user_from_token.merchant_id,
     };
-    let send_email_result = state
+    state
         .email_client
         .compose_and_send_email(
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
-        .await;
-    router_env::logger::info!(?send_email_result);
-    let is_email_sent = send_email_result.is_ok();
+        .await.change_context(UserErrors::InternalServerError)?;
 
-    Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-        is_email_sent,
-        password: None,
-    }))
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn create_internal_user(
