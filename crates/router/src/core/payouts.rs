@@ -30,11 +30,12 @@ use crate::{
 #[derive(Clone)]
 pub struct PayoutData {
     pub billing_address: Option<domain::Address>,
+    pub business_profile: storage::BusinessProfile,
     pub customer_details: Option<domain::Customer>,
+    pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
-    pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
     pub profile_id: String,
 }
 
@@ -43,13 +44,22 @@ pub struct PayoutData {
 pub async fn get_connector_data(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    routed_through: Option<String>,
+    key_store: &domain::MerchantKeyStore,
+    connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
+    payout_data: &mut PayoutData,
+    eligible_connectors: Option<Vec<api_models::enums::Connector>>,
 ) -> RouterResult<api::ConnectorData> {
-    use crate::types::storage::PaymentRoutingInfo;
+    use crate::types::{storage::PaymentRoutingInfo, transformers::ForeignTryInto};
 
+    let eligible_routable_connectors = eligible_connectors.map(|connectors| {
+        connectors
+            .into_iter()
+            .flat_map(|c| c.foreign_try_into())
+            .collect()
+    });
     let mut routing_data = storage::RoutingData {
-        routed_through,
+        routed_through: connector,
         #[cfg(feature = "connector_choice_mca_id")]
         merchant_connector_id: None,
         #[cfg(not(feature = "connector_choice_mca_id"))]
@@ -76,13 +86,26 @@ pub async fn get_connector_data(
             helpers::decide_payout_connector(
                 state,
                 merchant_account,
+                key_store,
                 request_straight_through,
                 &mut routing_data,
-            )?
+                payout_data,
+                eligible_routable_connectors,
+            )
+            .await?
         }
 
         api::ConnectorChoice::Decide => {
-            helpers::decide_payout_connector(state, merchant_account, None, &mut routing_data)?
+            helpers::decide_payout_connector(
+                state,
+                merchant_account,
+                key_store,
+                None,
+                &mut routing_data,
+                payout_data,
+                eligible_routable_connectors,
+            )
+            .await?
         }
     };
     let connector_data = match connector_details {
@@ -115,17 +138,6 @@ pub async fn payouts_create_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // Form connector data
-    let connector_data = get_connector_data(
-        &state,
-        &merchant_account,
-        req.connector
-            .clone()
-            .and_then(|c| c.first().map(|c| c.to_string())),
-        req.routing.clone(),
-    )
-    .await?;
-
     // Validate create request
     let (payout_id, payout_method_data, profile_id) =
         validator::validate_create_request(&state, &merchant_account, &req, &key_store).await?;
@@ -138,8 +150,22 @@ pub async fn payouts_create_core(
         &req,
         &payout_id,
         &profile_id,
-        &connector_data.connector_name,
         payout_method_data.as_ref(),
+    )
+    .await?;
+
+    // Form connector data
+    let eligible_connectors = req.connector.clone();
+    let connector_data = get_connector_data(
+        &state,
+        &merchant_account,
+        &key_store,
+        req.connector
+            .clone()
+            .and_then(|c| c.first().map(|c| c.to_string())),
+        req.routing.clone(),
+        &mut payout_data,
+        eligible_connectors,
     )
     .await?;
 
@@ -243,12 +269,18 @@ pub async fn payouts_update_core(
         }
     }
 
+    let connector = &payout_data
+        .payout_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")?;
+
     // Form connector data
     let connector_data: api::ConnectorData = api::ConnectorData::get_payout_connector_by_name(
         &state.conf.connectors,
-        &payout_data.payout_attempt.connector,
+        connector,
         api::GetToken::Connector,
-        None,
+        payout_data.payout_attempt.merchant_connector_id.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
@@ -345,7 +377,10 @@ pub async fn payouts_cancel_core(
         let connector_data = get_connector_data(
             &state,
             &merchant_account,
-            Some(payout_attempt.connector),
+            &key_store,
+            payout_attempt.connector,
+            None,
+            &mut payout_data,
             None,
         )
         .await?;
@@ -406,7 +441,10 @@ pub async fn payouts_fulfill_core(
     let connector_data = get_connector_data(
         &state,
         &merchant_account,
-        Some(payout_attempt.connector.clone()),
+        &key_store,
+        payout_attempt.connector,
+        None,
+        &mut payout_data,
         None,
     )
     .await?;
@@ -1106,7 +1144,7 @@ pub async fn response_handler(
         merchant_id: merchant_account.merchant_id.to_owned(),
         amount: payouts.amount.to_owned(),
         currency: payouts.destination_currency.to_owned(),
-        connector: Some(payout_attempt.connector.to_owned()),
+        connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
         billing: address,
         customer_id,
@@ -1141,7 +1179,6 @@ pub async fn payout_create_db_entries(
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
     profile_id: &String,
-    connector_name: &api_enums::Connector,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
@@ -1249,7 +1286,6 @@ pub async fn payout_create_db_entries(
         .set_customer_id(customer_id.to_owned())
         .set_merchant_id(merchant_id.to_owned())
         .set_address_id(address_id.to_owned())
-        .set_connector(connector_name.to_string())
         .set_status(status)
         .set_business_country(req.business_country.to_owned())
         .set_business_label(req.business_label.to_owned())
@@ -1266,10 +1302,16 @@ pub async fn payout_create_db_entries(
         })
         .attach_printable("Error inserting payout_attempt in db")?;
 
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile =
+        validate_and_get_business_profile(state, profile_id, merchant_id).await?;
+
     // Make PayoutData
     Ok(PayoutData {
         billing_address,
+        business_profile,
         customer_details: customer,
+        merchant_connector_account: None,
         payouts,
         payout_attempt,
         payout_method_data: req
@@ -1277,7 +1319,6 @@ pub async fn payout_create_db_entries(
             .as_ref()
             .cloned()
             .or(stored_payout_method_data.cloned()),
-        merchant_connector_account: None,
         profile_id: profile_id.to_owned(),
     })
 }
@@ -1330,8 +1371,13 @@ pub async fn make_payout_data(
 
     let profile_id = payout_attempt.profile_id.clone();
 
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile =
+        validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
+
     Ok(PayoutData {
         billing_address,
+        business_profile,
         customer_details,
         payouts,
         payout_attempt,
@@ -1339,4 +1385,23 @@ pub async fn make_payout_data(
         merchant_connector_account: None,
         profile_id,
     })
+}
+
+async fn validate_and_get_business_profile(
+    state: &AppState,
+    profile_id: &String,
+    merchant_id: &str,
+) -> RouterResult<storage::BusinessProfile> {
+    let db = &*state.store;
+    if let Some(business_profile) =
+        core_utils::validate_and_get_business_profile(db, Some(profile_id), merchant_id).await?
+    {
+        Ok(business_profile)
+    } else {
+        db.find_business_profile_by_profile_id(profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_string(),
+            })
+    }
 }

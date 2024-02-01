@@ -859,6 +859,19 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
+                api_models::payouts::Bank::Ach(_) => Self::Ach,
+                api_models::payouts::Bank::Bacs(_) => Self::Bacs,
+                api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+            },
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {

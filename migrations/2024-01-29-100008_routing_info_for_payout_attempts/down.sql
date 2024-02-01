@@ -11,3 +11,5 @@ ALTER COLUMN
 
 ALTER TABLE
   payout_attempt DROP COLUMN straight_through_algorithm;
+
+-- TODO: FIX THIS

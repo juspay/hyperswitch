@@ -36,7 +36,8 @@ use rustc_hash::FxHashMap;
 use crate::utils::StringExt;
 use crate::{
     core::{
-        errors as oss_errors, errors, payments as payments_oss, routing::helpers as routing_helpers,
+        errors, errors as oss_errors, payments as payments_oss, payouts,
+        routing::{self, helpers as routing_helpers},
     },
     logger,
     types::{
@@ -93,6 +94,64 @@ impl Default for MerchantAccountRoutingAlgorithm {
     fn default() -> Self {
         Self::V1(routing_types::RoutingAlgorithmRef::default())
     }
+}
+
+#[cfg(feature = "payouts")]
+pub fn make_dsl_input_for_payouts(
+    payout_data: &payouts::PayoutData,
+) -> RoutingResult<dsl_inputs::BackendInput> {
+    use crate::types::transformers::ForeignFrom;
+    let mandate = dsl_inputs::MandateData {
+        mandate_acceptance_type: None,
+        mandate_type: None,
+        payment_type: None,
+    };
+    let metadata = payout_data
+        .payouts
+        .metadata
+        .clone()
+        .map(|val| val.parse_value("routing_parameters"))
+        .transpose()
+        .change_context(errors::RoutingError::MetadataParsingError)
+        .attach_printable("Unable to parse routing_parameters from metadata of payouts")
+        .unwrap_or_else(|err| {
+            logger::error!(error=?err);
+            None
+        });
+    let payment = dsl_inputs::PaymentInput {
+        amount: payout_data.payouts.amount,
+        card_bin: None,
+        currency: payout_data.payouts.destination_currency,
+        authentication_type: None,
+        capture_method: None,
+        business_country: payout_data
+            .payout_attempt
+            .business_country
+            .map(api_enums::Country::from_alpha2),
+        billing_country: payout_data
+            .billing_address
+            .as_ref()
+            .and_then(|bic| bic.country)
+            .map(api_enums::Country::from_alpha2),
+        business_label: payout_data.payout_attempt.business_label.clone(),
+        setup_future_usage: None,
+    };
+    let payment_method = dsl_inputs::PaymentMethodInput {
+        payment_method: Some(api_enums::PaymentMethod::foreign_from(
+            payout_data.payouts.payout_type,
+        )),
+        payment_method_type: payout_data
+            .payout_method_data
+            .clone()
+            .map(api_enums::PaymentMethodType::foreign_from),
+        card_network: None,
+    };
+    Ok(dsl_inputs::BackendInput {
+        mandate,
+        metadata,
+        payment,
+        payment_method,
+    })
 }
 
 pub fn make_dsl_input<F>(
@@ -206,8 +265,22 @@ pub async fn perform_static_routing_v1<F: Clone>(
     state: &AppState,
     merchant_id: &str,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
-    payment_data: &mut payments_oss::PaymentData<F>,
+    operation_data: &routing::OperationData<F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    #[cfg(any(
+        feature = "profile_specific_fallback_routing",
+        feature = "business_profile_routing"
+    ))]
+    let profile_id = match operation_data {
+        routing::OperationData::Payment(payment_data) => payment_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::RoutingError::ProfileIdMissing)?,
+        #[cfg(feature = "payouts")]
+        routing::OperationData::Payout(payout_data) => &payout_data.payout_attempt.profile_id,
+    };
     let algorithm_id = if let Some(id) = algorithm_ref.algorithm_id {
         id
     } else {
@@ -216,14 +289,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
             #[cfg(not(feature = "profile_specific_fallback_routing"))]
             merchant_id,
             #[cfg(feature = "profile_specific_fallback_routing")]
-            {
-                payment_data
-                    .payment_intent
-                    .profile_id
-                    .as_ref()
-                    .get_required_value("profile_id")
-                    .change_context(errors::RoutingError::ProfileIdMissing)?
-            },
+            profile_id,
         )
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -236,7 +302,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         algorithm_ref.timestamp,
         &algorithm_id,
         #[cfg(feature = "business_profile_routing")]
-        payment_data.payment_intent.profile_id.clone(),
+        Some(profile_id).cloned(),
     )
     .await?;
     let cached_algorithm: Arc<CachedAlgorithm> = ROUTING_CACHE
@@ -254,7 +320,13 @@ pub async fn perform_static_routing_v1<F: Clone>(
             .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
 
         CachedAlgorithm::Advanced(interpreter) => {
-            let backend_input = make_dsl_input(payment_data)?;
+            let backend_input = match operation_data {
+                routing::OperationData::Payment(ref payment_data) => make_dsl_input(payment_data)?,
+                #[cfg(feature = "payouts")]
+                routing::OperationData::Payout(ref payout_data) => {
+                    make_dsl_input_for_payouts(payout_data)?
+                }
+            };
 
             execute_dsl_and_get_connector_v1(backend_input, interpreter)?
         }
@@ -308,15 +380,14 @@ async fn ensure_algorithm_cached_v1(
     Ok(key)
 }
 
-pub fn perform_straight_through_routing<F: Clone>(
+pub fn perform_straight_through_routing(
     algorithm: &routing_types::StraightThroughAlgorithm,
-    payment_data: &payments_oss::PaymentData<F>,
+    creds_identifier: Option<String>,
 ) -> RoutingResult<(Vec<routing_types::RoutableConnectorChoice>, bool)> {
     Ok(match algorithm {
-        routing_types::StraightThroughAlgorithm::Single(conn) => (
-            vec![(**conn).clone()],
-            payment_data.creds_identifier.is_none(),
-        ),
+        routing_types::StraightThroughAlgorithm::Single(conn) => {
+            (vec![(**conn).clone()], creds_identifier.is_none())
+        }
 
         routing_types::StraightThroughAlgorithm::Priority(conns) => (conns.clone(), true),
 
@@ -607,11 +678,15 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    payment_data: &payments_oss::PaymentData<F>,
+    operation_data: &routing::OperationData<F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let backend_input = make_dsl_input(payment_data)?;
+    let backend_input = match operation_data {
+        routing::OperationData::Payment(ref payment_data) => make_dsl_input(payment_data)?,
+        #[cfg(feature = "payouts")]
+        routing::OperationData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
+    };
 
     perform_kgraph_filtering(
         state,
@@ -630,7 +705,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
-    payment_data: &payments_oss::PaymentData<F>,
+    operation_data: &routing::OperationData<F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -640,17 +715,28 @@ pub async fn perform_fallback_routing<F: Clone>(
         &key_store.merchant_id,
         #[cfg(feature = "profile_specific_fallback_routing")]
         {
-            payment_data
-                .payment_intent
-                .profile_id
-                .as_ref()
-                .get_required_value("profile_id")
-                .change_context(errors::RoutingError::ProfileIdMissing)?
+            match operation_data {
+                routing::OperationData::Payment(ref payment_data) => payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?,
+                #[cfg(feature = "payouts")]
+                routing::OperationData::Payout(payout_data) => {
+                    payout_data.payout_attempt.profile_id.as_ref()
+                }
+            }
         },
     )
     .await
     .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-    let backend_input = make_dsl_input(payment_data)?;
+
+    let backend_input = match operation_data {
+        routing::OperationData::Payment(payment_data) => make_dsl_input(payment_data)?,
+        #[cfg(feature = "payouts")]
+        routing::OperationData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
+    };
 
     perform_kgraph_filtering(
         state,
@@ -670,7 +756,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    payment_data: &payments_oss::PaymentData<F>,
+    operation_data: &routing::OperationData<F>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -679,7 +765,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         key_store,
         merchant_last_modified,
         chosen,
-        payment_data,
+        operation_data,
         eligible_connectors.as_ref(),
         #[cfg(feature = "business_profile_routing")]
         profile_id.clone(),
@@ -690,7 +776,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         state,
         key_store,
         merchant_last_modified,
-        payment_data,
+        operation_data,
         eligible_connectors.as_ref(),
         #[cfg(feature = "business_profile_routing")]
         profile_id,

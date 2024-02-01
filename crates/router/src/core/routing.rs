@@ -13,6 +13,9 @@ use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::{IntoReport, ResultExt};
 use rustc_hash::FxHashSet;
 
+use super::payments;
+#[cfg(feature = "payouts")]
+use super::payouts;
 #[cfg(feature = "business_profile_routing")]
 use crate::types::transformers::{ForeignInto, ForeignTryInto};
 use crate::{
@@ -29,6 +32,16 @@ use crate::{
 use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
+
+#[derive(Clone)]
+pub enum OperationData<F>
+where
+    F: Clone,
+{
+    Payment(payments::PaymentData<F>),
+    #[cfg(feature = "payouts")]
+    Payout(payouts::PayoutData),
+}
 
 pub async fn retrieve_merchant_routing_dictionary(
     state: AppState,
