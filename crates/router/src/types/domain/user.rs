@@ -850,7 +850,6 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             .to_string();
 
         Ok(Self {
-            user_id: user_and_role.0.user_id,
             email: user_and_role.0.email,
             name: user_and_role.0.name,
             role_id,

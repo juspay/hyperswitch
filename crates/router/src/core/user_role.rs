@@ -16,6 +16,8 @@ use crate::{
     utils,
 };
 
+use super::errors::StorageErrorExt;
+
 pub async fn get_authorization_info(
     _state: AppState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
@@ -91,7 +93,14 @@ pub async fn update_user_role(
     let role_id = req.role_id.clone();
     utils::user_role::validate_role_id(role_id.as_str())?;
 
-    if user_from_token.user_id == req.user_id {
+    let user_from_db = utils::user::get_user_from_db_by_pii_email(
+        &state,
+        req.email,
+        UserErrors::InvalidRoleOperation,
+    )
+    .await?;
+
+    if user_from_token.user_id == user_from_db.get_user_id() {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Admin User Changing their role");
     }
@@ -99,7 +108,7 @@ pub async fn update_user_role(
     state
         .store
         .update_user_role_by_user_id_merchant_id(
-            req.user_id.as_str(),
+            user_from_db.get_user_id(),
             merchant_id.as_str(),
             UserRoleUpdate::UpdateRole {
                 role_id,
@@ -107,14 +116,8 @@ pub async fn update_user_role(
             },
         )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                return e
-                    .change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("UserId MerchantId not found");
-            }
-            e.change_context(UserErrors::InternalServerError)
-        })?;
+        .to_not_found_response(UserErrors::InvalidRoleOperation)
+        .attach_printable("UserId MerchantId not found")?;
 
     Ok(ApplicationResponse::StatusOk)
 }

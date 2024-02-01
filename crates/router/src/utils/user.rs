@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
 use api_models::user as user_api;
+use common_utils::pii;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
-    core::errors::{UserErrors, UserResult},
+    core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
-    types::domain::{MerchantAccount, UserFromStorage},
+    types::domain::{self, MerchantAccount, UserFromStorage},
 };
 
 pub mod dashboard_metadata;
@@ -145,4 +146,22 @@ pub fn get_multiple_merchant_details_with_status(
             })
         })
         .collect()
+}
+
+pub async fn get_user_from_db_by_pii_email(
+    state: &AppState,
+    email: pii::Email,
+    not_found_response: UserErrors,
+) -> UserResult<UserFromStorage> {
+    state
+        .store
+        .find_user_by_email(
+            domain::UserEmail::from_pii_email(email)?
+                .get_secret()
+                .expose()
+                .as_str(),
+        )
+        .await
+        .to_not_found_response(not_found_response)
+        .map(UserFromStorage::from)
 }
