@@ -1027,7 +1027,6 @@ pub struct PaymeQueryTransactionResponse {
 pub struct TransactionQuery {
     sale_status: SaleStatus,
     payme_transaction_id: String,
-    sale_payme_code: String,
 }
 
 impl<F, T>
@@ -1052,8 +1051,8 @@ impl<F, T>
         let refund_status = enums::RefundStatus::try_from(pay_sale_response.sale_status.clone())?;
         let response = if is_refund_failure(refund_status) {
             Err(types::ErrorResponse {
-                code: pay_sale_response.sale_payme_code.clone(),
-                message: pay_sale_response.sale_payme_code.clone(),
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_CODE.to_string(),
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
@@ -1150,7 +1149,6 @@ impl From<WebhookEventDataResource> for PaymeQueryTransactionResponse {
         let item = TransactionQuery {
             sale_status: value.sale_status,
             payme_transaction_id: value.payme_transaction_id,
-            sale_payme_code: value.payme_sale_id,
         };
         Self { items: vec![item] }
     }
