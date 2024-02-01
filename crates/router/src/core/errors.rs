@@ -19,7 +19,7 @@ use storage_impl::errors as storage_impl_errors;
 pub use user::*;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
@@ -187,6 +187,12 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum HealthCheckOutGoing {
+    #[error("Outgoing call failed with error: {message}")]
+    OutGoingFailed { message: String },
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
@@ -226,7 +232,7 @@ pub enum KmsError {
     Utf8DecodingFailed,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
     MerchantConfigNotFound,
@@ -374,4 +380,24 @@ pub enum RoutingError {
     VolumeSplitFailed,
     #[error("Unable to parse metadata")]
     MetadataParsingError,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConditionalConfigError {
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Error constructing the Input")]
+    InputConstructionError,
 }

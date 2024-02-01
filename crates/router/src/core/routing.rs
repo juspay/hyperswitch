@@ -19,7 +19,7 @@ use crate::{
     consts,
     core::{
         errors::{RouterResponse, StorageErrorExt},
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
     routes::AppState,
     types::domain,
@@ -35,6 +35,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveQuery,
 ) -> RouterResponse<routing_types::RoutingKind> {
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(feature = "business_profile_routing")]
     {
         let routing_metadata = state
@@ -51,10 +52,17 @@ pub async fn retrieve_merchant_routing_dictionary(
             .map(ForeignInto::foreign_into)
             .collect::<Vec<_>>();
 
+        metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(
+            &metrics::CONTEXT,
+            1,
+            &[],
+        );
         Ok(service_api::ApplicationResponse::Json(
             routing_types::RoutingKind::RoutingAlgorithm(result),
         ))
     }
+    #[cfg(not(feature = "business_profile_routing"))]
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(not(feature = "business_profile_routing"))]
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::Config(
@@ -73,6 +81,7 @@ pub async fn create_routing_config(
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let name = request
@@ -147,6 +156,7 @@ pub async fn create_routing_config(
 
         let new_record = record.foreign_into();
 
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 
@@ -213,6 +223,7 @@ pub async fn create_routing_config(
         )
         .await?;
 
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 }
@@ -223,6 +234,7 @@ pub async fn link_routing_config(
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     algorithm_id: String,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -268,6 +280,7 @@ pub async fn link_routing_config(
         helpers::update_business_profile_active_algorithm_ref(db, business_profile, routing_ref)
             .await?;
 
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_algorithm.foreign_into(),
         ))
@@ -317,6 +330,7 @@ pub async fn link_routing_config(
         .await?;
         helpers::update_merchant_active_algorithm_ref(db, &key_store, routing_ref).await?;
 
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -326,6 +340,7 @@ pub async fn retrieve_routing_config(
     merchant_account: domain::MerchantAccount,
     algorithm_id: RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
+    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -350,6 +365,8 @@ pub async fn retrieve_routing_config(
             .foreign_try_into()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse routing algorithm")?;
+
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 
@@ -387,6 +404,7 @@ pub async fn retrieve_routing_config(
             modified_at: record.modified_at,
         };
 
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -396,6 +414,7 @@ pub async fn unlink_routing_config(
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] request: routing_types::RoutingConfigRequest,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -451,6 +470,12 @@ pub async fn unlink_routing_config(
                             routing_algorithm,
                         )
                         .await?;
+
+                        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[],
+                        );
                         Ok(service_api::ApplicationResponse::Json(response))
                     }
                     None => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -559,6 +584,7 @@ pub async fn unlink_routing_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
+        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -568,6 +594,7 @@ pub async fn update_default_routing_config(
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let default_config =
         helpers::get_merchant_default_config(db, &merchant_account.merchant_id).await?;
@@ -606,6 +633,7 @@ pub async fn update_default_routing_config(
     )
     .await?;
 
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
@@ -613,11 +641,19 @@ pub async fn retrieve_default_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     helpers::get_merchant_default_config(db, &merchant_account.merchant_id)
         .await
-        .map(service_api::ApplicationResponse::Json)
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
 
 pub async fn retrieve_linked_routing_config(
@@ -625,6 +661,7 @@ pub async fn retrieve_linked_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveLinkQuery,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     #[cfg(feature = "business_profile_routing")]
@@ -672,6 +709,7 @@ pub async fn retrieve_linked_routing_config(
             }
         }
 
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
         ))
@@ -718,6 +756,7 @@ pub async fn retrieve_linked_routing_config(
             routing_types::RoutingRetrieveResponse { algorithm },
         );
 
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -726,6 +765,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     state: AppState,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let all_profiles = db
@@ -755,6 +795,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         )
         .collect::<Vec<_>>();
 
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(default_configs))
 }
 
@@ -764,6 +805,7 @@ pub async fn update_default_routing_config_for_profile(
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let business_profile = core_utils::validate_and_get_business_profile(
@@ -829,6 +871,7 @@ pub async fn update_default_routing_config_for_profile(
     )
     .await?;
 
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::ProfileDefaultRoutingConfig {
             profile_id: business_profile.profile_id,

@@ -46,7 +46,7 @@
           "card_number": "5200000000000015",
           "card_exp_month": "03",
           "card_exp_year": "2030",
-          "card_holder_name": "",
+          "card_holder_name": "John Doe",
           "card_cvc": "737",
           "card_issuer": "",
           "card_network": "Visa"
@@ -68,8 +68,14 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": ["{{baseUrl}}"],
-    "path": ["payments", ":id", "confirm"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
     "variable": [
       {
         "key": "id",

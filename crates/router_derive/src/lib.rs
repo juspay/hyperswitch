@@ -2,6 +2,10 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+use syn::parse_macro_input;
+
+use crate::macros::diesel::DieselEnumMeta;
+
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -66,7 +70,7 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 ///     Blue,
 /// }
 /// ```
-#[proc_macro_derive(DieselEnum)]
+#[proc_macro_derive(DieselEnum, attributes(storage_type))]
 pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let tokens =
@@ -104,16 +108,15 @@ pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::
 
 /// Derives the boilerplate code required for using an enum with `diesel` and a PostgreSQL database.
 ///
-/// Storage Type can either be "text" or "pg_enum"
-/// Choosing text will store the enum as text in the database, whereas pg_enum will map it to the
-/// database enum
+/// Storage Type can either be "text" or "db_enum"
+/// Choosing text will store the enum as text in the database, whereas db_enum will map it to the
+/// corresponding database enum
 ///
-/// Works in tandem with the [`DieselEnum`][DieselEnum] and [`DieselEnumText`][DieselEnumText] derive macro to achieve the desired results.
+/// Works in tandem with the [`DieselEnum`][DieselEnum] derive macro to achieve the desired results.
 /// The enum is required to implement (or derive) the [`ToString`][ToString] and the
 /// [`FromStr`][FromStr] traits for the [`DieselEnum`][DieselEnum] derive macro to be used.
 ///
 /// [DieselEnum]: crate::DieselEnum
-/// [DieselEnumText]: crate::DieselEnumText
 /// [FromStr]: ::core::str::FromStr
 /// [ToString]: ::std::string::ToString
 ///
@@ -138,12 +141,12 @@ pub fn diesel_enum(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
+    let args_parsed = parse_macro_input!(args as DieselEnumMeta);
     let item = syn::parse_macro_input!(item as syn::ItemEnum);
 
-    let tokens = macros::diesel_enum_attribute_inner(&args, &item)
-        .unwrap_or_else(|error| error.to_compile_error());
-    tokens.into()
+    macros::diesel::diesel_enum_attribute_macro(args_parsed, &item)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
 }
 
 /// A derive macro which generates the setter functions for any struct with fields
@@ -226,7 +229,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[inline]
 fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
     for i in f.attrs.iter() {
-        if i.path.is_ident(ident) {
+        if i.path().is_ident(ident) {
             return true;
         }
     }
@@ -460,7 +463,8 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 #[proc_macro_derive(PaymentOperation, attributes(operation))]
 pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
+    macros::operation::operation_derive_inner(input)
+        .unwrap_or_else(|err| err.to_compile_error().into())
 }
 
 /// Generates different schemas with the ability to mark few fields as mandatory for certain schema
@@ -501,7 +505,10 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// }
 /// ```
 
-#[proc_macro_derive(PolymorphicSchema, attributes(mandatory_in, generate_schemas))]
+#[proc_macro_derive(
+    PolymorphicSchema,
+    attributes(mandatory_in, generate_schemas, remove_in)
+)]
 pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 

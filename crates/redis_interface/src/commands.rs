@@ -383,6 +383,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         Ok(self
             .pool
+            .next()
             .hscan::<&str, &str>(key, pattern, count)
             .filter_map(|value| async move {
                 match value {
@@ -562,7 +563,7 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .map_err(|err| match err.current_context().kind() {
-                RedisErrorKind::NotFound => {
+                RedisErrorKind::NotFound | RedisErrorKind::Parse => {
                     err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
                 _ => err.change_context(errors::RedisError::StreamReadFailed),

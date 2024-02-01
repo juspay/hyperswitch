@@ -101,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
+            api::PaymentMethodData::Card(card) => Source::try_from(&card),
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
@@ -113,7 +113,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "powertranz",
             })
@@ -150,8 +151,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             three_d_secure: ThreeDSecure {
-                /// Merchants preferred sized of challenge window presented to cardholder.
-                /// 5 maps to 100% of challenge window size
+                // Merchants preferred sized of challenge window presented to cardholder.
+                // 5 maps to 100% of challenge window size
                 challenge_window_size: 5,
             },
             merchant_response_url: item.request.get_complete_authorize_url()?,
@@ -210,15 +211,19 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl From<&Card> for Source {
-    fn from(card: &Card) -> Self {
+impl TryFrom<&Card> for Source {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(card: &Card) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
-            cardholder_name: card.card_holder_name.clone(),
+            cardholder_name: card
+                .card_holder_name
+                .clone()
+                .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
-            card_expiration: card.get_expiry_date_as_yymm(),
+            card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),
         };
-        Self::Card(card)
+        Ok(Self::Card(card))
     }
 }
 
@@ -327,6 +332,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
+                incremental_authorization_allowed: None,
             }),
             Err,
         );
@@ -444,6 +450,7 @@ fn build_error_response(
                         .join(", "),
                 ),
                 attempt_status: None,
+                connector_transaction_id: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -454,6 +461,7 @@ fn build_error_response(
             message: item.response_message.clone(),
             reason: Some(item.response_message.clone()),
             attempt_status: None,
+            connector_transaction_id: None,
         })
     } else {
         None

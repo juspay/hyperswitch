@@ -1,16 +1,16 @@
 pub mod transformers;
-
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use transformers as cashtocode;
 
+use super::utils as connector_utils;
 use crate::{
     configs::settings::{self},
-    connector::{utils as connector_utils, utils as conn_utils},
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -23,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain, storage, ErrorResponse, Response,
     },
-    utils::{self, ByteSliceExt, BytesExt},
+    utils::{ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -120,6 +120,7 @@ impl ConnectorCommon for Cashtocode {
             message: response.error_description,
             reason: None,
             attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -157,6 +158,20 @@ impl
         types::PaymentsResponseData,
     > for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Cashtocode".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -204,14 +219,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
-        let cashtocode_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<cashtocode::CashtocodePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(cashtocode_req))
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = cashtocode::CashtocodePaymentsRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -229,7 +239,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -331,7 +341,8 @@ impl api::IncomingWebhook for Cashtocode {
         request: &api::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
+        let base64_signature =
+            connector_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
         Ok(signature)
     }
@@ -391,16 +402,13 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json =
-            utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(res_json)
+        Ok(Box::new(webhook))
     }
 
     fn get_webhook_api_response(

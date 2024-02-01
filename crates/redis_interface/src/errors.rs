@@ -8,6 +8,8 @@ pub enum RedisError {
     InvalidConfiguration(String),
     #[error("Failed to set key value in Redis")]
     SetFailed,
+    #[error("Failed to set key value in Redis. Duplicate value")]
+    SetNxFailed,
     #[error("Failed to set key value with expiry in Redis")]
     SetExFailed,
     #[error("Failed to set expiry for key value in Redis")]

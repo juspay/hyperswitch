@@ -17,18 +17,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
       - name: Build and push router Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
@@ -39,7 +39,7 @@ jobs:
           tags: juspaydotin/orca:${{ github.sha }}
 
       - name: Build and push consumer Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
@@ -50,7 +50,7 @@ jobs:
           tags: juspaydotin/orca-consumer:${{ github.sha }}
 
       - name: Build and push producer Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
@@ -61,7 +61,7 @@ jobs:
           tags: juspaydotin/orca-producer:${{ github.sha }}
 
       - name: Build and push drainer Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}

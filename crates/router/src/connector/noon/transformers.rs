@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
+        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RevokeMandateRequestData,
+        RouterData, WalletData,
     },
     core::errors,
     services,
@@ -30,11 +31,13 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
+    max_amount: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -168,12 +171,13 @@ pub enum NoonPaymentData {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NoonApiOperations {
     Initiate,
     Capture,
     Reverse,
     Refund,
+    CancelSubscription,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -200,7 +204,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name.clone(),
+                        name_on_card: req_card
+                            .card_holder_name
+                            .clone()
+                            .unwrap_or(Secret::new("".to_string())),
                         number_plain: req_card.card_number.clone(),
                         expiry_month: req_card.card_exp_month.clone(),
                         expiry_year: req_card.get_expiry_year_4_digit(),
@@ -283,7 +290,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Reward {}
                     | api::PaymentMethodData::Upi(_)
                     | api::PaymentMethodData::Voucher(_)
-                    | api::PaymentMethodData::GiftCard(_) => {
+                    | api::PaymentMethodData::GiftCard(_)
+                    | api::PaymentMethodData::CardToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -329,6 +337,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 NoonSubscriptionData {
                     subscription_type: NoonSubscriptionType::Unscheduled,
                     name: name.clone(),
+                    max_amount: item
+                        .request
+                        .setup_mandate_details
+                        .clone()
+                        .and_then(|mandate_details| match mandate_details.mandate_type {
+                            Some(data_models::mandates::MandateDataType::SingleUse(mandate))
+                            | Some(data_models::mandates::MandateDataType::MultiUse(Some(
+                                mandate,
+                            ))) => Some(
+                                conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
+                                    .ok(),
+                            ),
+                            _ => None,
+                        })
+                        .flatten(),
                 },
                 true,
             )) {
@@ -444,7 +467,7 @@ impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NoonSubscriptionResponse {
+pub struct NoonSubscriptionObject {
     identifier: String,
 }
 
@@ -469,7 +492,7 @@ pub struct NoonCheckoutData {
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
-    subscription: Option<NoonSubscriptionResponse>,
+    subscription: Option<NoonSubscriptionObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -510,6 +533,7 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                     attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -523,6 +547,7 @@ impl<F, T>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,
+                        incremental_authorization_allowed: None,
                     })
                 }
             },
@@ -595,6 +620,25 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonRevokeMandateRequest {
+    api_operation: NoonApiOperations,
+    subscription: NoonSubscriptionObject,
+}
+
+impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::MandateRevokeRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            api_operation: NoonApiOperations::CancelSubscription,
+            subscription: NoonSubscriptionObject {
+                identifier: item.request.get_connector_mandate_id()?,
+            },
+        })
+    }
+}
+
 impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
@@ -614,6 +658,55 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
             order,
             transaction,
         })
+    }
+}
+#[derive(Debug, Deserialize)]
+pub enum NoonRevokeStatus {
+    Cancelled,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NoonCancelSubscriptionObject {
+    status: NoonRevokeStatus,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NoonRevokeMandateResult {
+    subscription: NoonCancelSubscriptionObject,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NoonRevokeMandateResponse {
+    result: NoonRevokeMandateResult,
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            NoonRevokeMandateResponse,
+            types::MandateRevokeRequestData,
+            types::MandateRevokeResponseData,
+        >,
+    > for types::RouterData<F, types::MandateRevokeRequestData, types::MandateRevokeResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            NoonRevokeMandateResponse,
+            types::MandateRevokeRequestData,
+            types::MandateRevokeResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response.result.subscription.status {
+            NoonRevokeStatus::Cancelled => Ok(Self {
+                response: Ok(types::MandateRevokeResponseData {
+                    mandate_status: common_enums::MandateStatus::Revoked,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 

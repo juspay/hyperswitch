@@ -1,55 +1,34 @@
-use std::collections::HashMap;
+use std::str::FromStr;
 
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
-use syn::{self, spanned::Spanned, DeriveInput, Lit, Meta, MetaNameValue, NestedMeta};
+use quote::{quote, ToTokens};
+use strum::IntoEnumIterator;
+use syn::{self, parse::Parse, DeriveInput};
 
-use crate::macros::helpers;
+use crate::macros::helpers::{self};
 
-#[derive(Debug, Clone, Copy)]
-enum Derives {
+#[derive(Debug, Clone, Copy, strum::EnumString, strum::EnumIter, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum Derives {
     Sync,
     Cancel,
     Reject,
     Capture,
-    Approvedata,
+    ApproveData,
     Authorize,
-    Authorizedata,
-    Syncdata,
-    Canceldata,
-    Capturedata,
+    AuthorizeData,
+    SyncData,
+    CancelData,
+    CaptureData,
     CompleteAuthorizeData,
-    Rejectdata,
+    RejectData,
     SetupMandateData,
     Start,
     Verify,
     Session,
     SessionData,
-}
-
-impl From<String> for Derives {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "sync" => Self::Sync,
-            "cancel" => Self::Cancel,
-            "reject" => Self::Reject,
-            "syncdata" => Self::Syncdata,
-            "authorize" => Self::Authorize,
-            "approvedata" => Self::Approvedata,
-            "authorizedata" => Self::Authorizedata,
-            "canceldata" => Self::Canceldata,
-            "capture" => Self::Capture,
-            "capturedata" => Self::Capturedata,
-            "completeauthorizedata" => Self::CompleteAuthorizeData,
-            "rejectdata" => Self::Rejectdata,
-            "start" => Self::Start,
-            "verify" => Self::Verify,
-            "setupmandatedata" => Self::SetupMandateData,
-            "session" => Self::Session,
-            "sessiondata" => Self::SessionData,
-            _ => Self::Authorize,
-        }
-    }
+    IncrementalAuthorization,
+    IncrementalAuthorizationData,
 }
 
 impl Derives {
@@ -82,8 +61,9 @@ impl Derives {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
-enum Conversion {
+#[derive(Debug, Clone, strum::EnumString, strum::EnumIter, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum Conversion {
     ValidateRequest,
     GetTracker,
     Domain,
@@ -93,34 +73,20 @@ enum Conversion {
     Invalid(String),
 }
 
-impl From<String> for Conversion {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "validate_request" => Self::ValidateRequest,
-            "get_tracker" => Self::GetTracker,
-            "domain" => Self::Domain,
-            "update_tracker" => Self::UpdateTracker,
-            "post_tracker" => Self::PostUpdateTracker,
-            "all" => Self::All,
-            s => Self::Invalid(s.to_string()),
-        }
-    }
-}
-
 impl Conversion {
     fn get_req_type(ident: Derives) -> syn::Ident {
         match ident {
             Derives::Authorize => syn::Ident::new("PaymentsRequest", Span::call_site()),
-            Derives::Authorizedata => syn::Ident::new("PaymentsAuthorizeData", Span::call_site()),
+            Derives::AuthorizeData => syn::Ident::new("PaymentsAuthorizeData", Span::call_site()),
             Derives::Sync => syn::Ident::new("PaymentsRetrieveRequest", Span::call_site()),
-            Derives::Syncdata => syn::Ident::new("PaymentsSyncData", Span::call_site()),
+            Derives::SyncData => syn::Ident::new("PaymentsSyncData", Span::call_site()),
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
-            Derives::Canceldata => syn::Ident::new("PaymentsCancelData", Span::call_site()),
-            Derives::Approvedata => syn::Ident::new("PaymentsApproveData", Span::call_site()),
+            Derives::CancelData => syn::Ident::new("PaymentsCancelData", Span::call_site()),
+            Derives::ApproveData => syn::Ident::new("PaymentsApproveData", Span::call_site()),
             Derives::Reject => syn::Ident::new("PaymentsRejectRequest", Span::call_site()),
-            Derives::Rejectdata => syn::Ident::new("PaymentsRejectData", Span::call_site()),
+            Derives::RejectData => syn::Ident::new("PaymentsRejectData", Span::call_site()),
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
-            Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
+            Derives::CaptureData => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
             Derives::CompleteAuthorizeData => {
                 syn::Ident::new("CompleteAuthorizeData", Span::call_site())
             }
@@ -131,6 +97,12 @@ impl Conversion {
             }
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
+            Derives::IncrementalAuthorization => {
+                syn::Ident::new("PaymentsIncrementalAuthorizationRequest", Span::call_site())
+            }
+            Derives::IncrementalAuthorizationData => {
+                syn::Ident::new("PaymentsIncrementalAuthorizationData", Span::call_site())
+            }
         }
     }
 
@@ -231,103 +203,206 @@ impl Conversion {
     }
 }
 
-fn find_operation_attr(a: &[syn::Attribute]) -> syn::Result<syn::Attribute> {
-    a.iter()
-        .find(|a| {
-            a.path
-                .get_ident()
-                .map(|ident| *ident == "operation")
-                .unwrap_or(false)
-        })
-        .cloned()
-        .ok_or_else(|| {
-            helpers::syn_error(
-                Span::call_site(),
-                "Cannot find attribute 'operation' in the macro",
-            )
-        })
+mod operations_keyword {
+    use syn::custom_keyword;
+
+    custom_keyword!(operations);
+    custom_keyword!(flow);
 }
 
-fn find_value(v: &NestedMeta) -> Option<(String, Vec<String>)> {
-    match v {
-        NestedMeta::Meta(Meta::NameValue(MetaNameValue {
-            ref path,
-            eq_token: _,
-            lit: Lit::Str(ref litstr),
-        })) => {
-            let key = path.get_ident()?.to_string();
-            Some((
-                key,
-                litstr.value().split(',').map(ToString::to_string).collect(),
-            ))
+#[derive(Debug)]
+pub enum OperationsEnumMeta {
+    Operations {
+        keyword: operations_keyword::operations,
+        value: Vec<Conversion>,
+    },
+    Flow {
+        keyword: operations_keyword::flow,
+        value: Vec<Derives>,
+    },
+}
+
+#[derive(Clone)]
+pub struct OperationProperties {
+    operations: Vec<Conversion>,
+    flows: Vec<Derives>,
+}
+
+fn get_operation_properties(
+    operation_enums: Vec<OperationsEnumMeta>,
+) -> syn::Result<OperationProperties> {
+    let mut operations = vec![];
+    let mut flows = vec![];
+
+    for operation in operation_enums {
+        match operation {
+            OperationsEnumMeta::Operations { value, .. } => {
+                operations = value;
+            }
+            OperationsEnumMeta::Flow { value, .. } => {
+                flows = value;
+            }
         }
-        _ => None,
+    }
+
+    if operations.is_empty() {
+        Err(syn::Error::new(
+            Span::call_site(),
+            "atleast one operation must be specitied",
+        ))?;
+    }
+
+    if flows.is_empty() {
+        Err(syn::Error::new(
+            Span::call_site(),
+            "atleast one flow must be specitied",
+        ))?;
+    }
+
+    Ok(OperationProperties { operations, flows })
+}
+
+impl Parse for Derives {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let text = input.parse::<syn::LitStr>()?;
+        let value = text.value();
+
+        value.as_str().parse().map_err(|_| {
+            syn::Error::new_spanned(
+                &text,
+                format!(
+                    "Unexpected value for flow: `{value}`. Possible values are `{}`",
+                    helpers::get_possible_values_for_enum::<Self>()
+                ),
+            )
+        })
     }
 }
 
-fn find_properties(attr: &syn::Attribute) -> syn::Result<HashMap<String, Vec<String>>> {
-    let meta = attr.parse_meta();
-    match meta {
-        Ok(syn::Meta::List(syn::MetaList {
-            ref path,
-            paren_token: _,
-            nested,
-        })) => {
-            path.get_ident().map(|i| i == "operation").ok_or_else(|| {
-                helpers::syn_error(path.span(), "Attribute 'operation' was not found")
-            })?;
-            Ok(HashMap::from_iter(nested.iter().filter_map(find_value)))
+impl Parse for Conversion {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let text = input.parse::<syn::LitStr>()?;
+        let value = text.value();
+
+        value.as_str().parse().map_err(|_| {
+            syn::Error::new_spanned(
+                &text,
+                format!(
+                    "Unexpected value for operation: `{value}`. Possible values are `{}`",
+                    helpers::get_possible_values_for_enum::<Self>()
+                ),
+            )
+        })
+    }
+}
+
+fn parse_list_string<T>(list_string: String, keyword: &str) -> syn::Result<Vec<T>>
+where
+    T: FromStr + IntoEnumIterator + ToString,
+{
+    list_string
+        .split(',')
+        .map(str::trim)
+        .map(T::from_str)
+        .map(|result| {
+            result.map_err(|_| {
+                syn::Error::new(
+                    Span::call_site(),
+                    format!(
+                        "Unexpected {keyword}, possible values are {}",
+                        helpers::get_possible_values_for_enum::<T>()
+                    ),
+                )
+            })
+        })
+        .collect()
+}
+
+fn get_conversions(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Conversion>> {
+    let lit_str_list = input.parse::<syn::LitStr>()?;
+    parse_list_string(lit_str_list.value(), "operation")
+}
+
+fn get_derives(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Derives>> {
+    let lit_str_list = input.parse::<syn::LitStr>()?;
+    parse_list_string(lit_str_list.value(), "flow")
+}
+
+impl Parse for OperationsEnumMeta {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(operations_keyword::operations) {
+            let keyword = input.parse()?;
+            input.parse::<syn::Token![=]>()?;
+            let value = get_conversions(input)?;
+            Ok(Self::Operations { keyword, value })
+        } else if lookahead.peek(operations_keyword::flow) {
+            let keyword = input.parse()?;
+            input.parse::<syn::Token![=]>()?;
+            let value = get_derives(input)?;
+            Ok(Self::Flow { keyword, value })
+        } else {
+            Err(lookahead.error())
         }
-        _ => Err(helpers::syn_error(
-            attr.span(),
-            "No attributes were found. Expected format is ops=..,flow=..",
-        )),
+    }
+}
+
+trait OperationsDeriveInputExt {
+    /// Get all the error metadata associated with an enum.
+    fn get_metadata(&self) -> syn::Result<Vec<OperationsEnumMeta>>;
+}
+
+impl OperationsDeriveInputExt for DeriveInput {
+    fn get_metadata(&self) -> syn::Result<Vec<OperationsEnumMeta>> {
+        helpers::get_metadata_inner("operation", &self.attrs)
+    }
+}
+
+impl ToTokens for OperationsEnumMeta {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Operations { keyword, .. } => keyword.to_tokens(tokens),
+            Self::Flow { keyword, .. } => keyword.to_tokens(tokens),
+        }
     }
 }
 
 pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::TokenStream> {
     let struct_name = &input.ident;
-    let op = find_operation_attr(&input.attrs)?;
-    let prop = find_properties(&op)?;
-    let ops = prop.get("ops").ok_or_else(|| {
-        helpers::syn_error(
-            op.span(),
-            "Invalid properties. Property 'ops' was not found",
-        )
-    })?;
-    let flow = prop.get("flow").ok_or_else(|| {
-        helpers::syn_error(
-            op.span(),
-            "Invalid properties. Property 'flow' was not found",
-        )
-    })?;
-    let current_crate = syn::Ident::new(
-        &prop
-            .get("crate")
-            .map(|v| v.join(""))
-            .unwrap_or_else(|| String::from("crate")),
-        Span::call_site(),
-    );
+    let operations_meta = input.get_metadata()?;
+    let operation_properties = get_operation_properties(operations_meta)?;
 
-    let trait_derive = flow.iter().map(|derive| {
-        let derive: Derives = derive.to_owned().into();
-        let fns = ops.iter().map(|t| {
-            let con: Conversion = t.to_owned().into();
-            con.to_function(derive)
-        });
-        derive.to_operation(fns, struct_name)
-    });
-    let ref_trait_derive = flow.iter().map(|derive| {
-        let derive: Derives = derive.to_owned().into();
-        let fns = ops.iter().map(|t| {
-            let con: Conversion = t.to_owned().into();
-            con.to_ref_function(derive)
-        });
-        derive.to_ref_operation(fns, struct_name)
-    });
+    let current_crate = syn::Ident::new("crate", Span::call_site());
+
+    let trait_derive = operation_properties
+        .clone()
+        .flows
+        .into_iter()
+        .map(|derive| {
+            let fns = operation_properties
+                .operations
+                .iter()
+                .map(|conversion| conversion.to_function(derive));
+            derive.to_operation(fns, struct_name)
+        })
+        .collect::<Vec<_>>();
+
+    let ref_trait_derive = operation_properties
+        .flows
+        .into_iter()
+        .map(|derive| {
+            let fns = operation_properties
+                .operations
+                .iter()
+                .map(|conversion| conversion.to_ref_function(derive));
+            derive.to_ref_operation(fns, struct_name)
+        })
+        .collect::<Vec<_>>();
+
     let trait_derive = quote! {
             #(#ref_trait_derive)* #(#trait_derive)*
     };
+
     let output = quote! {
         const _: () = {
                 use #current_crate::core::errors::RouterResult;
@@ -347,6 +422,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
                     CompleteAuthorizeData,
+                    PaymentsIncrementalAuthorizationData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -357,7 +433,8 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsRequest,
                         PaymentsStartRequest,
                         PaymentsSessionRequest,
-                        VerifyRequest
+                        VerifyRequest,
+                        PaymentsIncrementalAuthorizationRequest
                     }
                 };
                 #trait_derive
