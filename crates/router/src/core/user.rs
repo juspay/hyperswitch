@@ -757,7 +757,8 @@ pub async fn resend_invite(
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
-        .await.change_context(UserErrors::InternalServerError)?;
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
 }
