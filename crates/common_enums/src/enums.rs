@@ -151,7 +151,7 @@ pub enum RoutableConnectors {
     Shift4,
     Signifyd,
     Square,
-    Stancer,
+    // Stancer,
     Stax,
     Stripe,
     Trustpay,
