@@ -5,7 +5,10 @@ use crate::{
     enums,
     query::generics,
     schema::dashboard_metadata::dsl,
-    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew},
+    user::dashboard_metadata::{
+        DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate,
+        DashboardMetadataUpdateInternal,
+    },
     PgPooledConn, StorageResult,
 };
 
@@ -17,6 +20,46 @@ impl DashboardMetadataNew {
 }
 
 impl DashboardMetadata {
+    pub async fn update(
+        conn: &PgPooledConn,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: DashboardMetadataUpdate,
+    ) -> StorageResult<Self> {
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::org_id.eq(org_id.to_owned()))
+            .and(dsl::data_key.eq(data_key.to_owned()));
+
+        if let Some(uid) = user_id {
+            generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                predicate.and(dsl::user_id.eq(uid)),
+                DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
+            )
+            .await
+        } else {
+            generics::generic_update_with_unique_predicate_get_result::<
+                <Self as HasTable>::Table,
+                _,
+                _,
+                _,
+            >(
+                conn,
+                predicate.and(dsl::user_id.is_null()),
+                DashboardMetadataUpdateInternal::from(dashboard_metadata_update),
+            )
+            .await
+        }
+    }
+
     pub async fn find_user_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         user_id: String,
@@ -58,6 +101,20 @@ impl DashboardMetadata {
             None,
             None,
             Some(dsl::last_modified_at.asc()),
+        )
+        .await
+    }
+
+    pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        merchant_id: String,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::user_id
+                .eq(user_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
         )
         .await
     }

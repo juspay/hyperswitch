@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, ForeignIDRef};
+use crate::{errors, mandates::MandateTypeDetails, ForeignIDRef};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -107,6 +107,7 @@ pub struct PaymentAttempt {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
@@ -142,7 +143,7 @@ pub struct PaymentAttempt {
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
-    pub mandate_details: Option<MandateDataType>,
+    pub mandate_details: Option<MandateTypeDetails>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
@@ -154,6 +155,16 @@ pub struct PaymentAttempt {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+}
+
+impl PaymentAttempt {
+    pub fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+    pub fn get_total_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_amount
+            .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -173,6 +184,9 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
+    /// amount + surcharge_amount + tax_amount
+    /// This field will always be derived before updating in the Database
+    pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
@@ -207,7 +221,7 @@ pub struct PaymentAttemptNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateDataType>,
+    pub mandate_details: Option<MandateTypeDetails>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -218,6 +232,19 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+}
+
+impl PaymentAttemptNew {
+    /// returns amount + surcharge_amount + tax_amount
+    pub fn calculate_net_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+    }
+
+    pub fn populate_derived_fields(self) -> Self {
+        let mut payment_attempt_new = self;
+        payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
+        payment_attempt_new
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -358,6 +385,10 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         connector: Option<String>,
         updated_by: String,
+    },
+    IncrementalAuthorizationAmountUpdate {
+        amount: i64,
+        amount_capturable: i64,
     },
 }
 

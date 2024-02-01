@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::request::RequestContent;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -26,7 +27,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -42,10 +43,8 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
-        let option_request_payload = self.get_request_body(req, connectors)?;
-        let request_payload = option_request_payload.map_or("{}".to_string(), |payload| {
-            types::RequestBody::get_inner_value(payload).expose()
-        });
+        let request_payload =
+            types::RequestBody::get_inner_value(self.get_request_body(req, connectors)?).expose();
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()
@@ -154,6 +153,20 @@ impl
         types::PaymentsResponseData,
     > for Payeezy
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Payeezy".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentToken for Payeezy {}
@@ -202,14 +215,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
-        let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(payeezy_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -222,7 +230,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(
+                .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -301,21 +309,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount_to_capture,
             req,
         ))?;
-        let req_obj = payeezy::PayeezyCaptureOrVoidRequest::try_from(&router_obj)?;
-        let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(&router_obj)?;
 
-        Ok(Some(payeezy_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -330,7 +333,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsCaptureType::get_request_body(
+                .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -399,21 +402,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.amount,
             req,
         ))?;
-        let req_obj = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
+        let connector_req = payeezy::PayeezyPaymentsRequest::try_from(&router_obj)?;
 
-        let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(payeezy_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -430,7 +428,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -498,20 +496,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let router_obj = payeezy::PayeezyRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
             req.request.refund_amount,
             req,
         ))?;
-        let req_obj = payeezy::PayeezyRefundRequest::try_from(&router_obj)?;
-        let payeezy_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<payeezy::PayeezyRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(payeezy_req))
+        let connector_req = payeezy::PayeezyRefundRequest::try_from(&router_obj)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -525,7 +518,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .body(types::RefundExecuteType::get_request_body(
+            .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();

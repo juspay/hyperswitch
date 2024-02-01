@@ -11,6 +11,6 @@ common_enums = { version = "0.1.0", path = "../common_enums", package = "common_
 
 # Third party crates
 rust_decimal = "1.29"
-rusty-money = { version = "0.4.0", features = ["iso", "crypto"] }
-serde = { version = "1.0.163", features = ["derive"] }
+rusty-money = { git = "https://github.com/varunsrin/rusty_money", rev = "bbc0150742a0fff905225ff11ee09388e9babdcc", features = ["iso", "crypto"] }
+serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.43"

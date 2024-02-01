@@ -102,4 +102,6 @@ pub struct ApiLogsResult {
     pub ip_addr: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    pub http_method: Option<String>,
+    pub url_path: Option<String>,
 }

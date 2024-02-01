@@ -12,6 +12,7 @@ pub mod cors;
 pub mod db;
 pub mod env;
 pub(crate) mod macros;
+
 pub mod routes;
 pub mod workflows;
 
@@ -19,7 +20,6 @@ pub mod workflows;
 pub mod analytics;
 pub mod events;
 pub mod middleware;
-pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -35,6 +35,7 @@ use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
+pub(crate) use self::macros::*;
 use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
@@ -92,15 +93,6 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit);
 
-    #[cfg(feature = "openapi")]
-    {
-        use utoipa::OpenApi;
-        server_app = server_app.service(
-            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
-                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
-        );
-    }
-
     #[cfg(feature = "dummy_connector")]
     {
         use routes::DummyConnector;
@@ -128,9 +120,9 @@ pub fn mk_app(
     #[cfg(feature = "oltp")]
     {
         server_app = server_app
-            .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
+            .service(routes::PaymentMethods::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -142,10 +134,12 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::Blocklist::server(state.clone()))
             .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
+            .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
     #[cfg(all(feature = "olap", feature = "kms"))]
@@ -162,6 +156,12 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
+
+    #[cfg(feature = "recon")]
+    {
+        server_app = server_app.service(routes::Recon::server(state.clone()));
+    }
+
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
@@ -258,5 +258,8 @@ pub fn get_application_builder(
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
+        .wrap(middleware::LogSpanInitializer)
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

@@ -80,8 +80,8 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps
-      
+        run: cargo hack check --workspace --each-feature --all-targets
+
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
         shell: bash
@@ -166,7 +166,7 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps
+        run: cargo hack check --workspace --each-feature --all-targets
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}

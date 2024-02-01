@@ -23,7 +23,8 @@ use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
 use super::{
-    dashboard_metadata::DashboardMetadataInterface, user::UserInterface,
+    dashboard_metadata::DashboardMetadataInterface,
+    user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
 use crate::{
@@ -31,6 +32,7 @@ use crate::{
     db::{
         address::AddressInterface,
         api_keys::ApiKeyInterface,
+        authorization::AuthorizationInterface,
         business_profile::BusinessProfileInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
@@ -41,6 +43,7 @@ use crate::{
         events::EventInterface,
         file::FileMetadataInterface,
         gsm::GsmInterface,
+        health_check::HealthCheckDbInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -656,6 +659,16 @@ impl MerchantAccountInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_account_by_merchant_id(merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_merchant_accounts(merchant_ids)
             .await
     }
 }
@@ -1611,6 +1624,17 @@ impl MerchantKeyStoreInterface for KafkaStore {
             .delete_merchant_key_store_by_merchant_id(merchant_id)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_key_stores(
+        &self,
+        merchant_ids: Vec<String>,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
+        self.diesel_store
+            .list_multiple_key_stores(merchant_ids, key)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -1871,11 +1895,30 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store
+            .update_user_by_email(user_email, user)
+            .await
+    }
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store.delete_user_by_user_id(user_id).await
+    }
+
+    async fn find_users_and_roles_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<(storage::User, user_storage::UserRole)>, errors::StorageError> {
+        self.diesel_store
+            .find_users_and_roles_by_merchant_id(merchant_id)
+            .await
     }
 }
 
@@ -1893,12 +1936,24 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
+
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.find_user_role_by_user_id(user_id).await
     }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
+    }
+
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1909,9 +1964,16 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
-    async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.delete_user_role(user_id).await
+    async fn delete_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
     }
+
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -1927,6 +1989,25 @@ impl DashboardMetadataInterface for KafkaStore {
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         self.diesel_store.insert_metadata(metadata).await
+    }
+
+    async fn update_metadata(
+        &self,
+        user_id: Option<String>,
+        merchant_id: String,
+        org_id: String,
+        data_key: enums::DashboardMetadata,
+        dashboard_metadata_update: storage::DashboardMetadataUpdate,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .update_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                data_key,
+                dashboard_metadata_update,
+            )
+            .await
     }
 
     async fn find_user_scoped_dashboard_metadata(
@@ -1949,5 +2030,172 @@ impl DashboardMetadataInterface for KafkaStore {
         self.diesel_store
             .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
             .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl BatchSampleDataInterface for KafkaStore {
+    async fn insert_payment_intents_batch_for_sample_data(
+        &self,
+        batch: Vec<data_models::payments::payment_intent::PaymentIntentNew>,
+    ) -> CustomResult<Vec<data_models::payments::PaymentIntent>, data_models::errors::StorageError>
+    {
+        let payment_intents_list = self
+            .diesel_store
+            .insert_payment_intents_batch_for_sample_data(batch)
+            .await?;
+
+        for payment_intent in payment_intents_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_intent(payment_intent, None)
+                .await;
+        }
+        Ok(payment_intents_list)
+    }
+
+    async fn insert_payment_attempts_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::user::sample_data::PaymentAttemptBatchNew>,
+    ) -> CustomResult<
+        Vec<data_models::payments::payment_attempt::PaymentAttempt>,
+        data_models::errors::StorageError,
+    > {
+        let payment_attempts_list = self
+            .diesel_store
+            .insert_payment_attempts_batch_for_sample_data(batch)
+            .await?;
+
+        for payment_attempt in payment_attempts_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_attempt(payment_attempt, None)
+                .await;
+        }
+        Ok(payment_attempts_list)
+    }
+
+    async fn insert_refunds_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::RefundNew>,
+    ) -> CustomResult<Vec<diesel_models::Refund>, data_models::errors::StorageError> {
+        let refunds_list = self
+            .diesel_store
+            .insert_refunds_batch_for_sample_data(batch)
+            .await?;
+
+        for refund in refunds_list.iter() {
+            let _ = self.kafka_producer.log_refund(refund, None).await;
+        }
+        Ok(refunds_list)
+    }
+
+    async fn delete_payment_intents_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<data_models::payments::PaymentIntent>, data_models::errors::StorageError>
+    {
+        let payment_intents_list = self
+            .diesel_store
+            .delete_payment_intents_for_sample_data(merchant_id)
+            .await?;
+
+        for payment_intent in payment_intents_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_intent_delete(payment_intent)
+                .await;
+        }
+        Ok(payment_intents_list)
+    }
+
+    async fn delete_payment_attempts_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<
+        Vec<data_models::payments::payment_attempt::PaymentAttempt>,
+        data_models::errors::StorageError,
+    > {
+        let payment_attempts_list = self
+            .diesel_store
+            .delete_payment_attempts_for_sample_data(merchant_id)
+            .await?;
+
+        for payment_attempt in payment_attempts_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_payment_attempt_delete(payment_attempt)
+                .await;
+        }
+
+        Ok(payment_attempts_list)
+    }
+
+    async fn delete_refunds_for_sample_data(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<diesel_models::Refund>, data_models::errors::StorageError> {
+        let refunds_list = self
+            .diesel_store
+            .delete_refunds_for_sample_data(merchant_id)
+            .await?;
+
+        for refund in refunds_list.iter() {
+            let _ = self.kafka_producer.log_refund_delete(refund).await;
+        }
+
+        Ok(refunds_list)
+    }
+}
+
+#[async_trait::async_trait]
+impl AuthorizationInterface for KafkaStore {
+    async fn insert_authorization(
+        &self,
+        authorization: storage::AuthorizationNew,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store.insert_authorization(authorization).await
+    }
+
+    async fn find_all_authorizations_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
+        self.diesel_store
+            .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)
+            .await
+    }
+
+    async fn update_authorization_by_merchant_id_authorization_id(
+        &self,
+        merchant_id: String,
+        authorization_id: String,
+        authorization: storage::AuthorizationUpdate,
+    ) -> CustomResult<storage::Authorization, errors::StorageError> {
+        self.diesel_store
+            .update_authorization_by_merchant_id_authorization_id(
+                merchant_id,
+                authorization_id,
+                authorization,
+            )
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl HealthCheckDbInterface for KafkaStore {
+    async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
+        self.diesel_store.health_check_db().await
     }
 }

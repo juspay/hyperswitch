@@ -261,7 +261,3 @@ result*
 
 # node_modules
 node_modules/
-
-**/connector_auth.toml
-**/sample_auth.toml
-**/auth.toml

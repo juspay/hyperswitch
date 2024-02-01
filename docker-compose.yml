@@ -24,12 +24,10 @@ services:
 
   redis-standalone:
     image: redis:7
-    labels:
-      - redis
     networks:
       - router_net
     ports:
-      - "6379"
+      - "6379:6379"
 
   migration_runner:
     image: rust:latest
@@ -56,6 +54,7 @@ services:
       - router_net
     volumes:
       - ./config:/local/config
+      - ./files:/local/bin/files
     labels:
       logs: "promtail"
     healthcheck:
@@ -133,8 +132,6 @@ services:
       - clustered_redis
     volumes:
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    labels:
-      - redis
     networks:
       - router_net
     ports:

@@ -44,6 +44,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -131,9 +132,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request.payment_experience;
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .or(payment_attempt.payment_experience);
         currency = payment_attempt.currency.get_required_value("currency")?;
-        amount = payment_attempt.amount.into();
+        amount = payment_attempt.get_total_amount().into();
 
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
@@ -173,7 +176,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+        payment_intent.return_url = request
+            .return_url
+            .as_ref()
+            .map(|a| a.to_string())
+            .or(payment_intent.return_url);
 
         payment_intent.allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -245,6 +252,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             surcharge_details: None,
             frm_message: None,
             payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            frm_metadata: None,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -302,12 +312,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await?;
+        let (op, payment_method_data) = helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            merchant_key_store,
+            customer,
+        )
+        .await?;
         Ok((op, payment_method_data))
     }
 

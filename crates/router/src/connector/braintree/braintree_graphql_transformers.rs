@@ -297,11 +297,11 @@ fn build_error_response<T>(
 
     get_error_response(
         response
-            .get(0)
+            .first()
             .and_then(|err_details| err_details.extensions.as_ref())
             .and_then(|extensions| extensions.legacy_code.clone()),
         response
-            .get(0)
+            .first()
             .map(|err_details| err_details.message.clone()),
         reason,
         http_code,
@@ -867,7 +867,9 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                         expiration_year: card_data.card_exp_year,
                         expiration_month: card_data.card_exp_month,
                         cvv: card_data.card_cvc,
-                        cardholder_name: card_data.card_holder_name,
+                        cardholder_name: card_data
+                            .card_holder_name
+                            .unwrap_or(Secret::new("".to_string())),
                     },
                 };
                 Ok(Self {

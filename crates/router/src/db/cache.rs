@@ -63,7 +63,7 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
-    let cache_val = cache.get_val::<T>(key);
+    let cache_val = cache.get_val::<T>(key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {

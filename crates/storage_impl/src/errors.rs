@@ -55,6 +55,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Kafka error")]
+    KafkaError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
     #[error("Deserialization failure")]
@@ -92,15 +94,7 @@ impl Into<DataStorageError> for &StorageError {
                         key: None,
                     }
                 }
-                storage_errors::DatabaseError::NoFieldsToUpdate => {
-                    DataStorageError::DatabaseError("No fields to update".to_string())
-                }
-                storage_errors::DatabaseError::QueryGenerationFailed => {
-                    DataStorageError::DatabaseError("Query generation failed".to_string())
-                }
-                storage_errors::DatabaseError::Others => {
-                    DataStorageError::DatabaseError("Unknown database error".to_string())
-                }
+                err => DataStorageError::DatabaseError(error_stack::report!(*err)),
             },
             StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
             StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
@@ -111,6 +105,7 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::KVError => DataStorageError::KVError,
             StorageError::SerializationFailed => DataStorageError::SerializationFailed,
             StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::KafkaError => DataStorageError::KafkaError,
             StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
             StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
             StorageError::EncryptionError => DataStorageError::EncryptionError,
@@ -154,6 +149,26 @@ impl StorageError {
                 matches!(err.current_context(), DatabaseError::UniqueViolation,)
             }
             _ => false,
+        }
+    }
+}
+
+pub trait RedisErrorExt {
+    #[track_caller]
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError>;
+}
+
+impl RedisErrorExt for error_stack::Report<RedisError> {
+    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
+        match self.current_context() {
+            RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
+                "Data does not exist for key {key}",
+            ))),
+            RedisError::SetNxFailed => self.change_context(DataStorageError::DuplicateValue {
+                entity: "redis",
+                key: Some(key.to_string()),
+            }),
+            _ => self.change_context(DataStorageError::KVError),
         }
     }
 }
@@ -363,4 +378,58 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HealthCheckDBError {
+    #[error("Error while connecting to database")]
+    DBError,
+    #[error("Error while writing to database")]
+    DBWriteError,
+    #[error("Error while reading element in the database")]
+    DBReadError,
+    #[error("Error while deleting element in the database")]
+    DBDeleteError,
+    #[error("Unpredictable error occurred")]
+    UnknownError,
+    #[error("Error in database transaction")]
+    TransactionError,
+    #[error("Error while executing query in Sqlx Analytics")]
+    SqlxAnalyticsError,
+    #[error("Error while executing query in Clickhouse Analytics")]
+    ClickhouseAnalyticsError,
+}
+
+impl From<diesel::result::Error> for HealthCheckDBError {
+    fn from(error: diesel::result::Error) -> Self {
+        match error {
+            diesel::result::Error::DatabaseError(_, _) => Self::DBError,
+
+            diesel::result::Error::RollbackErrorOnCommit { .. }
+            | diesel::result::Error::RollbackTransaction
+            | diesel::result::Error::AlreadyInTransaction
+            | diesel::result::Error::NotInTransaction
+            | diesel::result::Error::BrokenTransactionManager => Self::TransactionError,
+
+            _ => Self::UnknownError,
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HealthCheckRedisError {
+    #[error("Failed to establish Redis connection")]
+    RedisConnectionError,
+    #[error("Failed to set key value in Redis")]
+    SetFailed,
+    #[error("Failed to get key value in Redis")]
+    GetFailed,
+    #[error("Failed to delete key value in Redis")]
+    DeleteFailed,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckLockerError {
+    #[error("Failed to establish Locker connection")]
+    FailedToCallLocker,
 }

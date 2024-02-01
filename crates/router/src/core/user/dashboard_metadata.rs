@@ -3,7 +3,11 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use router_env::logger;
 
+#[cfg(feature = "email")]
+use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
@@ -81,12 +85,17 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IntegrationMethod(req) => {
             Ok(types::MetaData::IntegrationMethod(req))
         }
+        api::SetMetaDataRequest::ConfigurationType(req) => {
+            Ok(types::MetaData::ConfigurationType(req))
+        }
         api::SetMetaDataRequest::IntegrationCompleted => {
             Ok(types::MetaData::IntegrationCompleted(true))
         }
         api::SetMetaDataRequest::SPRoutingConfigured(req) => {
             Ok(types::MetaData::SPRoutingConfigured(req))
         }
+        api::SetMetaDataRequest::Feedback(req) => Ok(types::MetaData::Feedback(req)),
+        api::SetMetaDataRequest::ProdIntent(req) => Ok(types::MetaData::ProdIntent(req)),
         api::SetMetaDataRequest::SPTestPayment => Ok(types::MetaData::SPTestPayment(true)),
         api::SetMetaDataRequest::DownloadWoocom => Ok(types::MetaData::DownloadWoocom(true)),
         api::SetMetaDataRequest::ConfigureWoocom => Ok(types::MetaData::ConfigureWoocom(true)),
@@ -110,10 +119,13 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ConfiguredRouting => DBEnum::ConfiguredRouting,
         api::GetMetaDataRequest::TestPayment => DBEnum::TestPayment,
         api::GetMetaDataRequest::IntegrationMethod => DBEnum::IntegrationMethod,
+        api::GetMetaDataRequest::ConfigurationType => DBEnum::ConfigurationType,
         api::GetMetaDataRequest::IntegrationCompleted => DBEnum::IntegrationCompleted,
         api::GetMetaDataRequest::StripeConnected => DBEnum::StripeConnected,
         api::GetMetaDataRequest::PaypalConnected => DBEnum::PaypalConnected,
         api::GetMetaDataRequest::SPRoutingConfigured => DBEnum::SpRoutingConfigured,
+        api::GetMetaDataRequest::Feedback => DBEnum::Feedback,
+        api::GetMetaDataRequest::ProdIntent => DBEnum::ProdIntent,
         api::GetMetaDataRequest::SPTestPayment => DBEnum::SpTestPayment,
         api::GetMetaDataRequest::DownloadWoocom => DBEnum::DownloadWoocom,
         api::GetMetaDataRequest::ConfigureWoocom => DBEnum::ConfigureWoocom,
@@ -158,6 +170,10 @@ fn into_response(
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::IntegrationMethod(resp))
         }
+        DBEnum::ConfigurationType => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ConfigurationType(resp))
+        }
         DBEnum::IntegrationCompleted => Ok(api::GetMetaDataResponse::IntegrationCompleted(
             data.is_some(),
         )),
@@ -172,6 +188,14 @@ fn into_response(
         DBEnum::SpRoutingConfigured => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::SPRoutingConfigured(resp))
+        }
+        DBEnum::Feedback => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::Feedback(resp))
+        }
+        DBEnum::ProdIntent => {
+            let resp = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::ProdIntent(resp))
         }
         DBEnum::SpTestPayment => Ok(api::GetMetaDataResponse::SPTestPayment(data.is_some())),
         DBEnum::DownloadWoocom => Ok(api::GetMetaDataResponse::DownloadWoocom(data.is_some())),
@@ -282,15 +306,54 @@ async fn insert_metadata(
             .await
         }
         types::MetaData::IntegrationMethod(data) => {
-            utils::insert_merchant_scoped_metadata_to_db(
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
-                user.user_id,
-                user.merchant_id,
-                user.org_id,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
                 metadata_key,
-                data,
+                data.clone(),
             )
-            .await
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+            metadata
+        }
+        types::MetaData::ConfigurationType(data) => {
+            let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_merchant_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+            metadata
         }
         types::MetaData::IntegrationCompleted(data) => {
             utils::insert_merchant_scoped_metadata_to_db(
@@ -335,6 +398,72 @@ async fn insert_metadata(
                 data,
             )
             .await
+        }
+        types::MetaData::Feedback(data) => {
+            let mut metadata = utils::insert_user_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_user_scoped_metadata(
+                    state,
+                    user.user_id,
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+            metadata
+        }
+        types::MetaData::ProdIntent(data) => {
+            let mut metadata = utils::insert_user_scoped_metadata_to_db(
+                state,
+                user.user_id.clone(),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                metadata_key,
+                data.clone(),
+            )
+            .await;
+
+            if utils::is_update_required(&metadata) {
+                metadata = utils::update_user_scoped_metadata(
+                    state,
+                    user.user_id.clone(),
+                    user.merchant_id,
+                    user.org_id,
+                    metadata_key,
+                    data.clone(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError);
+            }
+
+            #[cfg(feature = "email")]
+            {
+                if utils::is_prod_email_required(&data) {
+                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let send_email_result = state
+                        .email_client
+                        .compose_and_send_email(
+                            Box::new(email_contents),
+                            state.conf.proxy.https_url.as_ref(),
+                        )
+                        .await;
+                    logger::info!(?send_email_result);
+                }
+            }
+
+            metadata
         }
         types::MetaData::SPTestPayment(data) => {
             utils::insert_merchant_scoped_metadata_to_db(
@@ -400,7 +529,8 @@ async fn fetch_metadata(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     let mut dashboard_metadata = Vec::with_capacity(metadata_keys.len());
-    let (merchant_scoped_enums, _) = utils::separate_metadata_type_based_on_scope(metadata_keys);
+    let (merchant_scoped_enums, user_scoped_enums) =
+        utils::separate_metadata_type_based_on_scope(metadata_keys);
 
     if !merchant_scoped_enums.is_empty() {
         let mut res = utils::get_merchant_scoped_metadata_from_db(
@@ -408,6 +538,18 @@ async fn fetch_metadata(
             user.merchant_id.to_owned(),
             user.org_id.to_owned(),
             merchant_scoped_enums,
+        )
+        .await?;
+        dashboard_metadata.append(&mut res);
+    }
+
+    if !user_scoped_enums.is_empty() {
+        let mut res = utils::get_user_scoped_metadata_from_db(
+            state,
+            user.user_id.to_owned(),
+            user.merchant_id.to_owned(),
+            user.org_id.to_owned(),
+            user_scoped_enums,
         )
         .await?;
         dashboard_metadata.append(&mut res);

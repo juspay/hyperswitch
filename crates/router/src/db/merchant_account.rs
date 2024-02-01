@@ -1,3 +1,6 @@
+#[cfg(feature = "olap")]
+use std::collections::HashMap;
+
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
@@ -65,6 +68,12 @@ where
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -294,6 +303,57 @@ impl MerchantAccountInterface for Store {
 
         Ok(is_deleted)
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<String>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_multiple_merchant_accounts(&conn, merchant_ids)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+
+        let db_master_key = self.get_master_key().to_vec().into();
+
+        let merchant_key_stores = self
+            .list_multiple_key_stores(
+                encrypted_merchant_accounts
+                    .iter()
+                    .map(|merchant_account| &merchant_account.merchant_id)
+                    .cloned()
+                    .collect(),
+                &db_master_key,
+            )
+            .await?;
+
+        let key_stores_by_id: HashMap<_, _> = merchant_key_stores
+            .iter()
+            .map(|key_store| (key_store.merchant_id.to_owned(), key_store))
+            .collect();
+
+        let merchant_accounts =
+            futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
+                |merchant_account| async {
+                    let key_store = key_stores_by_id.get(&merchant_account.merchant_id).ok_or(
+                        errors::StorageError::ValueNotFound(format!(
+                            "merchant_key_store with merchant_id = {}",
+                            merchant_account.merchant_id
+                        )),
+                    )?;
+                    merchant_account
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                },
+            ))
+            .await?;
+
+        Ok(merchant_accounts)
+    }
 }
 
 #[async_trait::async_trait]
@@ -389,6 +449,14 @@ impl MerchantAccountInterface for MockDb {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        _merchant_ids: Vec<String>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

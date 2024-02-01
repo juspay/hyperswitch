@@ -38,6 +38,7 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
+    errors::RedisErrorExt,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
@@ -99,6 +100,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     surcharge_applicable: new.surcharge_applicable,
                     request_incremental_authorization: new.request_incremental_authorization,
                     incremental_authorization_allowed: new.incremental_authorization_allowed,
+                    authorization_count: new.authorization_count,
+                    fingerprint_id: new.fingerprint_id.clone(),
+                    session_expiry: new.session_expiry,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -116,7 +120,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
@@ -177,7 +181,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     &key,
                 )
                 .await
-                .change_context(StorageError::KVError)?
+                .map_err(|err| err.to_redis_failed_response(&key))?
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
@@ -493,12 +497,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .map(PaymentIntent::from_storage_model)
                 .collect::<Vec<PaymentIntent>>()
         })
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -645,12 +650,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     })
                     .collect()
             })
-            .into_report()
             .map_err(|er| {
-                let new_er = StorageError::DatabaseError(format!("{er:?}"));
-                er.change_context(new_er)
+                StorageError::DatabaseError(
+                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                        .attach_printable("Error filtering payment records"),
+                )
             })
-            .attach_printable("Error filtering payment records")
+            .into_report()
     }
 
     #[cfg(feature = "olap")]
@@ -711,12 +717,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .into_report()
         .map_err(|er| {
-            let new_err = StorageError::DatabaseError(format!("{er:?}"));
-            er.change_context(new_err)
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
         })
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .into_report()
     }
 }
 
@@ -762,6 +769,9 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
+            session_expiry: self.session_expiry,
         }
     }
 
@@ -804,6 +814,9 @@ impl DataModelExt for PaymentIntentNew {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
+            session_expiry: storage_model.session_expiry,
         }
     }
 }
@@ -851,6 +864,9 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: self.surcharge_applicable,
             request_incremental_authorization: self.request_incremental_authorization,
             incremental_authorization_allowed: self.incremental_authorization_allowed,
+            authorization_count: self.authorization_count,
+            fingerprint_id: self.fingerprint_id,
+            session_expiry: self.session_expiry,
         }
     }
 
@@ -894,6 +910,9 @@ impl DataModelExt for PaymentIntent {
             surcharge_applicable: storage_model.surcharge_applicable,
             request_incremental_authorization: storage_model.request_incremental_authorization,
             incremental_authorization_allowed: storage_model.incremental_authorization_allowed,
+            authorization_count: storage_model.authorization_count,
+            fingerprint_id: storage_model.fingerprint_id,
+            session_expiry: storage_model.session_expiry,
         }
     }
 }
@@ -976,6 +995,8 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
+                session_expiry,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -994,6 +1015,8 @@ impl DataModelExt for PaymentIntentUpdate {
                 metadata,
                 payment_confirm_source,
                 updated_by,
+                fingerprint_id,
+                session_expiry,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1037,6 +1060,14 @@ impl DataModelExt for PaymentIntentUpdate {
             } => DieselPaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
+            },
+            Self::IncrementalAuthorizationAmountUpdate { amount } => {
+                DieselPaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            Self::AuthorizationCountUpdate {
+                authorization_count,
+            } => DieselPaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
             },
         }
     }

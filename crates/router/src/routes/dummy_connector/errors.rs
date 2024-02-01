@@ -20,7 +20,7 @@ pub enum DummyConnectorErrors {
     #[error(error_type = ErrorType::InvalidRequestError, code = "DC_02", message = "Missing required param: {field_name}")]
     MissingRequiredField { field_name: &'static str },
 
-    #[error(error_type = ErrorType::InvalidRequestError, code = "DC_03", message = "Refund amount exceeds the payment amount")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "DC_03", message = "The refund amount exceeds the amount captured")]
     RefundAmountExceedsPaymentAmount,
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "DC_04", message = "Card not supported. Please use test cards")]
