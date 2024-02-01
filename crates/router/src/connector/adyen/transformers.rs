@@ -4308,7 +4308,9 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                         .request
                         .connector_payout_id
                         .clone()
-                        .unwrap_or("".to_string()),
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_payout_id",
+                        })?,
                 }))
             }
             storage_enums::PayoutType::Card => {
