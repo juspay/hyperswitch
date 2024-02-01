@@ -339,12 +339,5 @@ function initializeEventListeners(paymentDetails) {
   if (statusRedirectTextNode instanceof HTMLDivElement) {
     statusRedirectTextNode.style.color = contrastBWColor;
   }
-
-    // @ts-ignore
-    window.state.prevHeight = currentHeight;
-    // @ts-ignore
-    window.state.prevWidth = currentWidth;
-    // @ts-ignore
-    window.state.isMobileView = currentWidth <= 1400;
   };
 
