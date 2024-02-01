@@ -19,6 +19,7 @@ use crate::{
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
+        /// Attempts to convert a `MerchantAccount` into the current type, returning a `Result`.
     fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
@@ -54,6 +55,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
+        /// Converts a `BusinessProfile` from the `storage` module into an instance of the current struct.
     fn foreign_try_from(
         item: storage::business_profile::BusinessProfile,
     ) -> Result<Self, Self::Error> {
@@ -83,6 +85,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Converts a tuple of a MerchantAccount and BusinessProfileCreate into a Result containing a new instance of Self or an error.
     fn foreign_try_from(
         (merchant_account, request): (domain::MerchantAccount, BusinessProfileCreate),
     ) -> Result<Self, Self::Error> {

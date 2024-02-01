@@ -76,12 +76,14 @@ mod tests {
         type Tree = Just<String>;
         type Value = String;
 
+                /// Creates a new tree with a safe email as the root node.
         fn new_tree(&self, _runner: &mut TestRunner) -> NewTree<Self> {
             Ok(Just(SafeEmail().fake()))
         }
     }
 
     #[test]
+        /// This method tests the `validate_email` function by passing different email addresses to it and asserting the result.
     fn test_validate_email() {
         let result = validate_email("abc@example.com");
         assert!(result.is_ok());
@@ -97,11 +99,14 @@ mod tests {
     #[test_case("+34912345678" ; "Spanish valid phone number")]
     #[test_case("+41 79 123 45 67" ; "Swiss valid phone number")]
     #[test_case("+66 81 234 5678" ; "Thailand valid phone number")]
+        /// This method takes a phone number as a string and calls the `validate_phone_number` function to check if the phone number is valid. It uses the `assert!` macro to ensure that the result of `validate_phone_number` is Ok, indicating that the phone number is valid.
     fn test_validate_phone_number(phone_number: &str) {
         assert!(validate_phone_number(phone_number).is_ok());
     }
 
     #[test_case("0745323456" ; "Romanian invalid phone number")]
+        /// This function takes a phone number as input and checks whether it is a valid phone number. 
+    /// It then asserts that the result is an error, indicating that the phone number is invalid. 
     fn test_invalid_phone_number(phone_number: &str) {
         let res = validate_phone_number(phone_number);
         assert!(res.is_err());

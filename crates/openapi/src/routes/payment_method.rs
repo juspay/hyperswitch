@@ -31,6 +31,7 @@
     operation_id = "Create a Payment Method",
     security(("api_key" = []))
 )]
+/// Asynchronously creates a new payment method using the API. This method handles the logic for sending a request to the payment method API and processing the response.
 pub async fn create_payment_method_api() {}
 
 /// List payment methods for a Merchant
@@ -58,6 +59,7 @@ pub async fn create_payment_method_api() {}
     operation_id = "List all Payment Methods for a Merchant",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+/// Asynchronously retrieves a list of payment methods from the API.
 pub async fn list_payment_method_api() {}
 
 /// List payment methods for a Customer
@@ -84,6 +86,7 @@ pub async fn list_payment_method_api() {}
     operation_id = "List all Payment Methods for a Customer",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves a list of customer payment methods from the API.
 pub async fn list_customer_payment_method_api() {}
 
 /// List payment methods for a Payment
@@ -111,6 +114,7 @@ pub async fn list_customer_payment_method_api() {}
     operation_id = "List all Payment Methods for a Customer",
     security(("publishable_key" = []))
 )]
+/// Asynchronously retrieves a list of customer payment methods from the API client.
 pub async fn list_customer_payment_method_api_client() {}
 
 /// Payment Method - Retrieve
@@ -130,7 +134,10 @@ pub async fn list_customer_payment_method_api_client() {}
     operation_id = "Retrieve a Payment method",
     security(("api_key" = []))
 )]
-pub async fn payment_method_retrieve_api() {}
+/// Asynchronously retrieves the payment method from the API.
+pub async fn payment_method_retrieve_api() {
+    // Method implementation goes here
+}
 
 /// Payment Method - Update
 ///
@@ -151,7 +158,10 @@ pub async fn payment_method_retrieve_api() {}
     operation_id = "Update a Payment method",
     security(("api_key" = []))
 )]
-pub async fn payment_method_update_api() {}
+/// Asynchronously updates the payment method through the API.
+pub async fn payment_method_update_api() {
+    // method implementation
+}
 
 /// Payment Method - Delete
 ///
@@ -170,4 +180,5 @@ pub async fn payment_method_update_api() {}
     operation_id = "Delete a Payment method",
     security(("api_key" = []))
 )]
+/// This method is used to delete a payment method from the API asynchronously.
 pub async fn payment_method_delete_api() {}

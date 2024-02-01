@@ -30,6 +30,7 @@ pub enum AuthenticationType {
     NoThreeDs,
 }
 impl AuthenticationType {
+        /// Converts the current enum variant to a DirValue enum based on its value.
     pub fn to_dir_value(&self) -> DirValue {
         match self {
             Self::ThreeDs => DirValue::AuthenticationType(enums::AuthenticationType::ThreeDs),
@@ -39,6 +40,7 @@ impl AuthenticationType {
 }
 
 impl EuclidAnalysable for AuthenticationType {
+        /// Retrieves the directory value for analysis based on the given rule name.
     fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(DirValue, Metadata)> {
         let auth = self.to_string();
 
@@ -81,6 +83,7 @@ pub struct DecisionManagerRecord {
     pub modified_at: i64,
 }
 impl events::ApiEventMetric for DecisionManagerRecord {
+        /// Retrieves the API event type, if available.
     fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
         Some(events::ApiEventsType::Routing)
     }

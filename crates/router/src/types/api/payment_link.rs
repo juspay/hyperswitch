@@ -13,6 +13,7 @@ pub(crate) trait PaymentLinkResponseExt: Sized {
 
 #[async_trait::async_trait]
 impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
+        /// Retrieves payment information from the database and constructs a PaymentLink object.
     async fn from_db_payment_link(payment_link: storage::PaymentLink) -> RouterResult<Self> {
         let session_expiry = payment_link.fulfilment_time.unwrap_or_else(|| {
             payment_link

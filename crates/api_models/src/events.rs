@@ -110,6 +110,7 @@ impl_misc_api_event_type!(
 );
 
 impl<T> ApiEventMetric for MetricsResponse<T> {
+        /// Retrieves the API event type. 
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }

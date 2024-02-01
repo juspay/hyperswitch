@@ -20,6 +20,7 @@ pub struct StreamData {
 }
 
 impl StreamData {
+        /// Constructs a StreamData object from a HashMap of key-value pairs representing JSON data.
     pub fn from_hashmap(
         hashmap: HashMap<String, String>,
     ) -> errors::CustomResult<Self, errors::ParsingError> {
@@ -28,7 +29,7 @@ impl StreamData {
             std::collections::hash_map::IntoIter<String, String>,
             serde_json::error::Error,
         >::new(hashmap.into_iter());
-
+    
         Self::deserialize(iter)
             .into_report()
             .change_context(errors::ParsingError::StructParseFailure("StreamData"))

@@ -20,6 +20,7 @@ use crate::{
 };
 
 #[cfg(feature = "email")]
+/// Handles user signup with a merchant ID request and returns an HTTP response.
 pub async fn user_signup_with_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -39,6 +40,7 @@ pub async fn user_signup_with_merchant_id(
     .await
 }
 
+/// Handles the user signup process by extracting the request payload from the provided JSON, creating a user signup flow, and then passing the flow, app state, HTTP request, request payload, and various other parameters to the server_wrap function. The server_wrap function handles the actual signup process by calling the signup function from the user_core module and applying the NoAuth authentication method with NotApplicable locking action.
 pub async fn user_signup(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -58,6 +60,7 @@ pub async fn user_signup(
     .await
 }
 
+/// Handles the user sign-in process without performing invite checks. This method wraps the sign-in request in a server context, and then calls the `signin_without_invite_checks` method from the user core module. This method does not require authentication and does not involve any locking action.
 pub async fn user_signin_without_invite_checks(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -77,6 +80,8 @@ pub async fn user_signin_without_invite_checks(
     .await
 }
 
+/// Handles the user sign-in process by taking in the App state, HTTP request, and JSON payload,
+/// and then asynchronously wraps the sign-in request using the server_wrap function from the api module.
 pub async fn user_signin(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -97,6 +102,7 @@ pub async fn user_signin(
 }
 
 #[cfg(feature = "email")]
+/// This method handles the user's request to connect an account by wrapping the request in a server_wrap function and executing it asynchronously. It creates a flow for the user connection account operation, extracts the request payload from the JSON body, and then passes it along with the state and HTTP request to the user_core::connect_account function. The authentication method used is NoAuth, and the method does not apply any locking action. The result of the server_wrap function is awaited and returned as an HttpResponse.
 pub async fn user_connect_account(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -116,6 +122,7 @@ pub async fn user_connect_account(
     .await
 }
 
+/// Handles the signout flow for the user. It takes the current application state and the HTTP request as input, and uses the server_wrap function to wrap the signout logic in an asynchronous context. It then waits for the result using the await keyword and returns the HttpResponse.
 pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
     let flow = Flow::Signout;
     Box::pin(api::server_wrap(
@@ -130,6 +137,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
     .await
 }
 
+/// Asynchronously handles a request to change a user's password by calling the `change_password` function from the `user_core` module wrapped in the `api::server_wrap` function. The `change_password` function requires the `state`, `req`, and `user` as parameters, and the `api::server_wrap` function handles the authentication, authorization, and locking aspects of the request. The method returns an `HttpResponse` indicating the success or failure of the password change request.
 pub async fn change_password(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -148,6 +156,7 @@ pub async fn change_password(
     .await
 }
 
+/// Asynchronously sets the metadata for a dashboard using the provided JSON payload and request information. This method first creates a flow for setting dashboard metadata, then extracts the payload from the JSON request. It then checks for any errors in setting the IP address using the request headers. If an error is found, it returns an error response. Otherwise, it wraps the flow, state, request, payload, and authentication information in a server response and awaits the result.
 pub async fn set_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -174,6 +183,7 @@ pub async fn set_dashboard_metadata(
     .await
 }
 
+/// Retrieves multiple dashboard metadata based on the provided request.
 pub async fn get_multiple_dashboard_metadata(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -200,6 +210,7 @@ pub async fn get_multiple_dashboard_metadata(
     .await
 }
 
+/// Handles the signup process for internal users. This method takes the application state, HTTP request, and JSON payload as input, and then uses the server_wrap function to handle the internal user signup flow. It creates a new internal user using the user_core::create_internal_user method and admin API authentication. Finally, it awaits the result and returns an HTTP response.
 pub async fn internal_user_signup(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -218,6 +229,9 @@ pub async fn internal_user_signup(
     .await
 }
 
+/// Asynchronously handles the switching of merchant ID by taking in the application state, HTTP request,
+/// and a JSON payload containing the switch merchant ID request. It then creates a flow for switching the
+/// merchant, wraps the server API call with the necessary parameters and authentication, and awaits the result.
 pub async fn switch_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -236,6 +250,7 @@ pub async fn switch_merchant_id(
     .await
 }
 
+/// Asynchronously handles the creation of a merchant account for a user. It takes in the application state, HTTP request, and JSON payload containing the user's merchant create information. It then wraps the process in a box and awaits the server wrap operation, which includes creating a merchant account for the user using the provided state, authentication token, and JSON payload.
 pub async fn user_merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -257,6 +272,7 @@ pub async fn user_merchant_account_create(
 }
 
 #[cfg(feature = "dummy_connector")]
+/// Asynchronously generates sample data for a user and returns an actix_web::Responder.
 pub async fn generate_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -277,6 +293,7 @@ pub async fn generate_sample_data(
     .await
 }
 #[cfg(feature = "dummy_connector")]
+/// Asynchronously deletes sample data for a user by handling the HTTP request and calling the `delete_sample_data_for_user` function from the `sample_data` module. 
 pub async fn delete_sample_data(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -297,6 +314,7 @@ pub async fn delete_sample_data(
     .await
 }
 
+/// Asynchronously retrieves a list of merchant IDs associated with a user and returns an HttpResponse.
 pub async fn list_merchant_ids_for_user(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -314,6 +332,7 @@ pub async fn list_merchant_ids_for_user(
     .await
 }
 
+/// Retrieves user details from the server using the provided `AppState` and `HttpRequest`.
 pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
@@ -329,6 +348,10 @@ pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> H
 }
 
 #[cfg(feature = "email")]
+/// Handles the request to initiate the forgot password flow for a user. 
+/// This method takes the application state, the HTTP request, and the user's forgot password request payload as input. 
+/// It then invokes the `api::server_wrap` method with the appropriate parameters to handle the forgot password flow, 
+/// including invoking the `user_core::forgot_password` method to process the forgot password request. 
 pub async fn forgot_password(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -348,6 +371,7 @@ pub async fn forgot_password(
 }
 
 #[cfg(feature = "email")]
+/// Handles the reset password HTTP request by delegating the processing to the `user_core::reset_password` function
 pub async fn reset_password(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -366,6 +390,9 @@ pub async fn reset_password(
     .await
 }
 
+/// Handles the invitation of a user by wrapping the invite_user function from user_core module
+/// in a server_wrap function from the api module. This method takes the current application state,
+/// the HTTP request, and the user invitation request payload as input, and returns an HTTP response.
 pub async fn invite_user(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -383,6 +410,7 @@ pub async fn invite_user(
     ))
     .await
 }
+/// Handles the invitation of multiple users by wrapping the invite_multiple_user function from the user_core module in an API server wrap. It takes the AppSate, HttpRequest, and a JSON payload containing multiple user invitation requests as input, and returns an HttpResponse.
 pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -402,6 +430,7 @@ pub async fn invite_multiple_user(
 }
 
 #[cfg(feature = "email")]
+/// Handles the verification of the user's email without performing invite checks. This method takes in the application state, the HTTP request, and the JSON payload containing the user's email verification request. It then initiates the email verification process by calling the user_core::verify_email_without_invite_checks function and returns the result as an HTTP response. This method uses the flow type VerifyEmailWithoutInviteChecks and does not require any authentication for the verification process.
 pub async fn verify_email_without_invite_checks(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -421,6 +450,7 @@ pub async fn verify_email_without_invite_checks(
 }
 
 #[cfg(feature = "email")]
+/// This method handles the verification of email for a user. It takes in the application state, an HTTP request, and a JSON payload containing the email verification request. It then uses the `api::server_wrap` function to wrap the verification process, including calling `user_core::verify_email` to perform the actual email verification. The method returns an HTTP response.
 pub async fn verify_email(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -440,6 +470,7 @@ pub async fn verify_email(
 }
 
 #[cfg(feature = "email")]
+/// Handles the verification of an email request by sending a verification email to the specified email address.
 pub async fn verify_email_request(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -459,6 +490,8 @@ pub async fn verify_email_request(
 }
 
 #[cfg(feature = "recon")]
+/// Asynchronously verifies a reconciliation token by calling the user_core::verify_token function. 
+/// It uses the provided AppState and HttpRequest to perform the verification process, and then returns an HttpResponse. 
 pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
     let flow = Flow::ReconVerifyToken;
     Box::pin(api::server_wrap(
@@ -473,6 +506,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
     .await
 }
 
+/// Asynchronously updates the user account details by wrapping the update_user_details function from the user_core module in a server_wrap function from the api module. It takes the AppSate, HttpRequest, and a JSON payload containing the user's updated account details as input parameters. It then returns an HttpResponse after awaiting the completion of the server_wrap function.
 pub async fn update_user_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,

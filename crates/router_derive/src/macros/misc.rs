@@ -1,3 +1,12 @@
+/// Retrieves the identifier of the last segment of a given type's path, if it is a path type.
+/// 
+/// # Arguments
+/// 
+/// * `field_type` - The type from which to extract the identifier of the last path segment.
+/// 
+/// # Returns
+/// 
+/// An `Option` containing the identifier of the last path segment, or `None` if the type is not a path type.
 pub fn get_field_type(field_type: syn::Type) -> Option<syn::Ident> {
     if let syn::Type::Path(path) = field_type {
         path.path

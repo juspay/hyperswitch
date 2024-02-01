@@ -99,6 +99,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
 }
 
 impl MerchantConnectorAccountUpdateInternal {
+        /// Creates a new MerchantConnectorAccount by combining the values of the current instance with the provided source MerchantConnectorAccount.
     pub fn create_merchant_connector_account(
         self,
         source: MerchantConnectorAccount,

@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
+/// Handles the creation of a new customer by processing the JSON payload and calling the create_customer function with the appropriate state and authentication parameters. The function also performs API server wrapping, authentication type verification, and locking action handling before returning the HTTP response.
 pub async fn customers_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -32,6 +33,7 @@ pub async fn customers_create(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
+/// Handles the retrieval of customer data. It first creates a JSON payload from the customer ID extracted from the request path. Then, it checks the authentication method used in the request and determines the appropriate authorization. Finally, it wraps the retrieval of customer data in a server_wrap function, passing the necessary parameters and awaits the result.
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -65,6 +67,7 @@ pub async fn customers_retrieve(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
+/// Asynchronously handles the HTTP request for listing customers. It wraps the flow in the API server, authenticates the request, and then awaits the response.
 pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CustomersList;
 
@@ -85,6 +88,7 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+/// Asynchronously handles the update of a customer by processing the incoming HTTP request and JSON payload. 
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -111,6 +115,7 @@ pub async fn customers_update(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
+/// This method handles the deletion of a customer by making an asynchronous call to the server_wrap function with the specified flow, state, request, payload, and delete_customer function. It also performs authentication using the ApiKeyAuth and JWTAuth with the specified permissions, as well as applying the NotApplicable lock action. The method returns an implementation of Responder.
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -137,6 +142,7 @@ pub async fn customers_delete(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
+/// Asynchronously retrieves the mandates for a specific customer by calling the appropriate API endpoint. It uses the provided `AppState` and `HttpRequest` to make the API call and retrieve the customer mandates based on the `customer_id` extracted from the `path`. The method also performs authentication using the `auth::ApiKeyAuth` and `auth::JWTAuth` with the required permission `Permission::MandateRead`. After the successful authentication and API call, it returns the result as a Responder.
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
     req: HttpRequest,

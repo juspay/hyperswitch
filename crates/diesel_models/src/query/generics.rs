@@ -43,6 +43,7 @@ pub mod db_metrics {
     }
 
     #[inline]
+        /// Asynchronously tracks a database call, including its execution time and operation type, and updates the metrics for database calls count and time. 
     pub async fn track_database_call<T, Fut, U>(future: Fut, operation: DatabaseOperation) -> U
     where
         Fut: std::future::Future<Output = U>,
@@ -72,6 +73,7 @@ pub mod db_metrics {
 use db_metrics::*;
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously inserts a generic record into the database and returns a result.
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
@@ -103,6 +105,8 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously updates the specified table with the given values based on the provided predicate, using the provided database connection.
+/// Returns a `StorageResult` containing the number of rows affected by the update operation.
 pub async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,
@@ -131,6 +135,13 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Performs a generic update operation on a table in the database with the given predicate and values,
+/// returning a vector of results. This method is asynchronous and requires a connection to the database.
+/// The generic types T, V, P, and R represent the table type, values type, predicate type, and result type
+/// respectively. The method handles database errors and returns an appropriate StorageResult containing the
+/// vector of results if the operation is successful. If there are no fields to update, a NoFieldsToUpdate error
+/// is returned. If the record to be updated is not found, a NotFound error is returned. For any other errors,
+/// an Others error is returned. The method also logs the debug query and debug values for debugging purposes.
 pub async fn generic_update_with_results<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -179,6 +190,8 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Performs a generic update operation on a database table based on a unique predicate, and returns the result of the update. This method takes a connection to the PostgreSQL database, a unique predicate, and a set of values to update, and returns a `StorageResult` containing the result of the update operation. The method is generic over the types of the table, the predicate, the values, and the result, and it enforces constraints on these types using trait bounds. The method also checks the uniqueness of the result of the update operation and handles errors accordingly.
+
 pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -217,6 +230,24 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Performs a generic update operation on a record in the database based on the provided ID.
+/// 
+/// # Arguments
+/// 
+/// * `conn` - A reference to a pooled database connection
+/// * `id` - The ID of the record to be updated
+/// * `values` - The new values to be set for the record
+/// 
+/// # Generic Types
+/// 
+/// * `T` - The table type to be updated
+/// * `V` - The type of the new values
+/// * `Pk` - The type of the ID
+/// * `R` - The return type
+/// 
+/// # Returns
+/// 
+/// The result of the update operation wrapped in a `StorageResult`
 pub async fn generic_update_by_id<T, V, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -268,6 +299,8 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Performs a generic delete operation on a table of type T based on the provided predicate.
+/// Returns a `StorageResult` indicating whether the delete operation was successful.
 pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -298,6 +331,10 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously deletes a single record from the database based on the specified predicate, and returns the result of the deletion operation.
+/// The method takes a pooled database connection and a predicate as input, and returns a `StorageResult` containing the result of the deletion operation.
+/// The type `T` represents the database table, `P` represents the predicate type, and `R` represents the result type.
+/// This method is generic and works with any type that implements the required traits for database operations.
 pub async fn generic_delete_one_with_result<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -331,6 +368,30 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously finds a record in the database by its primary key. 
+/// 
+/// # Arguments
+///
+/// * `conn` - A reference to a pooled Postgres connection
+/// * `id` - The primary key of the record to be found
+///
+/// # Generic Parameters
+///
+/// * `T` - The type of the table to be queried
+/// * `Pk` - The type of the primary key
+/// * `R` - The type of the result to be returned
+///
+/// # Constraints
+///
+/// * `T` must implement `FindDsl`, `HasTable`, `LimitDsl`, `Table`, and must be `'static`
+/// * `Find<T, Pk>` must implement `LimitDsl`, `QueryFragment<Pg>`, `RunQueryDsl<PgConnection>`, and must be `'static` and `Send`
+/// * `Limit<Find<T, Pk>>` must implement `LoadQuery<'static, PgConnection, R>`
+/// * `Pk` must implement `Clone` and `Debug`
+/// * `R` must be `'static` and `Send`
+///
+/// # Returns
+///
+/// An asynchronous result containing the found record or an error
 async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -356,6 +417,8 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously finds a record by its ID in the database using the given connection,
+/// and returns a result of the found record.
 pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
@@ -368,6 +431,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously finds an item of type R by its id in the database, returning it as an Option.
 pub async fn generic_find_by_id_optional<T, Pk, R>(
     conn: &PgPooledConn,
     id: Pk,
@@ -384,6 +448,29 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously finds a single record in the database based on the provided predicate.
+/// 
+/// # Arguments
+/// 
+/// * `conn` - A reference to a pooled PostgreSQL connection.
+/// * `predicate` - The predicate used to filter the database records.
+/// 
+/// # Generic Parameters
+/// 
+/// * `T` - The type of the database table.
+/// * `P` - The type of the predicate.
+/// * `R` - The type of the result.
+/// 
+/// # Constraints
+/// 
+/// * `T` must implement `FilterDsl<P>`, `HasTable<Table = T>`, `Table`, and be `'static`.
+/// * `Filter<T, P>` must implement `LoadQuery<'static, PgConnection, R>`, `QueryFragment<Pg>`, `Send`, and be `'static`.
+/// * `R` must implement `Send` and be `'static`.
+/// 
+/// # Returns
+/// 
+/// A `StorageResult` containing the result of the database operation.
+/// 
 async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -404,6 +491,8 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// This method asynchronously finds and retrieves a single record of type R from the database
+/// based on the given predicate using the provided database connection.
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
@@ -414,6 +503,9 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Asynchronously finds a single record in the database based on the given predicate,
+/// returning it as an Option. The method takes a database connection and a predicate
+/// as parameters, and returns a StorageResult containing the optional record.
 pub async fn generic_find_one_optional<T, P, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -427,6 +519,23 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
+/// Performs a generic filter operation on a database table using the given predicate, limit, offset, and order parameters.
+/// 
+/// # Arguments
+/// 
+/// * `conn` - A reference to a pooled database connection
+/// * `predicate` - The filter predicate to apply to the query
+/// * `limit` - An optional limit for the number of results to return
+/// * `offset` - An optional offset for the results
+/// * `order` - An optional ordering for the results
+/// 
+/// # Returns
+/// 
+/// A `StorageResult` containing a vector of the filtered results
+/// 
+/// # Constraints
+/// 
+/// The method is generic over types `T`, `P`, `O`, and `R`, with various trait bounds for each type to ensure compatibility with the database query
 pub async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
@@ -470,6 +579,12 @@ where
         .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
+/// Converts a `StorageResult` into a `StorageResult` containing an `Option`.
+///
+/// If the input `StorageResult` is `Ok`, it will return a new `StorageResult` containing `Some` value.
+/// If the input `StorageResult` is `Err`, it will check the current context of the error. If the context
+/// is `DatabaseError::NotFound`, it will return a new `StorageResult` containing `None`. Otherwise, it
+/// will propagate the original error.
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
     match arg {
         Ok(value) => Ok(Some(value)),

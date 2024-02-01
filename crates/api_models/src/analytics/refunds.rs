@@ -92,6 +92,7 @@ pub mod metric_behaviour {
 }
 
 impl From<RefundMetrics> for NameDescription {
+        /// Creates a new instance of Self by converting a RefundMetrics value into a new instance with the same name and an empty description.
     fn from(value: RefundMetrics) -> Self {
         Self {
             name: value.to_string(),
@@ -101,6 +102,7 @@ impl From<RefundMetrics> for NameDescription {
 }
 
 impl From<RefundDimensions> for NameDescription {
+        /// This method creates a new instance of the current type by taking a `RefundDimensions` value and using its `to_string` method to set the `name` field, while setting the `desc` field to an empty string.
     fn from(value: RefundDimensions) -> Self {
         Self {
             name: value.to_string(),
@@ -124,6 +126,7 @@ pub struct RefundMetricsBucketIdentifier {
 }
 
 impl Hash for RefundMetricsBucketIdentifier {
+        /// Hashes the fields of the struct using the given Hasher instance.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.currency.hash(state);
         self.refund_status.hash(state);
@@ -133,6 +136,7 @@ impl Hash for RefundMetricsBucketIdentifier {
     }
 }
 impl PartialEq for RefundMetricsBucketIdentifier {
+        /// Compares two instances of the same type for equality based on their hash values.
     fn eq(&self, other: &Self) -> bool {
         let mut left = DefaultHasher::new();
         self.hash(&mut left);
@@ -143,6 +147,7 @@ impl PartialEq for RefundMetricsBucketIdentifier {
 }
 
 impl RefundMetricsBucketIdentifier {
+        /// Creates a new instance of the struct, initializing the fields with the provided values.
     pub fn new(
         currency: Option<Currency>,
         refund_status: Option<String>,

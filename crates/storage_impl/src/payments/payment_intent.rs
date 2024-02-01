@@ -46,6 +46,17 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
+        /// Inserts a new payment intent into the storage system based on the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `new` - The new payment intent to be inserted
+    /// * `storage_scheme` - The storage scheme to be used for insertion
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the inserted `PaymentIntent` if successful, otherwise returns a `StorageError`
+    ///
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
@@ -136,6 +147,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
+        /// Updates the payment intent using the provided payment intent update and storage scheme. If the storage scheme is PostgresOnly, the payment intent is updated in the router store. If the storage scheme is RedisKv, the payment intent is updated in the Redis key-value store.
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -191,6 +203,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously finds a payment intent by the given payment ID and merchant ID using the specified storage scheme.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `payment_id` - A string reference representing the payment ID to search for.
+    /// * `merchant_id` - A string reference representing the merchant ID to search for.
+    /// * `storage_scheme` - The storage scheme to use for retrieving the payment intent.
+    /// 
+    /// # Returns
+    /// 
+    /// An `error_stack::Result` containing a `PaymentIntent` if the operation is successful, otherwise a `StorageError`.
+    /// 
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -230,6 +254,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .map(PaymentIntent::from_storage_model)
     }
 
+        /// Asynchronously retrieves the active payment attempt associated with a given PaymentIntent and storage scheme. 
+    /// If the active payment attempt is stored as a ForeignID, it fetches the payment attempt from the database and updates the PaymentIntent. 
+    /// If the active payment attempt is already stored as an Object, it simply returns a clone of the payment attempt. 
+    /// Returns a Result containing the active PaymentAttempt or a StorageError if an error occurs during the retrieval process.
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -258,6 +286,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Asynchronously filters payment intents based on the provided constraints for a specific merchant using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The ID of the merchant for which to filter payment intents.
+    /// * `filters` - The constraints to apply when filtering payment intents.
+    /// * `storage_scheme` - The storage scheme to use for filtering the payment intents.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `PaymentIntent` if the operation is successful, otherwise a `StorageError` is returned.
+    ///
+    #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
@@ -270,6 +311,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Filters payment intents by time range constraints based on the provided merchant ID, time range, and storage scheme.
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         merchant_id: &str,
@@ -286,6 +328,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Asynchronously retrieves a list of payment intents and their corresponding payment attempts that match the specified constraints for a given merchant and storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The ID of the merchant for which to retrieve payment intents and attempts.
+    /// * `filters` - The constraints to filter the payment intents and attempts.
+    /// * `storage_scheme` - The storage scheme used for retrieving the data.
+    ///
+    /// # Returns
+    ///
+    /// A vector containing tuples of PaymentIntent and PaymentAttempt that match the specified constraints, wrapped in a Result. If successful, the vector is returned. If an error occurs during the retrieval process, a StorageError is returned.
+    ///
     async fn get_filtered_payment_intents_attempt(
         &self,
         merchant_id: &str,
@@ -298,6 +352,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Retrieves filtered active attempt IDs for total count based on the provided constraints and merchant storage scheme.
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &str,
@@ -316,6 +371,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
+        /// Asynchronously inserts a new payment intent into the database according to the provided storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `new` - The new payment intent to be inserted.
+    /// * `_storage_scheme` - The storage scheme to be used for the insertion.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a `PaymentIntent` if the insertion was successful, otherwise a `StorageError` is returned.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if there are issues with the database connection or if there is an error during the insertion process.
+    ///
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
@@ -332,6 +402,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(PaymentIntent::from_storage_model)
     }
 
+        /// Asynchronously updates a payment intent in the database using the provided payment intent update and merchant storage scheme.
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -350,6 +421,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously finds a payment intent by the given payment ID and merchant ID using the specified storage scheme.
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -366,6 +438,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })
     }
 
+        /// Asynchronously retrieves the active payment attempt for a given PaymentIntent from the database based on the specified storage scheme. If the active attempt is stored as a ForeignID, it fetches the corresponding PaymentAttempt from the database using the merchant ID and attempt ID. If the active attempt is already stored as an Object, it directly returns a clone of the PaymentAttempt. Returns a Result containing the active PaymentAttempt or a StorageError if an error occurs during the retrieval process.
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -394,6 +467,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Filters payment intents based on the given constraints and returns a vector of payment intents if successful,
+    /// otherwise returns a StorageError.
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
@@ -507,6 +582,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Filters payment intents by time range constraints using the specified merchant ID, time range, and storage scheme.
+    ///
+    /// # Arguments
+    /// * `merchant_id` - A reference to the merchant ID for filtering payment intents.
+    /// * `time_range` - A reference to the time range constraints for filtering payment intents.
+    /// * `storage_scheme` - The storage scheme used for filtering payment intents.
+    ///
+    /// # Returns
+    /// A result containing a vector of payment intents if successful, or a StorageError if an error occurs.
+    ///
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         merchant_id: &str,
@@ -518,8 +603,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         self.filter_payment_intent_by_constraints(merchant_id, &payment_filters, storage_scheme)
             .await
     }
-
     #[cfg(feature = "olap")]
+        /// Retrieves a list of payment intents and their associated payment attempts that match the given constraints for a specific merchant from the database.
     async fn get_filtered_payment_intents_attempt(
         &self,
         merchant_id: &str,
@@ -660,6 +745,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+        /// Retrieve filtered active attempt IDs for total count based on the given constraints and merchant ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A string reference representing the merchant ID.
+    /// * `constraints` - A reference to a PaymentIntentFetchConstraints object containing the filtering constraints.
+    /// * `_storage_scheme` - A MerchantStorageScheme object (not used in the method implementation).
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of strings representing the filtered active attempt IDs, or a StorageError if an error occurs.
+    /// 
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &str,
@@ -730,6 +827,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 impl DataModelExt for PaymentIntentNew {
     type StorageModel = DieselPaymentIntentNew;
 
+        /// Converts the current payment intent into its corresponding storage model for Diesel,
+    /// mapping each field to the equivalent field in the storage model struct.
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentIntentNew {
             payment_id: self.payment_id,
@@ -775,6 +874,7 @@ impl DataModelExt for PaymentIntentNew {
         }
     }
 
+            /// Converts a storage model to a payment model.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             payment_id: storage_model.payment_id,
@@ -824,6 +924,7 @@ impl DataModelExt for PaymentIntentNew {
 impl DataModelExt for PaymentIntent {
     type StorageModel = DieselPaymentIntent;
 
+        /// Converts the current object into its corresponding storage model for Diesel, which is used for database operations.
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentIntent {
             id: self.id,
@@ -870,6 +971,7 @@ impl DataModelExt for PaymentIntent {
         }
     }
 
+            /// Converts a storage model to the current model.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             id: storage_model.id,
@@ -920,6 +1022,7 @@ impl DataModelExt for PaymentIntent {
 impl DataModelExt for PaymentIntentUpdate {
     type StorageModel = DieselPaymentIntentUpdate;
 
+        /// Converts the enum variant to its corresponding StorageModel variant.
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::ResponseUpdate {
@@ -1073,6 +1176,13 @@ impl DataModelExt for PaymentIntentUpdate {
     }
 
     #[allow(clippy::todo)]
+        /// Creates an instance of Self from the provided StorageModel.
+    /// 
+    /// # Arguments
+    /// * `_storage_model` - The StorageModel to create an instance from
+    /// 
+    /// # Returns
+    /// An instance of Self
     fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Reverse map should no longer be needed")
     }

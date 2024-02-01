@@ -48,6 +48,7 @@ pub struct MockDb {
 }
 
 impl MockDb {
+        /// Create a new instance of StorageManager with the provided Redis settings.
     pub async fn new(redis: &RedisSettings) -> error_stack::Result<Self, StorageError> {
         Ok(Self {
             addresses: Default::default(),

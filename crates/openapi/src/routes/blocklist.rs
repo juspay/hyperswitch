@@ -10,7 +10,10 @@
     operation_id = "Block a Fingerprint",
     security(("api_key" = []))
 )]
-pub async fn add_entry_to_blocklist() {}
+/// Asynchronously adds an entry to the blocklist. This method is used to add an item to a blocklist, which is a collection of items that are not allowed to pass through certain processes or systems.
+pub async fn add_entry_to_blocklist() {
+    // implementation goes here
+}
 
 #[utoipa::path(
     delete,
@@ -24,7 +27,10 @@ pub async fn add_entry_to_blocklist() {}
     operation_id = "Unblock a Fingerprint",
     security(("api_key" = []))
 )]
-pub async fn remove_entry_from_blocklist() {}
+/// Asynchronously removes an entry from the blocklist.
+pub async fn remove_entry_from_blocklist() {
+    // implementation goes here
+}
 
 #[utoipa::path(
     get,
@@ -40,4 +46,5 @@ pub async fn remove_entry_from_blocklist() {}
     operation_id = "List Blocked fingerprints of a particular kind",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves a list of blocked payment methods.
 pub async fn list_blocked_payment_methods() {}

@@ -4,6 +4,7 @@ pub trait IntoDirValue {
     fn into_dir_value(self) -> Result<dir::DirValue, AnalysisErrorType>;
 }
 impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMethod) {
+        /// Converts a PaymentMethodType into a corresponding DirValue based on its variant, and returns it as a Result. If the PaymentMethodType is not supported or doesn't match the expected PaymentMethod, an AnalysisErrorType is returned.
     fn into_dir_value(self) -> Result<dir::DirValue, AnalysisErrorType> {
         match self.0 {
             global_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),

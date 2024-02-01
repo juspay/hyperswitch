@@ -10,6 +10,7 @@ use crate::{
 
 pub trait SdkEventFilterAnalytics: LoadRow<SdkEventFilter> {}
 
+/// Asynchronously retrieves SDK event filters for a specific dimension, publishable key, and time range from the specified data source.
 pub async fn get_sdk_event_filter_for_dimension<T>(
     dimension: SdkEventDimensions,
     publishable_key: &String,

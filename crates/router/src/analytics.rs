@@ -31,6 +31,7 @@ pub mod routes {
     pub struct Analytics;
 
     impl Analytics {
+                /// This method creates and configures routes for various analytics endpoints in the server. It takes an `AppState` as input and returns a `Scope` with all the configured routes.
         pub fn server(state: AppState) -> Scope {
             let mut route = web::scope("/analytics/v1").app_data(web::Data::new(state));
             {
@@ -93,6 +94,7 @@ pub mod routes {
         }
     }
 
+        /// Asynchronously retrieves information about the specified domain from the analytics service.
     pub async fn get_info(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -223,6 +225,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles a request to get payment filters by extracting the necessary data from the request, calling the appropriate analytics method to retrieve the filters, and returning the result as a JSON response. This method requires the AppState, HttpRequest, and a JSON payload containing the GetPaymentFiltersRequest.
     pub async fn get_payment_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -249,6 +252,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles a HTTP request to retrieve refund filters from the analytics server.
     pub async fn get_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -275,6 +279,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles the HTTP POST request to fetch SDK event filters and returns a responder. It extracts the `AppState` from the web data, the `HttpRequest` and a JSON payload of type `GetSdkEventFiltersRequest`. It then creates an `AnalyticsFlow` of type `GetSdkEventFilters` and uses it to call the `api::server_wrap` method with necessary parameters to fetch the SDK event filters from the database. Finally, it returns the result as a responder.
     pub async fn get_sdk_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -301,6 +306,7 @@ pub mod routes {
         .await
     }
 
+        /// Retrieves API events using the provided request data and returns a responder.
     pub async fn get_api_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -323,6 +329,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles the incoming request to retrieve outgoing webhook events for analytics purposes. It takes in the current application state, the HTTP request, and the JSON payload containing the outgoing webhook logs request. It then wraps the processing of the request in a server_wrap function, which handles authentication, authorization, and locking, before calling the core logic for retrieving outgoing webhook events. The method returns a responder for the HTTP response.
     pub async fn get_outgoing_webhook_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -347,6 +354,7 @@ pub mod routes {
         .await
     }
 
+        /// This method is used to handle the HTTP request for retrieving SDK events for analytics. It takes the application state, HTTP request, and JSON payload as input and returns a responder. It creates an analytics flow for getting SDK events, then wraps the API server call with the necessary parameters and authentication data. Finally, it awaits the result of the API call and returns the application response as JSON.
     pub async fn get_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -373,6 +381,18 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously generates a refund report by invoking a lambda function with the provided payload and user information. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state data
+    /// * `req` - The HTTP request
+    /// * `json_payload` - The JSON payload containing the report request
+    /// 
+    /// # Returns
+    /// 
+    /// The response from the lambda function as a Responder
+    /// 
     pub async fn generate_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -415,6 +435,7 @@ pub mod routes {
         .await
     }
 
+        /// Generate a dispute report by invoking a Lambda function and returning the result as a JSON response. Requires authentication with JWT and permission for analytics.
     pub async fn generate_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -457,6 +478,17 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously generates a payment report by invoking a Lambda function. 
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - the web AppState
+    /// * `req` - the actix_web HttpRequest
+    /// * `json_payload` - the web Json containing the ReportRequest payload
+    ///
+    /// # Returns
+    ///
+    /// The generated payment report as a Responder
     pub async fn generate_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -535,6 +567,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles the request to retrieve API event filters. It wraps the flow in a server and executes the get_filters function from the analytics module, returning the result as a JSON response. Requires authentication with the 'Analytics' permission. 
     pub async fn get_api_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -561,6 +594,7 @@ pub mod routes {
         .await
     }
 
+        /// Asynchronously handles the HTTP request to retrieve connector events by calling the `connector_events_core` function and returning the result as a JSON response. It requires the `AppState` data, the HTTP request, and a JSON payload containing the request parameters. This method uses the `api::server_wrap` function to wrap the flow, state, request, payload, and authentication data, and then waits for the result using `Box::pin` and `await`.
     pub async fn get_connector_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,

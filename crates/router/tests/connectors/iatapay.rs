@@ -12,6 +12,7 @@ use crate::{
 struct IatapayTest;
 impl ConnectorActions for IatapayTest {}
 impl Connector for IatapayTest {
+        /// Retrieves the connector data for the Iatapay connector.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Iatapay;
         types::api::ConnectorData {
@@ -22,6 +23,7 @@ impl Connector for IatapayTest {
         }
     }
 
+        /// Retrieves the authentication token for the connector. This method returns the authentication token in the form of types::ConnectorAuthType.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -31,11 +33,18 @@ impl Connector for IatapayTest {
         )
     }
 
+        /// Retrieves the name of the entity.
+    ///
+    /// # Returns
+    /// 
+    /// A `String` containing the name "iatapay".
     fn get_name(&self) -> String {
         "iatapay".to_string()
     }
 }
 
+/// Retrieves the access token from the IatapayTest connector, if the authentication type is SignatureKey.
+/// If the authentication type is not SignatureKey, returns None.
 fn get_access_token() -> Option<AccessToken> {
     let connector = IatapayTest {};
     match connector.get_auth_token() {
@@ -53,6 +62,7 @@ fn get_access_token() -> Option<AccessToken> {
 
 static CONNECTOR: IatapayTest = IatapayTest {};
 
+/// Returns the default payment information, including the billing address, phone details, access token, and return URL
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(PaymentAddress {
@@ -80,6 +90,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     })
 }
 
+/// Retrieves the payment method details, including the router return URL, webhook URL, and currency.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         router_return_url: Some("https://hyperswitch.io".to_string()),
@@ -93,6 +104,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 
 // Creates a payment checking if its status is "requires_customer_action" for redirectinal flow
 #[actix_web::test]
+/// Asynchronously creates a payment authorization and asserts that the response status is `AuthenticationPending`.
 async fn should_only_create_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -103,6 +115,8 @@ async fn should_only_create_payment() {
 
 //refund on an unsuccessed payments
 #[actix_web::test]
+/// Attempts to authorize a payment and then attempts to refund the payment if the authorization is unsuccessful. 
+/// If the refund response contains an error with the code "BAD_REQUEST", the method will pass, otherwise it will fail.
 async fn should_fail_for_refund_on_unsuccessed_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -128,6 +142,7 @@ async fn should_fail_for_refund_on_unsuccessed_payment() {
 
 // Refunds a payment with refund amount higher than payment amount.
 #[actix_web::test]
+/// Asynchronously tests that a refund request with an amount higher than the payment amount fails with the appropriate error message.
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
         .refund_payment(
@@ -148,6 +163,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 }
 
 #[actix_web::test]
+/// Asynchronously checks if the payment should be synchronized by calling the `psync_retry_till_status_matches` method of the `CONNECTOR` object with the attempt status set to `Charged`, the payment synchronization data set to a default value with the `connector_transaction_id` field set to "PE9OTYNP639XW", and the default payment information. It then asserts that the status of the response matches the attempt status of `Charged`.
 async fn should_sync_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -166,6 +182,7 @@ async fn should_sync_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously checks if the refund status matches the given status, and ensures that it is successful. 
 async fn should_sync_refund() {
     let response = CONNECTOR
         .rsync_retry_till_status_matches(

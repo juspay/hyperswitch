@@ -44,6 +44,17 @@ mod storage {
 
     #[async_trait::async_trait]
     impl CaptureInterface for Store {
+                /// Asynchronously inserts a new capture into the database based on the provided storage scheme.
+        ///
+        /// # Arguments
+        ///
+        /// * `capture` - The new capture to be inserted.
+        /// * `_storage_scheme` - The storage scheme to be used for the insertion.
+        ///
+        /// # Returns
+        ///
+        /// * `CustomResult<Capture, errors::StorageError>` - A result indicating success with the inserted capture or an error of type `StorageError`.
+        ///
         async fn insert_capture(
             &self,
             capture: CaptureNew,
@@ -60,6 +71,7 @@ mod storage {
             db_call().await
         }
 
+                /// Asynchronously updates a capture with the given capture ID using the provided information and storage scheme.
         async fn update_capture_with_capture_id(
             &self,
             this: Capture,
@@ -76,6 +88,7 @@ mod storage {
             db_call().await
         }
 
+                /// Asynchronously finds all captures by the given merchant ID, payment ID, and authorized attempt ID using the specified storage scheme. Returns a vector of captures or a storage error.
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
             merchant_id: &str,
@@ -172,6 +185,17 @@ mod storage {
 
 #[async_trait::async_trait]
 impl CaptureInterface for MockDb {
+        /// Asynchronously inserts a new capture into the storage and returns the inserted capture.
+    ///
+    /// # Arguments
+    ///
+    /// * `capture` - The new capture to be inserted
+    /// * `_storage_scheme` - The storage scheme enumeration
+    ///
+    /// # Returns
+    ///
+    /// The inserted capture wrapped in a `CustomResult` or a `StorageError` if the operation fails.
+    ///
     async fn insert_capture(
         &self,
         capture: types::CaptureNew,
@@ -202,6 +226,16 @@ impl CaptureInterface for MockDb {
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously updates a capture with the given capture ID using the provided capture data and storage scheme.
+    /// 
+    /// # Arguments
+    /// * `this` - The capture to be updated.
+    /// * `capture` - The updated capture data.
+    /// * `storage_scheme` - The storage scheme to be used for the update.
+    /// 
+    /// # Returns
+    /// The updated capture if successful, otherwise a `StorageError`.
+    ///
     async fn update_capture_with_capture_id(
         &self,
         _this: types::Capture,
@@ -211,6 +245,23 @@ impl CaptureInterface for MockDb {
         //Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+        /// Asynchronously finds all captures by the specified merchant ID, payment ID, authorized attempt ID, and storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The merchant ID to filter captures by.
+    /// * `_payment_id` - The payment ID to filter captures by.
+    /// * `_authorized_attempt_id` - The authorized attempt ID to filter captures by.
+    /// * `_storage_scheme` - The storage scheme to use for the merchant.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing a vector of `Capture` objects if successful, or a `StorageError` if an error occurs.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `StorageError::MockDbError` if the function is implemented for `MockDb`.
+    ///
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
         _merchant_id: &str,

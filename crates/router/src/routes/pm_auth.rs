@@ -5,6 +5,7 @@ use router_env::{instrument, tracing, types::Flow};
 use crate::{core::api_locking, routes::AppState, services::api as oss_api};
 
 #[instrument(skip_all, fields(flow = ?Flow::PmAuthLinkTokenCreate))]
+/// This method is used to create a link token for merchant account authentication. It takes in the Appstate, HttpRequest, and a JSON payload containing the link token create request. It then checks the client secret and gets the authentication details, and finally creates the link token using the provided state, authentication details, and payload. The method returns a Responder as an asynchronous result.
 pub async fn link_token_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -39,6 +40,11 @@ pub async fn link_token_create(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PmAuthExchangeToken))]
+/// Handles the exchange token request for merchant account authentication. 
+/// It checks the client secret and retrieves the authentication information. 
+/// Then it calls the exchange_token_core method from the pm_auth module 
+/// to perform the token exchange process. Finally, it wraps the result in 
+/// a server response using server_wrap method from oss_api module. 
 pub async fn exchange_token(
     state: web::Data<AppState>,
     req: HttpRequest,

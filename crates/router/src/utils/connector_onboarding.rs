@@ -11,6 +11,7 @@ use crate::{
 
 pub mod paypal;
 
+/// Returns the authentication type for a given connector based on the provided connector data. If the connector is PayPal, it returns a `BodyKey` containing the client secret and client id from the connector data. For any other connector, it returns a `NotImplemented` error with a message indicating that onboarding is not implemented for the given connector.
 pub fn get_connector_auth(
     connector: enums::Connector,
     connector_data: &settings::ConnectorOnboarding,
@@ -30,6 +31,14 @@ pub fn get_connector_auth(
     }
 }
 
+/// Checks if a given connector is enabled based on the settings provided for onboarding.
+/// 
+/// # Arguments
+/// * `connector` - The type of connector to check for enabled status.
+/// * `conf` - The settings for connector onboarding.
+/// 
+/// # Returns
+/// * `Some(true)` if the connector is enabled, `None` for any other connector type.
 pub fn is_enabled(
     connector: types::Connector,
     conf: &settings::ConnectorOnboarding,
@@ -40,6 +49,17 @@ pub fn is_enabled(
     }
 }
 
+/// Checks if a connector exists for a given merchant by querying the database using the provided `state`, `connector_id`, and `merchant_id`. 
+///
+/// # Arguments
+///
+/// * `state` - The application state containing the database connection and other necessary information.
+/// * `connector_id` - The unique identifier of the connector to be checked.
+/// * `merchant_id` - The unique identifier of the merchant for whom the connector is being checked.
+///
+/// # Returns
+///
+/// This method returns a `RouterResult` indicating whether the connector exists or not. If the connector exists, it returns `Ok(())`, otherwise it returns an error response.
 pub async fn check_if_connector_exists(
     state: &AppState,
     connector_id: &str,
@@ -69,6 +89,7 @@ pub async fn check_if_connector_exists(
     Ok(())
 }
 
+/// Sets the tracking id in the configs table for the given connector and connector id in the application state.
 pub async fn set_tracking_id_in_configs(
     state: &AppState,
     connector_id: &str,
@@ -114,6 +135,10 @@ pub async fn set_tracking_id_in_configs(
     Ok(())
 }
 
+/// Retrieves the tracking ID from the specified connector configurations in the given state. 
+/// It uses the connector ID and enum to construct a key and retrieve the corresponding timestamp 
+/// from the store. It then formats and returns the tracking ID as a string in the format: 
+/// "{connector_id}_{timestamp}".
 pub async fn get_tracking_id_from_configs(
     state: &AppState,
     connector_id: &str,
@@ -133,6 +158,7 @@ pub async fn get_tracking_id_from_configs(
     Ok(format!("{}_{}", connector_id, timestamp))
 }
 
+/// This method takes a connector ID and a connector enum and builds a key using the `CONNECTOR_ONBOARDING_CONFIG_PREFIX` constant as a prefix. The key is formatted as `CONNECTOR_ONBOARDING_CONFIG_PREFIX_connector_connector_id`.
 fn build_key(connector_id: &str, connector: enums::Connector) -> String {
     format!(
         "{}_{}_{}",

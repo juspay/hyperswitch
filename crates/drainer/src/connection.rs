@@ -12,6 +12,16 @@ use crate::settings::Database;
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 #[allow(clippy::expect_used)]
+/// Establishes a connection to a Redis database using the provided settings configuration.
+/// 
+/// # Arguments
+/// 
+/// * `conf` - A reference to the settings configuration containing Redis connection information.
+/// 
+/// # Returns
+/// 
+/// A `RedisConnectionPool` that represents the connection to the Redis database.
+/// 
 pub async fn redis_connection(
     conf: &crate::settings::Settings,
 ) -> redis_interface::RedisConnectionPool {
@@ -25,6 +35,7 @@ pub async fn redis_connection(
 ///
 /// Will panic if could not create a db pool
 #[allow(clippy::expect_used)]
+/// Asynchronously creates a PostgreSQL connection pool using the provided Database configuration. If the `kms` feature is enabled, it decrypts the database password using the `kms_client`, and if the `hashicorp-vault` feature is enabled, it fetches the password from the HashiCorp Vault using the `hashicorp_client`. Finally, it builds and returns the PostgreSQL connection pool.
 pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
@@ -62,6 +73,7 @@ pub async fn diesel_make_pg_pool(
 }
 
 #[allow(clippy::expect_used)]
+/// Asynchronously retrieves a pooled connection to a PostgreSQL database from the given pool.
 pub async fn pg_connection(
     pool: &PgPool,
 ) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {

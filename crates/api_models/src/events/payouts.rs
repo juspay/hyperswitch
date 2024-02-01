@@ -5,9 +5,10 @@ use crate::payouts::{
 };
 
 impl ApiEventMetric for PayoutRetrieveRequest {
+        /// Returns the API event type, if available.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Payout)
-    }
+            Some(ApiEventsType::Payout)
+        }
 }
 
 impl ApiEventMetric for PayoutCreateRequest {

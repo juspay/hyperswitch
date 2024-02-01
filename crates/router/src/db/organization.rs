@@ -25,6 +25,14 @@ pub trait OrganizationInterface {
 
 #[async_trait::async_trait]
 impl OrganizationInterface for Store {
+        /// Asynchronously inserts a new organization into the database and returns the inserted organization if successful. 
+    ///
+    /// # Arguments
+    /// * `organization` - The new organization to be inserted into the database.
+    ///
+    /// # Returns
+    /// Returns a CustomResult containing the inserted organization if successful, otherwise returns a StorageError.
+    ///
     async fn insert_organization(
         &self,
         organization: storage::OrganizationNew,
@@ -37,6 +45,16 @@ impl OrganizationInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds an organization by its ID in the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `org_id` - A reference to a string representing the organization ID.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the found `storage::Organization` if successful, otherwise an `errors::StorageError`.
+    /// 
     async fn find_organization_by_org_id(
         &self,
         org_id: &str,
@@ -48,6 +66,7 @@ impl OrganizationInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates an organization using its ID and the specified update information.
     async fn update_organization_by_org_id(
         &self,
         org_id: &str,
@@ -64,6 +83,14 @@ impl OrganizationInterface for Store {
 
 #[async_trait::async_trait]
 impl OrganizationInterface for super::MockDb {
+        /// Inserts a new organization into the storage. If the organization with the same org_id already exists, returns a `StorageError::DuplicateValue` error.
+    /// 
+    /// # Arguments
+    /// * `organization` - The new organization to be inserted into the storage.
+    /// 
+    /// # Returns
+    /// Returns a `CustomResult` containing the inserted organization if successful, otherwise returns a `StorageError`.
+    /// 
     async fn insert_organization(
         &self,
         organization: storage::OrganizationNew,
@@ -87,6 +114,8 @@ impl OrganizationInterface for super::MockDb {
         Ok(org)
     }
 
+        /// Asynchronously finds an organization by its organization ID. 
+    /// Returns a Result containing the found Organization or a StorageError if the organization is not found.
     async fn find_organization_by_org_id(
         &self,
         org_id: &str,
@@ -105,6 +134,17 @@ impl OrganizationInterface for super::MockDb {
             )
     }
 
+        /// Asynchronously updates an organization with the specified org_id using the provided OrganizationUpdate.
+    ///
+    /// # Arguments
+    ///
+    /// * `org_id` - A reference to a string representing the organization id.
+    /// * `update` - A storage::OrganizationUpdate struct containing the updates to apply to the organization.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing the updated storage::Organization if the organization is found, otherwise an errors::StorageError.
+    ///
     async fn update_organization_by_org_id(
         &self,
         org_id: &str,

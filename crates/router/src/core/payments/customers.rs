@@ -12,6 +12,9 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// Asynchronously creates a customer for the specified connector using the provided data. 
+/// Returns an optional string containing the connector customer ID if the creation was successful, 
+/// or None if an error occurred.
 pub async fn create_connector_customer<F: Clone, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -76,6 +79,8 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     Ok(connector_customer_id)
 }
 
+/// Retrieves the details of a customer for a specific connector if present.
+/// If the customer has details for the specified connector, it returns the details as a string slice.
 pub fn get_connector_customer_details_if_present<'a>(
     customer: &'a domain::Customer,
     connector_name: &str,
@@ -87,6 +92,7 @@ pub fn get_connector_customer_details_if_present<'a>(
         .and_then(|connector_customer| connector_customer.as_str())
 }
 
+/// Determines whether to call the create customer endpoint for a given connector based on the connector's configuration and the presence of customer details.
 pub fn should_call_connector_create_customer<'a>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -112,6 +118,7 @@ pub fn should_call_connector_create_customer<'a>(
 }
 
 #[instrument]
+/// Updates the connector customer in the customers storage. It takes the connector label, customer information, and connector customer id as input, and returns an optional CustomerUpdate. It first constructs the connector customer map from the customer information, then updates the connector customer map with the provided connector customer id and label. Finally, it constructs a CustomerUpdate with the updated connector customer map and returns it as an optional value.
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     customer: Option<&domain::Customer>,

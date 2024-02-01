@@ -26,6 +26,7 @@ pub trait ReverseConversion<SrcType: Conversion> {
 
 #[async_trait::async_trait]
 impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
+        /// Asynchronously converts the given value using the provided encryption key, and returns a CustomResult containing the converted value or a ValidationError.
     async fn convert(self, key: &Secret<Vec<u8>>) -> CustomResult<U, ValidationError> {
         U::convert_back(self, key).await
     }

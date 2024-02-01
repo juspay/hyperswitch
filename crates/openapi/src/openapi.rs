@@ -458,9 +458,10 @@ pub struct ApiDoc;
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
+        /// Modifies the given OpenApi instance by adding security schemes to its components, if the components exist.
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
-
+    
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
                 (

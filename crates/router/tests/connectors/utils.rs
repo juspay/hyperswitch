@@ -24,6 +24,7 @@ pub trait Connector {
 
     fn get_name(&self) -> String;
 
+        /// This method returns the metadata of the connector.
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
     }
@@ -34,8 +35,9 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// This method returns the payout data from the PayoutConnector. It returns an Option containing the PayoutConnectorData if it is available, otherwise it returns None.
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
-        None
+            None
     }
 }
 
@@ -83,6 +85,7 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously creates a connector customer with the provided payment data and payment info. It generates the necessary data, sets up a channel for communication, initializes the application state, executes pre-tasks using the connector integration, and then calls the connector to create the customer. Returns a Result containing the connector customer router data or a report of any connector errors encountered.
     async fn create_connector_customer(
         &self,
         payment_data: Option<types::ConnectorCustomerData>,
@@ -96,7 +99,7 @@ pub trait ConnectorActions: Connector {
             payment_info,
         );
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-
+    
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
@@ -108,6 +111,7 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously creates a payment method token using the given payment data and payment info. This method retrieves the connector integration, generates the necessary data, creates a sender channel, initializes the application state, executes pre-tasks using the integration, and calls the connector to create the token. Returns a Result containing the tokenization router data or a report of any connector errors encountered during the process.
     async fn create_connector_pm_token(
         &self,
         payment_data: Option<types::PaymentMethodTokenizationData>,
@@ -162,6 +166,7 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously synchronizes a payment by calling the connector integration with the provided payment data and information. If the payment data is not provided, it defaults to the default payment sync type. Returns the result of the synchronization operation, wrapped in a Result type along with any potential errors reported as a ConnectorError.
     async fn sync_payment(
         &self,
         payment_data: Option<types::PaymentsSyncData>,
@@ -196,6 +201,7 @@ pub trait ConnectorActions: Connector {
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
+        /// Asynchronously captures a payment with the provided transaction ID, payment data, and payment information. Returns a result containing the captured payment router data or a report of any connector errors encountered during the capture process.
     async fn capture_payment(
         &self,
         transaction_id: String,
@@ -213,6 +219,18 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously authorizes a payment using the provided authorize data and payment info,
+    /// and then captures the payment using the returned transaction ID and capture data.
+    ///
+    /// # Arguments
+    ///
+    /// * `authorize_data` - Optional payment authorization data
+    /// * `capture_data` - Optional payment capture data
+    /// * `payment_info` - Optional payment information
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the captured payment data or a ConnectorError report
     async fn authorize_and_capture_payment(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -232,6 +250,7 @@ pub trait ConnectorActions: Connector {
         return Ok(response);
     }
 
+        /// Asynchronously voids a payment by sending a request to the connector with the provided transaction ID, payment data, and payment information. Returns a result containing the payment cancellation router data or a connector error report.
     async fn void_payment(
         &self,
         transaction_id: String,
@@ -249,6 +268,18 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously authorizes a payment using the provided authorization data and voids the payment using the provided void data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authorize_data` - Optional data required for authorizing the payment
+    /// * `void_data` - Optional data required for voiding the payment
+    /// * `payment_info` - Optional payment information
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the data of the voided payment or a `Report` of any `ConnectorError` encountered during the process.
+    /// 
     async fn authorize_and_void_payment(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -269,6 +300,7 @@ pub trait ConnectorActions: Connector {
         return Ok(response);
     }
 
+        /// Asynchronously refunds a payment using the provided transaction ID, refund data, and payment information. Returns a Result containing the refund execution data or a ConnectorError report.
     async fn refund_payment(
         &self,
         transaction_id: String,
@@ -286,6 +318,19 @@ pub trait ConnectorActions: Connector {
         Box::pin(call_connector(request, integration)).await
     }
 
+        /// Asynchronously captures a payment, then attempts to refund the captured payment. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authorize_data` - Optional payment authorization data
+    /// * `capture_data` - Optional payment capture data
+    /// * `refund_data` - Optional refund data
+    /// * `payment_info` - Optional payment information
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing the refund execution data, or a Report of any connector errors
+    /// 
     async fn capture_payment_and_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -308,6 +353,18 @@ pub trait ConnectorActions: Connector {
             .unwrap())
     }
 
+        /// Make a payment with the provided authorize data and payment info, then attempt to refund the payment using the refund data and payment info.
+    ///
+    /// # Arguments
+    ///
+    /// * `authorize_data` - Optional payment authorization data
+    /// * `refund_data` - Optional refund data
+    /// * `payment_info` - Optional payment information
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the refund execution data if successful, otherwise a Report of ConnectorError
+    ///
     async fn make_payment_and_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -329,6 +386,18 @@ pub trait ConnectorActions: Connector {
             .unwrap())
     }
 
+        /// Asynchronously authorizes, captures, and refunds a payment, returning the refund execution data.
+    ///
+    /// # Arguments
+    ///
+    /// * `authorize_data` - Optional payment authorization data.
+    /// * `refund_data` - Optional refund data.
+    /// * `payment_info` - Optional payment information.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing either the refund execution data or a `Report` of a `ConnectorError`.
+    ///
     async fn auth_capture_and_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -350,6 +419,13 @@ pub trait ConnectorActions: Connector {
             .unwrap())
     }
 
+        /// Makes a payment with the provided authorize data and payment info, and then attempts to perform two refunds for the previous payment using the provided refund data and payment info.
+    /// 
+    /// # Arguments
+    /// * `authorize_data` - Optional payment authorization data
+    /// * `refund_data` - Optional refund data
+    /// * `payment_info` - Optional payment information
+    /// 
     async fn make_payment_and_multiple_refund(
         &self,
         authorize_data: Option<types::PaymentsAuthorizeData>,
@@ -381,6 +457,7 @@ pub trait ConnectorActions: Connector {
         }
     }
 
+        /// Asynchronously syncs a refund with the provided refund ID, payment data, and payment info. If the payment data is not provided, default refund data will be used. Returns a result with the synced refund data or a report of any connector errors.
     async fn sync_refund(
         &self,
         refund_id: String,
@@ -435,6 +512,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// Retrieves the payout request data and generates the corresponding RouterData.
     fn get_payout_request<Flow, Res>(
         &self,
         connector_payout_id: Option<String>,
@@ -467,6 +545,7 @@ pub trait ConnectorActions: Connector {
         )
     }
 
+        /// Generates router data for a payment request, including information such as merchant and customer IDs, payment and attempt IDs, status, authentication type, payment method, description, return URL, request and response, address, access and session tokens, reference ID, payment method token, connector customer, preprocessing and request reference IDs, payout method data, and various other metadata. This method returns a RouterData struct containing the generated data.
     fn generate_data<Flow, Req: From<Req>, Res>(
         &self,
         req: Req,
@@ -527,6 +606,7 @@ pub trait ConnectorActions: Connector {
         }
     }
 
+        /// Retrieves the connector transaction ID from the capture data response, if available.
     fn get_connector_transaction_id_from_capture_data(
         &self,
         response: types::PaymentsCaptureRouterData,
@@ -549,6 +629,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// This method verifies the eligibility for a payout based on the specified payout type and payment info. It obtains the connector integration, creates a payout request, and executes pre-tasks and connector processing steps to determine the eligibility for the payout. If successful, it returns the payout response data.
     async fn verify_payout_eligibility(
         &self,
         payout_type: enums::PayoutType,
@@ -589,6 +670,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// Asynchronously fulfills a payout request by obtaining the connector integration, creating a payout request, executing pre-tasks, and then executing the connector processing step to trigger the payout. Returns a result containing the payout response data or a report of any connector errors.
     async fn fulfill_payout(
         &self,
         connector_payout_id: Option<String>,
@@ -630,6 +712,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// Asynchronously creates a payout using the specified connector customer, payout type, and payment information. Returns a Result containing the response data for the created payout or a Report with a ConnectorError in case of failure.
     async fn create_payout(
         &self,
         connector_customer: Option<String>,
@@ -672,6 +755,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// Asynchronously cancels a payout using the specified connector payout ID, payout type, and payment information. Returns a result containing the payout response data or a report of any connector error encountered.
     async fn cancel_payout(
         &self,
         connector_payout_id: String,
@@ -714,6 +798,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// This method creates a new payout and fulfills it, then returns the result.
     async fn create_and_fulfill_payout(
         &self,
         connector_customer: Option<String>,
@@ -738,6 +823,7 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// This method creates a payout and then immediately cancels it. It takes in the connector customer ID, payout type, and payment information, and returns a Result containing the payout response data or a ConnectorError report if an error occurs.
     async fn create_and_cancel_payout(
         &self,
         connector_customer: Option<String>,
@@ -762,6 +848,8 @@ pub trait ConnectorActions: Connector {
     }
 
     #[cfg(feature = "payouts")]
+        /// Asynchronously creates a payout recipient using the provided payout type and payment information.
+    /// Returns a Result containing the PayoutsResponseData if successful, or a Report containing a ConnectorError if an error occurs.
     async fn create_payout_recipient(
         &self,
         payout_type: enums::PayoutType,
@@ -802,6 +890,7 @@ pub trait ConnectorActions: Connector {
     }
 }
 
+/// Asynchronously calls the connector integration to process the provided request. It creates a new application state with a PostgresqlTest storage implementation and a mock API client, then executes the connector processing step using the provided integration and request. It returns the updated RouterData with the result of the processing step or a ConnectorError report if an error occurs.
 async fn call_connector<
     T: Debug + Clone + 'static,
     Req: Debug + Clone + 'static,
@@ -837,6 +926,16 @@ pub struct MockConfig {
 
 #[async_trait]
 pub trait LocalMock {
+        /// Starts a mock server with the given configuration.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `config` - A `MockConfig` struct containing the server configuration and mocks to register.
+    /// 
+    /// # Returns
+    /// 
+    /// A `MockServer` instance representing the started mock server.
+    /// 
     async fn start_server(&self, config: MockConfig) -> MockServer {
         let address = config
             .address
@@ -865,6 +964,7 @@ pub struct CustomerType(pub types::ConnectorCustomerData);
 pub struct TokenType(pub types::PaymentMethodTokenizationData);
 
 impl Default for CCardType {
+        /// Constructs a new instance of the `Card` struct with default values for card number, expiration date, card holder name, CVC, and nick name.
     fn default() -> Self {
         Self(api::Card {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
@@ -883,6 +983,7 @@ impl Default for CCardType {
 }
 
 impl Default for PaymentAuthorizeType {
+        /// Creates a new instance of the PaymentsAuthorizeData struct with default values
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
@@ -919,6 +1020,7 @@ impl Default for PaymentAuthorizeType {
 }
 
 impl Default for PaymentCaptureType {
+        /// This method creates a new instance of the current type with default values for the fields, and initializes the PaymentsCaptureData with default values for the amount_to_capture, currency, connector_transaction_id, and payment_amount fields.
     fn default() -> Self {
         Self(types::PaymentsCaptureData {
             amount_to_capture: 100,
@@ -931,6 +1033,7 @@ impl Default for PaymentCaptureType {
 }
 
 impl Default for PaymentCancelType {
+        /// Creates a new instance of the struct with default values for the `PaymentsCancelData` fields, and sets the `cancellation_reason` to "requested_by_customer" and `connector_transaction_id` to an empty string.
     fn default() -> Self {
         Self(types::PaymentsCancelData {
             cancellation_reason: Some("requested_by_customer".to_string()),
@@ -941,6 +1044,7 @@ impl Default for PaymentCancelType {
 }
 
 impl Default for BrowserInfoType {
+        /// Creates a new instance of the struct with default values for browser information.
     fn default() -> Self {
         let data = types::BrowserInformation {
             user_agent: Some("".to_string()),
@@ -959,6 +1063,7 @@ impl Default for BrowserInfoType {
 }
 
 impl Default for PaymentSyncType {
+        /// Creates a new instance of the struct with default values for the payments sync data.
     fn default() -> Self {
         let data = types::PaymentsSyncData {
             mandate_id: None,
@@ -975,6 +1080,7 @@ impl Default for PaymentSyncType {
 }
 
 impl Default for PaymentRefundType {
+        /// Creates a new instance of the struct with default refund data, including a payment amount of 100 USD, a generated refund ID, an empty connector transaction ID, a refund amount of 100, a reason for the refund, and other optional fields set to None.
     fn default() -> Self {
         let data = types::RefundsData {
             payment_amount: 100,
@@ -993,6 +1099,7 @@ impl Default for PaymentRefundType {
 }
 
 impl Default for CustomerType {
+        /// Creates a new instance of the struct using default values for its fields.
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
@@ -1007,6 +1114,7 @@ impl Default for CustomerType {
 }
 
 impl Default for TokenType {
+        /// Creates a default PaymentMethodTokenizationData with a default card payment method data, no browser info, an amount of 100, and a currency of USD.
     fn default() -> Self {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
@@ -1018,6 +1126,9 @@ impl Default for TokenType {
     }
 }
 
+/// Retrieves the connector transaction ID from the given PaymentsResponseData.
+/// If the response is a TransactionResponse, the connector transaction ID is extracted and returned.
+/// If the response is any other type, None is returned.
 pub fn get_connector_transaction_id(
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<String> {
@@ -1038,6 +1149,7 @@ pub fn get_connector_transaction_id(
     }
 }
 
+/// Extracts the connector metadata from the provided PaymentsResponseData if the response is successful, otherwise returns None.
 pub fn get_connector_metadata(
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<serde_json::Value> {
@@ -1055,6 +1167,7 @@ pub fn get_connector_metadata(
     }
 }
 
+/// Converts a ConnectorAuthType enum to its equivalent types::ConnectorAuthType enum.
 pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
     match auth_type {
         ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },

@@ -1,4 +1,5 @@
 impl Default for super::settings::SchedulerSettings {
+        /// This method creates a new instance of the struct with default values for its fields.
     fn default() -> Self {
         Self {
             stream: "SCHEDULER_STREAM".into(),
@@ -11,6 +12,7 @@ impl Default for super::settings::SchedulerSettings {
 }
 
 impl Default for super::settings::ProducerSettings {
+        /// Returns a new instance of the struct with default values for the upper and lower fetch limits, lock key, lock time-to-live, and batch size.
     fn default() -> Self {
         Self {
             upper_fetch_limit: 0,
@@ -23,6 +25,7 @@ impl Default for super::settings::ProducerSettings {
 }
 
 impl Default for super::settings::ConsumerSettings {
+        /// Creates a new instance of the struct with default values.
     fn default() -> Self {
         Self {
             disabled: false,

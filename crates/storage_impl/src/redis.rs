@@ -17,6 +17,7 @@ pub struct RedisStore {
 }
 
 impl std::fmt::Debug for RedisStore {
+        /// This method formats the CacheStore struct for display, using the given formatter.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CacheStore")
             .field("redis_conn", &"Redis conn doesn't implement debug")
@@ -25,6 +26,15 @@ impl std::fmt::Debug for RedisStore {
 }
 
 impl RedisStore {
+        /// Asynchronously creates a new instance of the RedisManager struct with the provided Redis settings.
+    ///
+    /// # Arguments
+    ///
+    /// * `conf` - A reference to a RedisSettings object containing the configuration for the Redis connection.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the newly created RedisManager wrapped in Ok, or a RedisError wrapped in Err if an error occurs during the creation process.
     pub async fn new(
         conf: &redis_interface::RedisSettings,
     ) -> error_stack::Result<Self, redis_interface::errors::RedisError> {
@@ -33,6 +43,9 @@ impl RedisStore {
         })
     }
 
+        /// Sets the error callback for the Redis connection. When an error occurs, the provided
+    /// callback will be invoked with a oneshot::Result indicating the error. The callback
+    /// is executed in a separate Tokio task to ensure it does not block the main thread.
     pub fn set_error_callback(&self, callback: tokio::sync::oneshot::Sender<()>) {
         let redis_clone = self.redis_conn.clone();
         tokio::spawn(async move {
@@ -40,6 +53,7 @@ impl RedisStore {
         });
     }
 
+        /// Asynchronously subscribes to a specified channel using the Redis connection. It manages the subscriptions, subscribes to the channel, and handles any errors that may occur during the subscription process. Additionally, it spawns a separate asynchronous task to handle incoming messages from the subscribed channel.
     pub async fn subscribe_to_channel(
         &self,
         channel: &str,
@@ -64,6 +78,9 @@ impl RedisStore {
 }
 
 impl RedisConnInterface for RedisStore {
+        /// Retrieves a Redis connection from the Redis connection pool if it is available.
+    /// If the Redis connection is available, it returns a clone of the connection pool.
+    /// If the Redis connection is not available, it returns a RedisConnectionError.
     fn get_redis_conn(
         &self,
     ) -> error_stack::Result<

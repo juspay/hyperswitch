@@ -70,6 +70,7 @@ pub struct AddressUpdateInternal {
 }
 
 impl AddressUpdateInternal {
+        /// Creates a new Address by taking the properties of the current Address instance and overriding them with the properties of the provided source Address.
     pub fn create_address(self, source: Address) -> Address {
         Address {
             city: self.city,

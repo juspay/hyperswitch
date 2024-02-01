@@ -14,6 +14,7 @@ use euclid::{
 };
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 
+/// Builds test data for a knowledge graph with the specified number of enabled payment methods and payment method types.
 fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::KnowledgeGraph<'a> {
     use api_models::{admin::*, payment_methods::*};
 
@@ -71,6 +72,7 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
     kgraph_utils::mca::make_mca_graph(vec![stripe_account]).expect("Failed graph construction")
 }
 
+/// This method takes a mutable reference to a Criterion and performs benchmarking on the MCA (Multiconnector Analysis) for both a small graph and a big graph. The benchmarking includes evaluating the key value analysis for specific input values in each graph and measuring the performance using the Criterion library.
 fn evaluation(c: &mut Criterion) {
     let small_graph = build_test_data(3, 8);
     let big_graph = build_test_data(20, 20);

@@ -82,6 +82,7 @@ pub struct CaptureUpdateInternal {
 }
 
 impl CaptureUpdate {
+        /// Applies the changeset to the source `Capture` and returns the updated `Capture`.
     pub fn apply_changeset(self, source: Capture) -> Capture {
         let CaptureUpdateInternal {
             status,
@@ -107,6 +108,7 @@ impl CaptureUpdate {
 }
 
 impl From<CaptureUpdate> for CaptureUpdateInternal {
+        /// Converts a CaptureUpdate enum into a struct of the same type.
     fn from(payment_attempt_child_update: CaptureUpdate) -> Self {
         let now = Some(common_utils::date_time::now());
         match payment_attempt_child_update {

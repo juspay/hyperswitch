@@ -27,6 +27,11 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// This method retrieves API logs events for a given merchant from the analytics provider pool. 
+/// It accepts the analytics provider pool, an API logs request, and the merchant ID as input parameters. 
+/// Depending on the type of analytics provider in the pool, it either returns an error if API events are not implemented, 
+/// or fetches the API logs data from either SQLX or Clickhouse analytics provider. 
+/// The fetched data is then returned as a vector of API logs results wrapped in a Result.
 pub async fn api_events_core(
     pool: &AnalyticsProvider,
     req: ApiLogsRequest,
@@ -48,6 +53,7 @@ pub async fn api_events_core(
     Ok(data)
 }
 
+/// Retrieves API event filters based on the provided request, analytics provider, and merchant ID.
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetApiEventFiltersRequest,
@@ -91,6 +97,8 @@ pub async fn get_filters(
 }
 
 #[instrument(skip_all)]
+/// Asynchronously retrieves the API event metrics for a given merchant and request parameters. 
+/// Returns a result containing a response with the aggregated API event metrics data.
 pub async fn get_api_event_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &str,

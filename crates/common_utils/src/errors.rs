@@ -107,6 +107,8 @@ where
     U: error_stack::Context,
 {
     #[track_caller]
+        /// This method takes a Result containing either a value of type T or an error of type error_stack::Report<U>.
+    /// It then checks if the Result is Ok or Err. If it is Ok, it returns the value unchanged. If it is Err, it retrieves the current context from the error, switches the context, and then returns the error with the updated context.
     fn switch(self) -> Result<T, error_stack::Report<U>> {
         match self {
             Ok(i) => Ok(i),
@@ -138,6 +140,7 @@ impl<T, S> ErrorSwitch<T> for S
 where
     T: ErrorSwitchFrom<Self>,
 {
+        /// This method takes a reference to a value of type T and calls the associated function switch_from on type T, passing self as the argument. It then returns the result of the switch_from function.
     fn switch(&self) -> T {
         T::switch_from(self)
     }

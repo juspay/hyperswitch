@@ -15,6 +15,7 @@ use crate::{
 impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
     for PaymentData<api::Reject>
 {
+        /// Asynchronously constructs router data for payment rejection, using the given state, connector ID, merchant account, key store, customer, and merchant connector account. Returns a `RouterResult` containing the constructed payment reject router data.
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -44,6 +45,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
 impl Feature<api::Reject, types::PaymentsRejectData>
     for types::RouterData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
 {
+        /// Asynchronously decides the flows based on the given input parameters and returns a `RouterResult<Self>`.
     async fn decide_flows<'a>(
         self,
         _state: &AppState,
@@ -60,6 +62,18 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         .into())
     }
 
+        /// Asynchronously adds an access token for a merchant account using the provided state, connector data, and merchant account information.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state containing the necessary resources for adding the access token.
+    /// * `connector` - The connector data used to authenticate and authorize the access token.
+    /// * `merchant_account` - The merchant account for which the access token is being added.
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing the result of adding the access token.
+    ///
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -69,6 +83,22 @@ impl Feature<api::Reject, types::PaymentsRejectData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously builds a specific connector request for the flow.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state
+    /// * `connector` - The connector data
+    /// * `call_connector_action` - The action to call the connector
+    ///
+    /// # Returns
+    ///
+    /// A result containing an optional request and a boolean indicating success
+    ///
+    /// # Errors
+    ///
+    /// Returns an `ApiErrorResponse::NotImplemented` if the flow is not supported
+    ///
     async fn build_flow_specific_connector_request(
         &mut self,
         _state: &AppState,

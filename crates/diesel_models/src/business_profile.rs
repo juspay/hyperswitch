@@ -84,6 +84,8 @@ pub struct BusinessProfileUpdateInternal {
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
+     /// Creates a new BusinessProfile from the provided BusinessProfileNew by
+     /// copying over the relevant fields.
     fn from(new: BusinessProfileNew) -> Self {
         Self {
             profile_id: new.profile_id,
@@ -110,6 +112,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
 }
 
 impl BusinessProfileUpdateInternal {
+        /// Applies the changeset to the current BusinessProfile and returns the updated profile.
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         let Self {
             profile_name,

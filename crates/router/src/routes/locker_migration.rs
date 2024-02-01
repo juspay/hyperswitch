@@ -7,6 +7,9 @@ use crate::{
     services::{api, authentication as auth},
 };
 
+/// Handles the Rust Locker Migration API endpoint.
+///
+/// This method takes in the Appstate, HttpRequest, and merchant ID as parameters and returns an HttpResponse. It creates a flow for Rust Locker Migration, retrieves the merchant ID from the path, and then uses the api::server_wrap function to wrap the locker_migration::rust_locker_migration function call with the necessary state, request, merchant ID, authentication, and locking action parameters. The function returns the result of the wrapped function call as an asynchronous response.
 pub async fn rust_locker_migration(
     state: web::Data<AppState>,
     req: HttpRequest,

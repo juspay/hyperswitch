@@ -25,6 +25,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads refund metrics based on the provided dimensions, merchant ID, filters, granularity, time range, and data source pool. It constructs a query using a query builder and executes the query to fetch refund metric rows. The method then processes the fetched data to create a vector of tuples containing refund metrics bucket identifiers and refund metric rows. Any errors encountered during the process are wrapped and returned as a result.
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],

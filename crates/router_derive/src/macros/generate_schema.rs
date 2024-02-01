@@ -72,6 +72,7 @@ pub struct SchemaMeta {
 
 /// parse #[mandatory_in(PaymentsCreateRequest = u64)]
 impl Parse for SchemaMeta {
+        /// Parses the input ParseStream and returns a Result containing the parsed Self.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let struct_name = input.parse::<syn::Ident>()?;
         input.parse::<syn::Token![=]>()?;
@@ -84,9 +85,14 @@ impl Parse for SchemaMeta {
 }
 
 impl quote::ToTokens for SchemaMeta {
+        /// This method converts the current object into a sequence of tokens and appends them to the provided TokenStream.
     fn to_tokens(&self, _: &mut proc_macro2::TokenStream) {}
 }
 
+/// This method is a helper function for implementing a polymorphic macro derive inner functionality. It takes a
+/// `syn::DeriveInput` as input, and then goes through all the fields of the input, creates a mapping of required
+/// fields for a schema, creates a mapping of hidden fields, and finally builds the schemas with their fields. The
+/// schemas are then returned as a `proc_macro2::TokenStream`.
 pub fn polymorphic_macro_derive_inner(
     input: syn::DeriveInput,
 ) -> syn::Result<proc_macro2::TokenStream> {

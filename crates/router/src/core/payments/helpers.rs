@@ -63,6 +63,16 @@ use crate::{
     },
 };
 
+/// Create an identity from an encoded certificate and an encoded certificate key.
+/// 
+/// # Arguments
+/// 
+/// * `encoded_certificate` - the base64 encoded certificate
+/// * `encoded_certificate_key` - the base64 encoded certificate key
+/// 
+/// # Returns
+/// 
+/// A Result containing a reqwest::Identity or an error report of errors::ApiClientError
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: String,
     encoded_certificate_key: String,
@@ -90,6 +100,7 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
+/// Filters a list of merchant connector accounts based on a given business profile ID.
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     profile_id: Option<String>,
@@ -106,6 +117,7 @@ pub fn filter_mca_based_on_business_profile(
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+/// This method creates or updates an address for a payment based on the given request. It takes in various parameters such as database interface, request address, address ID, merchant ID, customer ID, merchant key store, payment ID, and storage scheme. It then performs the necessary encryption and updates/inserts the address in the database based on the given parameters.
 pub async fn create_or_update_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -256,6 +268,10 @@ pub async fn create_or_update_address_for_payment_by_request(
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+/// This method either creates a new address for a payment or finds an existing address based on the provided parameters.
+/// If `address_id` is provided, it attempts to find the address using the given `merchant_id`, `payment_id`, and `address_id`.
+/// If `address_id` is not provided, it generates a new address based on the `req_address` and inserts it for the given `payment_id`.
+/// The method utilizes the provided `merchant_key_store` and `storage_scheme` to perform the necessary operations on the database.
 pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -314,6 +330,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     })
 }
 
+/// Retrieves domain address for payments and encrypts sensitive information using the provided key.
 pub async fn get_domain_address_for_payments(
     address_details: api_models::payments::AddressDetails,
     address: &api_models::payments::Address,
@@ -375,6 +392,9 @@ pub async fn get_domain_address_for_payments(
     .await
 }
 
+/// Retrieves an address from the database by its ID based on the provided parameters.
+/// If the address ID is not provided, returns None. Otherwise, searches for the address in the database
+/// using the given merchant ID, payment ID, address ID, merchant key store, and storage scheme.
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
@@ -398,6 +418,7 @@ pub async fn get_address_by_id(
     }
 }
 
+/// Retrieves token, payment method type, and mandate details based on the given parameters.
 pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
@@ -459,6 +480,7 @@ pub async fn get_token_pm_type_mandate_details(
     }
 }
 
+/// Retrieves a token for a recurring mandate and returns relevant payment data.
 pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
@@ -604,6 +626,7 @@ pub fn validate_merchant_id(
 }
 
 #[instrument(skip_all)]
+/// Validates the request amount and amount to capture, ensuring that the amount to be captured is less than or equal to the request amount.
 pub fn validate_request_amount_and_amount_to_capture(
     op_amount: Option<api::Amount>,
     op_amount_to_capture: Option<i64>,
@@ -643,6 +666,7 @@ pub fn validate_request_amount_and_amount_to_capture(
 
 /// if capture method = automatic, amount_to_capture(if provided) must be equal to amount
 #[instrument(skip_all)]
+/// Validates the amount to capture and capture method for a payment attempt
 pub fn validate_amount_to_capture_and_capture_method(
     payment_attempt: Option<&PaymentAttempt>,
     request: &api_models::payments::PaymentsRequest,
@@ -686,6 +710,7 @@ pub fn validate_amount_to_capture_and_capture_method(
 }
 
 #[instrument(skip_all)]
+/// Validates the payment method data for a card, ensuring that the card CVC, expiry month, and expiry year are valid and not expired. If any of the validations fail, it returns an error with the specific reason for failure.
 pub fn validate_card_data(
     payment_method_data: Option<api::PaymentMethodData>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -751,6 +776,7 @@ pub fn validate_card_data(
     Ok(())
 }
 
+/// Determines the payment type based on the amount and mandate transaction type.
 pub fn infer_payment_type(
     amount: &api::Amount,
     mandate_type: Option<&api::MandateTransactionType>,
@@ -772,6 +798,7 @@ pub fn infer_payment_type(
     }
 }
 
+/// Validates the mandate request and returns the type of mandate transaction if validation is successful.
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,
@@ -796,6 +823,7 @@ pub fn validate_mandate(
     }
 }
 
+/// Validates the new mandate request based on the provided fields and confirm operation flag.
 fn validate_new_mandate_request(
     req: api::MandateValidationFields,
     is_confirm_operation: bool,
@@ -854,6 +882,9 @@ fn validate_new_mandate_request(
     Ok(())
 }
 
+/// Validates the mandatory cases for customer ID based on the `has_setup_future_usage` flag.
+/// If `has_setup_future_usage` is true and `customer_id` is None, it returns a `PreconditionFailed` error
+/// indicating that the `customer_id` is mandatory when `setup_future_usage` is given. Otherwise, it returns Ok(()).
 pub fn validate_customer_id_mandatory_cases(
     has_setup_future_usage: bool,
     customer_id: &Option<String>,
@@ -867,6 +898,17 @@ pub fn validate_customer_id_mandatory_cases(
     }
 }
 
+/// Creates a start pay URL for redirecting the user to the payment page.
+///
+/// # Arguments
+///
+/// * `server` - The server information containing the base URL.
+/// * `payment_attempt` - The payment attempt information.
+/// * `payment_intent` - The payment intent information.
+///
+/// # Returns
+///
+/// A string representing the start pay URL.
 pub fn create_startpay_url(
     server: &Server,
     payment_attempt: &PaymentAttempt,
@@ -881,6 +923,18 @@ pub fn create_startpay_url(
     )
 }
 
+/// Constructs a redirect URL for the given payment attempt, connector name, and optional credentials identifier, using the provided router base URL.
+///
+/// # Arguments
+///
+/// * `router_base_url` - The base URL of the router
+/// * `payment_attempt` - The payment attempt for which the redirect URL is being created
+/// * `connector_name` - The name of the connector
+/// * `creds_identifier` - An optional identifier for the credentials
+///
+/// # Returns
+///
+/// A string containing the constructed redirect URL
 pub fn create_redirect_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -894,6 +948,7 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+/// Constructs a webhook URL using the provided router base URL, merchant ID, and connector name.
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &String,
@@ -904,6 +959,17 @@ pub fn create_webhook_url(
         router_base_url, merchant_id, connector_name
     )
 }
+/// Constructs the complete authorize URL for a payment attempt with the given router base URL, payment attempt information, and connector name.
+///
+/// # Arguments
+///
+/// * `router_base_url` - The base URL of the router
+/// * `payment_attempt` - The payment attempt information
+/// * `connector_name` - The name of the connector
+///
+/// # Returns
+///
+/// A string representing the complete authorize URL
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -915,6 +981,9 @@ pub fn create_complete_authorize_url(
     )
 }
 
+/// Validates the recurring mandate request by checking the presence of mandate_id and customer_id,
+/// as well as the values of confirm and off_session fields. If confirm is not true or off_session
+/// is not true, it returns a PreconditionFailed error.
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -937,6 +1006,10 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     Ok(())
 }
 
+/// Verifies the details of a mandate against the provided request amount and currency. 
+/// If the mandate is of type SingleUse, it checks if the request amount is greater than the mandate amount. 
+/// If the mandate is of type MultiUse, it checks if the sum of captured amount and request amount is greater than the mandate amount. 
+/// It also checks if the mandate currency is different from the request currency. 
 pub fn verify_mandate_details(
     request_amount: i64,
     request_currency: api_enums::Currency,
@@ -982,6 +1055,9 @@ pub fn verify_mandate_details(
 }
 
 #[instrument(skip_all)]
+/// Determines the attempt status for a payment based on the provided payment method data and confirmation status.
+/// If payment_method_data is Some, it checks the confirm status and returns PaymentMethodAwaited if confirm is true, otherwise returns ConfirmationAwaited.
+/// If payment_method_data is None, it returns PaymentMethodAwaited.
 pub fn payment_attempt_status_fsm(
     payment_method_data: &Option<api::PaymentMethodData>,
     confirm: Option<bool>,
@@ -995,6 +1071,16 @@ pub fn payment_attempt_status_fsm(
     }
 }
 
+/// Determines the status of a payment intent based on the provided payment method data and confirmation status.
+///
+/// # Arguments
+///
+/// * `payment_method_data` - The payment method data associated with the payment intent
+/// * `confirm` - Optional boolean indicating whether the payment intent should be confirmed
+///
+/// # Returns
+///
+/// The status of the payment intent as an enum value from `storage_enums::IntentStatus`
 pub fn payment_intent_status_fsm(
     payment_method_data: &Option<api::PaymentMethodData>,
     confirm: Option<bool>,
@@ -1007,6 +1093,9 @@ pub fn payment_intent_status_fsm(
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
+/// Adds a domain task to the process tracker based on the provided operation, state, payment attempt, requeue flag, and optional schedule time.
+/// If the operation is confirmed, it adds or resets a process sync task and updates the task count metrics accordingly. 
+/// Returns a `CustomResult` indicating success or an `ApiErrorResponse` in case of failure.
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
@@ -1059,6 +1148,7 @@ where
     }
 }
 
+/// This method creates and returns a boxed operation for handling payment response operations. It takes in a payment method retrieve context and returns a boxed operation that can handle the specified payment response.
 pub fn response_operation<'a, F, R, Ctx>() -> BoxedOperation<'a, F, R, Ctx>
 where
     F: Send + Clone,
@@ -1069,6 +1159,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// Retrieves a payment method create request based on the provided payment method data, payment method, payment method type, and customer. If the payment method data is present, it checks the type and creates a payment method request accordingly. If any required fields are missing, it returns an error with a descriptive message.
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&api::PaymentMethodData>,
     payment_method: Option<storage_enums::PaymentMethod>,
@@ -1134,6 +1225,8 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
+/// Asynchronously retrieves a customer from the database based on the provided customer ID and merchant ID,
+/// updates the email in the payment data if necessary, and returns the customer if found.
 pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
@@ -1226,6 +1319,7 @@ pub fn validate_customer_details_in_request(
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
+/// Extracts customer details from a PaymentsRequest object. If the customer field is present in the request, it uses the customer's details. Otherwise, it falls back to the request's customer_id, name, email, phone, and phone_country_code fields.
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -1268,6 +1362,7 @@ pub fn get_customer_details_from_request(
     }
 }
 
+/// This method retrieves the default connector choice based on the provided request connector. If a request connector is provided, the method returns the provided connector choice. If no request connector is provided, the method returns the default connector choice, which is 'Decide'.
 pub async fn get_connector_default(
     _state: &AppState,
     request_connector: Option<serde_json::Value>,
@@ -1280,6 +1375,7 @@ pub async fn get_connector_default(
 
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
+/// This method creates a new customer if one does not already exist in the database. 
 pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     db: &dyn StorageInterface,
@@ -1433,6 +1529,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     ))
 }
 
+/// Retrieves the payment method with a temporary token and updates it if necessary. 
+/// If the payment method is a card, it checks if the card information needs to be updated and stores the updated information in the vault.
+/// If the payment method is a wallet, bank transfer, or bank redirect, it returns the payment method as is.
+/// If the payment method is unsupported or not found, it returns an error.
 pub async fn retrieve_payment_method_with_temporary_token(
     state: &AppState,
     token: &str,
@@ -1531,6 +1631,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     })
 }
 
+/// Retrieves card information from the permanent locker using the provided token and payment intent, and returns it as an `api::PaymentMethodData` enum variant.
 pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
     token: &str,
@@ -1585,6 +1686,7 @@ pub async fn retrieve_card_with_permanent_token(
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
+/// Asynchronously retrieves and processes payment method data based on the given parameters. It handles various scenarios for retrieving payment method details, including token-based retrieval and standard payment method retrieval. It also updates the payment attempt with the retrieved payment method and returns the updated operation with the retrieved payment method data.
 pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
@@ -1715,6 +1817,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     Ok((operation, payment_method))
 }
 
+/// Asynchronously stores the payment method data in the vault and generates a parent payment method token.
 pub async fn store_in_vault_and_generate_ppmt(
     state: &AppState,
     payment_method_data: &api_models::payments::PaymentMethodData,
@@ -1751,6 +1854,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     Ok(parent_payment_method_token)
 }
 
+/// Stores the payment method data in a vault if the conditions are met, and returns the generated parent payment method token if successful.
 pub async fn store_payment_method_data_in_vault(
     state: &AppState,
     payment_attempt: &PaymentAttempt,
@@ -1779,6 +1883,7 @@ pub async fn store_payment_method_data_in_vault(
 
     Ok(None)
 }
+/// Checks if the payment method data should be stored in the vault based on the temporary locker enable configuration, option connector, and payment method.
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
@@ -1796,6 +1901,9 @@ pub fn should_store_payment_method_data_in_vault(
 }
 
 #[instrument(skip_all)]
+/// Validates the capture method and returns a RouterResult. If the capture method is
+/// set to Automatic, it returns an error with a specific message. Otherwise, it returns
+/// Ok(()).
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
 ) -> RouterResult<()> {
@@ -1813,6 +1921,7 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
+/// Validates the status and capture method of a payment intent and returns a RouterResult.
 pub(crate) fn validate_status_with_capture_method(
     status: storage_enums::IntentStatus,
     capture_method: storage_enums::CaptureMethod,
@@ -1844,6 +1953,17 @@ pub(crate) fn validate_status_with_capture_method(
 }
 
 #[instrument(skip_all)]
+/// Validates the amount to capture against the total amount and returns a RouterResult.
+///
+/// # Arguments
+///
+/// * `amount` - An i64 value representing the total amount.
+/// * `amount_to_capture` - An optional i64 value representing the amount to capture.
+///
+/// # Returns
+///
+/// This method returns a RouterResult, which can contain an error if the amount_to_capture is greater than the total amount.
+///
 pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
@@ -1859,6 +1979,7 @@ pub(crate) fn validate_amount_to_capture(
 }
 
 #[instrument(skip_all)]
+/// Validates the presence of required fields in the PaymentsRequest and checks for any inconsistencies between the payment method and its related fields.
 pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
@@ -1944,6 +2065,7 @@ pub(crate) fn validate_payment_method_fields_present(
     Ok(())
 }
 
+/// Validates the given payment method type against the payment method and returns true if the validation is successful, otherwise false.
 pub fn validate_payment_method_type_against_payment_method(
     payment_method: api_enums::PaymentMethod,
     payment_method_type: api_enums::PaymentMethodType,
@@ -2073,6 +2195,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
+/// Checks if the given attempt status is a valid precondition for force syncing.
 pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
@@ -2085,6 +2208,7 @@ pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> 
     )
 }
 
+/// Applies the provided function to the values inside the two input `Option` types, if both are `Some`. If either input `Option` is `None`, the result will also be `None`.
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
 where
     F: FnOnce(T, U) -> V,
@@ -2093,6 +2217,7 @@ where
 }
 
 #[cfg(feature = "olap")]
+/// Filters payment intents from the database based on the given constraints, merchant ID, and storage scheme.
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PaymentListConstraints,
@@ -2110,6 +2235,16 @@ pub(super) async fn filter_by_constraints(
 }
 
 #[cfg(feature = "olap")]
+/// Validates the payment list request based on the given constraints.
+/// 
+/// # Arguments
+/// 
+/// * `req` - A reference to the payment list constraints provided by the API.
+/// 
+/// # Returns
+/// 
+/// * `CustomResult<(), errors::ApiErrorResponse>` - A result indicating success or failure with a custom error response.
+/// 
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -2129,6 +2264,7 @@ pub(super) fn validate_payment_list_request(
     Ok(())
 }
 #[cfg(feature = "olap")]
+/// Validates the payment list request for joins by checking if the limit is within the allowed range.
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -2145,6 +2281,18 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+/// Constructs a redirection URL for the payment response using the provided payment ID, business profile, payment response, and connector information.
+/// 
+/// # Arguments
+/// 
+/// * `payment_id` - The ID of the payment.
+/// * `business_profile` - The business profile associated with the payment.
+/// * `response` - The payment response containing return URL, client secret, and manual retry allowance.
+/// * `connector` - The connector information for the payment.
+/// 
+/// # Returns
+/// 
+/// A result containing the redirection URL for the payment response, or an error if the URL construction fails.
 pub fn get_handle_response_url(
     payment_id: String,
     business_profile: &diesel_models::business_profile::BusinessProfile,
@@ -2167,6 +2315,7 @@ pub fn get_handle_response_url(
     make_url_with_signature(&return_url, business_profile)
 }
 
+/// Constructs a merchant URL with response parameters based on the provided business profile, redirection response, return URL, client secret, and manual retry flag.
 pub fn make_merchant_url_with_response(
     business_profile: &diesel_models::business_profile::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
@@ -2229,6 +2378,7 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
+/// Asynchronously creates an ephemeral key for a given customer and merchant. 
 pub async fn make_ephemeral_key(
     state: AppState,
     customer_id: String,
@@ -2251,6 +2401,16 @@ pub async fn make_ephemeral_key(
     Ok(services::ApplicationResponse::Json(ek))
 }
 
+/// Asynchronously deletes an ephemeral key from the database using the provided ek_id
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state containing the database connection
+/// * `ek_id` - The ID of the ephemeral key to be deleted
+/// 
+/// # Returns
+/// 
+/// A RouterResponse containing the deleted ephemeral key if successful, or an error response if the deletion fails
 pub async fn delete_ephemeral_key(
     state: AppState,
     ek_id: String,
@@ -2264,6 +2424,7 @@ pub async fn delete_ephemeral_key(
     Ok(services::ApplicationResponse::Json(ek))
 }
 
+/// Constructs a payment gateway redirect response using the provided payment ID, payment response, and connector.
 pub fn make_pg_redirect_response(
     payment_id: String,
     response: &api::PaymentsResponse,
@@ -2278,6 +2439,9 @@ pub fn make_pg_redirect_response(
     }
 }
 
+/// This method takes a redirect URL and a business profile, and constructs a URL with a signature that can be used for redirection. 
+/// If the business profile has payment response hash enabled, it adds a signature to the URL using HMAC-SHA512 algorithm. 
+/// It then creates a redirection response containing the base URL, parameters, URL with query parameters, HTTP method, and an empty headers vector.
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &diesel_models::business_profile::BusinessProfile,
@@ -2328,6 +2492,7 @@ pub fn make_url_with_signature(
     })
 }
 
+/// Sorts the input query parameters, concatenates them into a single string, and then computes the HMAC-SHA512 signature using the provided key. Returns the hexadecimal representation of the signature.
 pub fn hmac_sha512_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
     key: &str,
@@ -2350,11 +2515,13 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
+/// Checks if the provided operation is "PaymentConfirm".
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
     format!("{operations:?}") == "PaymentConfirm"
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Generates a new mandate and returns the result as a CustomResult. If setup_mandate_details and customer are both Some, it constructs a new mandate using the provided details and returns it. Otherwise, it returns None.
 pub fn generate_mandate(
     merchant_id: String,
     payment_id: String,
@@ -2461,6 +2628,7 @@ pub fn authenticate_client_secret(
     }
 }
 
+/// Validates whether the given intent status is allowed based on a list of allowed statuses. If the intent status is not allowed, it returns an error with a message indicating that the payment cannot be performed with the given intent status.
 pub(crate) fn validate_payment_status_against_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
@@ -2475,6 +2643,17 @@ pub(crate) fn validate_payment_status_against_allowed_statuses(
     })
 }
 
+/// Validates the payment status against a list of not allowed statuses, and returns an error if the payment status matches any of the not allowed statuses.
+///
+/// # Arguments
+///
+/// * `intent_status` - The status of the payment intent to be validated.
+/// * `not_allowed_statuses` - A slice containing the not allowed statuses for the payment intent.
+/// * `action` - The action to be performed on the payment intent.
+///
+/// # Returns
+///
+/// * If the intent status matches any of the not allowed statuses, an error of type `errors::ApiErrorResponse` is returned. Otherwise, `Ok(())` is returned.
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
@@ -2490,6 +2669,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
 }
 
 #[instrument(skip_all)]
+/// Validates if a payment method or token is given based on certain conditions. If the payment method type is not Paypal, mandate type is not RecurringMandateTransaction, and token is none, and either payment method data or payment method is none, it returns an error with a message indicating that a payment token or payment method data is required.
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -2608,6 +2788,20 @@ pub fn get_business_details(
 }
 
 #[inline]
+/// Retrieves the payment ID from a client secret. 
+/// 
+/// This method takes a client secret as a string reference and attempts to extract the payment ID from it. 
+/// If the client secret is valid and contains the payment ID, the method returns the payment ID as a string. 
+/// If the client secret is invalid or does not contain the payment ID, the method returns an error indicating the client secret is invalid.
+/// 
+/// # Arguments
+/// 
+/// * `cs` - A reference to a string containing the client secret
+/// 
+/// # Returns
+/// 
+/// * If successful, returns the payment ID as a string
+/// * If the client secret is invalid, returns an `ApiErrorResponse`
 pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
     let (payment_id, _) = cs
         .rsplit_once("_secret_")
@@ -2622,6 +2816,9 @@ mod tests {
     use super::*;
 
     #[test]
+        /// This method tests if the client secret fulfillment time has not expired by creating a PaymentIntent
+    /// with a session expiry and then authenticating the client secret. It asserts that the authentication
+    /// result is Ok, indicating that the client secret fulfillment time has not expired.
     fn test_authenticate_client_secret_fulfillment_time_not_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
@@ -2677,6 +2874,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests if the client secret fulfillment time has expired for a given payment intent.
     fn test_authenticate_client_secret_fulfillment_time_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
@@ -2731,6 +2929,7 @@ mod tests {
     }
 
     #[test]
+        /// This method is used to test the authentication of a client secret that has expired. It creates a PaymentIntent with mock data, sets a client secret that has expired, and then asserts that the authentication of the client secret returns an error.
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
@@ -2787,6 +2986,12 @@ mod tests {
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
 #[instrument(skip_all)]
+/// Inserts the merchant connector credentials to the configuration in the database. If the encoded data
+/// exists in the given `MerchantConnectorDetailsWrap`, it inserts the data with a key formatted as
+/// "mcd_{merchant_id}_{creds_identifier}". If the insertion is successful, it returns `Ok(())`. If
+/// there is a unique violation error, it also returns `Ok(())`. Otherwise, it returns an error with
+/// an internal server error response and a message indicating the failure to insert the connector_creds
+/// to the configuration.
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -2826,6 +3031,7 @@ pub enum MerchantConnectorAccountType {
 }
 
 impl MerchantConnectorAccountType {
+        /// This method returns the metadata associated with the current value, wrapped in a `masking::Secret` and `Option`. If the current value is a `DbVal` or a `CacheVal`, the method will return the metadata as an `Option<masking::Secret<serde_json::Value>>`.
     pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
         match self {
             Self::DbVal(val) => val.metadata.to_owned(),
@@ -2833,6 +3039,7 @@ impl MerchantConnectorAccountType {
         }
     }
 
+        /// This method retrieves the connector account details from either a DbVal or CacheVal enum variant and returns it as a serde_json::Value.
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
             Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
@@ -2840,6 +3047,7 @@ impl MerchantConnectorAccountType {
         }
     }
 
+        /// Checks if the current value is disabled. 
     pub fn is_disabled(&self) -> bool {
         match self {
             Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
@@ -2849,6 +3057,7 @@ impl MerchantConnectorAccountType {
         }
     }
 
+        /// Checks if the test mode is turned on for the current value.
     pub fn is_test_mode_on(&self) -> Option<bool> {
         match self {
             Self::DbVal(val) => val.test_mode,
@@ -2856,6 +3065,8 @@ impl MerchantConnectorAccountType {
         }
     }
 
+        /// This method returns the merchant connector ID as a String if the enum variant is DbVal,
+    /// otherwise it returns None if the enum variant is CacheVal.
     pub fn get_mca_id(&self) -> Option<String> {
         match self {
             Self::DbVal(db_val) => Some(db_val.merchant_connector_id.to_string()),
@@ -2867,6 +3078,7 @@ impl MerchantConnectorAccountType {
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
 #[instrument(skip_all)]
+/// Retrieves the merchant connector account based on the provided parameters. If the creds_identifier is provided, it decrypts the merchant connector account details from the database and returns the decrypted result. If creds_identifier is not provided, it looks up the merchant connector account based on the merchant_connector_id or profile_id and connector_name. Returns a `RouterResult` containing the merchant connector account information.
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
@@ -3001,6 +3213,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 }
 
 #[instrument(skip_all)]
+/// Determines the type of payment attempt based on the status of the payment intent, payment attempt, request, and action. It handles various scenarios such as manual retry, failed attempts, canceled or processing intents, and returns the appropriate AttemptType or an error response.
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -3125,6 +3338,7 @@ impl AttemptType {
     // Logic to override the fields with data provided in the request should be done after this if required.
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
+        /// Creates a new payment attempt using the provided payment method data, old payment attempt, new attempt count, and storage scheme.
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
@@ -3201,6 +3415,7 @@ impl AttemptType {
     }
 
     #[instrument(skip_all)]
+        /// Modifies the payment intent and payment attempt based on the given request and existing data. If the method is `SameOld`, it returns the fetched payment intent and payment attempt without any modification. If the method is `New`, it updates the attempt count, inserts a new payment attempt, updates the payment intent status and active attempt ID, and logs the manual retry payment. Returns a tuple containing the updated payment intent and new payment attempt.
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -3258,6 +3473,7 @@ impl AttemptType {
 }
 
 #[inline(always)]
+/// Determines if manual retry is allowed for a payment attempt based on the intent status, attempt status, connector request reference ID configuration, and merchant ID.
 pub fn is_manual_retry_allowed(
     intent_status: &storage_enums::IntentStatus,
     attempt_status: &storage_enums::AttemptStatus,
@@ -3319,6 +3535,7 @@ pub fn is_manual_retry_allowed(
 mod test {
     #![allow(clippy::unwrap_used)]
     #[test]
+        /// Parses the client secret and returns the payment ID extracted from it.
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
         let client_secret2 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
@@ -3341,6 +3558,7 @@ mod test {
 }
 
 #[instrument(skip_all)]
+/// Retrieves additional payment data based on the provided payment method data and storage interface.
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,
@@ -3505,6 +3723,7 @@ pub struct ApplePayHeader {
 }
 
 impl ApplePayData {
+        /// Retrieves the wallet token as a JSON object for the given `wallet_data`.
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
     ) -> CustomResult<Self, errors::ConnectorError> {
@@ -3513,6 +3732,7 @@ impl ApplePayData {
         Ok(json_wallet_data)
     }
 
+        /// Asynchronously decrypts the ciphertext using the given `state` and returns the decrypted JSON value.
     pub async fn decrypt(
         &self,
         state: &AppState,
@@ -3527,6 +3747,7 @@ impl ApplePayData {
         Ok(parsed_decrypted)
     }
 
+        /// Asynchronously retrieves the merchant ID from an Apple Pay certificate. 
     pub async fn merchant_id(
         &self,
         state: &AppState,
@@ -3600,6 +3821,7 @@ impl ApplePayData {
         Ok(apple_pay_m_id)
     }
 
+        /// Asynchronously computes the shared secret key for Apple Pay decryption using the provided `AppState` and returns it as a vector of bytes. The method first decodes the ephemeral public key, retrieves the Apple Pay PPC key, decrypts it using KMS if enabled, and then derives the shared secret key using the private key and the peer's public key.
     pub async fn shared_secret(
         &self,
         state: &AppState,
@@ -3674,6 +3896,16 @@ impl ApplePayData {
         Ok(shared_secret)
     }
 
+        /// Derives a symmetric key for Apple Pay decryption using the provided merchant ID and shared secret.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The merchant ID associated with the Apple Pay transaction
+    /// * `shared_secret` - The shared secret obtained from the Apple Pay payload
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the derived symmetric key as a vector of bytes, or an `ApplePayDecryptionError` if an error occurs during the key derivation process.
     pub fn symmetric_key(
         &self,
         merchant_id: &str,
@@ -3695,6 +3927,7 @@ impl ApplePayData {
         Ok(symmetric_key.to_vec())
     }
 
+        /// Decrypts the ciphertext using the provided symmetric key. It decodes the base64 encoded data, separates the initialization vector (IV), ciphertext, and tag, then uses the AES-GCM cipher to decrypt the ciphertext using the symmetric key and IV, and finally returns the decrypted data as a string.
     pub fn decrypt_ciphertext(
         &self,
         symmetric_key: &[u8],
@@ -3722,6 +3955,10 @@ impl ApplePayData {
     }
 }
 
+/// This method takes a reference to payment method data and returns the key parameters
+/// required for surcharge details. It matches the payment method data to its corresponding
+/// payment method, payment method type, and card network (if applicable) and returns an
+/// Option containing these parameters.
 pub fn get_key_params_for_surcharge_details(
     payment_method_data: &api_models::payments::PaymentMethodData,
 ) -> Option<(
@@ -3795,6 +4032,8 @@ pub fn get_key_params_for_surcharge_details(
     }
 }
 
+/// Validates the payment link request by checking if the confirm parameter is provided and if it is set to true.
+/// If confirm is not provided or set to false, the method returns Ok(()). If confirm is set to true, the method returns an InvalidRequestData error with a message stating that a payment cannot be confirmed while creating a payment link.
 pub fn validate_payment_link_request(
     confirm: Option<bool>,
 ) -> Result<(), errors::ApiErrorResponse> {
@@ -3810,6 +4049,7 @@ pub fn validate_payment_link_request(
     Ok(())
 }
 
+/// Asynchronously retrieves a GatewayStatusMap record from the store based on the provided parameters. If the record is not found, it logs a warning and increments the GSM miss count. If there is an error fetching the record, it logs a warning but does not propagate the error. The method returns the retrieved GatewayStatusMap record if successful, otherwise it returns None.
 pub async fn get_gsm_record(
     state: &AppState,
     error_code: Option<String>,
@@ -3853,6 +4093,7 @@ pub async fn get_gsm_record(
         .ok()
 }
 
+/// Validates the total amount of the order details against the provided amount, if should_validate is true. If the total amount does not match the provided amount, an error is returned. Otherwise, the method returns Ok().
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: i64,

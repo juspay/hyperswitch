@@ -63,6 +63,7 @@ pub struct DrainerSettings {
 }
 
 impl Default for Database {
+        /// Returns a new instance of the struct with default values for the username, password, host, port, dbname, pool size, and connection timeout.
     fn default() -> Self {
         Self {
             username: String::new(),
@@ -77,6 +78,7 @@ impl Default for Database {
 }
 
 impl Default for DrainerSettings {
+        /// Creates a new instance of the structure with default values.
     fn default() -> Self {
         Self {
             stream_name: "DRAINER_STREAM".into(),
@@ -89,6 +91,7 @@ impl Default for DrainerSettings {
 }
 
 impl Database {
+        /// Validates the database configuration by checking if the host, dbname, username, and password are not empty or default values.
     fn validate(&self) -> Result<(), errors::DrainerError> {
         use common_utils::fp_utils::when;
 
@@ -119,6 +122,7 @@ impl Database {
 }
 
 impl DrainerSettings {
+        /// Validates the stream name and returns a Result indicating success or a DrainerError if the stream name is empty.
     fn validate(&self) -> Result<(), errors::DrainerError> {
         common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
             Err(errors::DrainerError::ConfigParsingError(
@@ -129,10 +133,16 @@ impl DrainerSettings {
 }
 
 impl Settings {
+        /// Creates a new instance of the Drainer with a default configuration path. 
+    ///
+    /// # Returns
+    /// 
+    /// A Result containing the new instance of Drainer if successful, or a DrainerError if an error occurs.
     pub fn new() -> Result<Self, errors::DrainerError> {
         Self::with_config_path(None)
     }
 
+    /// Retrieves the application configuration values based on the specified priority order. The method first checks for defaults from the implementation of the `Default` trait, then looks for values from a config file based on the environment specified by the `RUN_ENV` environment variable (which can be `development`, `sandbox` or `production`). If no `RUN_ENV` is specified, the method reads from the `/config/development.toml` file. Finally, the method checks for environment variables prefixed with `DRAINER` and each level separated by double underscores. Values in the config file override the defaults, and the values set using environment variables override both the defaults and the config file values.
     pub fn with_config_path(config_path: Option<PathBuf>) -> Result<Self, errors::DrainerError> {
         // Configuration values are picked up in the following priority order (1 being least
         // priority):
@@ -168,6 +178,15 @@ impl Settings {
         })
     }
 
+        /// Validates the configuration of the current instance by ensuring that the master database, Redis, and the drainer are all properly configured and reachable.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result indicating success or a `DrainerError` if any validation fails.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `DrainerError::ConfigParsingError` if the Redis configuration is invalid, otherwise returns any errors encountered during validation of the master database or the drainer.
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
         self.master_database.validate()?;
         self.redis.validate().map_err(|error| {

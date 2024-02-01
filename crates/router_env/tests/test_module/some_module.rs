@@ -2,6 +2,7 @@ use logger::instrument;
 use router_env as logger;
 
 #[instrument(skip_all)]
+/// Asynchronously executes a function with the given value, logs the execution using the logger, and then calls another async function.
 pub async fn fn_with_colon(val: i32) {
     let a = 13;
     let b = 31;
@@ -24,6 +25,7 @@ pub async fn fn_with_colon(val: i32) {
 }
 
 #[instrument(fields(val3 = "abc"), skip_all)]
+/// Asynchronously logs information using the logger crate, including various parameters such as a, b, tag, category, flow, session_id, answer, message2, message, and val.
 pub async fn fn_without_colon(val: i32) {
     let a = 13;
     let b = 31;

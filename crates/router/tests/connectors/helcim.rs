@@ -8,6 +8,7 @@ use crate::utils::{self, ConnectorActions};
 struct HelcimTest;
 impl ConnectorActions for HelcimTest {}
 impl utils::Connector for HelcimTest {
+        /// This method returns a `ConnectorData` struct containing the information related to a Helcim connector, including the connector itself, the connector name, the method to get a token, and the merchant connector ID.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Helcim;
         types::api::ConnectorData {
@@ -18,6 +19,7 @@ impl utils::Connector for HelcimTest {
         }
     }
 
+        /// Retrieves the authentication token for the connector. 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -27,6 +29,7 @@ impl utils::Connector for HelcimTest {
         )
     }
 
+        /// This method returns the name "helcim" as a String.
     fn get_name(&self) -> String {
         "helcim".to_string()
     }
@@ -34,10 +37,16 @@ impl utils::Connector for HelcimTest {
 
 static CONNECTOR: HelcimTest = HelcimTest {};
 
+/// This method returns the default payment information, wrapped in an Option. 
+/// If no default payment information is available, it returns None.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None
 }
 
+/// Returns the details of the payment method used for authorization.
+/// 
+/// The method returns an Option containing the payment method details if available,
+/// otherwise it returns None.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     None
 }
@@ -45,6 +54,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes a payment and asserts that the response status is 'Authorized'.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -55,6 +65,7 @@ async fn should_only_authorize_payment() {
 
 // Captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously attempts to authorize and capture a payment using the CONNECTOR. If successful, it expects the response to have a status of "Charged".
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(payment_method_details(), None, get_default_payment_info())
@@ -65,6 +76,7 @@ async fn should_capture_authorized_payment() {
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously attempts to partially capture an authorized payment using the CONNECTOR's authorize and capture payment method. This method takes the payment method details, the amount to capture, and the payment information as parameters. It then awaits the response and asserts that the status of the capture is 'Charged'.
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -82,6 +94,8 @@ async fn should_partially_capture_authorized_payment() {
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes a payment, retrieves the transaction ID from the authorize response,
+/// and then retries the synchronization process until the status matches the authorized status.
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -106,6 +120,7 @@ async fn should_sync_authorized_payment() {
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes and voids a payment using the CONNECTOR, payment method details, and default payment information.
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -124,6 +139,7 @@ async fn should_void_authorized_payment() {
 
 // Refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously captures a payment and refunds it manually.
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
@@ -142,6 +158,7 @@ async fn should_refund_manually_captured_payment() {
 
 // Partially refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously performs a partial refund for a manually captured payment.
 async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
@@ -163,6 +180,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously captures a payment and refunds it manually, then synchronously retries until the refund status matches the specified status.
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
         .capture_payment_and_refund(
@@ -190,6 +208,8 @@ async fn should_sync_manually_captured_refund() {
 
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment using the provided payment method details and default payment information. 
+/// This method awaits the response from the payment connector and asserts that the payment authorization status is "Charged".
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -200,6 +220,7 @@ async fn should_make_payment() {
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously checks if an auto-captured payment should be synced. It makes a payment using the CONNECTOR and verifies the response status. Then it retrieves the transaction ID and uses it to retry syncing until the status matches "Charged".
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -227,6 +248,8 @@ async fn should_sync_auto_captured_payment() {
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and initiates a refund for the auto-captured payment. 
+/// It uses the default payment method details and payment info, and then checks if the refund was successful.
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
@@ -240,6 +263,8 @@ async fn should_refund_auto_captured_payment() {
 
 // Partially refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and refunds a specified amount from a succeeded payment. 
+/// 
 async fn should_partially_refund_succeeded_payment() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(
@@ -260,6 +285,8 @@ async fn should_partially_refund_succeeded_payment() {
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and performs multiple refunds on a successful payment. 
+///
 async fn should_refund_succeeded_payment_multiple_times() {
     CONNECTOR
         .make_payment_and_multiple_refund(
@@ -275,6 +302,8 @@ async fn should_refund_succeeded_payment_multiple_times() {
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously performs a refund operation and then repeatedly checks the status of the refund until it matches the specified status. 
+/// It then asserts that the refund status is 'Success'.
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
@@ -298,6 +327,7 @@ async fn should_sync_refund() {
 // Cards Negative scenerios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
+/// This method tests whether the payment fails for an incorrect Card Verification Code (CVC).
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
@@ -320,6 +350,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
 
 // Creates a payment with incorrect expiry month.
 #[actix_web::test]
+/// Asynchronously makes a payment using the CONNECTOR, expecting it to fail due to an invalid expiration month on the card. The method constructs a payment request with a card expiration month set to "20" and default payment authorization data, then awaits the response and asserts that the error message returned indicates an invalid card expiration month.
 async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
@@ -342,6 +373,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
 
 // Creates a payment with incorrect expiry year.
 #[actix_web::test]
+/// Asynchronously performs a payment and asserts that it fails for an incorrect expiry year.
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
@@ -364,6 +396,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously attempts to make a void payment for auto-captured payment. 
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -384,6 +417,11 @@ async fn should_fail_void_payment_for_auto_capture() {
 
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
+/// Asynchronously captures a payment and asserts that it should fail for an invalid payment. 
+/// It calls the `capture_payment` method on the `CONNECTOR` with a dummy payment ID, 
+/// `None` for additional information, and the default payment info. It then asserts that 
+/// the capture response should result in an error with a specific message indicating that 
+/// there is no such payment intent with the given ID.
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
         .capture_payment("123456789".to_string(), None, get_default_payment_info())
@@ -397,6 +435,7 @@ async fn should_fail_capture_for_invalid_payment() {
 
 // Refunds a payment with refund amount higher than payment amount.
 #[actix_web::test]
+/// Asynchronously makes a payment and refund, expecting the refund amount to be higher than the payment amount.
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
         .make_payment_and_refund(

@@ -9,6 +9,7 @@ pub enum RemoteStorageObject<T: ForeignIDRef> {
 }
 
 impl<T: ForeignIDRef> From<T> for RemoteStorageObject<T> {
+        /// Creates a new instance of Self by wrapping the given value in an Object variant.
     fn from(value: T) -> Self {
         Self::Object(value)
     }
@@ -19,6 +20,7 @@ pub trait ForeignIDRef {
 }
 
 impl<T: ForeignIDRef> RemoteStorageObject<T> {
+        /// Returns the ID associated with the enum variant.
     pub fn get_id(&self) -> String {
         match self {
             Self::ForeignID(id) => id.clone(),

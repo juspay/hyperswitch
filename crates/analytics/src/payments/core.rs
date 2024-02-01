@@ -42,6 +42,9 @@ pub enum TaskType {
 }
 
 #[instrument(skip_all)]
+/// Asynchronously retrieves payment metrics and distribution data from the specified analytics provider
+/// for the given merchant and request. It accumulates the metrics and distribution data and returns
+/// a response containing the aggregated results along with metadata.
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &str,
@@ -219,6 +222,8 @@ pub async fn get_metrics(
     })
 }
 
+
+/// Asynchronously retrieves payment filters for the specified analytics provider, request, and merchant ID.
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentFiltersRequest,

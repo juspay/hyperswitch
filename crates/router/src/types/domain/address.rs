@@ -46,6 +46,9 @@ impl behaviour::Conversion for Address {
     type DstType = diesel_models::address::Address;
     type NewDstType = diesel_models::address::AddressNew;
 
+        /// Converts the current object into a diesel_models::address::Address object,
+    /// mapping the fields and applying encryption to some of them if they are
+    /// present.
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::address::Address {
             id: self.id,
@@ -70,6 +73,14 @@ impl behaviour::Conversion for Address {
         })
     }
 
+        /// Asynchronously converts the given data back to its original form by decrypting sensitive information using the provided key.
+    ///
+    /// # Arguments
+    /// * `other` - The data to be converted back
+    /// * `key` - The secret key used for decryption
+    ///
+    /// # Returns
+    /// The original data with sensitive information decrypted, wrapped in a `CustomResult` indicating success or a `ValidationError` if decryption fails.
     async fn convert_back(
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
@@ -103,7 +114,7 @@ impl behaviour::Conversion for Address {
             message: "Failed while decrypting".to_string(),
         })
     }
-
+        /// Asynchronously constructs a new instance of the current struct, with certain fields encrypted, and returns a result containing the newly constructed instance or a validation error.
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(Self::NewDstType {
@@ -148,6 +159,7 @@ pub enum AddressUpdate {
 }
 
 impl From<AddressUpdate> for AddressUpdateInternal {
+        /// Converts an AddressUpdate enum variant into a struct, applying encryption to certain fields.
     fn from(address_update: AddressUpdate) -> Self {
         match address_update {
             AddressUpdate::Update {

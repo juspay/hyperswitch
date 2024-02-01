@@ -74,9 +74,10 @@ pub struct InvalidFileStorageConfig(&'static str);
 impl std::error::Error for InvalidFileStorageConfig {}
 
 impl Display for InvalidFileStorageConfig {
+        /// Formats the file storage contents and writes it to the provided formatter.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "file_storage: {}", self.0)
-    }
+            write!(f, "file_storage: {}", self.0)
+        }
 }
 
 /// Represents errors that can occur during file storage operations.

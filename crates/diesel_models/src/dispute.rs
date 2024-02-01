@@ -96,6 +96,7 @@ pub struct DisputeUpdateInternal {
 }
 
 impl From<DisputeUpdate> for DisputeUpdateInternal {
+        /// Converts a DisputeUpdate enum into a DisputeUpdatePayload struct, setting the appropriate fields based on the variant of the enum.
     fn from(merchant_account_update: DisputeUpdate) -> Self {
         match merchant_account_update {
             DisputeUpdate::Update {

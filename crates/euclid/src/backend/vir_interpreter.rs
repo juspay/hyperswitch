@@ -18,6 +18,7 @@ where
     O: Clone,
 {
     #[inline]
+        /// Evaluates a valued comparison based on the provided logic and context.
     fn eval_comparison(comp: &vir::ValuedComparison, ctx: &types::Context) -> bool {
         match &comp.logic {
             vir::ValuedComparisonLogic::PositiveDisjunction => {
@@ -30,10 +31,14 @@ where
     }
 
     #[inline]
+        /// Evaluates a condition using the given context.
+    /// 
+    /// This method takes a valued if condition and a context as input arguments and evaluates the condition by iterating through each comparison in the condition and checking if they all evaluate to true using the provided context. It returns true if all comparisons in the condition evaluate to true, otherwise it returns false.
     fn eval_condition(cond: &vir::ValuedIfCondition, ctx: &types::Context) -> bool {
         cond.iter().all(|comp| Self::eval_comparison(comp, ctx))
     }
 
+        /// Evaluates a valued if statement with the given context and returns a boolean value.
     fn eval_statement(stmt: &vir::ValuedIfStatement, ctx: &types::Context) -> bool {
         Self::eval_condition(&stmt.condition, ctx)
             .then(|| {
@@ -44,12 +49,14 @@ where
             .unwrap_or(false)
     }
 
+        /// Evaluates a valued rule using the provided context. Returns true if any of the statements in the rule evaluate to true, otherwise returns false.
     fn eval_rule(rule: &vir::ValuedRule<O>, ctx: &types::Context) -> bool {
         rule.statements
             .iter()
             .any(|stmt| Self::eval_statement(stmt, ctx))
     }
 
+        /// Evaluates a program by iterating through its rules and finding the first rule that evaluates to true based on the given context. Returns a backend output containing the connector selection and the name of the rule that evaluated to true, or the default selection if no rule evaluates to true.
     fn eval_program(
         program: &vir::ValuedProgram<O>,
         ctx: &types::Context,
@@ -77,6 +84,7 @@ where
 {
     type Error = types::VirInterpreterError;
 
+        /// Transforms an abstract syntax tree program into a lower-level representation and constructs a new instance of the current struct with the lower-level program.
     fn with_program(program: ast::Program<O>) -> Result<Self, Self::Error> {
         let dir_program = ast::lowering::lower_program(program)
             .map_err(types::VirInterpreterError::LoweringError)?;
@@ -89,6 +97,7 @@ where
         })
     }
 
+        /// Executes the backend program with the given input and returns the result.
     fn execute(
         &self,
         input: inputs::BackendInput,
@@ -106,6 +115,7 @@ mod test {
     use crate::{enums, types::DummyOutput};
 
     #[test]
+        /// Parses a program string, creates input data, and executes a backend, then checks if the result matches the expected rule name.
     fn test_execution() {
         let program_str = r#"
         default: [ "stripe",  "adyen"]
@@ -152,6 +162,7 @@ mod test {
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_2");
     }
     #[test]
+        /// This method is used to test the payment type by parsing a program string and creating input data. It then executes the program using a VirInterpreterBackend and asserts that the result rule name is as expected.
     fn test_payment_type() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -193,6 +204,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the mandate type by parsing a program string, creating input data, executing the program using a backend interpreter, and asserting that the result matches the expected rule name.
     fn test_mandate_type() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -234,6 +246,7 @@ mod test {
     }
 
     #[test]
+        /// This method is used to test the mandate acceptance type by providing a program string and input data, then executing the backend with the program and input to check if the rule name matches the expected value.
     fn test_mandate_acceptance_type() {
         let program_str = r#"
         default: ["stripe","adyen"]
@@ -274,6 +287,7 @@ mod test {
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
     }
     #[test]
+        /// Parses a program string, creates a backend input, and executes the backend to test a specific card bin rule.
     fn test_card_bin() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -315,6 +329,7 @@ mod test {
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
     }
     #[test]
+        /// This method tests the payment amount by parsing a program string, creating input data, executing the backend with the program and input, and asserting that the result's rule name matches the expected value.
     fn test_payment_amount() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -356,6 +371,7 @@ mod test {
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
     }
     #[test]
+        /// This method is used to test a payment method by providing a program string and input data. It parses the program string, creates a backend input with payment and method data, executes the backend with the program, and asserts that the result has the expected rule name.
     fn test_payment_method() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -397,6 +413,7 @@ mod test {
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
     }
     #[test]
+        /// Parses a program string and executes it using a backend, then asserts the result against an expected rule name.
     fn test_future_usage() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -439,6 +456,7 @@ mod test {
     }
 
     #[test]
+        /// Executes a test for metadata using a predefined program and input, then asserts the result.
     fn test_metadata_execution() {
         let program_str = r#"
         default: ["stripe"," adyen"]
@@ -482,6 +500,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the less than operator by creating a program with a rule that checks if the amount is greater than or equal to 123. It then creates input data with an amount greater than and equal to 123, and executes the program using a VirInterpreterBackend. It finally asserts that the rule is correctly applied for both inputs.
     fn test_less_than_operator() {
         let program_str = r#"
         default: ["stripe", "adyen"]
@@ -532,6 +551,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the greater than operator by defining a program with a default rule and a specific rule that checks if the payment amount is less than or equal to 123. It then creates input data with a payment amount of 120 and 123, and runs the program using a virtual interpreter backend. It asserts that the results of both inputs match the expected rule name "rule_1".
     fn test_greater_than_operator() {
         let program_str = r#"
         default: ["stripe", "adyen"]

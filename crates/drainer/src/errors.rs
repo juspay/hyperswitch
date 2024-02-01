@@ -20,12 +20,15 @@ pub enum DrainerError {
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;
 
 impl From<config::ConfigError> for DrainerError {
+        /// Converts a `config::ConfigError` into a `Self` enum, where `Self` is the type implementing this method.
     fn from(err: config::ConfigError) -> Self {
         Self::ConfigurationError(err)
     }
 }
 
 impl From<error_stack::Report<redis::errors::RedisError>> for DrainerError {
+        /// Converts a error report of type `error_stack::Report<redis::errors::RedisError>` 
+    /// into a custom enum `Self` which can represent different types of errors.
     fn from(err: error_stack::Report<redis::errors::RedisError>) -> Self {
         Self::RedisError(err)
     }

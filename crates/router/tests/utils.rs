@@ -18,6 +18,10 @@ use tokio::sync::{oneshot, OnceCell};
 
 static SERVER: OnceCell<bool> = OnceCell::const_new();
 
+/// Asynchronously spawns a server using the settings from the `Settings` struct.
+///
+/// This method creates a new `Settings` instance and then uses it to start a server by calling the `start_server` method from the `router` module. If the server creation is successful, it is then spawned using `tokio::spawn`. The method returns `true` if the server is successfully spawned.
+///
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
     let server = Box::pin(router::start_server(conf))
@@ -28,17 +32,20 @@ async fn spawn_server() -> bool {
     true
 }
 
+/// Asynchronously sets up the server by getting an instance of the server or initializing a new one if it doesn't exist, then awaits the result.
 pub async fn setup() {
     Box::pin(SERVER.get_or_init(spawn_server)).await;
 }
 
 const STRIPE_MOCK: &str = "http://localhost:12111/";
 
+/// This method is an asynchronous function that attempts to mock the behavior of the Stripe API. Currently, it is not working and returns None due to the issue https://github.com/stripe/stripe-mock/issues/231.
 async fn stripemock() -> Option<String> {
     // not working: https://github.com/stripe/stripe-mock/issues/231
     None
 }
 
+/// Creates and returns a new actix_web Service. This method initializes the application state with mock settings and a mock API client, sets the request body limit, and initializes the service using the initialized application state and request body limit. It also updates the Stripe base URL if a URL is returned from the `stripemock` function.
 pub async fn mk_service(
 ) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error> {
     let mut conf = Settings::new().unwrap();
@@ -75,12 +82,14 @@ pub struct AppClient<T> {
 }
 
 impl AppClient<Guest> {
+        /// Creates a new instance of the current type with the state set to Guest.
     pub fn guest() -> Self {
         Self { state: Guest }
     }
 }
 
 impl AppClient<Admin> {
+        /// Asynchronously creates a merchant account using the provided service and merchant ID. It sends a POST request to the "/accounts" URI with the API key from the state and the merchant account data in the request body. It then calls the `call_and_read_body_json` function to make the API call and read the response body as JSON, and returns the deserialized response data of type T.
     pub async fn create_merchant_account<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
@@ -99,6 +108,7 @@ impl AppClient<Admin> {
         call_and_read_body_json(app, request).await
     }
 
+/// Asynchronously creates a connector by sending a POST request to the specified `app` with the given `merchant_id`, `connector_name`, and `api_key`. The method constructs a request with the provided parameters and the app's auth key, and then calls the `call_and_read_body_json` function to make the request and read the response body as JSON, returning the deserialized result.    
     pub async fn create_connector<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
@@ -121,6 +131,15 @@ impl AppClient<Admin> {
 }
 
 impl AppClient<User> {
+        /// Asynchronously creates a payment by sending a POST request to the "/payments" endpoint with the specified amount and amount_to_capture.
+    /// 
+    /// # Arguments
+    /// * `app` - The service to send the request to
+    /// * `amount` - The amount of the payment
+    /// * `amount_to_capture` - The amount to capture
+    /// 
+    /// # Returns
+    /// The deserialized response from the service
     pub async fn create_payment<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
@@ -139,6 +158,7 @@ impl AppClient<User> {
         call_and_read_body_json(app, request).await
     }
 
+        /// Asynchronously sends a request to create a refund for a specific payment ID with the given amount, using the provided service. Returns a deserialized response of type T.
     pub async fn create_refund<T: DeserializeOwned, S, B>(
         &self,
         app: &S,
@@ -159,6 +179,7 @@ impl AppClient<User> {
 }
 
 impl<T> AppClient<T> {
+        /// Creates a new admin client with the provided authentication key.
     pub fn admin(&self, authkey: &str) -> AppClient<Admin> {
         AppClient {
             state: Admin {
@@ -167,6 +188,7 @@ impl<T> AppClient<T> {
         }
     }
 
+        /// Creates a new instance of AppClient with the provided authkey and returns it.
     pub fn user(&self, authkey: &str) -> AppClient<User> {
         AppClient {
             state: User {
@@ -175,6 +197,7 @@ impl<T> AppClient<T> {
         }
     }
 
+        /// Asynchronously sends a health check request to the provided actix_web Service and returns the response body as a String.
     pub async fn health<S, B>(&self, app: &S) -> String
     where
         S: Service<Request, Response = ServiceResponse<B>, Error = actix_web::Error>,
@@ -186,6 +209,7 @@ impl<T> AppClient<T> {
     }
 }
 
+/// Creates a new merchant account with the given merchant ID, or generates a new UUID if no merchant ID is provided.
 fn mk_merchant_account(merchant_id: Option<String>) -> Value {
     let merchant_id = merchant_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
@@ -232,6 +256,7 @@ fn mk_merchant_account(merchant_id: Option<String>) -> Value {
     })
 }
 
+/// Creates a payment request with the specified amount and amount to capture, along with other payment details.
 fn mk_payment(amount: i64, amount_to_capture: i32) -> Value {
     json!({
       "amount": amount,
@@ -267,6 +292,7 @@ fn mk_payment(amount: i64, amount_to_capture: i32) -> Value {
     })
 }
 
+/// Creates a JSON object representing a connector with the given name and API key.
 fn mk_connector(connector_name: &str, api_key: &str) -> Value {
     json!({
       "connector_type": "fiz_operations",
@@ -313,6 +339,7 @@ fn mk_connector(connector_name: &str, api_key: &str) -> Value {
     })
 }
 
+/// Creates a JSON object representing a payment confirmation request with specific details such as return URL, setup future usage, authentication type, payment method, payment method data, shipping information, and billing information.
 fn _mk_payment_confirm() -> Value {
     json!({
       "return_url": "http://example.com/payments",
@@ -333,6 +360,17 @@ fn _mk_payment_confirm() -> Value {
     })
 }
 
+/// Creates a refund object with the given payment_id and amount.
+///
+/// # Arguments
+///
+/// * `payment_id` - The ID of the payment for which the refund is being created.
+/// * `amount` - The amount to be refunded.
+///
+/// # Returns
+///
+/// A JSON value representing the refund object.
+///
 fn mk_refund(payment_id: &str, amount: usize) -> Value {
     let timestamp = common_utils::date_time::now().to_string();
 
@@ -349,9 +387,12 @@ fn mk_refund(payment_id: &str, amount: usize) -> Value {
     })
 }
 
+
 pub struct HNil;
 
 impl<'de> Deserialize<'de> for HNil {
+        /// Deserialize the data using the provided deserializer and return a Result containing
+    /// either the deserialized value of type Self or an error of type D::Error.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

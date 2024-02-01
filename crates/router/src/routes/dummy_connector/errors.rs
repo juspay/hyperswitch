@@ -40,6 +40,7 @@ pub enum DummyConnectorErrors {
 }
 
 impl core::fmt::Display for DummyConnectorErrors {
+        /// Formats the error response as a JSON string and writes it to the provided formatter.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -53,6 +54,7 @@ impl core::fmt::Display for DummyConnectorErrors {
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
     for DummyConnectorErrors
 {
+        /// This method switches the enum variant and returns an API error response based on the variant.
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {

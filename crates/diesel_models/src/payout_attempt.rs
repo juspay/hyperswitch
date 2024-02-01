@@ -31,6 +31,7 @@ pub struct PayoutAttempt {
 }
 
 impl Default for PayoutAttempt {
+        /// Creates a new instance of Self with default values for all fields.
     fn default() -> Self {
         let now = common_utils::date_time::now();
 
@@ -129,6 +130,7 @@ pub struct PayoutAttemptUpdateInternal {
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
+        /// Creates a new instance of Self by converting a PayoutAttemptUpdate enum into the corresponding struct.
     fn from(payout_update: PayoutAttemptUpdate) -> Self {
         match payout_update {
             PayoutAttemptUpdate::PayoutTokenUpdate {

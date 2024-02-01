@@ -12,11 +12,13 @@ use crate::{
 
 impl PayoutsNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a new record of Payouts into the database using the provided connection.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
     }
 }
 impl Payouts {
+        /// Asynchronously finds a record in the database by the given merchant_id and payout_id
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -31,6 +33,18 @@ impl Payouts {
         .await
     }
 
+        /// Updates a payout by merchant ID and payout ID in the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - The database connection.
+    /// * `merchant_id` - The ID of the merchant.
+    /// * `payout_id` - The ID of the payout.
+    /// * `payout` - The updated payout information.
+    /// 
+    /// # Returns
+    /// 
+    /// The updated payout, or a `DatabaseError::NotFound` if the payout is not found.
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,

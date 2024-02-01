@@ -110,6 +110,7 @@ pub enum LegalConsentType {
 }
 
 impl PartnerReferralRequest {
+        /// Creates a new instance of PartnerReferralRequest with the specified tracking ID and return URL.
     pub fn new(tracking_id: String, return_url: String) -> Self {
         Self {
             tracking_id,
@@ -175,6 +176,7 @@ pub enum VettingStatus {
 }
 
 impl SellerStatusResponse {
+        /// Extracts the merchant details URL by combining the first link's href with the provided PayPal base URL.
     pub fn extract_merchant_details_url(self, paypal_base_url: &str) -> RouterResult<String> {
         self.links
             .first()
@@ -187,6 +189,9 @@ impl SellerStatusResponse {
 }
 
 impl SellerStatusDetailsResponse {
+        /// Checks if payments are receivable for the current user.
+    /// If payments are not receivable, returns Some(api::PayPalOnboardingStatus::PaymentsNotReceivable),
+    /// otherwise returns None.
     pub fn check_payments_receivable(&self) -> Option<api::PayPalOnboardingStatus> {
         if !self.payments_receivable {
             return Some(api::PayPalOnboardingStatus::PaymentsNotReceivable);
@@ -194,6 +199,7 @@ impl SellerStatusDetailsResponse {
         None
     }
 
+        /// Checks the custom PayPal onboarding status and returns the corresponding PayPal onboarding status.
     pub fn check_ppcp_custom_status(&self) -> Option<api::PayPalOnboardingStatus> {
         match self.get_ppcp_custom_status() {
             Some(VettingStatus::Denied) => Some(api::PayPalOnboardingStatus::PpcpCustomDenied),
@@ -202,6 +208,9 @@ impl SellerStatusDetailsResponse {
         }
     }
 
+        /// Checks if the primary email for the PayPal onboarding is confirmed. 
+    /// If the email is not confirmed, it returns Some(api::PayPalOnboardingStatus::EmailNotVerified), 
+    /// otherwise it returns None.
     fn check_email_confirmation(&self) -> Option<api::PayPalOnboardingStatus> {
         if !self.primary_email_confirmed {
             return Some(api::PayPalOnboardingStatus::EmailNotVerified);
@@ -209,6 +218,7 @@ impl SellerStatusDetailsResponse {
         None
     }
 
+        /// Retrieves the eligibility status for PayPal onboarding.
     pub async fn get_eligibility_status(&self) -> RouterResult<api::PayPalOnboardingStatus> {
         Ok(self
             .check_payments_receivable()
@@ -221,6 +231,7 @@ impl SellerStatusDetailsResponse {
             )))
     }
 
+        /// Returns the vetting status of the product with the name "PPCP_CUSTOM" if it exists.
     fn get_ppcp_custom_status(&self) -> Option<VettingStatus> {
         self.products
             .iter()
@@ -228,12 +239,14 @@ impl SellerStatusDetailsResponse {
             .and_then(|ppcp_custom| ppcp_custom.vetting_status.clone())
     }
 
+        /// Returns the payer ID associated with the merchant.
     fn get_payer_id(&self) -> String {
         self.merchant_id.to_string()
     }
 }
 
 impl PartnerReferralResponse {
+        /// Extracts the action URL from the links in the response and returns it as a Result.
     pub fn extract_action_url(self) -> RouterResult<String> {
         Ok(self
             .links

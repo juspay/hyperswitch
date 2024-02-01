@@ -43,6 +43,7 @@ pub enum StripeRefundStatus {
 }
 
 impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
+        /// Creates a new instance of Self (StripeCreateRefundRequest) by extracting relevant fields from the provided StripeCreateRefundRequest object and setting default values for unspecified fields.
     fn from(req: StripeCreateRefundRequest) -> Self {
         Self {
             refund_id: req.refund_id,
@@ -58,16 +59,27 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
 }
 
 impl From<StripeUpdateRefundRequest> for refunds::RefundUpdateRequest {
-    fn from(req: StripeUpdateRefundRequest) -> Self {
-        Self {
-            refund_id: req.refund_id,
-            metadata: req.metadata,
-            reason: None,
+        /// Creates a new instance of Self using the provided StripeUpdateRefundRequest.
+        ///
+        /// # Arguments
+        ///
+        /// * `req` - The StripeUpdateRefundRequest from which to create the new instance.
+        ///
+        /// # Returns
+        ///
+        /// A new instance of Self with the refund_id and metadata populated from the provided request, and reason set to None.
+        ///
+        fn from(req: StripeUpdateRefundRequest) -> Self {
+            Self {
+                refund_id: req.refund_id,
+                metadata: req.metadata,
+                reason: None,
+            }
         }
-    }
 }
 
 impl From<refunds::RefundStatus> for StripeRefundStatus {
+        /// Converts a refund status enum into a corresponding enum of the current type.
     fn from(status: refunds::RefundStatus) -> Self {
         match status {
             refunds::RefundStatus::Succeeded => Self::Succeeded,
@@ -79,17 +91,18 @@ impl From<refunds::RefundStatus> for StripeRefundStatus {
 }
 
 impl From<refunds::RefundResponse> for StripeRefundResponse {
-    fn from(res: refunds::RefundResponse) -> Self {
-        Self {
-            id: res.refund_id,
-            amount: res.amount,
-            currency: res.currency.to_ascii_lowercase(),
-            payment_intent: res.payment_id,
-            status: res.status.into(),
-            created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
-            metadata: res
-                .metadata
-                .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
+        /// Converts a refunds::RefundResponse into a struct of the current type.
+        fn from(res: refunds::RefundResponse) -> Self {
+            Self {
+                id: res.refund_id,
+                amount: res.amount,
+                currency: res.currency.to_ascii_lowercase(),
+                payment_intent: res.payment_id,
+                status: res.status.into(),
+                created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
+                metadata: res
+                    .metadata
+                    .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
+            }
         }
-    }
 }

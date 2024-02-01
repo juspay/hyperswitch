@@ -8,6 +8,8 @@ use crate::configs::settings;
 impl KmsDecrypt for settings::Jwekey {
     type Output = Self;
 
+        /// Asynchronously decrypts the encryption keys using the provided KmsClient.
+    /// Returns a CustomResult with the decrypted keys or a KmsError if decryption fails.
     async fn decrypt_inner(
         mut self,
         kms_client: &KmsClient,
@@ -30,6 +32,16 @@ impl KmsDecrypt for settings::Jwekey {
 #[async_trait::async_trait]
 impl KmsDecrypt for settings::ActiveKmsSecrets {
     type Output = Self;
+        /// Asynchronously decrypts the inner JWE key using the provided KmsClient, and returns a result containing the decrypted JWE key or a KmsError.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `kms_client` - A reference to the KmsClient used for decryption.
+    /// 
+    /// # Returns
+    /// 
+    /// A CustomResult containing the decrypted JWE key or a KmsError.
+    /// 
     async fn decrypt_inner(
         mut self,
         kms_client: &KmsClient,
@@ -43,6 +55,7 @@ impl KmsDecrypt for settings::ActiveKmsSecrets {
 impl KmsDecrypt for settings::Database {
     type Output = storage_impl::config::Database;
 
+        /// Asynchronously decrypts the password using the provided KmsClient and returns a CustomResult containing the decrypted Database configuration if successful, or a KmsError if decryption fails.
     async fn decrypt_inner(
         mut self,
         kms_client: &KmsClient,
@@ -67,6 +80,8 @@ impl KmsDecrypt for settings::Database {
 impl KmsDecrypt for settings::PayPalOnboarding {
     type Output = Self;
 
+        /// Decrypts the client_id, client_secret, and partner_id using the provided KmsClient.
+    /// Returns a CustomResult containing the decrypted values or a KmsError if decryption fails.
     async fn decrypt_inner(
         mut self,
         kms_client: &KmsClient,
@@ -86,6 +101,7 @@ impl KmsDecrypt for settings::PayPalOnboarding {
 impl KmsDecrypt for settings::ConnectorOnboarding {
     type Output = Self;
 
+        /// Asynchronously decrypts the inner data using the provided KmsClient and returns a CustomResult containing the decrypted data or a KmsError.
     async fn decrypt_inner(
         mut self,
         kms_client: &KmsClient,

@@ -78,6 +78,7 @@ pub enum QueryLimit {
 
 #[allow(clippy::from_over_into)]
 impl Into<u64> for QueryLimit {
+        /// Converts the enum variant into its corresponding u64 value.
     fn into(self) -> u64 {
         match self {
             Self::Top5 => 5,

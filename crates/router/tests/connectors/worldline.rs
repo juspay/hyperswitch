@@ -17,6 +17,8 @@ struct WorldlineTest;
 
 impl ConnectorActions for WorldlineTest {}
 impl utils::Connector for WorldlineTest {
+        /// This method returns a ConnectorData object containing information about the connector,
+    /// including the connector type, connector name, token retrieval method, and merchant connector ID.
     fn get_data(&self) -> types::api::ConnectorData {
         types::api::ConnectorData {
             connector: Box::new(&Worldline),
@@ -26,6 +28,7 @@ impl utils::Connector for WorldlineTest {
         }
     }
 
+        /// This method retrieves the authentication token for the connector. It first creates a new instance of ConnectorAuthentication and then converts it to a ConnectorAuthType using the to_connector_auth_type function from the utils module. If the worldline field in the ConnectorAuthentication instance is missing, it will panic with the message "Missing connector authentication configuration".
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             ConnectorAuthentication::new()
@@ -35,12 +38,14 @@ impl utils::Connector for WorldlineTest {
         )
     }
 
+        /// This method returns the name "worldline" as a String.
     fn get_name(&self) -> String {
         String::from("worldline")
     }
 }
 
 impl WorldlineTest {
+        /// Retrieves the payment information, if available.
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             address: Some(PaymentAddress {
@@ -57,6 +62,7 @@ impl WorldlineTest {
         })
     }
 
+        /// Constructs and returns the payment authorization data for a given card, including the card details, amount, currency, and other relevant information.
     fn get_payment_authorize_data(
         card_number: &str,
         card_exp_month: &str,
@@ -110,6 +116,7 @@ impl WorldlineTest {
 }
 
 #[actix_web::test]
+/// Asynchronously performs a payment authorization with manual authorization required.
 async fn should_requires_manual_authorization() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "5424 1802 7979 1732",
@@ -125,6 +132,7 @@ async fn should_requires_manual_authorization() {
 }
 
 #[actix_web::test]
+/// Asynchronously performs payment authorization and requests automatic capture using the Worldline API.
 async fn should_auto_authorize_and_request_capture() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
@@ -141,6 +149,7 @@ async fn should_auto_authorize_and_request_capture() {
 }
 
 #[actix_web::test]
+/// Asynchronously executes a payment authorization using test data and expects the method to throw a `NotSupported` error for an unsupported issuer.
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "630495060000000000",
@@ -162,6 +171,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
 }
 
 #[actix_web::test]
+/// This asynchronous method tests for the scenario where a required field for the country in the billing address is missing. It creates payment authorization data with specific details, makes a payment with missing country field in the billing address, and asserts that the response contains an error indicating the missing required field for the country in the billing address.
 async fn should_throw_missing_required_field_for_country() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012 0000 3333 0026",
@@ -190,6 +200,7 @@ async fn should_throw_missing_required_field_for_country() {
 }
 
 #[actix_web::test]
+/// This method tests the payment system's behavior when a payment with an invalid CVC (Card Verification Code) is attempted. It creates payment authorization data with a specific card number, expiration date, empty CVC, and automatic capture method, then attempts to make the payment using the created data and payment information. It then asserts that the response contains an error message indicating that a null value is not allowed for the card's CVC.
 async fn should_fail_payment_for_invalid_cvc() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
         "4012000033330026",
@@ -209,6 +220,7 @@ async fn should_fail_payment_for_invalid_cvc() {
 }
 
 #[actix_web::test]
+/// Asynchronously initiates a manual authorization payment sync process by creating an instance of WorldlineTest, retrieving payment authorization data, authorizing the payment, and synchronizing the payment. It then asserts that the response status is "Authorized" for both authorization and synchronization processes.
 async fn should_sync_manual_auth_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
@@ -242,6 +254,7 @@ async fn should_sync_manual_auth_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously performs an auto-auth payment synchronization with the Worldline connector. 
 async fn should_sync_auto_auth_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
@@ -275,6 +288,7 @@ async fn should_sync_auto_auth_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously captures an authorized payment using WorldlineTest connector.
 async fn should_capture_authorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
@@ -302,6 +316,7 @@ async fn should_capture_authorized_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously attempts to capture a payment using the WorldlineTest API and expects the capture to fail with an "UNKNOWN_PAYMENT_ID" error message.
 async fn should_fail_capture_payment() {
     let capture_response = WorldlineTest {}
         .capture_payment("123456789".to_string(), None, None)
@@ -314,6 +329,14 @@ async fn should_fail_capture_payment() {
 }
 
 #[actix_web::test]
+/// This method is used to cancel an unauthorized payment by performing the following steps:
+/// 1. Initialize a WorldlineTest connector.
+/// 2. Retrieve payment authorization data.
+/// 3. Authorize the payment using the connector and the authorization data.
+/// 4. Verify that the payment was successfully authorized.
+/// 5. Retrieve the connector payment ID from the authorization response.
+/// 6. Void the payment using the connector and the connector payment ID.
+/// 7. Verify that the payment was successfully voided.
 async fn should_cancel_unauthorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
@@ -338,6 +361,7 @@ async fn should_cancel_unauthorized_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously cancels an uncaptured payment by creating an authorize request, making the payment, and then voiding the payment.
 async fn should_cancel_uncaptured_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
@@ -362,6 +386,7 @@ async fn should_cancel_uncaptured_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously tests if the void_payment method fails with an invalid payment ID by attempting to void a payment with an invalid payment ID and verifying that the response contains the expected error message "UNKNOWN_PAYMENT_ID".
 async fn should_fail_cancel_with_invalid_payment_id() {
     let response = WorldlineTest {}
         .void_payment("123456789".to_string(), None, None)
@@ -374,6 +399,7 @@ async fn should_fail_cancel_with_invalid_payment_id() {
 }
 
 #[actix_web::test]
+/// Attempts to refund a payment with an invalid payment status and expects the refund to fail with a specific error message. 
 async fn should_fail_refund_with_invalid_payment_status() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(

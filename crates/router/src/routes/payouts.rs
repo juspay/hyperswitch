@@ -27,6 +27,7 @@ use crate::{core::payouts::*, types::api::payouts as payout_types};
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
+/// Asynchronously handles the creation of payouts. 
 pub async fn payouts_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -61,6 +62,7 @@ pub async fn payouts_create(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
+/// Retrieves a payout using the provided payout ID and query parameters. This method uses the provided AppState, HttpRequest, path, and query parameters to construct a PayoutRetrieveRequest object and initiates the process of retrieving the payout. It then utilizes the api::server_wrap function to handle the retrieval process and returns the HttpResponse.
 pub async fn payouts_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -101,6 +103,7 @@ pub async fn payouts_retrieve(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
+/// This method is used to update a specific payout by its ID. It takes in the current application state, the HTTP request, the requested path, and the JSON payload containing the payout update information. It then constructs the necessary payload, wraps the request in a server context using the specified flow, and calls the `payouts_update_core` method to handle the actual payout update logic. The method returns a response as an HTTP response.
 pub async fn payouts_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -140,6 +143,7 @@ pub async fn payouts_update(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
+/// This method handles the cancellation of a payout by sending a request to the server with the provided payload and path parameter. It then wraps the request in a box and awaits the response from the server.
 pub async fn payouts_cancel(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -179,6 +183,7 @@ pub async fn payouts_cancel(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
+/// Asynchronously fulfills a payout action request by updating the state with the provided data and calling the payouts_fulfill_core method. 
 pub async fn payouts_fulfill(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -207,6 +212,8 @@ pub async fn payouts_accounts() -> impl Responder {
     http_response("accounts")
 }
 
+/// Takes a response of type T that implements the MessageBody trait and returns an HttpResponse
+/// with a BoxBody, which is suitable for streaming large response bodies.
 fn http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody> {
     HttpResponse::Ok().body(response)
 }

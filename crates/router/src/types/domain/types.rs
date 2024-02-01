@@ -38,6 +38,18 @@ impl<
     > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
     #[instrument(skip_all)]
+        /// Asynchronously encrypts the given masked data using the specified key and cryptographic algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `masked_data` - The masked data to be encrypted
+    /// * `key` - The key used for encryption
+    /// * `crypt_algo` - The cryptographic algorithm to be used for encryption
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the encrypted data if successful, or a `CryptoError` if an error occurs during encryption.
+    ///
     async fn encrypt(
         masked_data: Secret<String, S>,
         key: &[u8],
@@ -49,6 +61,8 @@ impl<
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously decrypts the encrypted data using the provided key and cryptographic algorithm.
+    /// Returns a CustomResult containing the decrypted data on success, or a CryptoError on failure.
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -74,6 +88,7 @@ impl<
     for crypto::Encryptable<Secret<serde_json::Value, S>>
 {
     #[instrument(skip_all)]
+        /// Asynchronously encrypts the masked data using the provided key and cryptographic algorithm.
     async fn encrypt(
         masked_data: Secret<serde_json::Value, S>,
         key: &[u8],
@@ -88,6 +103,8 @@ impl<
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously decrypts the given encrypted data using the specified key and encryption algorithm.
+    /// Returns a CustomResult containing the decrypted data or a CryptoError if decryption fails.
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -111,6 +128,18 @@ impl<
     > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
 {
     #[instrument(skip_all)]
+        /// Asynchronously encrypts the masked data using the specified key and cryptographic algorithm.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `masked_data` - The masked data to be encrypted.
+    /// * `key` - The key used for encryption.
+    /// * `crypt_algo` - The specific cryptographic algorithm to be used for encryption.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the encrypted data wrapped in a new instance of the current type, or a `CryptoError` if an error occurs during encryption.
+    /// 
     async fn encrypt(
         masked_data: Secret<Vec<u8>, S>,
         key: &[u8],
@@ -122,6 +151,18 @@ impl<
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously decrypts the given encrypted data using the specified key and encryption algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_data` - The encrypted data to be decrypted.
+    /// * `key` - The key used for decryption.
+    /// * `crypt_algo` - The encryption algorithm used for decryption.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the decrypted data if successful, or a `CryptoError` if an error occurs during decryption.
+    ///
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -147,6 +188,14 @@ impl<U> Lift<U> for Option<U> {
     type SelfWrapper<T> = Option<T>;
     type OtherWrapper<T, E> = CustomResult<Option<T>, E>;
 
+        /// Applies the given function `func` to the value wrapped in `self`, returning a new wrapper type `Self::OtherWrapper<V, E>`.
+    /// 
+    /// # Arguments
+    /// * `func` - The function to apply to the value wrapped in `self`
+    /// 
+    /// # Returns
+    /// The result of applying the given function to the value wrapped in `self`, wrapped in a new wrapper type `Self::OtherWrapper<V, E>`.
+    /// 
     fn lift<Func, E, V>(self, func: Func) -> Self::OtherWrapper<V, E>
     where
         Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<V, E>,
@@ -171,6 +220,16 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
     type SelfWrapper<T> = <V as Lift<U>>::SelfWrapper<T>;
     type OtherWrapper<T, E> = <V as Lift<U>>::OtherWrapper<T, E>;
 
+        /// Asynchronously applies the given function to the value wrapped by the current wrapper, and returns a new wrapper containing the result of the function's future.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function to be applied to the value wrapped by the current wrapper.
+    ///
+    /// # Returns
+    ///
+    /// A new wrapper containing the result of the function's future.
+    ///
     async fn async_lift<Func, F, E, W>(self, func: Func) -> Self::OtherWrapper<W, E>
     where
         Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
@@ -181,6 +240,7 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
 }
 
 #[inline]
+/// Asynchronously encrypts the given inner secret using the specified key and encryption algorithm. It records the operation time and returns a CustomResult containing the encrypted Secret if successful, or a CryptoError if an error occurs.
 pub async fn encrypt<E: Clone, S>(
     inner: Secret<E, S>,
     key: &[u8],
@@ -198,6 +258,7 @@ where
 }
 
 #[inline]
+/// Asynchronously encrypts an optional Secret using the provided key, returning a CustomResult
 pub async fn encrypt_optional<E: Clone, S>(
     inner: Option<Secret<E, S>>,
     key: &[u8],
@@ -211,6 +272,7 @@ where
 }
 
 #[inline]
+/// Asynchronously decrypts the inner value using the provided key and a specified encryption algorithm, recording the operation time.
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],

@@ -45,6 +45,17 @@ where
         tokio::sync::oneshot::Sender<()>,
         &'static str,
     );
+        /// Asynchronously creates a new instance of Storage, either for testing purposes or for regular use.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `config` - A tuple containing the database configuration, cache configuration, encryption key, cache error signal, and in-memory cache stream.
+    /// * `test_transaction` - A boolean indicating whether the storage instance is for testing purposes.
+    ///
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the newly created `Storage` instance, or an error if the creation fails.
+    ///
     async fn new(config: Self::Config, test_transaction: bool) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
@@ -64,15 +75,21 @@ where
             .attach_printable("failed to create store")
         }
     }
+        /// Retrieves the master connection pool for the database store.
     fn get_master_pool(&self) -> &PgPool {
         self.db_store.get_master_pool()
     }
+        /// Retrieves the replica pool from the database store.
     fn get_replica_pool(&self) -> &PgPool {
         self.db_store.get_replica_pool()
     }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
+        /// Retrieves a Redis connection from the cache store and returns it as a thread-safe reference-counted Arc wrapped in a Result.
+    /// 
+    /// # Errors
+    /// Returns a RedisError if there was an issue retrieving the Redis connection from the cache store.
     fn get_redis_conn(
         &self,
     ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
@@ -81,6 +98,7 @@ impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
+        /// Creates a new instance of Storage using the provided database configuration, cache configuration, encryption key, error signal for cache, and in-memory cache stream. It initializes the database store and cache store, sets the error callback for cache store, subscribes to the specified in-memory cache stream, and returns a result containing the initialized Storage instance.
     pub async fn from_config(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
@@ -107,6 +125,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         })
     }
 
+        /// Returns a reference to the master encryption key.
     pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
         &self.master_encryption_key
     }
@@ -150,6 +169,17 @@ where
     T: DatabaseStore,
 {
     type Config = (RouterStore<T>, String, u8, u32);
+        /// Creates a new instance of Storage using the provided configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - A tuple containing the router store, drainer stream name, drainer number of partitions, and time-to-live for key-value pairs.
+    /// * `_test_transaction` - A boolean indicating whether to use test transactions.
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the newly created instance of `Storage`.
+    ///
     async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
         let (router_store, drainer_stream_name, drainer_num_partitions, ttl_for_kv) = config;
         Ok(Self::from_store(
@@ -159,15 +189,22 @@ where
             ttl_for_kv,
         ))
     }
+        /// This method returns a reference to the master database connection pool.
     fn get_master_pool(&self) -> &PgPool {
         self.router_store.get_master_pool()
     }
+        /// Retrieves the replica pool from the router store.
     fn get_replica_pool(&self) -> &PgPool {
         self.router_store.get_replica_pool()
     }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
+        /// Retrieves a Redis connection from the router store and returns it as an Arc-wrapped RedisConnectionPool.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result containing the Arc<RedisConnectionPool> if successful, otherwise returns a RedisError.
     fn get_redis_conn(
         &self,
     ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
@@ -176,6 +213,7 @@ impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
 }
 
 impl<T: DatabaseStore> KVRouterStore<T> {
+        /// Create a new instance of Self using the provided RouterStore, drainer stream name, drainer number of partitions, and time-to-live for key-value pairs.
     pub fn from_store(
         store: RouterStore<T>,
         drainer_stream_name: String,
@@ -193,14 +231,17 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
+        /// Returns a reference to the master key stored in the router store.
     pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
         self.router_store.master_key()
     }
 
+        /// Returns the drainer stream name for the given shard key by formatting it as "{shard_key}_{drainer_stream_name}".
     pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
         format!("{{{}}}_{}", shard_key, self.drainer_stream_name)
     }
 
+        /// Asynchronously pushes the given `redis_entry` to the drainer stream using the specified `partition_key`. The method retrieves the global ID and request ID, calculates the shard key, and determines the stream name based on the shard key. It then appends the redis entry to the stream, increments the KV_PUSHED_TO_DRAINER metric if successful, or increments the KV_FAILED_TO_PUSH_TO_DRAINER metric and returns an error if the operation fails.
     pub async fn push_to_drainer_stream<R>(
         &self,
         redis_entry: diesel_models::kv::TypedSql,
@@ -242,6 +283,7 @@ pub trait DataModelExt {
     fn from_storage_model(storage_model: Self::StorageModel) -> Self;
 }
 
+/// Converts a diesel database error to a custom StorageError enum.
 pub(crate) fn diesel_error_to_data_error(
     diesel_error: &diesel_models::errors::DatabaseError,
 ) -> StorageError {

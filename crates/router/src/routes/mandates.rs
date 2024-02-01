@@ -111,6 +111,7 @@ pub async fn revoke_mandate(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesList))]
+/// Asynchronously retrieves a list of mandates based on the provided constraints. This method takes the current application state, HTTP request, and query payload as input, and then uses the provided constraints to retrieve a list of mandates. It then wraps the result using the api::server_wrap function and returns the HTTP response.
 pub async fn retrieve_mandates_list(
     state: web::Data<AppState>,
     req: HttpRequest,

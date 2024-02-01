@@ -16,4 +16,7 @@
     operation_id = "Retrieve a Payment Link",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-pub async fn payment_link_retrieve() {}
+/// Asynchronous method for retrieving a payment link.
+pub async fn payment_link_retrieve() {
+    // Method implementation goes here
+}

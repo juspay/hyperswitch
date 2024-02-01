@@ -158,9 +158,11 @@ pub struct PaymentAttempt {
 }
 
 impl PaymentAttempt {
+        /// Returns the total amount by summing the base amount, surcharge amount (if it exists), and tax amount (if it exists).
     pub fn get_total_amount(&self) -> i64 {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
+        /// Returns the total surcharge amount, which is calculated by adding the surcharge amount to the tax amount if it exists.
     pub fn get_total_surcharge_amount(&self) -> Option<i64> {
         self.surcharge_amount
             .map(|surcharge_amount| surcharge_amount + self.tax_amount.unwrap_or(0))
@@ -240,6 +242,7 @@ impl PaymentAttemptNew {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
 
+        /// This method populates the derived fields of the PaymentAttempt struct. It calculates the net amount based on the existing fields and assigns it to the net_amount field. It then returns the updated PaymentAttempt struct with the derived fields populated.
     pub fn populate_derived_fields(self) -> Self {
         let mut payment_attempt_new = self;
         payment_attempt_new.net_amount = payment_attempt_new.calculate_net_amount();
@@ -393,6 +396,7 @@ pub enum PaymentAttemptUpdate {
 }
 
 impl ForeignIDRef for PaymentAttempt {
+        /// Returns the foreign ID associated with the current instance.
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
     }

@@ -95,6 +95,17 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+                /// Asynchronously finds an address by its address ID using the provided MerchantKeyStore for decryption.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `address_id` - A reference to a string representing the ID of the address to be found.
+        /// * `key_store` - A reference to a MerchantKeyStore used for decryption.
+        /// 
+        /// # Returns
+        /// 
+        /// A CustomResult containing the found Address if successful, or a StorageError if an error occurs during the operation.
+        /// 
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -114,6 +125,7 @@ mod storage {
                 .await
         }
 
+                /// Asynchronously finds an address by merchant ID, payment ID, and address ID using the provided merchant key store and storage scheme. Returns a Result containing the found address or a StorageError if the operation fails.
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -142,6 +154,8 @@ mod storage {
         }
 
         #[instrument(skip_all)]
+                /// Asynchronously updates an address in the database using the provided address ID and address update information.
+        /// Returns a result containing the updated address on success, or a StorageError on failure.
         async fn update_address(
             &self,
             address_id: String,
@@ -162,6 +176,7 @@ mod storage {
                 .await
         }
 
+                /// Asynchronously updates the address for payments using the provided address, address update, payment ID, merchant key store, and storage scheme. Returns a custom result containing the updated address or a storage error.
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -188,6 +203,8 @@ mod storage {
                 .await
         }
 
+                /// Asynchronously inserts an address for payments into the database using the provided payment ID, address, merchant key store, and storage scheme. 
+        /// Returns a CustomResult containing the inserted domain::Address or an errors::StorageError.
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
@@ -213,6 +230,8 @@ mod storage {
                 .await
         }
 
+                /// Inserts an address for customers after encrypting it using the provided key store.
+        /// Returns the inserted address or a `StorageError` if encryption or insertion fails.
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -236,6 +255,7 @@ mod storage {
                 .await
         }
 
+                /// Asynchronously updates the address of a customer associated with a merchant. It takes the customer ID, merchant ID, the updated address, and the merchant's key store as input and returns a vector of updated addresses. It first establishes a write connection to the database, then updates the address using the provided customer and merchant IDs. After the update, it converts the addresses using the merchant's key and handles any decryption errors. Finally, it returns the updated addresses as a vector.
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -314,6 +334,20 @@ mod storage {
                 .await
         }
 
+                /// Asynchronously finds an address by the given merchant ID, payment ID, and address ID, using the specified key store and storage scheme.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `merchant_id` - A string slice representing the merchant ID.
+        /// * `payment_id` - A string slice representing the payment ID.
+        /// * `address_id` - A string slice representing the address ID.
+        /// * `key_store` - A reference to the merchant's key store.
+        /// * `storage_scheme` - The storage scheme to be used for retrieving the address.
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing the found address or a `StorageError` if an error occurs during the operation.
+        /// 
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -381,6 +415,7 @@ mod storage {
                 .await
         }
 
+                /// Update the address for payments based on the specified storage scheme. If the storage scheme is PostgresOnly, the address is updated in the PostgreSQL database, and then encrypted and decrypted using the merchant key. If the storage scheme is RedisKv, the address update is stored in a Redis key-value store, and then encrypted and decrypted using the merchant key.
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -449,6 +484,10 @@ mod storage {
             }
         }
 
+                /// Inserts an address for payments into the storage based on the specified storage scheme. 
+        /// If the storage scheme is PostgresOnly, the address is inserted into a Postgres database after encryption.
+        /// If the storage scheme is RedisKv, the address is inserted into a Redis key-value store after encryption.
+        /// Returns the inserted address after decryption, or an error if the address already exists or if an encryption/decryption error occurs.
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
@@ -596,6 +635,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
+        /// Asynchronously finds an address by its ID using the provided MerchantKeyStore for decryption.
     async fn find_address_by_address_id(
         &self,
         address_id: &str,
@@ -621,6 +661,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+        /// Asynchronously finds an address by merchant ID, payment ID, and address ID. 
     async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
         _merchant_id: &str,
@@ -650,6 +691,8 @@ impl AddressInterface for MockDb {
     }
 
     #[instrument(skip_all)]
+        /// Updates the address with the given address_id using the provided address_update and key_store.
+    /// Returns a Result containing the updated address or a StorageError if the address is not found or if there is a decryption error.
     async fn update_address(
         &self,
         address_id: String,
@@ -679,6 +722,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+        /// Asynchronously updates the address for payments using the provided address, address update, payment ID, merchant key store, and storage scheme. Returns a CustomResult with the updated address or a StorageError if the address is not found or if there is a decryption error.
     async fn update_address_for_payments(
         &self,
         this: domain::Address,
@@ -710,6 +754,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+        /// Inserts a new address for payments into the merchant's storage, encrypts the address using a provided key store, and returns the encrypted address.
     async fn insert_address_for_payments(
         &self,
         _payment_id: &str,
@@ -731,6 +776,17 @@ impl AddressInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously inserts a new address for customers into the storage, encrypts the address using the merchant's key, and returns the encrypted address.
+    ///
+    /// # Arguments
+    ///
+    /// * `address_new` - The new address to be inserted
+    /// * `key_store` - The merchant's key store used for encryption
+    ///
+    /// # Returns
+    ///
+    /// The encrypted address if successful, otherwise returns a `StorageError`
+    ///
     async fn insert_address_for_customers(
         &self,
         address_new: domain::Address,
@@ -750,6 +806,9 @@ impl AddressInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously updates the address for a specific customer and merchant. 
+    /// If the address is found and updated successfully, it returns the updated address.
+    /// If the address is not found, it returns a storage error indicating that the address was not found.
     async fn update_address_by_merchant_id_customer_id(
         &self,
         customer_id: &str,

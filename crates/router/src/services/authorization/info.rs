@@ -2,6 +2,7 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use super::permissions::Permission;
 
+/// Retrieves authorization information for all available permission modules and returns a vector of ModuleInfo.
 pub fn get_authorization_info() -> Vec<ModuleInfo> {
     PermissionModule::iter()
         .map(|module| ModuleInfo::new(&module))
@@ -14,6 +15,12 @@ pub struct PermissionInfo {
 }
 
 impl PermissionInfo {
+        /// Creates a new vector of instances of the current struct `Self` from a slice of `Permission` enums.
+    ///
+    /// # Arguments
+    ///
+    /// * `permissions` - A reference to a slice of `Permission` enums
+    ///
     pub fn new(permissions: &[Permission]) -> Vec<Self> {
         permissions
             .iter()
@@ -44,6 +51,7 @@ pub enum PermissionModule {
 }
 
 impl PermissionModule {
+        /// Returns a description of the module based on the enum variant.
     pub fn get_module_description(&self) -> &'static str {
         match self {
             Self::Payments => "Everything related to payments - like creating and viewing payment related information are within this module",
@@ -71,6 +79,7 @@ pub struct ModuleInfo {
 }
 
 impl ModuleInfo {
+        /// Creates a new permission object based on the given PermissionModule. It sets the module name, description, and permissions based on the module type.
     pub fn new(module: &PermissionModule) -> Self {
         let module_name = module.clone();
         let description = module.get_module_description();

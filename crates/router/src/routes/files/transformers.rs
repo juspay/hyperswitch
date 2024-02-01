@@ -10,6 +10,7 @@ use crate::{
     utils::OptionExt,
 };
 
+/// This method takes a multipart payload and parses it to extract the purpose, file content, and dispute ID parameters to create a `CreateFileRequest`. It then validates the file content, size, and type before returning the `CreateFileRequest` or an `ApiErrorResponse` if any errors occur during the process.
 pub async fn get_create_file_request(
     mut payload: Multipart,
 ) -> CustomResult<CreateFileRequest, errors::ApiErrorResponse> {

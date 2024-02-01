@@ -50,6 +50,11 @@ pub struct SurchargeDecisionManagerRecord {
 }
 
 impl events::ApiEventMetric for SurchargeDecisionManagerRecord {
+        /// Retrieves the API event type associated with the current object, if available.
+    /// 
+    /// # Returns
+    /// 
+    /// If the API event type is available, returns Some containing the type of event (e.g. Routing). If the API event type is not available, returns None.
     fn get_api_event_type(&self) -> Option<events::ApiEventsType> {
         Some(events::ApiEventsType::Routing)
     }

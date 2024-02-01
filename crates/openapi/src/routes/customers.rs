@@ -23,6 +23,7 @@
     operation_id = "Create a Customer",
     security(("api_key" = []))
 )]
+/// Asynchronously creates a new customer. This method should be used to create a new customer record in the database.
 pub async fn customers_create() {}
 
 /// Customers - Retrieve
@@ -40,7 +41,10 @@ pub async fn customers_create() {}
     operation_id = "Retrieve a Customer",
     security(("api_key" = []), ("ephemeral_key" = []))
 )]
-pub async fn customers_retrieve() {}
+/// Asynchronously retrieves a list of customers from the database.
+pub async fn customers_retrieve() {
+    // method implementation here
+}
 
 /// Customers - Update
 ///
@@ -66,6 +70,7 @@ pub async fn customers_retrieve() {}
     operation_id = "Update a Customer",
     security(("api_key" = []))
 )]
+/// Asynchronously updates customer information.
 pub async fn customers_update() {}
 
 /// Customers - Delete
@@ -83,6 +88,7 @@ pub async fn customers_update() {}
     operation_id = "Delete a Customer",
     security(("api_key" = []))
 )]
+/// Asynchronously deletes customer data from the database.
 pub async fn customers_delete() {}
 
 /// Customers - List
@@ -99,4 +105,5 @@ pub async fn customers_delete() {}
     operation_id = "List all Customers for a Merchant",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves a list of customers.
 pub async fn customers_list() {}

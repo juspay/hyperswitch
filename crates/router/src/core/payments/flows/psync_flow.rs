@@ -17,6 +17,7 @@ use crate::{
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
 {
+        /// Constructs router data for payments synchronization using the provided parameters and returns a result containing the router data for the specified payment types.
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -48,6 +49,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
 impl Feature<api::PSync, types::PaymentsSyncData>
     for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
+        /// Asynchronously decides the flows for handling payment sync requests based on the provided parameters.
     async fn decide_flows<'a>(
         mut self,
         state: &AppState,
@@ -101,6 +103,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         }
     }
 
+        /// Asynchronously adds an access token for a given merchant account using the provided connector data and application state.
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -110,6 +113,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously builds a flow-specific connector request based on the provided state, connector data, and call connector action. 
+    /// Returns a tuple containing an optional services::Request and a boolean indicating success.
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,
@@ -148,6 +153,17 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 }
 
 impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData> {
+        /// Asynchronously executes the connector processing step for each capture, based on the given parameters.
+    /// If the call connector action is to handle response, it only calls the connector once. Otherwise, it calls the connector for every capture ID in the pending list and updates the capture sync response map accordingly.
+    /// 
+    /// # Arguments
+    /// * `state` - The application state
+    /// * `pending_connector_capture_id_list` - The list of pending connector capture IDs
+    /// * `call_connector_action` - The action to be performed when calling the connector
+    /// * `connector_integration` - The boxed connector integration
+    /// 
+    /// # Returns
+    /// The updated Self with the capture sync response map and response set accordingly.
     async fn execute_connector_processing_step_for_each_capture(
         mut self,
         state: &AppState,

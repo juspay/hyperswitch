@@ -38,6 +38,7 @@ async fn refund_create_fail_adyen() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously sends GET and POST requests to the refunds API endpoints
 async fn refunds_todo() {
     Box::pin(utils::setup()).await;
 

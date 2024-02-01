@@ -46,6 +46,7 @@ pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent>;
 }
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
+        /// Returns the type of outgoing webhook event content based on the enum variant of the current instance.
     fn get_outgoing_webhook_event_type(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
@@ -77,6 +78,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
 }
 
 impl OutgoingWebhookEvent {
+        /// Creates a new OutgoingWebhookEvent with the provided merchant ID, event ID, event type, event content, error status, and error value. The created_at_timestamp is set to the current UTC time in milliseconds.
     pub fn new(
         merchant_id: String,
         event_id: String,
@@ -100,6 +102,8 @@ impl OutgoingWebhookEvent {
 impl TryFrom<OutgoingWebhookEvent> for RawEvent {
     type Error = serde_json::Error;
 
+        /// Attempts to convert an OutgoingWebhookEvent into an instance of the current type.
+    /// If successful, returns a Result containing the converted instance, otherwise returns an error.
     fn try_from(value: OutgoingWebhookEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             event_type: EventType::OutgoingWebhookLogs,

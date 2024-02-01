@@ -39,6 +39,7 @@ pub trait RefundDbExt: Sized {
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
+        /// Asynchronously filter refund records by various constraints such as merchant ID, payment ID, refund ID, profile ID, time range, connector, currency, and refund status. Returns a vector of filtered refund records or a database error.
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -128,6 +129,18 @@ impl RefundDbExt for Refund {
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
+        /// Retrieves and filters refund list metadata based on the provided constraints.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled PostgreSQL connection.
+    /// * `merchant_id` - A string slice representing the merchant ID.
+    /// * `refund_list_details` - A reference to the time range details for filtering refunds.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the filtered refund list metadata or a `DatabaseError` if an error occurs.
+    /// 
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -186,6 +199,16 @@ impl RefundDbExt for Refund {
         Ok(meta)
     }
 
+        /// Asynchronously retrieves the count of refunds based on the provided criteria. 
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled Postgres connection
+    /// * `merchant_id` - A string slice representing the merchant ID
+    /// * `refund_list_details` - A reference to the refund list request details
+    /// 
+    /// # Returns
+    /// A `CustomResult` containing the count of refunds if successful, otherwise a `DatabaseError`
+    /// 
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &str,

@@ -48,6 +48,16 @@ pub trait DisputeInterface {
 
 #[async_trait::async_trait]
 impl DisputeInterface for Store {
+        /// Asynchronously inserts a new dispute into the storage.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `dispute` - The `DisputeNew` object to be inserted into the storage.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the inserted `Dispute` object if successful, otherwise a `StorageError`.
+    /// 
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
@@ -60,6 +70,8 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds a dispute by the given merchant ID, payment ID, and connector dispute ID.
+    /// Returns the result as a CustomResult containing either Some(storage::Dispute) or None, or an errors::StorageError.
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &str,
@@ -78,6 +90,17 @@ impl DisputeInterface for Store {
         .into_report()
     }
 
+        /// Asynchronously finds a dispute by the given merchant ID and dispute ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string containing the merchant ID.
+    /// * `dispute_id` - A reference to a string containing the dispute ID.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `storage::Dispute` if the dispute is found, or a `errors::StorageError` if an error occurs.
+    ///
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
         merchant_id: &str,
@@ -90,6 +113,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously retrieves a list of disputes associated with a specific merchant ID based on the provided dispute constraints.
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -102,6 +126,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds disputes by merchant ID and payment ID.
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -114,6 +139,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates a dispute in the storage. It takes a reference to the current dispute and a dispute update as input, and returns a custom result containing the updated dispute or a storage error.
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -129,6 +155,7 @@ impl DisputeInterface for Store {
 
 #[async_trait::async_trait]
 impl DisputeInterface for MockDb {
+        /// Asynchronously inserts a new dispute into the storage. It checks for the existence of the dispute by its id, generates a new unique id for the dispute, sets the current timestamp as the creation and modification timestamp, and adds the dispute to the list of disputes in the storage. Returns the newly inserted dispute if successful, or a `StorageError` if an error occurs during the insertion process.
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
@@ -179,6 +206,8 @@ impl DisputeInterface for MockDb {
 
         Ok(new_dispute)
     }
+    /// Asynchronously finds a dispute by the given merchant ID, payment ID, and connector dispute ID.
+    /// Returns a result containing an option of the found dispute or a storage error.
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &str,
@@ -198,6 +227,7 @@ impl DisputeInterface for MockDb {
             .cloned())
     }
 
+        /// Asynchronously finds a dispute by merchant ID and dispute ID in the storage. It locks the disputes, then iterates through them to find a dispute with matching merchant ID and dispute ID. If found, it returns a cloned copy of the dispute. If not found, it returns a `StorageError` with a message indicating that the specified dispute was not found.
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
         merchant_id: &str,
@@ -213,13 +243,14 @@ impl DisputeInterface for MockDb {
             .into())
     }
 
+        /// Asynchronously finds disputes by merchant id based on the provided constraints.
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-
+    
         Ok(locked_disputes
             .iter()
             .filter(|d| {
@@ -284,6 +315,19 @@ impl DisputeInterface for MockDb {
             .collect())
     }
 
+        /// Finds disputes by merchant ID and payment ID.
+    ///
+    /// This method asynchronously finds and returns a vector of disputes that match the given merchant ID and payment ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `payment_id` - A reference to a string representing the payment ID.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a vector of storage::Dispute objects if the operation is successful, otherwise an errors::StorageError is returned.
+    ///
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -298,6 +342,7 @@ impl DisputeInterface for MockDb {
             .collect())
     }
 
+        /// Asynchronously updates a dispute in the storage. It takes the current dispute and a dispute update as input, and returns a CustomResult containing the updated dispute or a StorageError if the operation fails. The method locks the disputes and finds the dispute to update based on its dispute ID. It then updates the dispute based on the provided update, including updating the dispute stage, dispute status, connector status, connector reason, challenge required by, connector updated at, evidence, and modified timestamp. It then returns the updated dispute.
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -386,6 +431,7 @@ mod tests {
             connector_dispute_id: String,
         }
 
+                /// Creates a new dispute with the provided dispute IDs and default values for other fields.
         fn create_dispute_new(dispute_ids: DisputeNewIds) -> DisputeNew {
             DisputeNew {
                 dispute_id: dispute_ids.dispute_id,
@@ -411,6 +457,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously tests the insertion of a dispute into the mock database.
         async fn test_insert_dispute() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&RedisSettings::default())
@@ -442,6 +489,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously tests the functionality of finding a dispute by merchant ID, payment ID, and connector dispute ID in the database.
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -485,6 +533,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously tests the functionality of finding a dispute by merchant ID and dispute ID in the mock database.
         async fn test_find_dispute_by_merchant_id_dispute_id() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -522,6 +571,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously performs a test to find disputes by merchant ID in the mock database.
         async fn test_find_disputes_by_merchant_id() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -576,6 +626,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously tests the functionality of finding disputes by merchant ID and payment ID in the database.
         async fn test_find_disputes_by_merchant_id_payment_id() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -632,6 +683,7 @@ mod tests {
             };
 
             #[tokio::test]
+                        /// Asynchronously tests the update_dispute method by creating a mock database, inserting a new dispute, updating the dispute with new values, and then comparing the original and updated disputes to ensure that the update was successful.
             async fn test_update_dispute_update() {
                 #[allow(clippy::expect_used)]
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -712,6 +764,7 @@ mod tests {
             }
 
             #[tokio::test]
+                        /// This method tests the update of a dispute's status in the database. It creates a mock database, inserts a dispute, updates its status, and then compares the updated dispute with the original one to ensure that the status and other fields have been updated as expected.
             async fn test_update_dispute_update_status() {
                 #[allow(clippy::expect_used)]
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -787,6 +840,7 @@ mod tests {
             }
 
             #[tokio::test]
+                        /// Asynchronously updates a dispute's evidence in the mock database and checks if the update is reflected in the updated dispute object.
             async fn test_update_dispute_update_evidence() {
                 #[allow(clippy::expect_used)]
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())

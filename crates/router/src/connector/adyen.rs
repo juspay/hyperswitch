@@ -35,14 +35,20 @@ use crate::{
 pub struct Adyen;
 
 impl ConnectorCommon for Adyen {
+        /// This method returns the unique identifier "adyen".
     fn id(&self) -> &'static str {
         "adyen"
     }
 
+        /// This method returns the currency unit of the API. In this case, it always returns the minor currency unit.
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Minor
     }
 
+        /// Retrieves the authentication header for a given ConnectorAuthType. This method
+    /// attempts to convert the provided auth_type into an AdyenAuthType and obtain the
+    /// API key from it. The API key is then returned as part of a vector containing a
+    /// tuple with the X_API_KEY header and the masked API key value.
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
@@ -54,10 +60,12 @@ impl ConnectorCommon for Adyen {
             auth.api_key.into_masked(),
         )])
     }
+        /// Returns the base URL for the Adyen connector.
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.adyen.base_url.as_ref()
     }
 
+        /// Builds an error response based on the provided response and returns a CustomResult containing the error response or a ConnectorError if deserialization of the response fails.
     fn build_error_response(
         &self,
         res: types::Response,
@@ -78,32 +86,38 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
+        /// Validates the given capture method and returns a result indicating whether it is valid or not.
     fn validate_capture_method(
-        &self,
-        capture_method: Option<storage_enums::CaptureMethod>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+            &self,
+            capture_method: Option<storage_enums::CaptureMethod>,
+        ) -> CustomResult<(), errors::ConnectorError> {
+            let capture_method = capture_method.unwrap_or_default();
+            match capture_method {
+                enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::Manual
+                | enums::CaptureMethod::ManualMultiple => Ok(()),
+                enums::CaptureMethod::Scheduled => Err(
+                    connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+                ),
+            }
         }
-    }
+        /// Validates the reference ID for payments synchronization. 
+    /// 
+    /// If the provided data contains an encoded data, the method returns Ok(()), indicating that the reference ID is valid. 
+    /// If the encoded data is missing, the method returns an error of type ConnectorError with a message indicating the missing field.
     fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if data.request.encoded_data.is_some() {
-            return Ok(());
+            &self,
+            data: &types::PaymentsSyncRouterData,
+        ) -> CustomResult<(), errors::ConnectorError> {
+            if data.request.encoded_data.is_some() {
+                return Ok(());
+            }
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "encoded_data",
+            }
+            .into())
         }
-        Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "encoded_data",
-        }
-        .into())
-    }
+        /// Returns true if the source verification is mandatory for the webhook, otherwise returns false.
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         true
     }
@@ -145,6 +159,7 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
+        /// Retrieves the headers required for setting up a mandate router, based on the provided request data and connectors. 
     fn get_headers(
         &self,
         req: &types::SetupMandateRouterData,
@@ -161,6 +176,7 @@ impl
         Ok(header)
     }
 
+        /// Returns the URL for making payments using the setup mandate router data and connectors provided.
     fn get_url(
         &self,
         _req: &types::SetupMandateRouterData,
@@ -168,6 +184,9 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
+        /// Retrieves the request body for setting up a mandate router, based on the provided setup mandate router data
+    /// and connectors settings. It constructs an authorize request, converts it to AdyenRouterData, then to
+    /// AdyenPaymentRequest, and returns the request content as a JSON object wrapped in a CustomResult.
     fn get_request_body(
         &self,
         req: &types::SetupMandateRouterData,
@@ -187,6 +206,7 @@ impl
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
+        /// Builds a request for setting up a mandate by using the provided SetupMandateRouterData and Connectors. 
     fn build_request(
         &self,
         req: &types::SetupMandateRouterData,
@@ -204,6 +224,7 @@ impl
                 .build(),
         ))
     }
+        /// Handles the response from the setup mandate router by parsing the response into an AdyenPaymentResponse, and then creating a RouterData object using the parsed response, the given data, and the HTTP status code. The method returns a CustomResult containing the RouterData or an error of type ConnectorError.
     fn handle_response(
         &self,
         data: &types::SetupMandateRouterData,
@@ -236,6 +257,7 @@ impl
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
+        /// This method takes a types::Response and converts it into a CustomResult containing a types::ErrorResponse or an errors::ConnectorError. It first parses the response into an adyen::ErrorResponse struct, handling any deserialization errors with the appropriate error context. It then constructs a types::ErrorResponse from the status_code and error details of the parsed response, setting reason, attempt_status, and connector_transaction_id to None.
     fn get_error_response(
         &self,
         res: types::Response,
@@ -274,6 +296,8 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
+        /// Retrieves the headers required for making a payment capture request. 
+    /// The method takes the PaymentsCaptureRouterData and Connectors as input and returns a vector of tuples containing headers and masked values.
     fn get_headers(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -288,6 +312,7 @@ impl
         Ok(header)
     }
 
+        /// Retrieves the URL for capturing a payment, based on the provided PaymentsCaptureRouterData and Connectors.
     fn get_url(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -301,6 +326,16 @@ impl
             id
         ))
     }
+        /// Retrieves the request body for capturing payments using the provided payment capture router data and connectors settings. 
+    ///
+    /// # Arguments
+    ///
+    /// * `req` - The payment capture router data containing information about the payment capture request
+    /// * `_connectors` - The connectors settings used for the payment capture request
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the request content for capturing payments, or a `ConnectorError` if an error occurs.
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -315,6 +350,7 @@ impl
         let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
+        /// Builds a request for capturing payments based on the provided data and connectors.
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -334,6 +370,8 @@ impl
                 .build(),
         ))
     }
+        /// Handles the response from a payments capture router by parsing the response into an AdyenCaptureResponse
+    /// and creating a new RouterData object with the parsed response, original data, and HTTP status code.
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
@@ -351,6 +389,8 @@ impl
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
+        /// Retrieves the error response from a given HTTP response. It deserializes the response body into an adyen::ErrorResponse struct and constructs a types::ErrorResponse from the fields of the HTTP response and the deserialized adyen::ErrorResponse. If deserialization fails, it returns a ConnectorError.
+    
     fn get_error_response(
         &self,
         res: types::Response,
@@ -376,6 +416,7 @@ impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Adyen
 {
+        /// Retrieves the headers required for making a request to the specified API endpoint. This method takes the request data, including the API type and response data, as well as the connectors settings. It then constructs the necessary headers, including the content type and authentication headers, and returns them as a vector of tuples containing the header name and value. If an error occurs during the construction of the headers, a `ConnectorError` is returned.
     fn get_headers(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -392,6 +433,8 @@ impl
         Ok(header)
     }
 
+        /// Retrieves the request body from the provided RouterData and Connectors, and processes the encoded data to create a connector request for Adyen redirection or refusal. Returns the connector request as a JSON RequestContent wrapped in a CustomResult.
+    
     fn get_request_body(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -440,6 +483,7 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// This method takes in a reference to self, a reference to types::RouterData, a reference to settings::Connectors, and returns a CustomResult containing a String or a ConnectorError. It constructs a URL by combining the base URL from the provided connectors and a specific path for payments details, and returns the constructed URL as a String.
     fn get_url(
         &self,
         _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -452,6 +496,7 @@ impl
         ))
     }
 
+        /// Builds a request based on the provided RouterData and Connectors. The method checks if the PSync flow is supported and creates a request accordingly, taking into account the encoded data and the redirection flow. If the encoded data contains the redirect URL, a POST request is built with the appropriate URL, headers, and request body. Otherwise, the method returns None.
     fn build_request(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -484,6 +529,7 @@ impl
         }
     }
 
+    /// Handles the response from the payment sync API by parsing the response, determining the sync type, and creating a new PaymentsSyncRouterData instance. 
     fn handle_response(
         &self,
         data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -528,6 +574,7 @@ impl
         })
     }
 
+        /// Returns the capture synchronization method for multiple captures.
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
@@ -542,6 +589,10 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
+        /// This method returns a vector of headers required for authorizing payments. It takes the
+    /// request data, connectors settings, and returns a result containing a vector of tuples
+    /// representing headers. The method also enforces the constraint that the implementing type
+    /// must be a ConnectorIntegration for the Authorize API with specific data and response types.
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -565,6 +616,18 @@ impl
         Ok(header)
     }
 
+        /// Constructs and returns a URL for payments authorization using the provided connector settings.
+    ///
+    /// # Arguments
+    ///
+    /// * `self` - The reference to the current instance of the struct.
+    /// * `_req` - The reference to the payments authorization router data.
+    /// * `connectors` - The reference to the connector settings.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the constructed URL for payments authorization, or a ConnectorError if an error occurs.
+    ///
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
@@ -572,7 +635,14 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
-
+        /// Retrieves the request body for authorizing a payment through the Adyen payment gateway. 
+    /// 
+    /// # Arguments
+    /// - `req`: The payment authorization router data containing necessary information for the request
+    /// - `_connectors`: The connectors settings used for the request
+    /// 
+    /// # Returns
+    /// Returns a `CustomResult` containing the request content for authorizing a payment or an error if the request fails.
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -588,6 +658,7 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request for authorizing payments using the provided router data and connectors.
     fn build_request(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -610,6 +681,9 @@ impl
         ))
     }
 
+        /// Handles the response from the payment authorization router by parsing the response into an AdyenPaymentResponse,
+    /// creating a new ResponseRouterData, and attempting to convert it into RouterData. If successful, it returns the
+    /// RouterData, otherwise it returns a ConnectorError.
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
@@ -659,6 +733,7 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
+        /// Retrieves the headers required for making a payments pre-processing request. It constructs the necessary headers based on the provided request data and connectors settings. It returns a vector of key-value pairs representing the headers, or an error of type `ConnectorError` if there is an issue with retrieving the headers or constructing the API key.
     fn get_headers(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
@@ -675,6 +750,7 @@ impl
         Ok(header)
     }
 
+        /// Returns the URL for retrieving the balance of payment methods using the base URL from the provided connectors settings.
     fn get_url(
         &self,
         _req: &types::PaymentsPreProcessingRouterData,
@@ -686,6 +762,7 @@ impl
         ))
     }
 
+        /// Retrieves the request body for the payment pre-processing router data. The method takes the payment pre-processing router data, along with the connectors settings, and returns the result as a custom result containing the request content or a connector error.
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
@@ -696,6 +773,8 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request for the PaymentsPreProcessingRouterData using the provided connectors.
+    /// Returns a Result containing an Option of the constructed Request, or a ConnectorError if an error occurs.
     fn build_request(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
@@ -718,6 +797,9 @@ impl
         ))
     }
 
+        /// Handles the response from the payment pre-processing router by parsing the response,
+    /// checking if the balance is sufficient, and either returning an error response or
+    /// converting the response and data into a RouterData.
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
@@ -763,6 +845,7 @@ impl
         }
     }
 
+        /// This method takes a `types::Response` and returns a `CustomResult` containing either a `types::ErrorResponse` or an `errors::ConnectorError`. It calls the `build_error_response` method on the current instance to construct the error response.
     fn get_error_response(
         &self,
         res: types::Response,
@@ -778,6 +861,7 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
+        /// Retrieves the headers required for making a request to the PaymentsCancelRouterData endpoint. This method constructs the required headers, including the content type and authentication headers, and returns them as a vector of key-value pairs.
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -794,6 +878,7 @@ impl
         Ok(header)
     }
 
+        /// Returns the URL for canceling a payment transaction based on the provided PaymentsCancelRouterData and Connectors.
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -807,6 +892,16 @@ impl
         ))
     }
 
+        /// Retrieves the request body for cancelling a payment, based on the provided PaymentsCancelRouterData and Connectors settings.
+    ///
+    /// # Arguments
+    ///
+    /// * `req` - The PaymentsCancelRouterData containing the necessary data for cancelling a payment.
+    /// * `_connectors` - The Connectors settings used to configure the request.
+    ///
+    /// # Returns
+    ///
+    /// The result of retrieving the request body, which is either the JSON content of the AdyenCancelRequest or an error indicating a failure to retrieve the request body.
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -815,7 +910,8 @@ impl
         let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
-    }
+        }
+        /// Builds a request for cancelling payments using the provided payment cancellation router data and connectors.
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -834,6 +930,7 @@ impl
         ))
     }
 
+        /// Handles the response from the Adyen payment cancelation API and returns a result containing the updated payment cancelation router data or an error.
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
@@ -884,6 +981,7 @@ impl api::PayoutFulfill for Adyen {}
 impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
+        /// This method takes in a PayoutsRouterData object and a Connectors object, and returns a result containing a string. It formats the URL for declining a third party payout using the secondary base URL of the Adyen connector from the Connectors object.
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCancel>,
@@ -895,6 +993,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         ))
     }
 
+        /// Retrieves the headers required for performing a payout cancellation request. It constructs the headers with the necessary content type and authentication information based on the provided PayoutsRouterData and Connectors.
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PoCancel>,
@@ -916,6 +1015,14 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         Ok(header)
     }
 
+        /// Retrieves the request body for cancelling a payout through the Adyen connector. 
+    /// 
+    /// # Arguments
+    /// * `req` - The payout router data containing information about the payout cancellation.
+    /// * `_connectors` - The connectors settings used for the request.
+    /// 
+    /// # Returns
+    /// A `CustomResult` containing the request content for cancelling the payout, or an error of type `ConnectorError`.
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoCancel>,
@@ -925,6 +1032,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request to cancel a payout using the provided PayoutsRouterData and Connectors.
     fn build_request(
         &self,
         req: &types::PayoutsRouterData<api::PoCancel>,
@@ -944,6 +1052,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     }
 
     #[instrument(skip_all)]
+        /// Handles the response from the Adyen payout API, parsing the response and creating a new RouterData object with the parsed response, original data, and HTTP status code.
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCancel>,
@@ -972,6 +1081,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
 impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
+        /// This method constructs and returns the URL for making a payout request using the provided connectors and request data.
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
@@ -983,6 +1093,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         ))
     }
 
+        /// Retrieves the headers required for making a payout request. It constructs the headers by setting the content type and adding the API key obtained from the connector authentication type. Returns a vector of tuples containing the header names and their corresponding maskable values.
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
@@ -999,6 +1110,21 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         Ok(header)
     }
 
+        /// Retrieves the request body for a payout creation request to the Adyen connector. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - The payouts router data for the request.
+    /// * `_connectors` - The connectors settings.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<RequestContent, errors::ConnectorError>` - A result containing the request content or a connector error.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `ConnectorError` if there is an error creating the Adyen router data or payout create request.
+    /// 
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
@@ -1014,6 +1140,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request for creating a payout using the provided PayoutsRouterData and Connectors.
     fn build_request(
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
@@ -1028,11 +1155,15 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
                 self, req, connectors,
             )?)
             .build();
-
+    
         Ok(Some(request))
     }
 
     #[instrument(skip_all)]
+        /// Handles the response from Adyen Payout API by parsing the response into AdyenPayoutResponse
+    /// struct and creating a new RouterData instance with the parsed response, original data, and 
+    /// HTTP status code. Returns a CustomResult containing the new PayoutsRouterData or a 
+    /// ConnectorError if response deserialization fails.
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoCreate>,
@@ -1065,6 +1196,7 @@ impl
         types::PayoutsResponseData,
     > for Adyen
 {
+        /// Returns a URL for payments by formatting the base URL with the given connectors and appending '/v68/payments' to it.
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoEligibility>,
@@ -1073,6 +1205,7 @@ impl
         Ok(format!("{}v68/payments", self.base_url(connectors),))
     }
 
+        /// This method retrieves the headers required for making a payout request. It takes the PayoutsRouterData, connectors settings, and returns a result containing a vector of header key-value pairs or a ConnectorError.
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PoEligibility>,
@@ -1089,6 +1222,16 @@ impl
         Ok(header)
     }
 
+        /// Retrieves the request body for a payout transaction based on the provided PayoutsRouterData and Connectors. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - The PayoutsRouterData containing the necessary information for the payout request.
+    /// * `_connectors` - The Connectors used for the payout transaction.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result with the request body content or a ConnectorError if there is an error in the process.
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoEligibility>,
@@ -1104,6 +1247,7 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request for the PayoutsRouterData using the provided connectors, and returns the result as a CustomResult<Option<services::Request>, errors::ConnectorError>.
     fn build_request(
         &self,
         req: &types::PayoutsRouterData<api::PoEligibility>,
@@ -1127,6 +1271,7 @@ impl
     }
 
     #[instrument(skip_all)]
+        /// Handles the response from the Adyen Payout API by parsing the response into an AdyenPayoutResponse struct, and then creating a ResponseRouterData from the parsed response, the original data, and the HTTP status code. Returns a CustomResult with the ResponseRouterData on success, or a ConnectorError on failure.
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoEligibility>,
@@ -1155,6 +1300,7 @@ impl
 impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
+        /// Constructs and returns a URL based on the provided PayoutsRouterData and Connectors.
     fn get_url(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -1170,6 +1316,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         ))
     }
 
+        /// This method retrieves headers required for performing a payout request. It constructs the necessary headers including content type and API key based on the payout type and authentication type. It returns a result containing a vector of tuples representing the headers and their values, or an error of type ConnectorError if there is a failure in obtaining the authentication type.
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -1196,6 +1343,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         Ok(header)
     }
 
+        /// Retrieves the request body for a PayoutsRouterData containing Adyen payout fulfillment data,
+    /// using the specified connectors settings. It creates AdyenRouterData and AdyenPayoutFulfillRequest
+    /// objects based on the provided PayoutsRouterData, and returns the request content as JSON.
     fn get_request_body(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -1211,6 +1361,8 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Constructs a request for fulfilling a payout using the given data and connectors. 
+    /// Returns a custom result containing the constructed request, or an error if the request construction failed.
     fn build_request(
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -1232,6 +1384,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     }
 
     #[instrument(skip_all)]
+        /// Handles the response received from the Adyen API for a payout request. It parses the response into an AdyenPayoutResponse struct, and then creates a new PayoutsRouterData object with the parsed response, the original data, and the HTTP status code from the response.
     fn handle_response(
         &self,
         data: &types::PayoutsRouterData<api::PoFulfill>,
@@ -1263,6 +1416,20 @@ impl api::RefundSync for Adyen {}
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Adyen
 {
+        /// Retrieves the headers needed for making a request to the refunds router API. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - A reference to the refunds router data containing the request information.
+    /// * `_connectors` - A reference to the settings for the connectors.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of tuples, where each tuple represents a header name-value pair. 
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `ConnectorError` if there is an error in retrieving the auth header. 
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -1279,6 +1446,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(header)
     }
 
+        /// This method takes the refunds router data and connectors settings as input and returns a custom result containing a string. It first extracts the connector transaction ID from the request data, then constructs a URL using the base URL from the connectors settings and the extracted connector transaction ID, and finally returns the constructed URL as a string inside a custom result.
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -1292,6 +1460,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         ))
     }
 
+        /// Retrieves the request body for a refunds router data and connectors, and returns a CustomResult containing the request content or a ConnectorError.
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -1308,6 +1477,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+        /// Builds a request for executing a refund using the provided data and connectors.
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -1329,6 +1499,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     #[instrument(skip_all)]
+        /// Handles the response from a refund request by parsing the response, creating a new RouterData object, and returning a CustomResult with the updated data or an error if the response parsing or handling fails.
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
@@ -1370,6 +1541,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
 }
 
+/// Parses the given byte array as an AdyenIncomingWebhook object and extracts the first notification item. 
+/// If successful, returns the AdyenNotificationRequestItemWH object inside a CustomResult. Otherwise, returns a ParsingError.
 fn get_webhook_object_from_body(
     body: &[u8],
 ) -> CustomResult<adyen::AdyenNotificationRequestItemWH, errors::ParsingError> {
@@ -1388,6 +1561,15 @@ fn get_webhook_object_from_body(
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Adyen {
+        /// Retrieves the verification algorithm used for verifying the source of a webhook request.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request` - The incoming webhook request details.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a boxed trait object implementing the `VerifySignature` and `Send` traits, representing the algorithm used for verifying the webhook source. Returns an error of type `ConnectorError` if the algorithm retrieval fails.
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1395,6 +1577,7 @@ impl api::IncomingWebhook for Adyen {
         Ok(Box::new(crypto::HmacSha256))
     }
 
+        /// Retrieves the HMAC signature from the incoming webhook request details and returns it as a vector of bytes.
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1407,6 +1590,7 @@ impl api::IncomingWebhook for Adyen {
         Ok(base64_signature.as_bytes().to_vec())
     }
 
+        /// Retrieves the verification message for the webhook source based on the incoming webhook request details, merchant ID, and connector webhook secrets. The method processes the webhook request body to extract notification details, constructs a message using the notification fields, and returns the message as a byte vector.
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1431,6 +1615,10 @@ impl api::IncomingWebhook for Adyen {
         Ok(message.into_bytes())
     }
 
+        /// Verifies the source of a webhook request by comparing the signature in the request
+    /// with the signature generated using the webhook secrets associated with the
+    /// merchant account and connector label. Returns a boolean indicating whether the
+    /// verification was successful.
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1467,8 +1655,12 @@ impl api::IncomingWebhook for Adyen {
         let signed_messaged = hmac::sign(&signing_key, &message);
         let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
         Ok(payload_sign.as_bytes().eq(&signature))
-    }
+        }
 
+        /// Given an incoming webhook request, this method extracts the relevant information and returns an ObjectReferenceId
+    /// based on the event code and other details in the request. It handles different types of webhook events such
+    /// as capture, transaction, refund, and chargeback events, and constructs the corresponding ObjectReferenceId
+    /// based on the event details.
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1507,6 +1699,7 @@ impl api::IncomingWebhook for Adyen {
         Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
     }
 
+        /// Retrieves the event type from the incoming webhook request details and returns a result containing the incoming webhook event or a ConnectorError if the event type is not found.
     fn get_webhook_event_type(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1519,6 +1712,7 @@ impl api::IncomingWebhook for Adyen {
         )))
     }
 
+        /// Retrieves the webhook resource object from the incoming webhook request details and returns a custom result containing a boxed trait object that implements the ErasedMaskSerialize trait, or a ConnectorError if an error occurs. 
     fn get_webhook_resource_object(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1531,6 +1725,7 @@ impl api::IncomingWebhook for Adyen {
         Ok(Box::new(response))
     }
 
+        /// This method takes an incoming webhook request details and returns a custom result containing the application response in JSON format. If successful, it returns a text plain response with the message "[accepted]". If there is an error, it returns a ConnectorError.
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1541,6 +1736,7 @@ impl api::IncomingWebhook for Adyen {
         ))
     }
 
+        /// Retrieves and maps the details of a dispute from the incoming webhook request to a `DisputePayload` object.
     fn get_dispute_details(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,

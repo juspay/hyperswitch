@@ -37,6 +37,7 @@ pub enum EmailBody {
 pub mod html {
     use crate::services::email::types::EmailBody;
 
+        /// Returns the HTML body content for the given EmailBody variant.
     pub fn get_html_body(email_body: EmailBody) -> String {
         match email_body {
             EmailBody::Verify { link } => {
@@ -97,6 +98,18 @@ pub struct EmailToken {
 }
 
 impl EmailToken {
+        /// Generates a new authentication token for the given user email and merchant ID, using the provided settings.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `email` - The user's email for which the token is generated.
+    /// * `merchant_id` - An optional merchant ID associated with the user.
+    /// * `settings` - The settings used for generating the JWT token.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the newly generated authentication token or an error of type `UserErrors`.
+    /// 
     pub async fn new_token(
         email: domain::UserEmail,
         merchant_id: Option<String>,
@@ -112,15 +125,28 @@ impl EmailToken {
         jwt::generate_jwt(&token_payload, settings).await
     }
 
+        /// Returns a reference to the email address associated with the current instance.
     pub fn get_email(&self) -> &str {
         self.email.as_str()
     }
 
+        /// Retrieves the merchant ID associated with the current instance, if available.
     pub fn get_merchant_id(&self) -> Option<&str> {
         self.merchant_id.as_deref()
     }
 }
 
+/// Constructs a URL link with the provided base URL, token, and action.
+/// 
+/// # Arguments
+/// 
+/// * `base_url` - The base URL for the link.
+/// * `token` - The token to be included in the link.
+/// * `action` - The action to be included in the link.
+/// 
+/// # Returns
+/// 
+/// A string representing the constructed URL link.
 pub fn get_link_with_token(
     base_url: impl std::fmt::Display,
     token: impl std::fmt::Display,
@@ -138,6 +164,7 @@ pub struct VerifyEmail {
 /// Currently only HTML is supported
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
+        /// Asynchronously retrieves the email data for the recipient. This method generates a token for the recipient's email using the settings provided, creates a verification link with the token, generates an HTML body for the email with the verification link, and returns the email contents including the subject, body, and recipient email address.
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
             .await
@@ -167,6 +194,7 @@ pub struct ResetPassword {
 
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
+        /// Asynchronously retrieves the email data for sending a password reset email to the recipient. This method generates a token for the recipient email, creates a password reset link with the token, and constructs the email body and subject. It then returns the email contents including the subject, body, and recipient email address.
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
             .await
@@ -197,6 +225,7 @@ pub struct MagicLink {
 
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
+        /// Asynchronously retrieves email data for the recipient, including generating a token for the recipient's email address, creating a magic link for email verification, and constructing the email body and subject. Returns a result containing the email contents or an error if any step fails.
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(self.recipient_email.clone(), None, &self.settings)
             .await
@@ -228,6 +257,7 @@ pub struct InviteUser {
 
 #[async_trait::async_trait]
 impl EmailData for InviteUser {
+        /// Asynchronously retrieves email data for sending an email to the recipient. 
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
@@ -262,6 +292,7 @@ pub struct ReconActivation {
 
 #[async_trait::async_trait]
 impl EmailData for ReconActivation {
+        /// Asynchronously retrieves email data for a specific email, including the email subject, body, and recipient. 
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::ReconActivation {
             user_name: self.user_name.clone().get_secret().expose(),
@@ -286,6 +317,7 @@ pub struct ProFeatureRequest {
 
 #[async_trait::async_trait]
 impl EmailData for ProFeatureRequest {
+        /// Asynchronously retrieves email data for sending an email, including the recipient, body, and subject.
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let recipient = self.recipient_email.clone().into_inner();
 

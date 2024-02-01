@@ -69,6 +69,7 @@ pub struct ConnectorAuthentication {
 }
 
 impl Default for ConnectorAuthentication {
+        /// Creates a new instance of the current type using the `new` method.
     fn default() -> Self {
         Self::new()
     }
@@ -80,6 +81,7 @@ impl ConnectorAuthentication {
     ///
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
+        /// Creates a new instance of the struct by reading the connector authentication configuration from the file path specified in the environment variable `CONNECTOR_AUTH_FILE_PATH`.
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests in shell
@@ -104,6 +106,7 @@ impl Default for ConnectorAuthenticationMap {
 // This is a temporary solution to avoid rust compiler from complaining about unused function
 #[allow(dead_code)]
 impl ConnectorAuthenticationMap {
+        /// This method returns a reference to the inner HashMap containing String keys and ConnectorAuthType values.
     pub fn inner(&self) -> &HashMap<String, ConnectorAuthType> {
         &self.0
     }
@@ -112,6 +115,8 @@ impl ConnectorAuthenticationMap {
     ///
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
+    /// This method reads the connector authentication file path from the environment variable `CONNECTOR_AUTH_FILE_PATH`,
+    /// reads the file contents, deserializes it to a HashMap, refines and extracts the required information, and returns a new instance of the struct with the authentication data.
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests in shell
@@ -219,6 +224,7 @@ pub struct HeaderKey {
 }
 
 impl From<HeaderKey> for ConnectorAuthType {
+        /// Creates a new instance of Self using the provided HeaderKey.
     fn from(key: HeaderKey) -> Self {
         Self::HeaderKey {
             api_key: key.api_key,
@@ -233,6 +239,7 @@ pub struct BodyKey {
 }
 
 impl From<BodyKey> for ConnectorAuthType {
+        /// Creates a new instance of Self by taking a BodyKey and extracting its api_key and key1 fields.
     fn from(key: BodyKey) -> Self {
         Self::BodyKey {
             api_key: key.api_key,
@@ -249,6 +256,7 @@ pub struct SignatureKey {
 }
 
 impl From<SignatureKey> for ConnectorAuthType {
+        /// Creates a new instance of Self by converting a SignatureKey into the current type.
     fn from(key: SignatureKey) -> Self {
         Self::SignatureKey {
             api_key: key.api_key,
@@ -267,6 +275,7 @@ pub struct MultiAuthKey {
 }
 
 impl From<MultiAuthKey> for ConnectorAuthType {
+        /// Converts a MultiAuthKey struct into the current struct.
     fn from(key: MultiAuthKey) -> Self {
         Self::MultiAuthKey {
             api_key: key.api_key,

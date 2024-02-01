@@ -28,6 +28,7 @@ pub enum MetaData {
 }
 
 impl From<&MetaData> for DBEnum {
+        /// Converts a value of type MetaData to Self.
     fn from(value: &MetaData) -> Self {
         match value {
             MetaData::ProductionAgreement(_) => Self::ProductionAgreement,

@@ -4,6 +4,7 @@ use crate::{core::errors, types, types::transformers::ForeignTryFrom};
 
 impl ForeignTryFrom<types::ConnectorAuthType> for pm_auth_types::ConnectorAuthType {
     type Error = errors::ConnectorError;
+        /// Tries to convert a `ConnectorAuthType` into the current type.
     fn foreign_try_from(auth_type: types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => {

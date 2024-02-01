@@ -30,6 +30,7 @@ pub trait VaultFetch: Sized {
 
 #[async_trait::async_trait]
 impl VaultFetch for masking::Secret<String> {
+        /// Asynchronously fetches data from the specified client using the provided engine, and returns the result
     async fn fetch_inner<En>(
         self,
         client: &super::HashiCorpVault,

@@ -6,11 +6,13 @@ use crate::{selenium::*, tester};
 struct BluesnapSeleniumTest;
 
 impl SeleniumTest for BluesnapSeleniumTest {
+        /// Retrieves the name of the connector, which is "bluesnap".
     fn get_connector_name(&self) -> String {
         "bluesnap".to_string()
     }
 }
 
+/// Asynchronously makes a webhook test using the specified web driver. It constructs a BluesnapSeleniumTest connection, initiates a webhook test using the provided WebDriver, URL, list of events, timeout, and success message, and awaits the result. If successful, it returns Ok(()), otherwise it returns a WebDriverError.
 async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = BluesnapSeleniumTest {};
     conn.make_webhook_test(
@@ -29,6 +31,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
 
 #[test]
 #[serial]
+/// Executes the `should_make_webhook` tester macro, which tests whether the webhook should be created.
 fn should_make_webhook_test() {
     tester!(should_make_webhook);
 }

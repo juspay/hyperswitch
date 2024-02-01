@@ -14,7 +14,10 @@
     operation_id = "Retrieve a Dispute",
     security(("api_key" = []))
 )]
-pub async fn retrieve_dispute() {}
+/// Asynchronously retrieves a dispute from the database.
+pub async fn retrieve_dispute() {
+    // implementation goes here
+}
 
 /// Disputes - List Disputes
 /// Lists all the Disputes for a merchant
@@ -41,4 +44,7 @@ pub async fn retrieve_dispute() {}
     operation_id = "List Disputes",
     security(("api_key" = []))
 )]
-pub async fn retrieve_disputes_list() {}
+/// Asynchronously retrieves a list of disputes.
+pub async fn retrieve_disputes_list() {
+    // method implementation
+}

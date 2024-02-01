@@ -12,6 +12,7 @@ use crate::{
 };
 
 impl From<enums::CardType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::CardType into an instance of the current enum type.
     fn from(value: enums::CardType) -> Self {
         match value {
             enums::CardType::Credit => Self::Credit,
@@ -21,6 +22,7 @@ impl From<enums::CardType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
+        /// Converts the given enums::PayLaterType value to a corresponding variant of the current enum.
     fn from(value: enums::PayLaterType) -> Self {
         match value {
             enums::PayLaterType::Affirm => Self::Affirm,
@@ -35,6 +37,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::WalletType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::WalletType into an instance of the enum Self.
     fn from(value: enums::WalletType) -> Self {
         match value {
             enums::WalletType::GooglePay => Self::GooglePay,
@@ -61,6 +64,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::BankDebitType into an instance of the current enum.
     fn from(value: enums::BankDebitType) -> Self {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
@@ -71,6 +75,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
     }
 }
 impl From<enums::UpiType> for global_enums::PaymentMethodType {
+        /// Converts a value of type enums::UpiType into an instance of the current type.
     fn from(value: enums::UpiType) -> Self {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
@@ -79,6 +84,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::VoucherType> for global_enums::PaymentMethodType {
+        /// Converts a value of type enums::VoucherType to an instance of the current type.
     fn from(value: enums::VoucherType) -> Self {
         match value {
             enums::VoucherType::Boleto => Self::Boleto,
@@ -100,6 +106,7 @@ impl From<enums::VoucherType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::BankTransferType into the corresponding Self type.
     fn from(value: enums::BankTransferType) -> Self {
         match value {
             enums::BankTransferType::Multibanco => Self::Multibanco,
@@ -120,6 +127,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::GiftCardType> for global_enums::PaymentMethodType {
+        /// Converts a value of type enums::GiftCardType to a corresponding value of Self.
     fn from(value: enums::GiftCardType) -> Self {
         match value {
             enums::GiftCardType::PaySafeCard => Self::PaySafeCard,
@@ -129,6 +137,7 @@ impl From<enums::GiftCardType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::CardRedirectType into an instance of Self.
     fn from(value: enums::CardRedirectType) -> Self {
         match value {
             enums::CardRedirectType::Benefit => Self::Benefit,
@@ -140,6 +149,7 @@ impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
+        /// Converts a value of enums::BankRedirectType into the corresponding variant of Self.
     fn from(value: enums::BankRedirectType) -> Self {
         match value {
             enums::BankRedirectType::Bizum => Self::Bizum,
@@ -164,6 +174,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::CryptoType> for global_enums::PaymentMethodType {
+        /// Converts a value from the enums::CryptoType into the corresponding value of the current enum.
     fn from(value: enums::CryptoType) -> Self {
         match value {
             enums::CryptoType::CryptoCurrency => Self::CryptoCurrency,
@@ -172,6 +183,7 @@ impl From<enums::CryptoType> for global_enums::PaymentMethodType {
 }
 
 impl From<enums::RewardType> for global_enums::PaymentMethodType {
+        /// Converts a value from the enums::RewardType enum to the corresponding Self enum variant.
     fn from(value: enums::RewardType) -> Self {
         match value {
             enums::RewardType::ClassicReward => Self::ClassicReward,
@@ -224,6 +236,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
     })
 }
 
+/// Lower the directory comparison to a valued comparison.
 fn lower_comparison(
     dir_comparison: dir::DirComparison,
 ) -> Result<vir::ValuedComparison, AnalysisErrorType> {
@@ -245,6 +258,7 @@ fn lower_comparison(
     })
 }
 
+/// Lower a DirIfStatement into a ValuedIfStatement, applying the lower_comparison function to its condition and recursively lowering any nested if statements.
 fn lower_if_statement(
     dir_if_statement: dir::DirIfStatement,
 ) -> Result<vir::ValuedIfStatement, AnalysisErrorType> {
@@ -265,6 +279,7 @@ fn lower_if_statement(
     })
 }
 
+/// Takes a DirRule and converts it into a ValuedRule by applying the lower_if_statement function to each statement in the DirRule. Returns a Result containing the ValuedRule or an AnalysisErrorType if an error occurs during the conversion process.
 fn lower_rule<O>(dir_rule: dir::DirRule<O>) -> Result<vir::ValuedRule<O>, AnalysisErrorType> {
     Ok(vir::ValuedRule {
         name: dir_rule.name,
@@ -277,6 +292,7 @@ fn lower_rule<O>(dir_rule: dir::DirRule<O>) -> Result<vir::ValuedRule<O>, Analys
     })
 }
 
+/// Converts a `DirProgram` into a `ValuedProgram` by lowering its rules and preserving other fields.
 pub fn lower_program<O>(
     dir_program: dir::DirProgram<O>,
 ) -> Result<vir::ValuedProgram<O>, AnalysisError> {

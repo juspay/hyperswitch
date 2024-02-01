@@ -40,6 +40,7 @@ pub type Store = RouterStore<StoreType>;
 #[cfg(feature = "kv_store")]
 pub type Store = KVRouterStore<StoreType>;
 
+/// This method initializes and configures the application's storage based on the provided settings.
 pub async fn get_store(
     config: &settings::Settings,
     shut_down_signal: oneshot::Sender<()>,
@@ -126,6 +127,22 @@ pub async fn get_store(
 }
 
 #[allow(clippy::expect_used)]
+/// Asynchronously fetches the master encryption key based on the specified configurations and external services.
+///
+/// # Arguments
+///
+/// * `conf` - A reference to the settings configurations
+/// * `kms_client` - A reference to the KmsClient (only available if the "kms" feature is enabled)
+/// * `hc_client` - A reference to the HashiCorpVault client (only available if the "hashicorp-vault" feature is enabled)
+///
+/// # Returns
+///
+/// A StrongSecret containing the master encryption key as a vector of bytes
+///
+/// # Panics
+///
+/// This method will panic if it fails to fetch or decrypt the master encryption key
+///
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
@@ -154,6 +171,7 @@ async fn get_master_enc_key(
 }
 
 #[inline]
+/// Generates a 256-bit AES key using a secure random number generator.
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 

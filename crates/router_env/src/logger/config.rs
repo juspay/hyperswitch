@@ -55,6 +55,12 @@ impl Level {
 }
 
 impl<'de> Deserialize<'de> for Level {
+        /// Deserializes the given input using the provided deserializer and returns a Result containing
+    /// either the deserialized value or an error of the type D::Error. The deserializer must implement
+    /// serde::Deserializer<'de> trait. This method first deserializes the input into a String, then
+    /// converts the String into a tracing::Level using FromStr. If successful, it wraps the Level in
+    /// a Result and returns it. If any error occurs during deserialization or conversion, it returns
+    /// a custom serde::de::Error.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

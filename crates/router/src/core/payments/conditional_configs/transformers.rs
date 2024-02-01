@@ -4,6 +4,7 @@ use euclid::enums as dsl_enums;
 
 use crate::types::transformers::ForeignFrom;
 impl ForeignFrom<dsl_enums::AuthenticationType> for conditional_configs::AuthenticationType {
+        /// Converts a value of type `dsl_enums::AuthenticationType` into a value of the current type.
     fn foreign_from(from: dsl_enums::AuthenticationType) -> Self {
         match from {
             dsl_enums::AuthenticationType::ThreeDs => Self::ThreeDs,
@@ -13,6 +14,7 @@ impl ForeignFrom<dsl_enums::AuthenticationType> for conditional_configs::Authent
 }
 
 impl ForeignFrom<conditional_configs::AuthenticationType> for storage_enums::AuthenticationType {
+        /// Converts an enum value from conditional_configs::AuthenticationType to Self
     fn foreign_from(from: conditional_configs::AuthenticationType) -> Self {
         match from {
             conditional_configs::AuthenticationType::ThreeDs => Self::ThreeDs,

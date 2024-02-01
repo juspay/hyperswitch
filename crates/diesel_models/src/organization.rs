@@ -27,6 +27,7 @@ pub enum OrganizationUpdate {
 }
 
 impl From<OrganizationUpdate> for OrganizationUpdateInternal {
+        /// Converts the given OrganizationUpdate enum value into an instance of Self.
     fn from(value: OrganizationUpdate) -> Self {
         match value {
             OrganizationUpdate::Update { org_name } => Self { org_name },

@@ -34,6 +34,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves the trackers for a given payment, validates the payment status, authenticates the client secret, retrieves customer and business profile details, and constructs the response containing the retrieved data.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -206,6 +207,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the payment intent metadata and returns a tuple containing a boxed operation and updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
@@ -239,7 +241,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
             None => payment_data.payment_intent,
         };
-
+    
         Ok((Box::new(self), payment_data))
     }
 }
@@ -248,6 +250,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
+        /// Validates a payment session request and returns a tuple containing a boxed operation and a validate result.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
@@ -258,7 +261,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     )> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
-
+    
         Ok((
             Box::new(self),
             operations::ValidateResult {
@@ -282,6 +285,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// This method either retrieves an existing customer details from the storage interface or creates a new customer if the details do not exist. It takes in a reference to the storage interface, a mutable reference to payment data, an optional request for customer details, and a reference to the merchant key store. It returns a custom result containing a boxed operation for payments session request and an optional customer, or a storage error.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -307,6 +311,7 @@ where
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data for a given operation. 
     async fn make_pm_data<'b>(
         &'b self,
         _state: &'b AppState,
@@ -449,6 +454,7 @@ where
 }
 
 impl From<api_models::enums::PaymentMethodType> for api::GetToken {
+        /// Converts a value of type `api_models::enums::PaymentMethodType` into an instance of the current enum.
     fn from(value: api_models::enums::PaymentMethodType) -> Self {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,

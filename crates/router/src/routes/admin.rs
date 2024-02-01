@@ -24,6 +24,7 @@ use crate::{
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+/// Asynchronously handles the creation of a merchant account by taking in the App state, HTTP request, and JSON payload for the merchant account creation. It then wraps the process in a server_wrap function and awaits the result before returning the HTTP response.
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -57,6 +58,7 @@ pub async fn merchant_account_create(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
+/// Asynchronously retrieves a merchant account by making a server wrap API call with the provided merchant ID. 
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -90,6 +92,7 @@ pub async fn retrieve_merchant_account(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
+/// This method handles the HTTP request for listing merchant accounts. It takes the application state, the HTTP request, and the query parameters as input, and returns an HTTP response. It creates a flow for listing merchant accounts, wraps the server operation, and awaits the result of the operation before returning the response.
 pub async fn merchant_account_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -126,6 +129,7 @@ pub async fn merchant_account_list(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
+/// Asynchronously updates a merchant account using the provided state, request, merchant ID, and JSON payload. It wraps the update process in a server wrap and performs authentication and authorization checks before executing the merchant account update. 
 pub async fn update_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -206,6 +210,7 @@ pub async fn delete_merchant_account(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
+/// Creates a new payment connector for a merchant. This method takes in the necessary data including the application state, HTTP request, merchant ID, and JSON payload containing the details of the payment connector to be created. It then calls the `create_payment_connector` function with the provided data and performs authentication checks using `auth_type`. Finally, it uses `api_locking::LockAction` to determine the locking action and returns the HTTP response.
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -252,6 +257,7 @@ pub async fn payment_connector_create(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
+/// This method is used to retrieve a payment connector based on the provided merchant ID and connector ID. It constructs a payload with the merchant ID and connector ID, then calls the `server_wrap` function to handle the API request. The `server_wrap` function provides authentication, authorization, and API locking before awaiting the result of the `retrieve_payment_connector` function, which actually retrieves the payment connector from the state.
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -304,6 +310,7 @@ pub async fn payment_connector_retrieve(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
+/// This method handles the request to list payment connectors for a specific merchant. It extracts the merchant ID from the request path, then calls the `list_payment_connectors` function with the extracted merchant ID as a parameter. It also performs authentication checks based on the provided JWT token and required permissions. Finally, it awaits the result of the API server wrap operation and returns the HTTP response.
 pub async fn payment_connector_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -351,6 +358,7 @@ pub async fn payment_connector_list(
    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
+/// Asynchronously handles the update of a merchant payment connector. 
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -398,6 +406,7 @@ pub async fn payment_connector_update(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
+/// Delete a payment connector for a specific merchant.
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -433,6 +442,12 @@ pub async fn payment_connector_delete(
 ///
 /// Toggle KV mode for the Merchant Account
 #[instrument(skip_all)]
+/// Handles the HTTP request to toggle the key-value store for a merchant account. It 
+/// takes the state of the application, the HTTP request, the merchant account ID from the 
+/// path, and a JSON payload containing the toggle request. It then updates the payload 
+/// with the merchant ID from the path, calls the `api::server_wrap` function to handle 
+/// the API request, and awaits the result. The `api::server_wrap` function wraps the 
+/// logic for handling the API request, including authentication and locking. 
 pub async fn merchant_account_toggle_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -455,6 +470,9 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
+/// Handles the creation of a business profile by extracting the necessary data from the request, 
+/// verifying the authentication, and then calling the 'create_business_profile' function to perform
+/// the actual creation. Returns an HttpResponse representing the result of the operation.
 pub async fn business_profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -484,6 +502,17 @@ pub async fn business_profile_create(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
+/// Retrieves a business profile using the provided merchant_id and profile_id. 
+/// 
+/// # Arguments
+/// 
+/// * `state` - The web data state of the application
+/// * `req` - The HTTP request
+/// * `path` - The path containing the merchant_id and profile_id
+/// 
+/// # Returns
+/// 
+/// Returns an HTTP response with the retrieved business profile.
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -511,6 +540,7 @@ pub async fn business_profile_retrieve(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
+/// Updates a business profile for a specific merchant, based on the provided JSON payload.
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -539,6 +569,7 @@ pub async fn business_profile_update(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
+/// Handles the deletion of a business profile by calling the `delete_business_profile` function with the provided `profile_id` and `merchant_id`. It wraps the operation in the `api::server_wrap` function, passing the necessary parameters including the `Flow`, `AppState`, `HttpRequest`, and authentication details. The method is asynchronous and returns an HttpResponse.
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -559,6 +590,11 @@ pub async fn business_profile_delete(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
+/// This method handles the HTTP request for listing business profiles. It takes in the application state,
+/// the HTTP request, and the merchant ID as parameters. It initializes the flow as BusinessProfileList and
+/// extracts the merchant ID from the path. It then calls the server_wrap function from the api module with
+/// the provided parameters, including the business profile listing function, authentication type, and locking action.
+/// The function returns an HTTP response asynchronously.
 pub async fn business_profiles_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -589,6 +625,7 @@ pub async fn business_profiles_list(
 ///
 /// Toggle KV mode for the Merchant Account
 #[instrument(skip_all)]
+/// Handles the HTTP request to fetch the status of a merchant account key-value pair.
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -93,27 +93,45 @@ struct FloatDecimal(#[serde(with = "rust_decimal::serde::float")] Decimal);
 
 impl Deref for FloatDecimal {
     type Target = Decimal;
+        /// This method returns a reference to the target type of the Deref trait.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl FxExchangeRatesCacheEntry {
+        /// Creates a new instance of ExchangeRatesData with the given exchange rate and current timestamp.
     fn new(exchange_rate: ExchangeRates) -> Self {
         Self {
             data: Arc::new(exchange_rate),
             timestamp: date_time::now_unix_timestamp(),
         }
     }
+        /// Checks if the timestamp of the object, plus the specified call delay in seconds,
+    /// is less than the current Unix timestamp, indicating that the object has expired.
     fn is_expired(&self, call_delay: i64) -> bool {
         self.timestamp + call_delay < date_time::now_unix_timestamp()
     }
 }
 
+/// Asynchronously retrieves the forex exchange rates from the local cache. 
+/// 
+/// # Returns
+/// 
+/// An `Option` containing the `FxExchangeRatesCacheEntry` if available in the cache,
+/// or `None` if the cache is empty.
 async fn retrieve_forex_from_local() -> Option<FxExchangeRatesCacheEntry> {
     FX_EXCHANGE_RATES_CACHE.read().await.clone()
 }
 
+/// Asynchronously saves the given `FxExchangeRatesCacheEntry` to the local cache of exchange rates.
+/// 
+/// # Arguments
+/// * `exchange_rates_cache_entry` - The entry to be saved to the local cache.
+///
+/// # Returns
+/// * `CustomResult<(), ForexCacheError>` - A result indicating success or an error if the operation fails.
+///
 async fn save_forex_to_local(
     exchange_rates_cache_entry: FxExchangeRatesCacheEntry,
 ) -> CustomResult<(), ForexCacheError> {
@@ -122,8 +140,10 @@ async fn save_forex_to_local(
     Ok(())
 }
 
+
 // Alternative handler for handling the case, When no data in local as well as redis
 #[allow(dead_code)]
+/// Asynchronously fetches forex rates from a local cache with retries and updates the local cache if necessary. If the local cache is not available, it attempts to retrieve the data from Redis. If successful, it saves the data to the local cache and returns the forex rates. If the local fetch fails, it retries based on the provided delay and retry count. If all retries fail, it attempts to fetch the forex rates from an external service (e.g., KMS or HashiCorp Vault) and saves the data to the local cache and Redis. Returns a result indicating success or failure along with the forex rates or an error.
 async fn waited_fetch_and_update_caches(
     state: &AppState,
     local_fetch_retry_delay: u64,
@@ -161,6 +181,19 @@ async fn waited_fetch_and_update_caches(
 
 impl TryFrom<DefaultExchangeRates> for ExchangeRates {
     type Error = error_stack::Report<ForexCacheError>;
+        /// Attempts to create a new instance of the struct from the provided DefaultExchangeRates instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - The DefaultExchangeRates instance to create the new instance from.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<Self, Self::Error>` - A Result containing the new instance if successful, or an error if the conversion fails.
+    /// 
+    /// # Errors
+    /// 
+    /// An error will be returned if the conversion from DefaultExchangeRates to the new instance fails.
     fn try_from(value: DefaultExchangeRates) -> Result<Self, Self::Error> {
         let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
         for (curr, conversion) in value.conversion {
@@ -180,6 +213,7 @@ impl TryFrom<DefaultExchangeRates> for ExchangeRates {
 }
 
 impl From<Conversion> for CurrencyFactors {
+        /// Creates a new instance of `Self` from a `Conversion` value.
     fn from(value: Conversion) -> Self {
         Self {
             to_factor: value.to_factor,
@@ -187,6 +221,8 @@ impl From<Conversion> for CurrencyFactors {
         }
     }
 }
+/// Asynchronously retrieves forex exchange rates either from local cache or external services,
+/// and handles expired or missing data by calling appropriate handlers.
 pub async fn get_forex_rates(
     state: &AppState,
     call_delay: i64,
@@ -229,6 +265,7 @@ pub async fn get_forex_rates(
     }
 }
 
+/// Handles the retrieval of forex exchange rates from the local cache, fallback to redis, and successive fetch and save if data is not available in either place. 
 async fn handler_local_no_data(
     state: &AppState,
     call_delay: i64,
@@ -278,6 +315,19 @@ async fn handler_local_no_data(
     }
 }
 
+/// Asynchronously fetches forex rates from an API, saves the data to a local cache, and handles fallback to a secondary service if the primary API is unresponsive. It also acquires a lock in the Redis cache to ensure data consistency.
+///
+/// # Arguments
+///
+/// * `state` - The application state
+/// * `stale_redis_data` - Optional stale data from the Redis cache
+/// * `kms_config` - Configuration for Key Management Service, required if the "kms" feature is enabled
+/// * `hc_config` - Configuration for HashiCorp Vault, required if the "hashicorp-vault" feature is enabled
+///
+/// # Returns
+///
+/// A `CustomResult` containing the fetched and saved forex exchange rates data, or a `ForexCacheError` if an error occurs.
+///
 async fn successive_fetch_and_save_forex(
     state: &AppState,
     stale_redis_data: Option<FxExchangeRatesCacheEntry>,
@@ -328,6 +378,7 @@ async fn successive_fetch_and_save_forex(
     }
 }
 
+/// Asynchronously saves forex exchange rates data to Redis and local cache, and releases a Redis lock if it was acquired.
 async fn successive_save_data_to_redis_local(
     state: &AppState,
     forex: FxExchangeRatesCacheEntry,
@@ -347,6 +398,7 @@ async fn successive_save_data_to_redis_local(
         ))
 }
 
+/// Check if valid forex data is present in the Redis cache. If valid data is present, retrieve it and save it to the local cache. If the Redis cache is expired, fetch the forex data from external services and save it to the local cache.
 async fn fallback_forex_redis_check(
     state: &AppState,
     redis_data: FxExchangeRatesCacheEntry,
@@ -377,6 +429,7 @@ async fn fallback_forex_redis_check(
     }
 }
 
+/// Handles the case where the local forex data has expired. It retrieves the forex data from Redis, checks if it is expired, and then either returns the valid data from Redis or makes an API request to fetch new data if the Redis data is expired. It also logs any errors encountered during the process. If the Redis data is valid, it saves the data to the local cache and returns it. If the Redis data is expired or not present, it makes a successive API request to fetch and save the forex data.
 async fn handler_local_expired(
     state: &AppState,
     call_delay: i64,
@@ -425,6 +478,7 @@ async fn handler_local_expired(
     }
 }
 
+/// Asynchronously fetches the forex exchange rates using the provided state and external service configurations (if enabled). It first retrieves the forex API key, then constructs the forex API URL and makes a request to the API using the provided API client. It then parses the API response and constructs a cache entry containing the exchange rates for various currencies relative to the base currency (USD). Returns a Result containing the FxExchangeRatesCacheEntry or an error report if any of the operations fail.
 async fn fetch_forex_rates(
     state: &AppState,
     #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
@@ -514,6 +568,7 @@ async fn fetch_forex_rates(
     )))
 }
 
+/// Asynchronously fetches forex exchange rates using fallback APIs and stores the data in a cache entry. If the "kms" feature is enabled, the method uses a KMS client to decrypt the fallback API key. If the "hashicorp-vault" feature is enabled, it fetches the client from HashiCorp Vault and uses it to fetch the fallback API key. The method then constructs the forex URL, sends a request to the API, parses the response, and saves the exchange rates to a cache entry in Redis. If an error occurs during any of these steps, the method returns a custom result containing the specific error.
 pub async fn fallback_fetch_forex_rates(
     state: &AppState,
     #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
@@ -614,6 +669,17 @@ pub async fn fallback_fetch_forex_rates(
     }
 }
 
+
+/// Asynchronously releases the Redis lock by deleting the key from the Redis store.
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state containing the Redis store connection.
+/// 
+/// # Returns
+/// 
+/// An `Ok` containing the result of the deletion operation, or an `Err` containing a `ForexCacheError` if the Redis connection or lock release failed.
+/// 
 async fn release_redis_lock(
     state: &AppState,
 ) -> Result<DelReply, error_stack::Report<ForexCacheError>> {
@@ -626,6 +692,7 @@ async fn release_redis_lock(
         .change_context(ForexCacheError::RedisLockReleaseFailed)
 }
 
+/// Asynchronously attempts to acquire a lock in Redis for a specific key with an expiry, using the provided application state.
 async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCacheError> {
     app_state
         .store
@@ -648,6 +715,17 @@ async fn acquire_redis_lock(app_state: &AppState) -> CustomResult<bool, ForexCac
         .change_context(ForexCacheError::CouldNotAcquireLock)
 }
 
+/// Saves the forex exchange rates cache entry to Redis in the given app state.
+/// 
+/// # Arguments
+/// 
+/// * `app_state` - The app state containing the Redis store.
+/// * `forex_exchange_cache_entry` - The forex exchange rates cache entry to be saved.
+/// 
+/// # Returns
+/// 
+/// A `CustomResult` indicating success or a `ForexCacheError` if an error occurs.
+///
 async fn save_forex_to_redis(
     app_state: &AppState,
     forex_exchange_cache_entry: &FxExchangeRatesCacheEntry,
@@ -661,6 +739,9 @@ async fn save_forex_to_redis(
         .change_context(ForexCacheError::RedisWriteError)
 }
 
+
+/// Asynchronously retrieves forex exchange rates from Redis cache using the provided app state.
+/// Returns a `CustomResult` containing an `Option` of `FxExchangeRatesCacheEntry` or a `ForexCacheError`.
 async fn retrieve_forex_from_redis(
     app_state: &AppState,
 ) -> CustomResult<Option<FxExchangeRatesCacheEntry>, ForexCacheError> {
@@ -673,6 +754,9 @@ async fn retrieve_forex_from_redis(
         .change_context(ForexCacheError::EntryNotFound)
 }
 
+/// Check if the provided redis cache entry is expired based on the given call delay.
+/// If the cache entry is not expired, return a cloned reference to the exchange rates data.
+/// If the cache entry is expired, return None.
 async fn is_redis_expired(
     redis_cache: Option<&FxExchangeRatesCacheEntry>,
     call_delay: i64,
@@ -686,6 +770,20 @@ async fn is_redis_expired(
     })
 }
 
+/// Asynchronously converts the given amount from one currency to another using Forex rates. 
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state
+/// * `amount` - The amount to convert
+/// * `to_currency` - The currency to convert to
+/// * `from_currency` - The currency to convert from
+/// * `kms_config` - The KMS configuration (optional, requires "kms" feature)
+/// * `hc_config` - The HashiCorp Vault configuration (optional, requires "hashicorp-vault" feature)
+/// 
+/// # Returns
+/// 
+/// A `CustomResult` containing a `CurrencyConversionResponse` on success, or a `ForexCacheError` on failure
 pub async fn convert_currency(
     state: AppState,
     amount: i64,

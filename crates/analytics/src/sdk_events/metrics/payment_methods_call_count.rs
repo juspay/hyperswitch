@@ -27,6 +27,21 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads the metrics for SDK events based on the provided dimensions, filters, granularity, time range, and database connection pool.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `dimensions` - The dimensions to be used for grouping and selecting the metrics.
+    /// * `publishable_key` - The publishable key used for filtering the merchant's events.
+    /// * `filters` - The event filters to be applied to the query.
+    /// * `granularity` - The optional granularity for the metrics aggregation.
+    /// * `time_range` - The time range for which the metrics should be loaded.
+    /// * `pool` - The database connection pool for executing the query.
+    ///
+    /// # Returns
+    /// 
+    /// A `MetricsResult` containing a vector of tuples, where each tuple consists of the bucket identifier and metric row for the SDK events.
+    ///
     async fn load_metrics(
         &self,
         dimensions: &[SdkEventDimensions],

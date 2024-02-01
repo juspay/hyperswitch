@@ -50,6 +50,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves trackers for a payment based on the provided parameters. This method performs various validations and database operations to create and insert payment intents and attempts. It also handles the creation of addresses, payment links, and mandate references. The method finally constructs and returns a response containing the operation, customer details, payment data, and business profile.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -399,6 +400,12 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     for PaymentCreate
 {
     #[instrument(skip_all)]
+        /// This method either retrieves existing customer details from the database or creates a new customer
+    /// if the details are not found. It takes a reference to a storage interface, a mutable reference to
+    /// payment data, an optional customer details request, and a reference to a merchant key store. It
+    /// returns a result containing a boxed operation, representing the payment request operation, and an
+    /// optional customer object. If the operation is successful, the customer object is returned, otherwise
+    /// a storage error is returned.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -424,6 +431,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer. Returns a tuple containing the boxed operation and an optional payment method data.
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -446,6 +454,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Adds a task to the process tracker for the given payment attempt. If requeue is true, the task will be scheduled for reprocessing at the specified schedule time. Returns a [`CustomResult`](crate::CustomResult) indicating success or an [`ApiErrorResponse`](crate::errors::ApiErrorResponse) if an error occurs.
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a AppState,
@@ -456,6 +465,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Ok(())
     }
 
+        /// Asynchronously retrieves a connector choice for processing payments based on the merchant account, application state, payment request, payment intent, and merchant key store. Returns a custom result containing the connector choice or an API error response.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -473,6 +483,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the payment trackers and intent in the app state. Returns a tuple containing a boxed operation and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
@@ -577,6 +588,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     for PaymentCreate
 {
     #[instrument(skip_all)]
+        /// Validates the payments request and returns a tuple containing a boxed operation and a validate result.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
@@ -660,6 +672,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
+        /// Makes a payment attempt and returns a tuple containing a new payment attempt and additional payment data.
     pub async fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
@@ -770,6 +783,25 @@ impl PaymentCreate {
 
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
+        /// Creates a new payment intent and returns a `RouterResult` containing the newly created `PaymentIntentNew` object.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_id` - The ID of the payment
+    /// * `merchant_account` - The merchant account associated with the payment
+    /// * `money` - Tuple containing the amount and currency of the payment
+    /// * `request` - The payment request object
+    /// * `shipping_address_id` - Optional ID of the shipping address
+    /// * `payment_link_data` - Optional payment link response data
+    /// * `billing_address_id` - Optional ID of the billing address
+    /// * `active_attempt_id` - The ID of the active payment attempt
+    /// * `profile_id` - The ID of the user profile
+    /// * `session_expiry` - The expiry date and time of the session
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing the newly created `PaymentIntentNew` object
+    ///
     async fn make_payment_intent(
         payment_id: &str,
         merchant_account: &types::domain::MerchantAccount,
@@ -862,6 +894,7 @@ impl PaymentCreate {
     }
 
     #[instrument(skip_all)]
+        /// Retrieves an ephemeral key for a given PaymentsRequest, AppState, and MerchantAccount. If the request contains a customer ID, it uses the helper function make_ephemeral_key to create the ephemeral key using the state, customer ID, and merchant ID. If successful, it returns the ephemeral key as an Option. If the request does not contain a customer ID, it returns None.
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &AppState,
@@ -888,6 +921,7 @@ impl PaymentCreate {
 }
 
 #[instrument(skip_all)]
+/// Validates the payments create request by extracting the required "currency" and "amount" values from the request and returning them as a tuple of (amount, currency).
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
@@ -897,6 +931,25 @@ pub fn payments_create_request_validation(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Creates a payment link for a given payment request and stores it in the database.
+/// 
+/// # Arguments
+/// 
+/// * `request` - The payment request.
+/// * `payment_link_config` - The configuration for the payment link.
+/// * `merchant_id` - The ID of the merchant.
+/// * `payment_id` - The ID of the payment.
+/// * `db` - The database storage interface.
+/// * `amount` - The payment amount.
+/// * `description` - Optionally, a description for the payment link.
+/// * `profile_id` - The ID of the user profile.
+/// * `domain_name` - The domain name for the payment link.
+/// * `session_expiry` - The expiry time for the payment session.
+/// 
+/// # Returns
+/// 
+/// An `Option` containing the `PaymentLinkResponse` if the payment link is successfully created and stored in the database, or `None` if not.
+/// 
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,

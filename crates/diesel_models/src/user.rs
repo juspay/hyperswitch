@@ -59,6 +59,7 @@ pub enum UserUpdate {
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
+        /// Converts a UserUpdate enum into a User struct, setting the appropriate fields based on the variant of the enum.
     fn from(user_update: UserUpdate) -> Self {
         let last_modified_at = common_utils::date_time::now();
         match user_update {

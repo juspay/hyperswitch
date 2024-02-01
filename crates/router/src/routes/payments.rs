@@ -89,6 +89,10 @@ use crate::{
     security(("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
+/// Asynchronously handles the creation of payments. It extracts the necessary data from the request, validates it,
+/// and then authorizes and processes the payment creation. If the capture method is scheduled, it returns a HTTP 501 Not Implemented
+/// response. Otherwise, it generates a payment ID, records it in the current tracing span, and gets the locking action for the payment flow.
+/// Finally, it wraps the entire process in a server action, authorizes and verifies the request, and then executes the locking action.
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -165,6 +169,7 @@ pub async fn payments_create(
 //     operation_id = "Start a Redirection Payment"
 // )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
+/// This method handles the start of a payment process. It extracts the payment id, merchant id, and attempt id from the request path, creates a PaymentsStartRequest payload, and calls the payments_core method to initiate the payment process. The method then returns the result as a Responder.
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -576,6 +581,10 @@ pub async fn payments_capture(
     security(("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
+/// Handles the creation of a payments session token by processing the JSON payload
+/// and calling the payments_core function with the appropriate parameters. It records
+/// the payment_id in the current span and uses server_wrap to handle the flow and
+/// authentication before awaiting the result.
 pub async fn payments_connector_session(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -637,6 +646,9 @@ pub async fn payments_connector_session(
 //     operation_id = "Get Redirect Response for a Payment"
 // )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+/// Handles the payments redirect response by extracting the payment ID, merchant ID, and connector from the URL path,
+/// getting the query string from the request, recording the payment ID in the current span, creating a payload for payments redirect response,
+/// getting the locking action, and then wrapping the API server call to handle the payments redirect response asynchronously.
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -698,6 +710,7 @@ pub async fn payments_redirect_response(
 //     operation_id = "Get Redirect Response for a Payment"
 // )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+/// This method handles the redirect response for payments with the provided credentials identifier. It extracts the payment ID, merchant ID, connector, and credentials identifier from the path, along with the query string from the request. It then creates a payments redirect response data payload and uses it to perform a server wrap action for payments redirect flow. Finally, it awaits the result of the server wrap action and returns it as a responder.
 pub async fn payments_redirect_response_with_creds_identifier(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -739,6 +752,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     .await
 }
 #[instrument(skip_all, fields(flow =? Flow::PaymentsRedirect, payment_id))]
+/// This method handles the completion of the authorization process for payments. It takes in the app state, the http request, the JSON payload (if any), and the path parameters. It records the payment id in the current tracing span, constructs a payment redirect response data payload, and then proceeds to handle the payments redirect response by calling the appropriate payment redirect complete authorize method. The method returns a responder representing the result of the asynchronous operation.
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -865,6 +879,9 @@ pub async fn payments_cancel(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
+/// Asynchronously handles the request to list payments. It extracts the necessary data from the request, 
+/// wraps the server flow, performs authentication, and then awaits the response from the list_payments 
+/// function in the payments module.
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -889,6 +906,7 @@ pub async fn payments_list(
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
+/// Asynchronously handles a request to list payments based on the provided filter constraints.
 pub async fn payments_list_by_filter(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -913,6 +931,7 @@ pub async fn payments_list_by_filter(
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
+/// This method takes in the state of the application, an HTTP request, and a JSON payload containing a time range for payments. It then calls the `server_wrap` function to handle the flow of getting filters for payments. The `server_wrap` function takes care of authentication, authorization, and locking, and then calls the `get_filters_for_payments` function from the `payments` module to actually get the filters for payments. This method returns the result of the `server_wrap` function, which is an asynchronous operation.
 pub async fn get_filters_for_payments(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1057,6 +1076,10 @@ pub async fn payments_reject(
     .await
 }
 
+/// This method authorizes, verifies, and selects the appropriate payment type for a given operation and request.
+/// It takes the operation, application state, merchant account, key store, header payload, request, and authentication flow as input parameters.
+/// The method returns a RouterResponse containing the PaymentsResponse.
+/// The method also ensures that the eligible connectors are cloned and then processes the payment type accordingly using the payments_core method.
 async fn authorize_verify_select<Op, Ctx>(
     operation: Op,
     state: app::AppState,
@@ -1155,6 +1178,7 @@ where
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsIncrementalAuthorization, payment_id))]
+/// This method handles the incremental authorization for payments. It takes in the application state, HTTP request, JSON payload containing the incremental authorization request, and the payment ID from the URL path. It then records the payment ID in the current tracing span, modifies the payload with the payment ID, and retrieves the locking action for the given flow. It then wraps the API call with the specified parameters and awaits the result.
 pub async fn payments_incremental_authorization(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -1200,6 +1224,7 @@ pub async fn payments_incremental_authorization(
     .await
 }
 
+/// Retrieves the payment ID from the given PaymentsRequest payload. If the payload has a payment ID, it is cloned and transformed into a PaymentIntentId using the get_payment_intent_id method. If the payment ID is not found, an APIErrorResponse::PaymentNotFound error is returned. If the given payment ID is empty, a new payment ID is generated using the core_utils::get_or_generate_id method with the prefix "pay". The generated payment ID is then assigned to the payload. 
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -1224,6 +1249,7 @@ pub fn get_or_generate_payment_id(
 }
 
 impl GetLockingInput for payment_types::PaymentsRequest {
+        /// This method takes a flow metric as input and returns a LockAction based on the payment_id. If the payment_id is of type PaymentIntentId, it creates a Hold lock action with the unique_locking_key set to the payment ID, and the api_identifier set to the converted flow metric. If the payment_id is not of type PaymentIntentId, it returns a NotApplicable lock action.
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
@@ -1245,6 +1271,7 @@ impl GetLockingInput for payment_types::PaymentsRequest {
 }
 
 impl GetLockingInput for payment_types::PaymentsStartRequest {
+        /// Retrieves the locking input for a given flow metric, using the payment ID as the unique locking key and the API identifier derived from the flow metric. Returns a Hold action with the locking input.
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
@@ -1261,6 +1288,7 @@ impl GetLockingInput for payment_types::PaymentsStartRequest {
 }
 
 impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
+        /// This method takes a generic `flow` parameter that implements the `FlowMetric` trait and returns a `LockAction` from the `api_locking` module. It matches the `resource_id` and if it is of type `PaymentIntentId` and `force_sync` is true, it creates a `Hold` action with a `LockingInput` containing the unique locking key, API identifier, and override lock retries. If the conditions are not met, it returns a `NotApplicable` action.
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
@@ -1298,6 +1326,9 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
 }
 
 impl GetLockingInput for payments::PaymentsRedirectResponseData {
+        /// This method takes a generic flow metric `F` and returns a `LockAction` from the `api_locking`
+    /// module. It matches the `resource_id` and constructs a `LockingInput` if the `resource_id` is a
+    /// `PaymentIntentId`, otherwise it returns `NotApplicable`.
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
@@ -1353,6 +1384,7 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
 struct FPaymentsApproveRequest<'a>(&'a payment_types::PaymentsApproveRequest);
 
 impl<'a> GetLockingInput for FPaymentsApproveRequest<'a> {
+        /// This method takes a generic input `flow` that implements the `types::FlowMetric` trait and returns a `api_locking::LockAction` enum. It creates a `Hold` action with a `LockingInput` containing the `unique_locking_key` from `self.0.payment_id`, the `api_identifier` obtained from converting the `flow` input using `lock_utils::ApiIdentifier::from`, and sets the `override_lock_retries` to `None`.
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

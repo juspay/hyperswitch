@@ -10,6 +10,7 @@ use crate::{
 };
 
 impl ForeignFrom<storage_enums::RefundStatus> for RefundStatus {
+        /// Converts a refund status from the storage_enums module to a corresponding status in the current module.
     fn foreign_from(status: storage_enums::RefundStatus) -> Self {
         match status {
             storage_enums::RefundStatus::Failure

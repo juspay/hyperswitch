@@ -161,6 +161,7 @@ pub struct ConnectorConfig {
 }
 
 impl ConnectorConfig {
+        /// This method creates a new instance of the struct, loading the configuration from the appropriate TOML file based on the enabled features. It returns a Result containing the instance of the struct if the configuration is successfully loaded, or an error message as a String if there is any issue with the configuration loading process.
     fn new() -> Result<Self, String> {
         #[cfg(all(
             feature = "production",
@@ -188,6 +189,17 @@ impl ConnectorConfig {
     }
 
     #[cfg(feature = "payouts")]
+        /// Retrieves the configuration for the specified payout connector. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `connector` - The payout connector for which to retrieve the configuration.
+    /// 
+    /// # Returns
+    /// 
+    /// * If the specified connector is Adyen, returns the Adyen payout connector configuration.
+    /// * If the specified connector is Wise, returns the Wise payout connector configuration.
+    /// * If the specified connector is not found, returns an error message.
     pub fn get_payout_connector_config(
         connector: PayoutConnectors,
     ) -> Result<Option<ConnectorTomlConfig>, String> {
@@ -198,6 +210,7 @@ impl ConnectorConfig {
         }
     }
 
+        /// Retrieves the configuration for the specified connector.
     pub fn get_connector_config(
         connector: Connector,
     ) -> Result<Option<ConnectorTomlConfig>, String> {

@@ -19,6 +19,7 @@ pub(crate) trait PaymentMethodCreateExt {
 
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
 impl PaymentMethodCreateExt for PaymentMethodCreate {
+        /// Validates the payment method type against the provided payment method, and returns Ok(()) if the validation passes.
     fn validate(&self) -> RouterResult<()> {
         if let Some(payment_method_type) = self.payment_method_type {
             if !validate_payment_method_type_against_payment_method(

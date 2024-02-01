@@ -70,6 +70,7 @@ pub enum StorageError {
 }
 
 impl ErrorSwitch<DataStorageError> for StorageError {
+        /// This method converts the current instance of a type into a DataStorageError
     fn switch(&self) -> DataStorageError {
         self.into()
     }
@@ -77,6 +78,7 @@ impl ErrorSwitch<DataStorageError> for StorageError {
 
 #[allow(clippy::from_over_into)]
 impl Into<DataStorageError> for &StorageError {
+        /// Converts the current `StorageError` enum variant into a `DataStorageError` enum variant, mapping each variant to its corresponding `DataStorageError` variant. Additionally, it handles the conversion of error types specific to database, redis, and other storage systems. If needed, it updates the error type to encompass and propagate the missing or generic error type.
     fn into(self) -> DataStorageError {
         match self {
             StorageError::DatabaseError(i) => match i.current_context() {
@@ -124,18 +126,21 @@ impl Into<DataStorageError> for &StorageError {
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {
+        /// Converts a `error_stack::Report<RedisError>` into a `Self` enum variant `RedisError`.
     fn from(err: error_stack::Report<RedisError>) -> Self {
-        Self::RedisError(err)
+            Self::RedisError(err)
     }
 }
 
 impl From<error_stack::Report<DatabaseError>> for StorageError {
+        /// Constructs a new instance of the current enum variant with the given DatabaseError wrapped in an error_stack::Report.
     fn from(err: error_stack::Report<DatabaseError>) -> Self {
         Self::DatabaseError(err)
     }
 }
 
 impl StorageError {
+        /// Checks if the current error is a DatabaseError with a NotFound context.
     pub fn is_db_not_found(&self) -> bool {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
@@ -143,6 +148,7 @@ impl StorageError {
         }
     }
 
+        /// Checks if the current error is a unique violation in the database.
     pub fn is_db_unique_violation(&self) -> bool {
         match self {
             Self::DatabaseError(err) => {
@@ -159,6 +165,7 @@ pub trait RedisErrorExt {
 }
 
 impl RedisErrorExt for error_stack::Report<RedisError> {
+        /// Converts a Redis error to a failed response for data storage, based on the current context.
     fn to_redis_failed_response(self, key: &str) -> error_stack::Report<DataStorageError> {
         match self.current_context() {
             RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
@@ -196,29 +203,34 @@ pub enum ApplicationError {
 }
 
 impl From<MetricsError> for ApplicationError {
+        /// Converts a MetricsError into another type
     fn from(err: MetricsError) -> Self {
         Self::MetricsError(err)
     }
 }
 
 impl From<std::io::Error> for ApplicationError {
+        /// Creates a new instance of the enum variant Self::IoError with the provided std::io::Error.
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
     }
 }
 
 impl From<ring::error::Unspecified> for EncryptionError {
+        /// Converts a `ring::error::Unspecified` error into the implementing type.
     fn from(_: ring::error::Unspecified) -> Self {
         Self
     }
 }
 
 impl From<ConfigError> for ApplicationError {
+        /// Converts a ConfigError into a Self instance.
     fn from(err: ConfigError) -> Self {
         Self::ConfigurationError(err)
     }
 }
 
+/// This function takes an error message of type T that implements the Display trait and returns an HTTP response with a status code of 400 (Bad Request), content type of application/json, and a JSON body containing the error message.
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
         .content_type(mime::APPLICATION_JSON)
@@ -226,6 +238,7 @@ fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
 }
 
 impl ResponseError for ApplicationError {
+        /// This method returns the status code based on the type of error. If the error is of type MetricsError, IoError, ConfigurationError, InvalidConfigurationValueError, or ApiClientError, it returns an internal server error status code.
     fn status_code(&self) -> StatusCode {
         match self {
             Self::MetricsError(_)
@@ -236,6 +249,7 @@ impl ResponseError for ApplicationError {
         }
     }
 
+        /// This method returns an HTTP response with an error status code and message.
     fn error_response(&self) -> actix_web::HttpResponse {
         error_response(self)
     }
@@ -282,9 +296,11 @@ pub enum ApiClientError {
 }
 
 impl ApiClientError {
+        /// Checks if the current instance is equal to the RequestTimeoutReceived variant of the enum.
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
+        /// Checks if the current connection is closed.
     pub fn is_connection_closed(&self) -> bool {
         self == &Self::ConnectionClosed
     }
@@ -401,6 +417,7 @@ pub enum HealthCheckDBError {
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {
+        /// Converts a diesel result error into a custom error enum.
     fn from(error: diesel::result::Error) -> Self {
         match error {
             diesel::result::Error::DatabaseError(_, _) => Self::DBError,

@@ -6,11 +6,13 @@ use crate::{selenium::*, tester};
 struct NuveiSeleniumTest;
 
 impl SeleniumTest for NuveiSeleniumTest {
+        /// Returns the name of the connector, which is "nuvei".
     fn get_connector_name(&self) -> String {
         "nuvei".to_string()
     }
 }
 
+/// Asynchronously makes a Nuvei 3DS payment using the provided WebDriver. This method simulates a series of events like redirection, form filling, button clicks, and assertions to complete the 3DS payment process on the Nuvei platform. If successful, it returns a Result containing an empty value, otherwise it returns a WebDriverError.
 async fn should_make_nuvei_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -23,11 +25,11 @@ async fn should_make_nuvei_3ds_payment(c: WebDriver) -> Result<(), WebDriverErro
             Event::Trigger(Trigger::Click(By::Id("btn5"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=succeeded")),
-
     ]).await?;
     Ok(())
 }
 
+/// This method is used to make a Nuvei 3DS mandate payment using a given WebDriver. It creates a NuveiSeleniumTest connection and then makes a redirection payment by performing a series of events such as triggering a redirection, clicking on elements, querying for elements, and asserting the presence of specific elements. If successful, it returns Ok(()), otherwise it returns a WebDriverError.
 async fn should_make_nuvei_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -39,11 +41,20 @@ async fn should_make_nuvei_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDr
             Event::Trigger(Trigger::Click(By::Id("btn5"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("man_")),//mandate id prefix is present
-
     ]).await?;
     Ok(())
 }
 
+/// Asynchronously makes a Nuvei Google Pay payment using the provided WebDriver.
+///
+/// # Arguments
+///
+/// * `c` - The WebDriver instance to use for making the payment.
+///
+/// # Returns
+///
+/// * `Result<(), WebDriverError>` - The result of the operation, empty if successful, containing a WebDriverError if an error occurred.
+///
 async fn should_make_nuvei_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_gpay_payment(c,
@@ -54,6 +65,7 @@ async fn should_make_nuvei_gpay_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
+/// This method is used to make a Nuvei PayPal payment through a WebDriver. It uses the provided WebDriver to interact with the Nuvei payment page, specifically to make a PayPal payment with the specified checkout URL and events to be triggered. It awaits the completion of the payment process and returns a result indicating success or a WebDriverError if an error occurs.
 async fn should_make_nuvei_pypl_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_paypal_payment(
@@ -72,6 +84,7 @@ async fn should_make_nuvei_pypl_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
+/// Makes a Nuvei Giropay payment using the provided WebDriver instance by simulating a series of events such as redirection, button clicks, assertion checks, and tab switching. Returns a Result indicating success or an error of type WebDriverError.
 async fn should_make_nuvei_giropay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -96,6 +109,7 @@ async fn should_make_nuvei_giropay_payment(c: WebDriver) -> Result<(), WebDriver
     Ok(())
 }
 
+/// Should make a Nuvei ideal payment by simulating the necessary actions in the WebDriver.
 async fn should_make_nuvei_ideal_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -113,6 +127,10 @@ async fn should_make_nuvei_ideal_payment(c: WebDriver) -> Result<(), WebDriverEr
     Ok(())
 }
 
+/// This async method makes a Nuvei sofort payment using the provided WebDriver instance. 
+/// It creates a NuveiSeleniumTest connection, then triggers a series of events to simulate the payment process, 
+/// including redirection, clicking buttons, and asserting the presence of certain elements. 
+/// If the payment process is successful, it returns Ok(()), otherwise it returns a WebDriverError.
 async fn should_make_nuvei_sofort_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -127,6 +145,7 @@ async fn should_make_nuvei_sofort_payment(c: WebDriver) -> Result<(), WebDriverE
     Ok(())
 }
 
+/// This method is used to make a Nuvei EPS payment using the provided WebDriver instance. It performs a series of events such as redirection, clicking, asserting presence of elements, sending keys, selecting options, and making assertions based on the response. If all the events are successful, it returns Ok(()), indicating that the payment was made successfully. If any of the events fail, it returns a WebDriverError.
 async fn should_make_nuvei_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
     conn.make_redirection_payment(c, vec![
@@ -146,48 +165,57 @@ async fn should_make_nuvei_eps_payment(c: WebDriver) -> Result<(), WebDriverErro
 
 #[test]
 #[serial]
+/// This method is a test for making a Nuvei 3DS payment. It uses the tester macro to run the should_make_nuvei_3ds_payment method.
 fn should_make_nuvei_3ds_payment_test() {
     tester!(should_make_nuvei_3ds_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a unit test for the should_make_nuvei_3ds_mandate_payment function. It uses the tester macro to run the test and verify that the function behaves as expected.
 fn should_make_nuvei_3ds_mandate_payment_test() {
     tester!(should_make_nuvei_3ds_mandate_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a test case for making a payment using the Nuvei GPay payment method.
 fn should_make_nuvei_gpay_payment_test() {
     tester!(should_make_nuvei_gpay_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a test for the should_make_nuvei_pypl_payment function, which is responsible for testing the functionality of making a payment using Nuvei and PayPal. It utilizes the tester! macro to run the test case.
 fn should_make_nuvei_pypl_payment_test() {
     tester!(should_make_nuvei_pypl_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a test function for making a Nuvei Giropay payment. It uses the tester macro to run the test for the should_make_nuvei_giropay_payment function.
 fn should_make_nuvei_giropay_payment_test() {
     tester!(should_make_nuvei_giropay_payment);
 }
 
 #[test]
 #[serial]
+/// This method is used to test the functionality of making a Nuvei ideal payment. It uses the tester macro to run the test for the should_make_nuvei_ideal_payment function.
 fn should_make_nuvei_ideal_payment_test() {
     tester!(should_make_nuvei_ideal_payment);
 }
 
 #[test]
 #[serial]
+/// Executes a test for making a Nuvei Sofort payment.
 fn should_make_nuvei_sofort_payment_test() {
     tester!(should_make_nuvei_sofort_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a test function for testing the `should_make_nuvei_eps_payment` method.
+/// It uses the tester macro to run the test and verify the functionality of the `should_make_nuvei_eps_payment` method.
 fn should_make_nuvei_eps_payment_test() {
     tester!(should_make_nuvei_eps_payment);
 }

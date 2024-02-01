@@ -52,6 +52,17 @@ pub trait ApiKeyInterface {
 
 #[async_trait::async_trait]
 impl ApiKeyInterface for Store {
+        /// Asynchronously inserts a new API key into the storage.
+    ///
+    /// # Arguments
+    /// * `api_key` - The new API key to be inserted into the storage.
+    ///
+    /// # Returns
+    /// A `CustomResult` containing the inserted `storage::ApiKey` if successful, otherwise an `errors::StorageError`.
+    ///
+    /// # Errors
+    /// If there is an error connecting to the database or inserting the API key, an `errors::StorageError` will be returned.
+    ///
     async fn insert_api_key(
         &self,
         api_key: storage::ApiKeyNew,
@@ -64,6 +75,8 @@ impl ApiKeyInterface for Store {
             .into_report()
     }
 
+
+        /// Asynchronously updates an API key for a given merchant. It first establishes a database connection, then performs the update operation on the API key. If the 'accounts_cache' feature is enabled, it retrieves the updated API key from the database, publishes it to the cache, and then returns the updated API key. If the 'accounts_cache' feature is not enabled, it simply performs the update operation on the API key and returns the result.
     async fn update_api_key(
         &self,
         merchant_id: String,
@@ -113,6 +126,8 @@ impl ApiKeyInterface for Store {
         }
     }
 
+        /// Asynchronously revokes an API key for the specified merchant. 
+    /// Returns a CustomResult containing a boolean indicating whether the revocation was successful, or an errors::StorageError if an error occurred.
     async fn revoke_api_key(
         &self,
         merchant_id: &str,
@@ -156,6 +171,9 @@ impl ApiKeyInterface for Store {
         }
     }
 
+        /// Asynchronously finds an API key by the given merchant ID and key ID. If the API key is found, it is returned
+    /// as Some(api_key), otherwise None is returned. Returns a CustomResult containing the found API key or a
+    /// StorageError if an error occurs during the database operation.
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
         merchant_id: &str,
@@ -168,6 +186,8 @@ impl ApiKeyInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously searches for an API key by its hashed value, returning an optional result.
+    /// If the 'accounts_cache' feature is enabled, it may use an in-memory cache for faster retrieval.
     async fn find_api_key_by_hash_optional(
         &self,
         hashed_api_key: storage::HashedApiKey,
@@ -198,6 +218,20 @@ impl ApiKeyInterface for Store {
         }
     }
 
+        /// Retrieve a list of API keys associated with a specific merchant by their ID,
+    /// with optional limit and offset parameters for pagination.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The unique identifier of the merchant
+    /// * `limit` - Optional parameter to limit the number of results returned
+    /// * `offset` - Optional parameter to specify the offset for paginated results
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a vector of `storage::ApiKey` if successful,
+    /// otherwise an `errors::StorageError` is returned.
+    ///
     async fn list_api_keys_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -214,6 +248,16 @@ impl ApiKeyInterface for Store {
 
 #[async_trait::async_trait]
 impl ApiKeyInterface for MockDb {
+        /// Asynchronously inserts a new API key into the storage, ensuring that the key_id is unique.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - The new API key to be inserted
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<storage::ApiKey, errors::StorageError>` - Result containing the stored API key if successful, or a StorageError if the insertion fails
+    ///
     async fn insert_api_key(
         &self,
         api_key: storage::ApiKeyNew,
@@ -240,6 +284,7 @@ impl ApiKeyInterface for MockDb {
         Ok(stored_key)
     }
 
+        /// Asynchronously updates the API key for the given merchant_id and key_id with the provided details. If the key is found, it is updated with the new values. If the key is not found, an error is returned. Returns the updated API key if successful.
     async fn update_api_key(
         &self,
         merchant_id: String,
@@ -282,6 +327,21 @@ impl ApiKeyInterface for MockDb {
         Ok(key_to_update.clone())
     }
 
+        /// Asynchronously revokes an API key associated with a specific merchant.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The ID of the merchant to revoke the API key for.
+    /// * `key_id` - The ID of the API key to revoke.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` indicating whether the API key was successfully revoked or if an error occurred.
+    ///
+    /// # Errors
+    ///
+    /// An `errors::StorageError` is returned if an error occurs during the revocation process.
+    ///
     async fn revoke_api_key(
         &self,
         merchant_id: &str,
@@ -302,6 +362,7 @@ impl ApiKeyInterface for MockDb {
         }
     }
 
+        /// Asynchronously finds an API key by merchant ID and key ID, returning an optional result.
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
         merchant_id: &str,
@@ -316,6 +377,20 @@ impl ApiKeyInterface for MockDb {
             .cloned())
     }
 
+        /// Asynchronously searches for an API key by its hashed value in the storage and returns an optional result.
+    ///
+    /// # Arguments
+    ///
+    /// * `hashed_api_key` - The hashed value of the API key to search for.
+    ///
+    /// # Returns
+    ///
+    /// An optional result containing the API key associated with the hashed value, or None if no matching key is found.
+    ///
+    /// # Errors
+    ///
+    /// Returns a StorageError if there is an issue with accessing the storage.
+    ///
     async fn find_api_key_by_hash_optional(
         &self,
         hashed_api_key: storage::HashedApiKey,
@@ -329,6 +404,26 @@ impl ApiKeyInterface for MockDb {
             .cloned())
     }
 
+        /// Retrieve a list of API keys associated with a specific merchant ID.
+    ///
+    /// This method takes a merchant ID, optional limit, and optional offset as parameters and returns
+    /// a Result containing a vector of storage::ApiKey objects or an errors::StorageError if an error occurs.
+    ///
+    /// The method mimics the behavior of SQL limit and offset for pagination. It filters the API keys
+    /// based on the provided merchant ID, applies the offset and limit constraints, and returns the
+    /// filtered list of keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID
+    /// * `limit` - An optional limit for the number of keys to retrieve
+    /// * `offset` - An optional offset for pagination
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a vector of storage::ApiKey objects for the specified merchant ID, or an
+    /// errors::StorageError if an error occurs.
+    ///
     async fn list_api_keys_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -389,6 +484,7 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+        /// Asynchronously tests the functionality of the MockDb API key interface by performing various operations such as inserting, finding, updating, listing, and revoking API keys. The method creates a MockDb instance, inserts two API keys, finds a specific API key by merchant ID and key ID, updates the last used timestamp of a specific API key, lists all API keys by merchant ID, and revokes a specific API key by merchant ID and key ID. Assertions are used to verify the expected results of each operation.
     async fn test_mockdb_api_key_interface() {
         #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -475,6 +571,12 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+        /// Asynchronously tests the API keys cache by performing the following steps:
+    /// 1. Creates a new mock database with default Redis settings and subscribes to "hyperswitch_invalidate" channel
+    /// 2. Inserts a new API key into the database and retrieves the hashed API key
+    /// 3. Retrieves the API key from the cache or populates it in memory if not found
+    /// 4. Publishes and redacts the API key in the cache
+    /// 5. Asserts that the API key is no longer present in the cache
     async fn test_api_keys_cache() {
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())

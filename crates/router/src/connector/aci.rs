@@ -28,20 +28,25 @@ use crate::{
 pub struct Aci;
 
 impl ConnectorCommon for Aci {
+        /// Returns the unique identifier "aci".
     fn id(&self) -> &'static str {
         "aci"
     }
+        /// Returns the currency unit of the current instance.
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
     }
+        /// Returns the common content type "application/x-www-form-urlencoded".
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
     }
 
+        /// Returns the base URL from the provided connectors settings.
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.aci.base_url.as_ref()
     }
 
+        /// Generates an authorization header based on the provided authentication type.
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
@@ -55,6 +60,8 @@ impl ConnectorCommon for Aci {
         )])
     }
 
+        /// Build an error response from the given response object. It parses the response and constructs
+    /// a types::ErrorResponse with appropriate fields filled in based on the parsed response.
     fn build_error_response(
         &self,
         res: types::Response,
@@ -164,6 +171,7 @@ impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Aci
 {
+        /// Retrieves the headers needed for making a request to the Payments Sync API based on the provided request data and connectors settings. 
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,
@@ -180,10 +188,12 @@ impl
         Ok(header)
     }
 
+        /// This method returns the content type of the resource as a string slice of static duration.
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
 
+        /// Get the URL for a payments sync request based on the provided data and connectors.
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
@@ -203,6 +213,7 @@ impl
         ))
     }
 
+        /// Builds a request to be sent for payments synchronization, based on the provided `PaymentsSyncRouterData` and `Connectors`.
     fn build_request(
         &self,
         req: &types::PaymentsSyncRouterData,
@@ -218,6 +229,7 @@ impl
         ))
     }
 
+        /// Handles the response from the payments sync router by parsing the response into an AciPaymentsResponse, then creating a ResponseRouterData from the parsed response, input data, and HTTP status code. Returns a CustomResult containing the ResponseRouterData or a ConnectorError if the response deserialization or handling fails.
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -239,6 +251,7 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
+        /// This method takes a response object and returns a custom result containing an error response or a connector error.
     fn get_error_response(
         &self,
         res: types::Response,
@@ -254,6 +267,7 @@ impl
         types::PaymentsResponseData,
     > for Aci
 {
+        /// Retrieves the headers required for making a request to the PaymentsAuthorizeRouterData.
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -274,6 +288,7 @@ impl
         self.common_get_content_type()
     }
 
+        /// Constructs and returns a URL based on the provided PaymentsAuthorizeRouterData and Connectors.
     fn get_url(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -289,6 +304,7 @@ impl
         }
     }
 
+        /// This method takes in a request data object, a connectors settings object, and returns a custom result containing the request content or a connector error. It encodes the request data for urlencoded things, creates a connector router data object from the currency unit, request currency, request amount, and request data, then creates a connector request object from the connector router data. Finally, it returns the request content as a form urlencoded box containing the connector request.
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -306,6 +322,7 @@ impl
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
+        /// Builds a request for authorizing payments using the provided RouterData and Connectors. This method constructs a request using the RequestBuilder with the HTTP method set to Post, the URL, headers, and request body obtained from the PaymentsAuthorizeType and the provided RouterData and Connectors. Returns a CustomResult with an Option containing the constructed Request, or an error of type ConnectorError.
     fn build_request(
         &self,
         req: &types::RouterData<
@@ -332,6 +349,8 @@ impl
         ))
     }
 
+        /// Handles the response from the payments authorize router by parsing the response into an AciPaymentsResponse,
+    /// creating a ResponseRouterData object, and attempting to convert it into PaymentsAuthorizeRouterData.
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
@@ -364,6 +383,7 @@ impl
         types::PaymentsResponseData,
     > for Aci
 {
+        /// Retrieves the headers required for making a request to the PaymentsCancelRouter.
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -384,6 +404,17 @@ impl
         self.common_get_content_type()
     }
 
+        /// Constructs a URL for canceling a payment transaction based on the provided `PaymentsCancelRouterData` and `Connectors`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - A reference to the `PaymentsCancelRouterData` containing the connector transaction ID.
+    /// * `connectors` - A reference to the `Connectors` containing the base URL for constructing the cancel URL.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the constructed URL or a `ConnectorError` if an error occurs.
+    /// 
     fn get_url(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -393,14 +424,18 @@ impl
         Ok(format!("{}v1/payments/{}", self.base_url(connectors), id))
     }
 
+        /// Retrieves the request body for cancelling payments. Converts the provided PaymentsCancelRouterData
+    /// into an AciCancelRequest and returns it as a FormUrlEncoded RequestContent inside a CustomResult,
+    /// or returns a ConnectorError if the conversion fails.
     fn get_request_body(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = aci::AciCancelRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
+            &self,
+            req: &types::PaymentsCancelRouterData,
+            _connectors: &settings::Connectors,
+        ) -> CustomResult<RequestContent, errors::ConnectorError> {
+            let connector_req = aci::AciCancelRequest::try_from(req)?;
+            Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        }
+        /// Constructs a request to cancel a payment using the provided payment cancel router data and connectors.
     fn build_request(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -419,6 +454,10 @@ impl
         ))
     }
 
+        /// This method handles the response from the payments cancel router by parsing the response
+    /// into an AciPaymentsResponse, creating a ResponseRouterData object, and then trying to
+    /// convert it into a RouterData object. It returns a CustomResult containing the
+    /// PaymentsCancelRouterData if successful, or a ConnectorError if any of the operations fail.
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
@@ -451,6 +490,17 @@ impl api::RefundSync for Aci {}
 impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Aci
 {
+        /// Retrieves the headers required for making a request to the refunds router API. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - The data required for accessing the refunds router API.
+    /// * `_connectors` - The connectors settings for the request.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of tuples where the first element is a string representing the header name and the second element is a `Maskable` string representing the header value, or an error of type `ConnectorError`.
+    /// 
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -471,6 +521,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         self.common_get_content_type()
     }
 
+        /// This method takes a request for refunds router data and a reference to connector settings, 
+    /// and returns a custom result containing a URL string. It formats the base URL from the connector 
+    /// settings and the connector payment ID from the request to construct the URL string.
     fn get_url(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -484,6 +537,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         ))
     }
 
+        /// Retrieves the request body for a refund request from the given RefundsRouterData and Connectors settings.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `req` - The RefundsRouterData containing the refund request details.
+    /// * `_connectors` - The Connectors settings.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<RequestContent, errors::ConnectorError>` - A result containing the request body for the refund request.
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -499,6 +562,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
+        /// Builds a request for executing a refund using the provided refund router data and connectors.
+    /// Returns a CustomResult containing Some(Request) if the request is successfully built, otherwise returns None with a ConnectorError.
     fn build_request(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -519,6 +584,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         ))
     }
 
+        /// Handles the response from the refunds router by parsing the response data and converting it into a RefundsRouterData object.
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
@@ -550,6 +616,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Aci {
+        /// Returns the object reference id for a webhook request.
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
@@ -557,6 +624,7 @@ impl api::IncomingWebhook for Aci {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
+        /// Retrieves the type of webhook event from the incoming webhook request details.
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
@@ -564,6 +632,7 @@ impl api::IncomingWebhook for Aci {
         Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
+        /// This method returns a custom result containing a boxed trait object that implements ErasedMaskSerialize trait, or a ConnectorError if webhooks are not implemented.
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,

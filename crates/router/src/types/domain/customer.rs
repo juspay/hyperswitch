@@ -28,6 +28,9 @@ pub struct Customer {
 impl super::behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
+        /// Asynchronously converts the current object to a type specified by the associated type `DstType`,
+    /// returning a `CustomResult` containing the converted object or a `ValidationError` if any required
+    /// fields are missing.
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
@@ -48,6 +51,7 @@ impl super::behaviour::Conversion for Customer {
         })
     }
 
+        /// Decrypts sensitive data within the item using the provided key and returns a new instance of Self with the decrypted data.
     async fn convert_back(
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
@@ -80,6 +84,7 @@ impl super::behaviour::Conversion for Customer {
         })
     }
 
+        /// Asynchronously constructs a new `CustomerNew` object with encrypted name, email, and phone if they exist, and returns a `CustomResult` containing the new object or a `ValidationError`.
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
@@ -117,6 +122,7 @@ pub enum CustomerUpdate {
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
+        /// Converts a CustomerUpdate enum into a Customer struct.
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {
             CustomerUpdate::Update {

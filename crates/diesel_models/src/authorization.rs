@@ -58,6 +58,7 @@ pub struct AuthorizationUpdateInternal {
 }
 
 impl AuthorizationUpdateInternal {
+        /// Creates a new authorization by combining the properties of the current authorization and the provided source authorization.
     pub fn create_authorization(self, source: Authorization) -> Authorization {
         Authorization {
             status: self.status.unwrap_or(source.status),
@@ -73,6 +74,7 @@ impl AuthorizationUpdateInternal {
 }
 
 impl From<AuthorizationUpdate> for AuthorizationUpdateInternal {
+        /// Constructs a new instance of Self (Authorization) based on the provided AuthorizationUpdate.
     fn from(authorization_child_update: AuthorizationUpdate) -> Self {
         let now = Some(common_utils::date_time::now());
         match authorization_child_update {

@@ -20,6 +20,7 @@ use crate::{
     flow::SchedulerFlow, metrics, SchedulerAppState, SchedulerInterface,
 };
 
+/// Asynchronously divides the given list of process tracker tasks into batches based on the provided scheduler settings, and then updates the status of each batch and appends it to the scheduler flow. Metrics are also recorded for the number of batches created. Returns a custom result indicating success or an error related to process tracker. The `state` parameter is a reference to a type implementing `SchedulerInterface` and is marked as `Send` and `Sync`. The `flow` parameter specifies the scheduler flow. The `tasks` parameter is a vector of process tracker tasks. The `settings` parameter is a reference to the scheduler settings.
 pub async fn divide_and_append_tasks<T>(
     state: &T,
     flow: SchedulerFlow,
@@ -43,6 +44,7 @@ where
     Ok(())
 }
 
+/// Asynchronously updates the status of processes and appends process tracker data to a stream based on the given flow type. The method takes a reference to a state object implementing the SchedulerInterface trait, a SchedulerFlow enum value, and a ProcessTrackerBatch struct. It returns a CustomResult with an empty success value or a ProcessTrackerError in case of failure. The method first updates the status of processes based on the flow type and then appends the process tracker data to a Redis stream. If an error occurs during the stream append operation, it attempts to roll back the process status update and returns the error.
 pub async fn update_status_and_append<T>(
     state: &T,
     flow: SchedulerFlow,
@@ -144,6 +146,7 @@ pub fn divide(
     divide_into_batches(batch_size, tasks, now, conf)
 }
 
+/// Divides the given list of process trackers into batches of the specified size, each batch containing a unique batch ID and other configuration details from the scheduler settings.
 pub fn divide_into_batches(
     batch_size: usize,
     tasks: Vec<storage::ProcessTracker>,
@@ -170,6 +173,17 @@ pub fn divide_into_batches(
         })
 }
 
+/// Asynchronously retrieves and processes batches of data from a Redis stream using the provided connection pool. 
+/// 
+/// # Arguments
+/// * `conn` - A reference to a Redis connection pool
+/// * `stream_name` - The name of the Redis stream
+/// * `group_name` - The name of the consumer group
+/// * `consumer_name` - The name of the consumer within the consumer group
+/// 
+/// # Returns
+/// A `CustomResult` containing a vector of `ProcessTrackerBatch` or an error of type `errors::ProcessTrackerError`
+/// 
 pub async fn get_batches(
     conn: &RedisConnectionPool,
     stream_name: &str,
@@ -228,6 +242,7 @@ pub async fn get_batches(
     Ok(batches)
 }
 
+/// Constructs a unique process tracker ID by concatenating the runner, task name, transaction ID, and merchant ID.
 pub fn get_process_tracker_id<'a>(
     runner: &'a str,
     task_name: &'a str,
@@ -237,10 +252,12 @@ pub fn get_process_tracker_id<'a>(
     format!("{runner}_{task_name}_{txn_id}_{merchant_id}")
 }
 
+/// Given an optional delta value in seconds, returns the current time offset by the specified delta.
 pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime> {
     delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
+/// Handles the operation of a consumer by executing the consumer_operations function with the provided state and settings. It also handles error reporting, updates the consumer operation counter, and logs the time taken to execute the operation.
 pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
@@ -267,6 +284,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     logger::info!("Current tasks being executed: {}", current_count);
 }
 
+/// Adds histogram metrics for the pickup time of a task compared to its scheduled time.
 pub fn add_histogram_metrics(
     pickup_time: &time::PrimitiveDateTime,
     task: &mut storage::ProcessTracker,
@@ -288,6 +306,18 @@ pub fn add_histogram_metrics(
     };
 }
 
+/// Retrieves the schedule time for a merchant's process based on the given mapping, merchant name, and retry count.
+///
+/// # Arguments
+///
+/// * `mapping` - The ConnectorPTMapping containing custom_merchant_mapping and default_mapping
+/// * `merchant_name` - The name of the merchant
+/// * `retry_count` - The number of times the process has been retried
+///
+/// # Returns
+///
+/// An Option containing the schedule time as an i32 value, or None if the schedule time is not available
+///
 pub fn get_schedule_time(
     mapping: process_data::ConnectorPTMapping,
     merchant_name: &str,
@@ -308,7 +338,8 @@ pub fn get_schedule_time(
         )
     }
 }
-
+/// Returns the scheduled time for a payment method based on the given mapping and retry count.
+/// If the retry count is 0, it returns the start time defined in the mapping. Otherwise, it calculates the delay based on the retry count and the frequency defined in the mapping.
 pub fn get_pm_schedule_time(
     mapping: process_data::PaymentMethodsPTMapping,
     pm: &enums::PaymentMethod,
@@ -347,6 +378,7 @@ fn get_delay<'a>(
     }
 }
 
+/// Asynchronously acquires a lock, executes a callback function, and then releases the lock.
 pub(crate) async fn lock_acquire_release<T, F, Fut>(
     state: &T,
     settings: &SchedulerSettings,

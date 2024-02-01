@@ -23,6 +23,7 @@ pub struct CurrencyFactors {
 }
 
 impl CurrencyFactors {
+        /// Creates a new instance of the struct, initializing it with the given to_factor and from_factor.
     pub fn new(to_factor: Decimal, from_factor: Decimal) -> Self {
         Self {
             to_factor,
@@ -32,6 +33,7 @@ impl CurrencyFactors {
 }
 
 impl ExchangeRates {
+        /// Creates a new instance of CurrencyConverter with the specified base currency and conversion factors.
     pub fn new(base_currency: Currency, conversion: HashMap<Currency, CurrencyFactors>) -> Self {
         Self {
             base_currency,
@@ -75,6 +77,7 @@ impl ExchangeRates {
     }
 }
 
+/// Matches the given currency to the corresponding ISO currency code.
 pub fn currency_match(currency: Currency) -> &'static iso::Currency {
     match currency {
         Currency::AED => iso::AED,

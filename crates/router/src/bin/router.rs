@@ -5,6 +5,7 @@ use router::{
 };
 
 #[tokio::main]
+/// Asynchronous function that represents the main entry point of the application. It parses the command line configuration, initializes the application configuration, validates the router configuration, starts the router, sets up the environment, and logs the application start. It also handles errors related to creating and shutting down the server.
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();

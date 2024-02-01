@@ -15,11 +15,29 @@ use crate::{
 
 impl RoutingAlgorithm {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts the current instance of the struct into the database using the provided PostgreSQL connection.
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to the PostgreSQL connection
+    /// 
+    /// # Returns
+    /// A `StorageResult` containing the current instance of the struct if the insertion is successful, otherwise an error
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database based on the provided algorithm ID and merchant ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - The database connection
+    /// * `algorithm_id` - The algorithm ID to search for
+    /// * `merchant_id` - The merchant ID to search for
+    ///
+    /// # Returns
+    ///
+    /// A result containing the found record or an error if the operation fails
     pub async fn find_by_algorithm_id_merchant_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -35,6 +53,17 @@ impl RoutingAlgorithm {
     }
 
     #[instrument(skip(conn))]
+        /// Finds a record in the storage by the given algorithm ID and profile ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - The database connection.
+    /// * `algorithm_id` - The ID of the algorithm to search for.
+    /// * `profile_id` - The ID of the profile to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// The result of the storage operation, containing the found record if successful.
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -50,6 +79,7 @@ impl RoutingAlgorithm {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds and returns routing profile metadata by the given algorithm ID and profile ID from the database.
     pub async fn find_metadata_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
@@ -103,6 +133,7 @@ impl RoutingAlgorithm {
     }
 
     #[instrument(skip(conn))]
+        /// Retrieves a list of routing algorithm metadata based on the given profile ID, with the option to limit and offset the results.
     pub async fn list_metadata_by_profile_id(
         conn: &PgPooledConn,
         profile_id: &str,
@@ -149,6 +180,8 @@ impl RoutingAlgorithm {
     }
 
     #[instrument(skip(conn))]
+        /// Fetches a list of routing profile metadata based on the provided merchant_id,
+    /// with the option to limit the number of results and specify an offset.
     pub async fn list_metadata_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,

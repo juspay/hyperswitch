@@ -11,6 +11,7 @@ where
     T: AnalyticsDataSource,
     AnalyticsCollection: ToSql<T>,
 {
+        /// Adds filter clauses to the provided QueryBuilder based on the non-empty fields of the RefundRequest object.
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         if !self.currency.is_empty() {
             builder

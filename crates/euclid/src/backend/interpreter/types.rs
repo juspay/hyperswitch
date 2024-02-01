@@ -20,6 +20,13 @@ pub struct InterpreterError {
 }
 
 impl fmt::Display for InterpreterError {
+        /// Formats the error type using the given formatter.
+    /// 
+    /// # Arguments
+    /// * `f` - A mutable reference to the formatter
+    /// 
+    /// # Returns
+    /// * `fmt::Result` - A result indicating success or failure of the formatting operation
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         InterpreterErrorType::fmt(&self.error_type, f)
     }
@@ -30,12 +37,14 @@ pub struct Context(HashMap<String, Option<ValueType>>);
 impl Deref for Context {
     type Target = HashMap<String, Option<ValueType>>;
 
+        /// This method returns a reference to the inner value of the smart pointer.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl From<inputs::BackendInput> for Context {
+        /// Constructs a new instance of Self (the current struct) from the provided BackendInput, mapping its fields to a HashMap of String keys and Option<ValueType> values.
     fn from(input: inputs::BackendInput) -> Self {
         let ctx = HashMap::<String, Option<ValueType>>::from_iter([
             (

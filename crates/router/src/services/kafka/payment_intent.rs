@@ -32,6 +32,7 @@ pub struct KafkaPaymentIntent<'a> {
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
+    /// Constructs a new PaymentIntent from the given intent with values copied from its fields.
     pub fn from_storage(intent: &'a PaymentIntent) -> Self {
         Self {
             payment_id: &intent.payment_id,
@@ -61,10 +62,12 @@ impl<'a> KafkaPaymentIntent<'a> {
 }
 
 impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
+    /// Returns a unique key by combining the merchant ID and payment ID with an underscore.
     fn key(&self) -> String {
         format!("{}_{}", self.merchant_id, self.payment_id)
     }
 
+        /// Returns the creation timestamp of the object, if available.
     fn creation_timestamp(&self) -> Option<i64> {
         Some(self.modified_at.unix_timestamp())
     }

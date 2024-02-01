@@ -14,6 +14,7 @@ pub trait IntoContext {
 }
 
 impl IntoContext for BackendInput {
+        /// Converts the current object into a vector of DirValue representing the payment context, wrapped in a Result.
     fn into_context(self) -> Result<Vec<dir::DirValue>, KgraphError> {
         let mut ctx: Vec<dir::DirValue> = Vec::new();
 
@@ -82,12 +83,14 @@ pub trait IntoDirValue {
 }
 
 impl IntoDirValue for ast::ConnectorChoice {
+        /// Converts the current value into a `DirValue` enum variant `Connector` containing a box of the current value.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
-        Ok(dir::DirValue::Connector(Box::new(self)))
-    }
+            Ok(dir::DirValue::Connector(Box::new(self)))
+        }
 }
 
 impl IntoDirValue for api_enums::PaymentMethod {
+        /// Converts the enum variant into a corresponding DirValue representing a payment method.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::Card => Ok(dirval!(PaymentMethod = Card)),
@@ -107,6 +110,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
 }
 
 impl IntoDirValue for api_enums::AuthenticationType {
+        /// Converts the enum variant into a `Result` containing a `DirValue` representing the authentication type.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::ThreeDs => Ok(dirval!(AuthenticationType = ThreeDs)),
@@ -116,6 +120,13 @@ impl IntoDirValue for api_enums::AuthenticationType {
 }
 
 impl IntoDirValue for api_enums::FutureUsage {
+        /// Converts the enum variant into a `dir::DirValue` enum variant wrapped in a `Result`.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(dirval!(SetupFutureUsage = OnSession))` if the enum variant is `OnSession`.
+    /// * `Ok(dirval!(SetupFutureUsage = OffSession))` if the enum variant is `OffSession`.
+    /// * `Err(KgraphError)` if an error occurs during the conversion.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::OnSession => Ok(dirval!(SetupFutureUsage = OnSession)),
@@ -125,6 +136,7 @@ impl IntoDirValue for api_enums::FutureUsage {
 }
 
 impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
+        /// Converts the PaymentMethodType and PaymentMethod enums into a DirValue enum
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self.0 {
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
@@ -288,6 +300,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
 }
 
 impl IntoDirValue for api_enums::CardNetwork {
+        /// Converts the enum variant into a corresponding DirValue representing the card network.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::Visa => Ok(dirval!(CardNetwork = Visa)),
@@ -306,6 +319,7 @@ impl IntoDirValue for api_enums::CardNetwork {
 }
 
 impl IntoDirValue for api_enums::Currency {
+        /// Converts the enum variant into a corresponding dir::DirValue representing the payment currency.
     fn into_dir_value(self) -> Result<dir::DirValue, KgraphError> {
         match self {
             Self::AED => Ok(dirval!(PaymentCurrency = AED)),
@@ -457,6 +471,7 @@ impl IntoDirValue for api_enums::Currency {
     }
 }
 
+/// Maps an API country enum to a directory country enum.
 pub fn get_dir_country_dir_value(c: api_enums::Country) -> dir::enums::Country {
     match c {
         api_enums::Country::Afghanistan => dir::enums::Country::Afghanistan,
@@ -743,10 +758,31 @@ pub fn get_dir_country_dir_value(c: api_enums::Country) -> dir::enums::Country {
     }
 }
 
+/// Converts a business country enum value to a corresponding dir value.
+///
+/// This method takes a business country enum value as input and returns a dir value that represents the equivalent country in the directory.
+///
+/// # Arguments
+///
+/// * `c` - A value of type `api_enums::Country` representing the business country enum value.
+///
+/// # Returns
+///
+/// A value of type `dir::DirValue` representing the directory value for the given business country.
+///
 pub fn business_country_to_dir_value(c: api_enums::Country) -> dir::DirValue {
     dir::DirValue::BusinessCountry(get_dir_country_dir_value(c))
 }
 
+/// Converts a billing country from an API enum representation to a dir::DirValue representation.
+/// 
+/// # Arguments
+/// 
+/// * `c` - The billing country represented as an api_enums::Country
+/// 
+/// # Returns
+/// 
+/// A dir::DirValue representing the billing country
 pub fn billing_country_to_dir_value(c: api_enums::Country) -> dir::DirValue {
     dir::DirValue::BillingCountry(get_dir_country_dir_value(c))
 }

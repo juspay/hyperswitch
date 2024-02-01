@@ -15,6 +15,7 @@
     operation_id = "Create an API Key",
     security(("admin_api_key" = []))
 )]
+/// Asynchronously creates a new API key for accessing the system. 
 pub async fn api_key_create() {}
 
 /// API Key - Retrieve
@@ -35,7 +36,10 @@ pub async fn api_key_create() {}
     operation_id = "Retrieve an API Key",
     security(("admin_api_key" = []))
 )]
-pub async fn api_key_retrieve() {}
+/// Asynchronously retrieves an API key from the server. 
+pub async fn api_key_retrieve() {
+    // implementation details
+}
 
 /// API Key - Update
 ///
@@ -56,7 +60,10 @@ pub async fn api_key_retrieve() {}
     operation_id = "Update an API Key",
     security(("admin_api_key" = []))
 )]
-pub async fn api_key_update() {}
+/// Asynchronous function to update the API key.
+pub async fn api_key_update() {
+    // implementation details
+}
 
 /// API Key - Revoke
 ///
@@ -77,4 +84,7 @@ pub async fn api_key_update() {}
     operation_id = "Revoke an API Key",
     security(("admin_api_key" = []))
 )]
-pub async fn api_key_revoke() {}
+/// Asynchronously revokes the API key for the current user.
+pub async fn api_key_revoke() {
+    // implementation goes here
+}

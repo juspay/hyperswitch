@@ -8,6 +8,8 @@ use crate::{
 struct Payu;
 impl ConnectorActions for Payu {}
 impl Connector for Payu {
+        /// This method returns a ConnectorData object containing information about the Payu connector,
+    /// including the connector itself, the connector name, the method to get a token, and the merchant connector ID.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payu;
         types::api::ConnectorData {
@@ -18,6 +20,7 @@ impl Connector for Payu {
         }
     }
 
+        /// This method retrieves the authentication token for the connector. It accesses the connector authentication configuration for the PayU authentication method, then converts it into the appropriate ConnectorAuthType.
     fn get_auth_token(&self) -> ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -27,11 +30,15 @@ impl Connector for Payu {
         )
     }
 
+        /// This method returns the name "payu" as a String.
     fn get_name(&self) -> String {
         "payu".to_string()
     }
 }
 
+/// Retrieves an access token from the Payu API connector. 
+/// If successful, returns Some(AccessToken) containing the token and its expiration time.
+/// If unsuccessful, returns None.
 fn get_access_token() -> Option<AccessToken> {
     let connector = Payu {};
     match connector.get_auth_token() {
@@ -42,6 +49,7 @@ fn get_access_token() -> Option<AccessToken> {
         _ => None,
     }
 }
+/// Retrieves the default payment information, including the access token retrieved from the `get_access_token` method.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         access_token: get_access_token(),
@@ -51,6 +59,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously authorizes a card payment in PLN currency using the Payu API.
 async fn should_authorize_card_payment() {
     //Authorize Card Payment in PLN currency
     let authorize_response = Payu {}
@@ -85,6 +94,10 @@ async fn should_authorize_card_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously authorizes a payment using Google Pay wallet data. 
+/// This method creates an authorization request with Google Pay wallet data, currency, and default payment information. 
+/// It then awaits the authorization response and asserts that the status is pending. 
+/// If a transaction ID is returned from the authorization response, it uses the transaction ID to sync the payment and asserts that the status is authorized.
 async fn should_authorize_gpay_payment() {
     let authorize_response = Payu {}
         .authorize_payment(
@@ -130,6 +143,11 @@ async fn should_authorize_gpay_payment() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously captures an already authorized payment by performing the following steps:
+/// 1. Authorize the payment with the provided currency and default payment info, and assert that the status is pending.
+/// 2. Retrieve the transaction ID from the authorize response and use it to sync the payment status until it is authorized.
+/// 3. Capture the payment using the transaction ID and default payment info, and assert that the status is pending.
+/// 4. Sync the payment status until it is charged using the transaction ID and default payment info, and assert that the status is charged.
 async fn should_capture_already_authorized_payment() {
     let connector = Payu {};
     let authorize_response = connector
@@ -182,6 +200,8 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously checks if a payment should be synced. It authorizes the payment for manual capture,
+/// checks the status, and syncs the payment data if the status is Authorized.
 async fn should_sync_payment() {
     let connector = Payu {};
     // Authorize the payment for manual capture
@@ -219,6 +239,7 @@ async fn should_sync_payment() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously voids an already authorized payment by making a successful payment, then attempting to cancel the payment and verifying the void status.
 async fn should_void_already_authorized_payment() {
     let connector = Payu {};
     //make a successful payment
@@ -261,6 +282,7 @@ async fn should_void_already_authorized_payment() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously performs a series of payment operations including authorization, capture, and refund. 
 async fn should_refund_succeeded_payment() {
     let connector = Payu {};
     let authorize_response = connector
@@ -324,6 +346,7 @@ async fn should_refund_succeeded_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously performs a refund payment synchronization and asserts that the refund status is a success.
 async fn should_sync_succeeded_refund_payment() {
     let connector = Payu {};
 
@@ -343,6 +366,7 @@ async fn should_sync_succeeded_refund_payment() {
 }
 
 #[actix_web::test]
+/// This method attempts to refund a payment that has already been refunded. It first creates a Payu connector, then calls the refund_payment method with a hardcoded order_id (which should be changed accordingly), None for the refund amount, and default payment information. It awaits the response and unwraps it, then checks if the response has unwrapped error and asserts that the reason for the error is "PAID".
 async fn should_fail_already_refunded_payment() {
     let connector = Payu {};
     //Currently hardcoding the order_id, change it accordingly

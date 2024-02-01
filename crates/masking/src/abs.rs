@@ -27,6 +27,7 @@ where
     S: Clone,
     I: crate::Strategy<S>,
 {
+        /// Maps the `Option` to an `Option` of the exposed value by calling the `expose` method on the inner type, if it exists.
     fn expose_option(self) -> Option<S> {
         self.map(ExposeInterface::expose)
     }
@@ -36,6 +37,7 @@ impl<S, I> ExposeInterface<S> for Secret<S, I>
 where
     I: crate::Strategy<S>,
 {
+        /// This method returns the inner secret value that is contained within the current instance.
     fn expose(self) -> S {
         self.inner_secret
     }
@@ -58,6 +60,7 @@ where
 {
     type Output = Secret<S, ToStrategy>;
 
+        /// This method creates a new instance of the `Secret` struct using the inner secret value of the current instance.
     fn switch_strategy(self) -> Self::Output {
         Secret::new(self.inner_secret)
     }

@@ -62,6 +62,8 @@ pub struct PaymentMethodNew {
 }
 
 impl Default for PaymentMethodNew {
+        /// Creates a new instance of the struct with default values for all fields,
+    /// except for the `created_at` and `last_modified` fields, which are set to the current date and time.
     fn default() -> Self {
         let now = common_utils::date_time::now();
 
@@ -115,6 +117,7 @@ pub struct PaymentMethodUpdateInternal {
 }
 
 impl PaymentMethodUpdateInternal {
+        /// Creates a new payment method with the provided source. It also encrypts the metadata using the Secret::new method if metadata is present in the self object.
     pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
         let metadata = self.metadata.map(Secret::new);
 
@@ -123,6 +126,7 @@ impl PaymentMethodUpdateInternal {
 }
 
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
+        /// Converts a PaymentMethodUpdate enum into the current struct instance. 
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
             PaymentMethodUpdate::MetadataUpdate { metadata } => Self {

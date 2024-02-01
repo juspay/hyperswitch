@@ -54,6 +54,7 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
 
 #[async_trait::async_trait]
 impl ProcessTrackerInterface for Store {
+        /// Asynchronously finds a process by its ID in the database. It queries the database to retrieve the process tracker with the specified ID, and returns it wrapped in an Option. If the process tracker is not found, it returns None. Any errors encountered during the database query are wrapped in a CustomResult with the specific StorageError type defined in the errors module.
     async fn find_process_by_id(
         &self,
         id: &str,
@@ -65,6 +66,8 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously reinitializes limbo processes with the given ids and schedule time,
+    /// returning the number of processes reinitialized or a StorageError if an error occurs.
     async fn reinitialize_limbo_processes(
         &self,
         ids: Vec<String>,
@@ -77,6 +80,19 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
+        /// Retrieves a list of process tracker records from the database based on the specified time range and status.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `time_lower_limit` - The lower limit of the time range for process creation.
+    /// * `time_upper_limit` - The upper limit of the time range for process creation.
+    /// * `status` - The status of the process tracker records to filter by.
+    /// * `limit` - An optional limit to restrict the number of records returned.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `storage::ProcessTracker` instances, or a `StorageError` if the operation fails.
+    /// 
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -97,6 +113,7 @@ impl ProcessTrackerInterface for Store {
         .into_report()
     }
 
+        /// Asynchronously inserts a new process into the storage system using the provided `ProcessTrackerNew` object. Returns a `CustomResult` containing a `ProcessTracker` if successful, or a `StorageError` if an error occurs.
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
@@ -108,6 +125,17 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates a process in the storage with the provided process tracker update.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `this` - The process tracker to be updated.
+    /// * `process` - The process tracker update containing the changes to be applied.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the updated `ProcessTracker` if successful, or a `StorageError` if an error occurs.
+    ///
     async fn update_process(
         &self,
         this: storage::ProcessTracker,
@@ -120,6 +148,14 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates the process tracker with the given process tracker update, and returns the updated process tracker. 
+    /// 
+    /// # Arguments
+    /// * `this` - The current process tracker to be updated.
+    /// * `process` - The process tracker update containing the changes to be applied.
+    ///
+    /// # Returns
+    /// Returns a custom result containing the updated process tracker if the update is successful, otherwise returns a storage error. 
     async fn update_process_tracker(
         &self,
         this: storage::ProcessTracker,
@@ -132,6 +168,17 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously processes the update of process status for a list of task IDs using the provided task update data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `task_ids` - A vector of strings representing the task IDs for which the process status is to be updated.
+    /// * `task_update` - A `storage::ProcessTrackerUpdate` object containing the updated process status and other relevant data.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the number of task IDs for which the process status was updated, or a `StorageError` if an error occurs during the process.
+    /// 
     async fn process_tracker_update_process_status_by_ids(
         &self,
         task_ids: Vec<String>,
@@ -147,6 +194,9 @@ impl ProcessTrackerInterface for Store {
 
 #[async_trait::async_trait]
 impl ProcessTrackerInterface for MockDb {
+        /// Asynchronously finds a process by its ID in the storage. Returns a result containing an optional
+    /// `storage::ProcessTracker` if the process is found, or an error of type `errors::StorageError` if
+    /// any storage error occurs.
     async fn find_process_by_id(
         &self,
         id: &str,
@@ -162,6 +212,17 @@ impl ProcessTrackerInterface for MockDb {
         Ok(optional)
     }
 
+        /// Asynchronously reinitializes limbo processes for the given IDs at the specified schedule time.
+    ///
+    /// # Arguments
+    ///
+    /// * `ids` - A vector of strings representing the IDs of the processes to reinitialize.
+    /// * `schedule_time` - A `PrimitiveDateTime` indicating the schedule time for reinitialization.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the number of processes reinitialized, or a `StorageError` if the reinitialization fails.
+    ///
     async fn reinitialize_limbo_processes(
         &self,
         _ids: Vec<String>,
@@ -171,6 +232,18 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Asynchronously finds processes within a specified time range and status in the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `time_lower_limit` - The lower limit of the time range.
+    /// * `time_upper_limit` - The upper limit of the time range.
+    /// * `status` - The status of the processes to be found.
+    /// * `limit` - An optional limit on the number of processes to be returned.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `ProcessTracker` objects within the specified time range and status, wrapped in a `CustomResult`. If an error occurs, a `StorageError` is returned.
     async fn find_processes_by_time_status(
         &self,
         _time_lower_limit: PrimitiveDateTime,
@@ -182,6 +255,7 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Inserts a new process into the process tracker and returns the inserted process.
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
@@ -206,6 +280,17 @@ impl ProcessTrackerInterface for MockDb {
         Ok(process)
     }
 
+        /// Asynchronously updates a process in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `_this` - The current process tracker.
+    /// * `_process` - The process tracker update to apply.
+    ///
+    /// # Returns
+    ///
+    /// * Returns a `CustomResult` containing the updated process tracker, or a `StorageError` if the update fails.
+    ///
     async fn update_process(
         &self,
         _this: storage::ProcessTracker,
@@ -215,6 +300,17 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Asynchronously updates the process tracker with the given process tracker update.
+    ///
+    /// # Arguments
+    ///
+    /// * `_this` - The current process tracker to be updated.
+    /// * `_process` - The update to be applied to the process tracker.
+    ///
+    /// # Returns
+    ///
+    /// The updated process tracker if successful, otherwise a `StorageError`.
+    ///
     async fn update_process_tracker(
         &self,
         _this: storage::ProcessTracker,
@@ -224,6 +320,21 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Asynchronously processes the update of process status for the given task IDs using the provided ProcessTrackerUpdate.
+    ///
+    /// # Arguments
+    ///
+    /// * `_task_ids` - A vector of strings containing the task IDs for which the process status should be updated.
+    /// * `_task_update` - A storage::ProcessTrackerUpdate struct containing the updated process status.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing the number of task updates processed or a StorageError if the operation fails.
+    ///
+    /// # Errors
+    ///
+    /// This method may return a StorageError::MockDbError if the operation encounters an error while interacting with the mock database.
+    ///
     async fn process_tracker_update_process_status_by_ids(
         &self,
         _task_ids: Vec<String>,
@@ -269,10 +380,21 @@ pub trait ProcessTrackerExt {
 
 #[async_trait::async_trait]
 impl ProcessTrackerExt for storage::ProcessTracker {
+        /// Check if the business status of the instance is valid by comparing it with a list of valid statuses.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `valid_statuses` - A reference to a slice of valid business statuses.
+    /// 
+    /// # Returns
+    /// 
+    /// * `bool` - Returns true if the business status of the instance matches any of the valid statuses, otherwise returns false.
+    /// 
     fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
         valid_statuses.iter().any(|x| x == &self.business_status)
     }
 
+        /// Creates a new process tracker with the given process tracker id, task, runner, tracking data, and schedule time.
     fn make_process_tracker_new<'a, T>(
         process_tracker_id: String,
         task: &'a str,
@@ -302,6 +424,17 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         })
     }
 
+        /// Resets the process tracker in the database to a new status with a retry count of 0 and a new schedule time.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - A reference to a type implementing the SchedulerInterface trait, which is used for database operations.
+    /// * `schedule_time` - The new schedule time for the process tracker.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), sch_errors::ProcessTrackerError>` - A result indicating success or an error of type ProcessTrackerError.
+    ///
     async fn reset(
         self,
         db: &dyn SchedulerInterface,
@@ -319,6 +452,17 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         Ok(())
     }
 
+        /// Retries the current task by updating the process tracker status to Pending and incrementing the retry count.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - A reference to a trait object implementing the SchedulerInterface.
+    /// * `schedule_time` - The new schedule time for the retry.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or a ProcessTrackerError.
+    ///
     async fn retry(
         self,
         db: &dyn SchedulerInterface,
@@ -336,7 +480,17 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         .await?;
         Ok(())
     }
-
+        /// Asynchronously updates the status of the current process in the database and increments a metric to indicate that a task has finished.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - A reference to a trait object implementing the `SchedulerInterface` trait for interacting with the database.
+    /// * `status` - A `String` representing the new status to be set for the process.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), sch_errors::ProcessTrackerError>` - A result indicating success or an error of type `ProcessTrackerError` if the update fails.
+    ///
     async fn finish_with_status(
         self,
         db: &dyn SchedulerInterface,

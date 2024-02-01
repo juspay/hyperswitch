@@ -73,6 +73,7 @@ pub struct AppState {
 }
 
 impl scheduler::SchedulerAppState for AppState {
+        /// This method returns a reference to the scheduler database. It calls the get_scheduler_db method on the store object and returns the result as a Box containing a trait object implementing the SchedulerInterface trait.
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
     }
@@ -91,43 +92,60 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
+        /// Returns a copy of the `Settings` stored in the `conf` field of the current object.
     fn conf(&self) -> settings::Settings {
         self.conf.as_ref().to_owned()
     }
+        /// This method returns a boxed trait object that implements the StorageInterface trait.
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
+        /// Returns a reference to the email client wrapped in an Arc, allowing concurrent access to the email service.
     fn email_client(&self) -> Arc<dyn EmailService> {
         self.email_client.to_owned()
     }
+        /// Retrieves the event handler associated with the current instance and returns a clone of it.
     fn event_handler(&self) -> EventsHandler {
         self.event_handler.clone()
     }
+        /// Adds a request ID to the current instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request_id` - The request ID to be added.
+    /// 
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
+        /// Adds the merchant ID to the API client. If the merchant ID is provided as Some(String), it will be added to the API client. If merchant ID is None, no action will be taken.
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
         self.api_client.add_merchant_id(merchant_id);
     }
+        /// Adds the specified flow name to the API client.
     fn add_flow_name(&mut self, flow_name: String) {
         self.api_client.add_flow_name(flow_name);
     }
+        /// Retrieves the request ID from the API client.
+    ///
+    /// Returns the request ID as an optional string, or None if the request ID is not available.
     fn get_request_id(&self) -> Option<String> {
         self.api_client.get_request_id()
     }
 }
 
 impl AsRef<Self> for AppState {
+        /// Returns a reference to the original value.
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
 #[cfg(feature = "email")]
+/// Asynchronously creates an email client based on the provided settings. The method takes a reference to the settings and uses the active email client configuration to determine which email service to create. If the active email client is SES (Simple Email Service), it creates an instance of AwsSes with the email and proxy settings provided in the settings. The method returns the created email service.
 pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
@@ -289,6 +307,7 @@ impl AppState {
         .await
     }
 
+        /// Asynchronously creates a new instance of the current struct by initializing it with the provided configuration settings, shutdown signal sender, and API client. It uses the provided configuration settings and API client to initialize the storage implementation as PostgreSQL, and then awaits the result to create and return the new instance.
     pub async fn new(
         conf: settings::Settings,
         shut_down_signal: oneshot::Sender<()>,
@@ -307,6 +326,9 @@ impl AppState {
 pub struct Health;
 
 impl Health {
+        /// Defines the server health endpoint with the given `AppState`. 
+    /// It creates a new scope with the path "health" and adds the `AppState` as data to the scope. 
+    /// It also defines two routes within the scope: one for the main health check and one for a deep health check.
     pub fn server(state: AppState) -> Scope {
         web::scope("health")
             .app_data(web::Data::new(state))
@@ -320,6 +342,7 @@ pub struct DummyConnector;
 
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
+        /// This function defines a server with restricted access based on the configuration of the "external_access_dc" feature. If the feature is not enabled, the server is restricted to requests coming from the "localhost" host. It then sets up routes for various payment and refund endpoints, as well as routes for handling authorization and completion of payment attempts. The server is configured with the provided `state` and returns a `Scope` containing all the defined routes.
     pub fn server(state: AppState) -> Scope {
         let mut routes_with_restricted_access = web::scope("");
         #[cfg(not(feature = "external_access_dc"))]
@@ -358,6 +381,7 @@ pub struct Payments;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Payments {
+        /// This method creates and configures routes for handling payment-related requests based on the features enabled at compile time. It takes an `AppState` object as input and returns a `Scope` containing the configured routes.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
 
@@ -438,6 +462,7 @@ pub struct Forex;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Forex {
+        /// Creates a scope for handling forex related routes and services. It takes an `AppState` as input and returns a `Scope`.
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex")
             .app_data(web::Data::new(state.clone()))
@@ -454,6 +479,7 @@ pub struct Routing;
 
 #[cfg(feature = "olap")]
 impl Routing {
+        /// This method creates and returns a web scope for handling various routing-related requests. It sets up different routes for retrieving, creating, updating, and deleting routing configurations and decision manager configurations.
     pub fn server(state: AppState) -> Scope {
         web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
@@ -514,6 +540,7 @@ pub struct Customers;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Customers {
+        /// This method creates a server scope for handling various customer-related HTTP requests based on the features enabled during compilation. It takes the `state` of the application as input and returns a `Scope` for routing HTTP requests.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
 
@@ -555,6 +582,7 @@ pub struct Refunds;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Refunds {
+        /// This method takes an `AppState` as input and returns a `Scope`. It creates a scope for handling refund-related endpoints based on the features enabled during compilation. If the "olap" feature is enabled, it adds routes for listing and filtering refunds. If the "oltp" feature is enabled, it adds routes for creating, retrieving, updating, and syncing refunds. Finally, it returns the configured scope.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/refunds").app_data(web::Data::new(state));
 
@@ -584,6 +612,7 @@ pub struct Payouts;
 
 #[cfg(feature = "payouts")]
 impl Payouts {
+        /// Defines and configures the routes for the payouts API endpoints and returns a Scope containing these routes.
     pub fn server(state: AppState) -> Scope {
         let route = web::scope("/payouts").app_data(web::Data::new(state));
         route
@@ -602,6 +631,7 @@ pub struct PaymentMethods;
 
 #[cfg(feature = "oltp")]
 impl PaymentMethods {
+        /// Defines a method to create a server with various payment method-related routes and handlers.
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_methods")
             .app_data(web::Data::new(state))
@@ -626,6 +656,7 @@ pub struct Recon;
 
 #[cfg(all(feature = "olap", feature = "recon"))]
 impl Recon {
+        /// Defines a scope for the Recon API endpoints and sets up the routes for updating a merchant, getting a Recon token, requesting Recon, and verifying a Recon token.
     pub fn server(state: AppState) -> Scope {
         web::scope("/recon")
             .app_data(web::Data::new(state))
@@ -646,6 +677,7 @@ pub struct Blocklist;
 
 #[cfg(feature = "olap")]
 impl Blocklist {
+        /// Creates a scope for handling blocklist related requests and routes them to the corresponding functions for listing blocked payment methods, adding an entry to the blocklist, and removing an entry from the blocklist.
     pub fn server(state: AppState) -> Scope {
         web::scope("/blocklist")
             .app_data(web::Data::new(state))
@@ -662,6 +694,7 @@ pub struct MerchantAccount;
 
 #[cfg(feature = "olap")]
 impl MerchantAccount {
+        /// Creates a scope for handling merchant account related requests within the given `state`.
     pub fn server(state: AppState) -> Scope {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
@@ -685,6 +718,7 @@ pub struct MerchantConnectorAccount;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl MerchantConnectorAccount {
+        /// This method takes an AppState as input and returns a Scope. It creates a web route for the "/account" path and sets the app data to the provided state. Depending on the configuration features "olap" and "oltp", it adds specific service routes for payment connectors and payment methods respectively. The method then returns the configured route.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));
 
@@ -723,6 +757,7 @@ pub struct EphemeralKey;
 
 #[cfg(feature = "oltp")]
 impl EphemeralKey {
+        /// Creates a server with the specified configuration and sets up routes for creating and deleting ephemeral keys.
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
             .app_data(web::Data::new(config))
@@ -735,6 +770,9 @@ pub struct Mandates;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Mandates {
+        /// Creates a server scope for handling requests related to mandates based on the given `state`. 
+    /// Depending on the enabled features (olap and oltp), different routes and corresponding handlers 
+    /// are added to the scope. Returns the configured server scope.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/mandates").app_data(web::Data::new(state));
 
@@ -757,6 +795,7 @@ pub struct Webhooks;
 
 #[cfg(feature = "oltp")]
 impl Webhooks {
+        /// Defines the server method which sets up the webhooks endpoint and its routes based on the provided AppState configuration. It also includes an additional route for fulfillment if the "frm" feature is enabled.
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
 
@@ -790,6 +829,7 @@ pub struct Configs;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Configs {
+        /// Defines a server method that takes a AppState as input and returns a Scope. 
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
@@ -806,6 +846,7 @@ pub struct ApiKeys;
 
 #[cfg(feature = "olap")]
 impl ApiKeys {
+        /// Defines a server method that takes an AppState as input and returns a Scope.
     pub fn server(state: AppState) -> Scope {
         web::scope("/api_keys/{merchant_id}")
             .app_data(web::Data::new(state))
@@ -824,6 +865,7 @@ pub struct Disputes;
 
 #[cfg(feature = "olap")]
 impl Disputes {
+        /// Returns a Scope for handling dispute-related routes, utilizing the provided state.
     pub fn server(state: AppState) -> Scope {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
@@ -845,6 +887,7 @@ impl Disputes {
 pub struct Cards;
 
 impl Cards {
+        /// Creates a new scope for handling card-related API endpoints and sets the provided `AppState` as shared data for all routes within the scope.
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
@@ -856,6 +899,7 @@ pub struct Files;
 
 #[cfg(feature = "olap")]
 impl Files {
+        /// Creates a server for handling file-related requests using the given application state.
     pub fn server(state: AppState) -> Scope {
         web::scope("/files")
             .app_data(web::Data::new(state))
@@ -871,6 +915,8 @@ impl Files {
 pub struct Cache;
 
 impl Cache {
+        /// Defines a server method that takes an AppState as input and returns a Scope.
+    /// This method creates a new web scope for the "/cache" path, sets the provided state as app data, and adds a route for invalidating a cache key using the POST method.
     pub fn server(state: AppState) -> Scope {
         web::scope("/cache")
             .app_data(web::Data::new(state))
@@ -881,6 +927,7 @@ impl Cache {
 pub struct PaymentLink;
 #[cfg(feature = "olap")]
 impl PaymentLink {
+        /// Defines a server method that takes an AppState as input and returns a Scope. This method creates a web scope for "/payment_link" and sets the provided state data. It then adds routes for handling payment link operations such as listing payment links, retrieving a specific payment link by ID, initiating a payment link for a given merchant and payment ID, and checking the status of a payment link for a specific merchant and payment ID.
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
@@ -903,6 +950,7 @@ pub struct BusinessProfile;
 
 #[cfg(feature = "olap")]
 impl BusinessProfile {
+        /// Constructs and returns a Scope for handling account business profile related requests.
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
@@ -924,6 +972,8 @@ pub struct Gsm;
 
 #[cfg(feature = "olap")]
 impl Gsm {
+        /// This method defines a server with routes for creating, getting, updating, and deleting GSM rules. It takes the state of the application as input and returns a Scope, which contains the defined routes for the GSM functionality.
+    
     pub fn server(state: AppState) -> Scope {
         web::scope("/gsm")
             .app_data(web::Data::new(state))
@@ -939,6 +989,7 @@ pub struct Verify;
 
 #[cfg(all(feature = "olap", feature = "kms"))]
 impl Verify {
+        /// This method creates a server with routes for verifying Apple Pay merchant registration and retrieving Apple Pay verified domains. It takes in the state of the application and returns a Scope with the specified routes and associated handlers.
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")
             .app_data(web::Data::new(state))
@@ -957,6 +1008,7 @@ pub struct User;
 
 #[cfg(feature = "olap")]
 impl User {
+        /// Defines the routes and services for the server related to user management, role information, and other user-related operations. This method takes the `state` of the application as a parameter and returns a `Scope` containing all the defined routes and services.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
@@ -1045,6 +1097,7 @@ pub struct LockerMigrate;
 
 #[cfg(feature = "olap")]
 impl LockerMigrate {
+        /// Creates a server scope for handling locker migration requests for a specific merchant.
     pub fn server(state: AppState) -> Scope {
         web::scope("locker_migration/{merchant_id}")
             .app_data(web::Data::new(state))
@@ -1058,6 +1111,7 @@ pub struct ConnectorOnboarding;
 
 #[cfg(feature = "olap")]
 impl ConnectorOnboarding {
+        /// Creates a new server scope for the connector onboarding process.
     pub fn server(state: AppState) -> Scope {
         web::scope("/connector_onboarding")
             .app_data(web::Data::new(state))

@@ -2,6 +2,7 @@ use std::process::{exit, Command};
 
 use test_utils::newman_runner;
 
+/// Executes a Newman command and handles the output and error scenarios. If the file_modified_flag is true, it also executes a Git command to restore a specific file. Finally, it returns the exit code of the executed command.
 fn main() {
     let mut runner = newman_runner::generate_newman_command();
 

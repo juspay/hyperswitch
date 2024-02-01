@@ -12,6 +12,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+/// Asynchronously receives an incoming webhook and processes it using the provided state and request data.
 pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -47,6 +48,15 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 struct WebhookBytes(web::Bytes);
 
 impl serde::Serialize for WebhookBytes {
+        /// Serializes the data contained in the struct into the specified serializer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `serializer` - The serializer to use for the serialization.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a result containing the serialized data if successful, or an error if the serialization fails.
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let payload: serde_json::Value = serde_json::from_slice(&self.0).unwrap_or_default();
         payload.serialize(serializer)
@@ -54,6 +64,7 @@ impl serde::Serialize for WebhookBytes {
 }
 
 impl common_utils::events::ApiEventMetric for WebhookBytes {
+        /// This method returns an optional ApiEventsType, representing the type of API event.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

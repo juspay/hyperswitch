@@ -12,6 +12,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
+/// Asynchronously handles the creation of a refund using the provided request data and returns an HTTP response.
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -54,6 +55,7 @@ pub async fn refund_create(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+/// This method takes in the application state, query string configuration, HTTP request, and form payload to retrieve a refund with gateway credentials. It deserializes the form payload using the query string configuration, then wraps the refund retrieval process in a compatibility API wrapper and awaits the result before returning the HTTP response.
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -100,6 +102,7 @@ pub async fn refund_retrieve_with_gateway_creds(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+/// Retrieves a refund using the provided refund ID and returns the corresponding HTTP response.
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -143,6 +146,11 @@ pub async fn refund_retrieve(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
+/// Handles the update of a refund using the provided StripeUpdateRefundRequest data. 
+/// It takes the web::Data<routes::AppState>, HttpRequest, web::Path<String>, and web::Form<types::StripeUpdateRefundRequest> as parameters
+/// and returns an HttpResponse. This method performs the necessary operations to update a refund, including converting the form payload
+/// into the required data structure, setting the flow as RefundsUpdate, and calling the refund_update_core function wrapped in compatibility
+/// API wrap. The result of the operation is returned as a boxed future.
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

@@ -205,6 +205,7 @@ pub enum RefundStatus {
 }
 
 impl From<enums::RefundStatus> for RefundStatus {
+        /// Converts a refund status enum into an equivalent status of the current type.
     fn from(status: enums::RefundStatus) -> Self {
         match status {
             enums::RefundStatus::Failure | enums::RefundStatus::TransactionFailure => Self::Failed,

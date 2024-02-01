@@ -11,6 +11,7 @@ use crate::routes;
 pub struct StripeApis;
 
 impl StripeApis {
+        /// This function defines a server scope for the application, setting up routes for various API endpoints related to payments and customer management. It initializes a maximum depth for parsing query strings and sets the strict mode to false. It then adds services for setup intents, payment intents, refunds, customers, webhooks, and mandates, using the provided application state to handle the requests.
     pub fn server(state: routes::AppState) -> Scope {
         let max_depth = 10;
         let strict = false;

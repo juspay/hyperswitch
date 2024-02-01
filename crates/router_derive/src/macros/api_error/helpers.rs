@@ -27,6 +27,7 @@ enum EnumMeta {
 }
 
 impl Parse for EnumMeta {
+        /// Parses the input stream and returns a result containing the parsed value or an error.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type_enum) {
@@ -41,6 +42,9 @@ impl Parse for EnumMeta {
 }
 
 impl ToTokens for EnumMeta {
+        /// This method takes a reference to a TokenStream and modifies it by adding tokens
+    /// based on the type of ErrorEnum. If the ErrorEnum is of type ErrorTypeEnum, it
+    /// extracts the keyword from it and adds it to the TokenStream using the to_tokens method.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::ErrorTypeEnum { keyword, .. } => keyword.to_tokens(tokens),
@@ -54,6 +58,7 @@ trait DeriveInputExt {
 }
 
 impl DeriveInputExt for DeriveInput {
+        /// Retrieves the metadata of the enum by parsing its attributes.
     fn get_metadata(&self) -> syn::Result<Vec<EnumMeta>> {
         get_metadata_inner("error", &self.attrs)
     }
@@ -69,6 +74,8 @@ pub(super) struct ErrorTypeProperties {
 }
 
 impl HasErrorTypeProperties for DeriveInput {
+        /// Retrieves the properties of the error type, such as the error type enum keyword and value.
+    /// If the error_type_enum attribute is not found, it returns a syn::Error.
     fn get_type_properties(&self) -> syn::Result<ErrorTypeProperties> {
         let mut output = ErrorTypeProperties::default();
 
@@ -117,6 +124,7 @@ enum VariantMeta {
 }
 
 impl Parse for VariantMeta {
+        /// Parses the input parse stream and returns a result based on the keyword lookahead.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(keyword::error_type) {
@@ -146,6 +154,7 @@ impl Parse for VariantMeta {
 }
 
 impl ToTokens for VariantMeta {
+        /// Converts the enum variant to its corresponding tokens and appends them to the provided TokenStream.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::ErrorType { keyword, .. } => keyword.to_tokens(tokens),
@@ -162,6 +171,16 @@ trait VariantExt {
 }
 
 impl VariantExt for Variant {
+        /// Retrieves the metadata for the given error variant by parsing the attributes of the enum.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `self` - A reference to the current instance of the enum.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a vector of VariantMeta, representing the metadata of the error variant.
+    /// 
     fn get_metadata(&self) -> syn::Result<Vec<VariantMeta>> {
         get_metadata_inner("error", &self.attrs)
     }
@@ -180,6 +199,7 @@ pub(super) struct ErrorVariantProperties {
 }
 
 impl HasErrorVariantProperties for Variant {
+        /// Retrieves the properties of an error variant by parsing its metadata. This method iterates through the metadata of the error variant and populates an ErrorVariantProperties struct with the error type, code, message, and ignore keywords. If there are multiple occurrences of the same keyword within the metadata, it returns an error. The method returns a Result containing the populated ErrorVariantProperties on success, or a syn::Error on failure.
     fn get_variant_properties(&self) -> syn::Result<ErrorVariantProperties> {
         let mut output = ErrorVariantProperties::default();
 
@@ -232,10 +252,12 @@ impl HasErrorVariantProperties for Variant {
     }
 }
 
+/// This function takes a reference to a Variant and a string representing an attribute, and returns a syn::Error with a message indicating that the specified attribute must be specified for the given variant.
 fn missing_attribute_error(variant: &Variant, attr: &str) -> syn::Error {
     syn::Error::new_spanned(variant, format!("{attr} must be specified"))
 }
 
+/// Checks if the given variant has all the required attributes and returns an error if any attribute is missing.
 pub(super) fn check_missing_attributes(
     variant: &Variant,
     variant_properties: &ErrorVariantProperties,

@@ -24,12 +24,23 @@ use crate::{
 
 impl UserNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts the current user into the database using the provided database connection and returns a `StorageResult` containing the inserted user.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<User> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl User {
+        /// Asynchronously finds a record in the database by the user's email address.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled database connection.
+    /// * `user_email` - The email address of the user to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the found record if successful, or an error if the operation fails.
     pub async fn find_by_user_email(conn: &PgPooledConn, user_email: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -38,6 +49,17 @@ impl User {
         .await
     }
 
+        /// Asynchronously finds a record in the database by the given user ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled connection to the database.
+    /// * `user_id` - A string slice representing the user ID to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the found record if successful, or an error if the operation fails.
+    /// 
     pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -46,6 +68,7 @@ impl User {
         .await
     }
 
+        /// This method updates a user in the database based on the user's ID. It takes a database connection, the user's ID, and the user update information as input parameters. It then uses the generic_update_with_unique_predicate_get_result function to perform the update operation and returns a StorageResult containing the updated user information.
     pub async fn update_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,
@@ -64,6 +87,16 @@ impl User {
         .await
     }
 
+        /// Updates a user's information based on their email address.
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled PostgreSQL connection.
+    /// * `user_email` - The email address of the user to be updated.
+    /// * `user_update` - The new information to update the user with.
+    /// 
+    /// # Returns
+    /// A `StorageResult` containing the result of the update operation.
+    /// 
     pub async fn update_by_user_email(
         conn: &PgPooledConn,
         user_email: &str,
@@ -82,6 +115,14 @@ impl User {
         .await
     }
 
+        /// Asynchronously deletes a record from the database table associated with the current struct based on the provided user ID.
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled connection to the PostgreSQL database
+    /// * `user_id` - A string slice representing the user ID of the record to be deleted
+    /// 
+    /// # Returns
+    /// A `StorageResult` containing a boolean value indicating whether the deletion was successful or not
     pub async fn delete_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -90,6 +131,7 @@ impl User {
         .await
     }
 
+        /// Retrieves a list of joined users and their roles associated with a specific merchant ID from the database.
     pub async fn find_joined_users_and_roles_by_merchant_id(
         conn: &PgPooledConn,
         mid: &str,

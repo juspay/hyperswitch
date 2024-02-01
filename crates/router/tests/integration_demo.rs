@@ -9,6 +9,7 @@ use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 /// Kind of test: output-based testing
 /// 1) Create Merchant account
 #[actix_web::test]
+/// Asynchronously creates a merchant account using the `AppClient` and `admin_client`. It first creates a server using `mk_service` and then uses the `admin_client` to create a merchant account with the expected merchant ID. It asserts that the expected merchant ID matches the one returned from the `admin_client`.
 async fn create_merchant_account() {
     let server = Box::pin(mk_service()).await;
     let client = AppClient::guest();
@@ -57,6 +58,7 @@ async fn create_merchant_account() {
 /// * <https://www.parsonsmatt.org/2017/07/27/inverted_mocking.html>
 /// * <https://www.parsonsmatt.org/2018/03/22/three_layer_haskell_cake.html>
 #[actix_web::test]
+/// Asynchronously performs a partial refund process for a payment using the AppClient and AdminClient. 
 async fn partial_refund() {
     let authentication = ConnectorAuthentication::new();
     let server = Box::pin(mk_service()).await;
@@ -123,6 +125,7 @@ async fn partial_refund() {
 /// * <https://www.parsonsmatt.org/2017/07/27/inverted_mocking.html>
 /// * <https://www.parsonsmatt.org/2018/03/22/three_layer_haskell_cake.html>
 #[actix_web::test]
+/// Asynchronously performs a series of operations to test the creation of merchant accounts, connectors, payments, and refunds using the AppClient. It creates a new ConnectorAuthentication, a Boxed service, and several clients to carry out the various operations. It then asserts the status and error message of the refunds created to ensure they behave as expected.
 async fn exceed_refund() {
     let authentication = ConnectorAuthentication::new();
     let server = Box::pin(mk_service()).await;

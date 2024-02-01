@@ -2,10 +2,12 @@ use proc_macro2::Span;
 use quote::ToTokens;
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, Attribute, Token};
 
+/// Returns a syntax error with a message indicating that the macro only supports enums.
 pub fn non_enum_error() -> syn::Error {
     syn::Error::new(Span::call_site(), "This macro only supports enums.")
 }
 
+/// This method creates a syn::Error instance with a message indicating that multiple occurrences of an error attribute were found. It takes two tokens representing the first and second keywords, and a string representing the attribute, and returns the syn::Error instance.
 pub(super) fn occurrence_error<T: ToTokens>(
     first_keyword: T,
     second_keyword: T,
@@ -19,6 +21,7 @@ pub(super) fn occurrence_error<T: ToTokens>(
     error
 }
 
+/// Creates a new `syn::Error` with the given `span` and `message`.
 pub(super) fn syn_error(span: Span, message: &str) -> syn::Error {
     syn::Error::new(span, message)
 }
@@ -34,6 +37,7 @@ where
         .join(", ")
 }
 
+/// This method takes an identifier and a collection of attributes, filters the attributes based on the identifier, and then parses the filtered attributes into a vector of type T. It returns the parsed vector or an error result.
 pub(super) fn get_metadata_inner<'a, T: Parse + Spanned>(
     ident: &str,
     attrs: impl IntoIterator<Item = &'a Attribute>,
@@ -47,6 +51,9 @@ pub(super) fn get_metadata_inner<'a, T: Parse + Spanned>(
         })
 }
 
+/// This method takes a syn::Data and returns a Result containing a Punctuated list of syn::Field items. 
+/// If the input data is a struct with named fields, it returns Ok with a cloned list of the named fields. 
+/// If the input data is not a struct with named fields, it returns an Err with an error message.
 pub(super) fn get_struct_fields(
     data: syn::Data,
 ) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {

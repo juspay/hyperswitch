@@ -7,6 +7,7 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
+/// Asynchronously retrieves forex data using the given `AppState` and `HttpRequest`. It wraps the retrieval process in a server call, applying authentication and API locking as necessary.
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::RetrieveForexFlow;
     Box::pin(api::server_wrap(
@@ -25,6 +26,7 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
     .await
 }
 
+/// This method is used to convert a certain amount from one currency to another using forex conversion rates. It takes in the current application state, the HTTP request, and the currency conversion parameters as input. It then uses the API server wrap to handle the currency conversion process asynchronously and returns an HTTP response.
 pub async fn convert_forex(
     state: web::Data<AppState>,
     req: HttpRequest,

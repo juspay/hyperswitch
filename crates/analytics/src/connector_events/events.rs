@@ -12,6 +12,7 @@ use crate::{
 };
 pub trait ConnectorEventLogAnalytics: LoadRow<ConnectorEventsResult> {}
 
+/// Asynchronously retrieves connector events for a specific merchant based on the provided query parameters. The method requires a generic type T that implements both AnalyticsDataSource and ConnectorEventLogAnalytics traits, and also expects several associated types to be implemented for T. The method constructs a query based on the provided parameters and executes it using the provided pool. It returns a vector of ConnectorEventsResult or an error indicating the failure in query building or execution.
 pub async fn get_connector_events<T>(
     merchant_id: &String,
     query_param: ConnectorEventsRequest,

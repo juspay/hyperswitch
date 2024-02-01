@@ -15,7 +15,10 @@
     operation_id = "Create Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-pub async fn create_gsm_rule() {}
+/// Asynchronously creates a GSM (Global System for Mobile Communications) rule.
+pub async fn create_gsm_rule() {
+    // method implementation goes here
+}
 
 /// Gsm - Get
 ///
@@ -34,7 +37,10 @@ pub async fn create_gsm_rule() {}
     operation_id = "Retrieve Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-pub async fn get_gsm_rule() {}
+/// Asynchronously retrieves the GSM (Global System for Mobile communications) rule.
+pub async fn get_gsm_rule() {
+    // method implementation goes here
+}
 
 /// Gsm - Update
 ///
@@ -53,7 +59,10 @@ pub async fn get_gsm_rule() {}
     operation_id = "Update Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-pub async fn update_gsm_rule() {}
+/// Asynchronously updates the GSM rule.
+pub async fn update_gsm_rule() {
+    // method implementation here
+}
 
 /// Gsm - Delete
 ///
@@ -72,4 +81,7 @@ pub async fn update_gsm_rule() {}
     operation_id = "Delete Gsm Rule",
     security(("admin_api_key" = [])),
 )]
-pub async fn delete_gsm_rule() {}
+/// Asynchronously deletes a GSM rule.
+pub async fn delete_gsm_rule() {
+    // implementation goes here
+}

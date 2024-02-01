@@ -20,6 +20,7 @@ pub async fn health() -> impl actix_web::Responder {
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::DeepHealthCheck))]
+/// Performs a deep health check by adding a health metric, creating a flow for deep health check, and executing the deep_health_check_func within a server_wrap.
 pub async fn deep_health_check(
     state: web::Data<app::AppState>,
     request: HttpRequest,
@@ -40,6 +41,7 @@ pub async fn deep_health_check(
     .await
 }
 
+/// Asynchronously performs a deep health check on the application's components including the database, Redis, and locker. If the "olap" feature is enabled, it also performs a health check on the analytics component. It then constructs a RouterHealthCheckResponse containing the status of each component and returns it as an ApplicationResponse in a RouterResponse.
 async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHealthCheckResponse> {
     logger::info!("Deep health check was called");
 

@@ -44,6 +44,11 @@ pub struct ClickhouseConfig {
 }
 
 impl Default for ClickhouseConfig {
+        /// Creates a new instance of the struct with default values for the fields:
+    /// - username is set to "default"
+    /// - password is set to None
+    /// - host is set to "http://localhost:8123"
+    /// - database_name is set to "default"
     fn default() -> Self {
         Self {
             username: "default".to_string(),
@@ -55,6 +60,8 @@ impl Default for ClickhouseConfig {
 }
 
 impl ClickhouseClient {
+        /// Asynchronously executes a query on the Clickhouse database using the provided query string. 
+    /// Returns a ClickhouseResult containing a vector of serde_json::Value representing the result of the query.
     async fn execute_query(&self, query: &str) -> ClickhouseResult<Vec<serde_json::Value>> {
         logger::debug!("Executing query: {query}");
         let client = reqwest::Client::new();
@@ -96,6 +103,12 @@ impl ClickhouseClient {
 
 #[async_trait::async_trait]
 impl HealthCheck for ClickhouseClient {
+        /// Performs a deep health check by executing a query to the database and checking for the successful execution of "SELECT 1".
+    ///
+    /// # Returns
+    /// 
+    /// Returns a `CustomResult` where the success value is `()` if the query is executed successfully, otherwise it returns a `QueryExecutionError`.
+    ///
     async fn deep_health_check(
         &self,
     ) -> common_utils::errors::CustomResult<(), QueryExecutionError> {
@@ -110,6 +123,8 @@ impl HealthCheck for ClickhouseClient {
 impl AnalyticsDataSource for ClickhouseClient {
     type Row = serde_json::Value;
 
+        /// Asynchronously loads results of type T from the database based on the provided query.
+    /// Returns a CustomResult containing a vector of type T, or a QueryExecutionError if there is a database error or failure to extract rows.
     async fn load_results<T>(
         &self,
         query: &str,
@@ -126,6 +141,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             .change_context(QueryExecutionError::RowExtractionFailure)
     }
 
+        /// This method takes an AnalyticsCollection as input and returns a TableEngine based on the type of collection.
     fn get_table_engine(table: AnalyticsCollection) -> TableEngine {
         match table {
             AnalyticsCollection::Payment
@@ -145,6 +161,8 @@ impl<T, E> LoadRow<T> for ClickhouseClient
 where
     Self::Row: TryInto<T, Error = Report<E>>,
 {
+        /// This method takes a row of type Self::Row and attempts to convert it into a result of type T using the try_into method. 
+    /// If the conversion is successful, it returns the result. If the conversion fails, it returns a QueryExecutionError with the context of RowExtractionFailure.
     fn load_row(row: Self::Row) -> common_utils::errors::CustomResult<T, QueryExecutionError> {
         row.try_into()
             .change_context(QueryExecutionError::RowExtractionFailure)
@@ -183,6 +201,7 @@ struct CkhOutput<T> {
 impl TryInto<ApiLogsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Tries to convert the current value into an `ApiLogsResult` by deserializing it from JSON. If successful, returns a `Result::Ok` with the deserialized `ApiLogsResult`. If unsuccessful, returns a `Result::Err` with a `ParsingError` containing a message indicating the failure to parse `ApiLogsResult` from clickhouse results.
     fn try_into(self) -> Result<ApiLogsResult, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -195,6 +214,7 @@ impl TryInto<ApiLogsResult> for serde_json::Value {
 impl TryInto<SdkEventsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a SdkEventsResult, returning a Result.
     fn try_into(self) -> Result<SdkEventsResult, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -207,6 +227,7 @@ impl TryInto<SdkEventsResult> for serde_json::Value {
 impl TryInto<ConnectorEventsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a `Result<ConnectorEventsResult, Self::Error>`.
     fn try_into(self) -> Result<ConnectorEventsResult, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -219,6 +240,7 @@ impl TryInto<ConnectorEventsResult> for serde_json::Value {
 impl TryInto<PaymentMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a PaymentMetricRow, returning a Result.
     fn try_into(self) -> Result<PaymentMetricRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -231,6 +253,7 @@ impl TryInto<PaymentMetricRow> for serde_json::Value {
 impl TryInto<PaymentDistributionRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the given value into a `Result<PaymentDistributionRow, Self::Error>` by deserializing it using serde_json. If the deserialization fails, an error with the context "Failed to parse PaymentDistributionRow in clickhouse results" is returned.
     fn try_into(self) -> Result<PaymentDistributionRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -243,6 +266,10 @@ impl TryInto<PaymentDistributionRow> for serde_json::Value {
 impl TryInto<FilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a `FilterRow`, returning a `Result` that
+    /// contains either the `FilterRow` or an error. This method uses serde_json to
+    /// deserialize the current value into a `FilterRow`, and returns an error if the
+    /// deserialization fails.
     fn try_into(self) -> Result<FilterRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -255,6 +282,7 @@ impl TryInto<FilterRow> for serde_json::Value {
 impl TryInto<RefundMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Tries to convert the current value into a RefundMetricRow, returning a Result.
     fn try_into(self) -> Result<RefundMetricRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -267,6 +295,7 @@ impl TryInto<RefundMetricRow> for serde_json::Value {
 impl TryInto<RefundFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the value into a RefundFilterRow, returning a Result.
     fn try_into(self) -> Result<RefundFilterRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -279,6 +308,7 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
 impl TryInto<ApiEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into an `ApiEventMetricRow`, returning a `Result`.
     fn try_into(self) -> Result<ApiEventMetricRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -291,6 +321,7 @@ impl TryInto<ApiEventMetricRow> for serde_json::Value {
 impl TryInto<LatencyAvg> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a `LatencyAvg` instance, returning a `Result` with the converted value or an error. 
     fn try_into(self) -> Result<LatencyAvg, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -303,6 +334,7 @@ impl TryInto<LatencyAvg> for serde_json::Value {
 impl TryInto<SdkEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a SdkEventMetricRow, returning a Result.
     fn try_into(self) -> Result<SdkEventMetricRow, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -315,6 +347,7 @@ impl TryInto<SdkEventMetricRow> for serde_json::Value {
 impl TryInto<SdkEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into a SdkEventFilter, returning a Result.
     fn try_into(self) -> Result<SdkEventFilter, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -327,6 +360,7 @@ impl TryInto<SdkEventFilter> for serde_json::Value {
 impl TryInto<ApiEventFilter> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the current value into an `ApiEventFilter` by deserializing it from JSON using `serde_json`. If successful, returns the deserialized `ApiEventFilter` wrapped in a `Result::Ok`. If the deserialization fails, returns a `Result::Err` with a `ParsingError::StructParseFailure` containing a descriptive error message.
     fn try_into(self) -> Result<ApiEventFilter, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -339,6 +373,7 @@ impl TryInto<ApiEventFilter> for serde_json::Value {
 impl TryInto<OutgoingWebhookLogsResult> for serde_json::Value {
     type Error = Report<ParsingError>;
 
+        /// Attempts to convert the value to OutgoingWebhookLogsResult by deserializing it from JSON, then handling any potential parsing errors by changing the context to a ParsingError with a specific message.
     fn try_into(self) -> Result<OutgoingWebhookLogsResult, Self::Error> {
         serde_json::from_value(self)
             .into_report()
@@ -349,6 +384,7 @@ impl TryInto<OutgoingWebhookLogsResult> for serde_json::Value {
 }
 
 impl ToSql<ClickhouseClient> for PrimitiveDateTime {
+        /// Converts the given date time to a SQL string using the provided table engine.
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         let format =
             time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
@@ -365,6 +401,7 @@ impl ToSql<ClickhouseClient> for PrimitiveDateTime {
 }
 
 impl ToSql<ClickhouseClient> for AnalyticsCollection {
+        /// Converts the enum variant to its corresponding SQL table name based on the provided TableEngine.
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempts".to_string()),
@@ -382,6 +419,8 @@ impl<T> ToSql<ClickhouseClient> for Aggregate<T>
 where
     T: ToSql<ClickhouseClient>,
 {
+        /// Converts the current SelectField instance to SQL syntax based on the provided table engine.
+    /// Returns a Result containing the SQL string if successful, or a ParsingError if an error occurs.
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Count { field: _, alias } => {
@@ -440,6 +479,7 @@ impl<T> ToSql<ClickhouseClient> for Window<T>
 where
     T: ToSql<ClickhouseClient>,
 {
+        /// Converts the window function to its SQL representation based on the provided table engine.
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Sum {

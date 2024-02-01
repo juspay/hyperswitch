@@ -42,6 +42,7 @@ pub struct KafkaPaymentAttempt<'a> {
 }
 
 impl<'a> KafkaPaymentAttempt<'a> {
+        /// Converts a PaymentAttempt struct into Self, extracting and copying its fields
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
         Self {
             payment_id: &attempt.payment_id,
@@ -79,6 +80,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
 }
 
 impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
+        /// This method constructs a unique key by concatenating the merchant ID, payment ID, and attempt ID with underscores.
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",
@@ -86,6 +88,8 @@ impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
         )
     }
 
+        /// Retrieves the creation timestamp of the object, if available.
+    /// Returns the creation timestamp as an Option<i64>, representing the number of seconds since the Unix epoch.
     fn creation_timestamp(&self) -> Option<i64> {
         Some(self.modified_at.unix_timestamp())
     }

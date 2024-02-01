@@ -5,6 +5,7 @@ use common_utils::date_time;
 use masking::PeekInterface;
 
 #[test]
+/// This method tests the functionality of the CardSecurityCode type. It creates a valid and an invalid CardSecurityCode, performs various operations on them, and asserts the expected results. It also tests the serialization and deserialization of CardSecurityCode using serde_json.
 fn test_card_security_code() {
     // no panic
     let valid_card_security_code = CardSecurityCode::try_from(1234).unwrap();
@@ -26,6 +27,7 @@ fn test_card_security_code() {
 }
 
 #[test]
+/// This method tests the functionality of the CardExpirationMonth type, including its conversion from an integer, serialization to JSON, and deserialization from JSON. It also checks for error handling in case of invalid input.
 fn test_card_expiration_month() {
     // no panic
     let card_exp_month = CardExpirationMonth::try_from(12).unwrap();
@@ -47,6 +49,7 @@ fn test_card_expiration_month() {
 }
 
 #[test]
+/// This method tests the functionality of the CardExpirationYear type by creating a valid card expiration year from the current year, creating an invalid card expiration year from the previous year, and performing various assertions and validations on the created card expiration years. It also tests the serialization and deserialization of the card expiration year using serde_json.
 fn test_card_expiration_year() {
     let curr_date = date_time::now();
     let curr_year = u16::try_from(curr_date.year()).expect("valid year");
@@ -71,6 +74,7 @@ fn test_card_expiration_year() {
 }
 
 #[test]
+/// Tests the functionality of the CardExpiration type, including conversion from a tuple of month and year, checking for expiration, serialization to JSON, and deserialization from JSON.
 fn test_card_expiration() {
     let curr_date = date_time::now();
     let curr_year = u16::try_from(curr_date.year()).expect("valid year");

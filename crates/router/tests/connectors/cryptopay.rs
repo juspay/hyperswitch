@@ -11,6 +11,8 @@ use crate::{
 struct CryptopayTest;
 impl ConnectorActions for CryptopayTest {}
 impl utils::Connector for CryptopayTest {
+        /// Retrieves the connector data for the Cryptopay API connector.
+    /// This method returns a ConnectorData struct containing the Cryptopay connector, connector name, token type, and merchant connector ID.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Cryptopay;
         types::api::ConnectorData {
@@ -21,6 +23,7 @@ impl utils::Connector for CryptopayTest {
         }
     }
 
+        /// This method retrieves the authentication token for the connector. It creates a new ConnectorAuthentication instance and extracts the cryptopay field, then converts it into a ConnectorAuthType using the to_connector_auth_type function from the utils module.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -30,13 +33,15 @@ impl utils::Connector for CryptopayTest {
         )
     }
 
+        /// Returns the name "cryptopay".
     fn get_name(&self) -> String {
-        "cryptopay".to_string()
-    }
+            "cryptopay".to_string()
+        }
 }
 
 static CONNECTOR: CryptopayTest = CryptopayTest {};
 
+/// Retrieves the default payment information, including the billing address, phone details, and return URL.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(PaymentAddress {
@@ -63,6 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     })
 }
 
+/// Returns payment method details for authorizing a payment.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
@@ -100,6 +106,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 
 // Creates a payment using the manual capture flow
 #[actix_web::test]
+/// This method ensures that only the authorized payment is processed by making an authorization request to the connector. It then checks the response status and verifies that the response contains the necessary redirection data.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -118,6 +125,7 @@ async fn should_only_authorize_payment() {
 
 // Synchronizes a successful transaction.
 #[actix_web::test]
+/// Asynchronously attempts to sync an authorized payment using the PSync mechanism. It retries the sync operation until the status matches the authorized status, and then checks if the response status is charged.
 async fn should_sync_authorized_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -137,6 +145,7 @@ async fn should_sync_authorized_payment() {
 
 // Synchronizes a unresolved(underpaid) transaction.
 #[actix_web::test]
+/// Asynchronously checks if an unresolved payment should be synchronized. It retries a PSync operation until the status matches 'Authorized' and then checks if the response status is 'Unresolved'.
 async fn should_sync_unresolved_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(

@@ -9,6 +9,7 @@ use crate::{
     stream::{StreamEntries, StreamReadResult},
 };
 
+/// Parses the stream entries from the given `StreamReadResult` for the specified `stream_name`.
 pub fn parse_stream_entries<'a>(
     read_result: &'a StreamReadResult,
     stream_name: &str,
@@ -23,6 +24,7 @@ pub fn parse_stream_entries<'a>(
         .into_report()
 }
 
+/// Deserialize a JSON value into an i64. If the value is a string, it will attempt to parse the string into an i64. If the value is a number, it will attempt to extract the i64 from the number. If the value is of any other type, it will return an error.
 pub(crate) fn deserialize_i64<'de, D>(deserializer: D) -> Result<i64, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -42,6 +44,20 @@ where
     }
 }
 
+/// Deserialize a key-value database operation from the given deserializer.
+///
+/// # Arguments
+///
+/// * `deserializer` - A serde deserializer for the given data format
+///
+/// # Returns
+///
+/// A Result containing the deserialized key-value database operation, or a custom error if deserialization fails.
+///
+/// # Errors
+///
+/// An error is returned if the deserialization fails or if the data format is unexpected.
+///
 pub(crate) fn deserialize_db_op<'de, D>(deserializer: D) -> Result<kv::DBOperation, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -60,6 +76,17 @@ where
 // Here the output is in the format (stream_index, jobs_picked),
 // similar to the first argument of the function
 #[inline(always)]
+/// Increments the stream index and resets the jobs_picked counter if the index reaches the total number of streams.
+///
+/// # Arguments
+///
+/// * `index` - The current index of the stream
+/// * `jobs_picked` - A reference to an atomic counter for the jobs picked
+/// * `total_streams` - The total number of streams
+///
+/// # Returns
+///
+/// The new index after incrementing, or 0 if the index reaches the total number of streams
 pub async fn increment_stream_index(
     (index, jobs_picked): (u8, Arc<atomic::AtomicU8>),
     total_streams: u8,

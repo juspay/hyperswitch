@@ -11,6 +11,15 @@ use crate::{
 
 impl CustomerNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a new customer into the database using the provided database connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the newly inserted `Customer` if successful, or an error if the insertion fails.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +27,7 @@ impl CustomerNew {
 
 impl Customer {
     #[instrument(skip(conn))]
+        /// Updates a customer's information for a specific merchant by their IDs. If the update operation results in a DatabaseError::NoFieldsToUpdate, it will attempt to find the customer's information for the specified merchant. Returns a StorageResult containing the updated customer information if successful, or an error if the update operation fails.
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: String,
@@ -46,6 +56,8 @@ impl Customer {
     }
 
     #[instrument(skip(conn))]
+        /// Deletes a record from the database based on the provided customer_id and merchant_id.
+    /// Returns a boolean indicating success or failure.
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -61,6 +73,7 @@ impl Customer {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by the given customer ID and merchant ID in the database.
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -74,6 +87,7 @@ impl Customer {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously retrieves a list of items from the storage by their merchant ID.
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -89,6 +103,7 @@ impl Customer {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds an optional instance of the current type by the given customer ID and merchant ID in the database using the provided database connection. Returns a `StorageResult` containing either `Some` instance if found or `None` if not found.
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,

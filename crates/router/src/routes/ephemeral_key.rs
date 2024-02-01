@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]
+/// Asynchronously handles the creation of an ephemeral key for a customer. It extracts the necessary data from the request, creates a flow for ephemeral key creation, and uses the `api::server_wrap` function to perform the actual key creation. The method returns an `HttpResponse` with the result of the key creation process.
 pub async fn ephemeral_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -30,6 +31,7 @@ pub async fn ephemeral_key_create(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
+/// Handles the deletion of an ephemeral key by making a request to the server with the provided payload and authentication.
 pub async fn ephemeral_key_delete(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -92,6 +92,7 @@ impl<'e, P, A> Encode<'e, P> for A
 where
     Self: 'e + std::fmt::Debug,
 {
+        /// This method converts the input into a type P, serializes it into a JSON string, and then applies custom error handling and contextual information before returning the result.
     fn convert_and_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
@@ -106,6 +107,7 @@ where
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
+        /// This method takes a reference to a value and converts it to a URL-encoded string. It uses the `TryFrom` and `Serialize` traits to perform the conversion, and returns a `CustomResult` with the URL-encoded string or a `ParsingError` if an error occurs during the conversion process.
     fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
@@ -131,6 +133,7 @@ where
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
+        /// Encodes the struct to a JSON string and returns it as a result. If successful, returns the encoded JSON string, otherwise returns a ParsingError.
     fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize,
@@ -141,6 +144,8 @@ where
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
+        /// Encodes the current struct into an XML string representation.
+    /// Returns a Result containing the XML string if successful, or a ParsingError if encoding fails.
     fn encode_to_string_of_xml(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize,
@@ -151,6 +156,7 @@ where
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
+        /// Encodes the current object into a serde_json::Value and returns a CustomResult containing the encoded value or a ParsingError.
     fn encode_to_value(&'e self) -> CustomResult<serde_json::Value, errors::ParsingError>
     where
         Self: Serialize,
@@ -161,6 +167,8 @@ where
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 
+        /// Encodes the current value into a byte vector using serde_json and returns the result as a CustomResult.
+    /// 
     fn encode_to_vec(&'e self) -> CustomResult<Vec<u8>, errors::ParsingError>
     where
         Self: Serialize,
@@ -188,6 +196,7 @@ pub trait BytesExt {
 }
 
 impl BytesExt for bytes::Bytes {
+        /// Parses a struct of type T from the given bytes using serde_json, and returns a CustomResult containing the parsed struct or a ParsingError.
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
@@ -224,6 +233,10 @@ pub trait ByteSliceExt {
 
 impl ByteSliceExt for [u8] {
     #[track_caller]
+        /// This method takes a reference to a struct, a type name, and attempts to deserialize the struct from a JSON byte slice. 
+    /// If successful, it returns a CustomResult containing the deserialized struct. If unsuccessful, it returns a ParsingError 
+    /// with a context indicating the failure to parse the specified type from the byte slice, along with a printable message 
+    /// explaining the failure.
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
@@ -251,6 +264,7 @@ pub trait ValueExt {
 }
 
 impl ValueExt for serde_json::Value {
+        /// Parses the value into the specified type using serde_json, returning a CustomResult
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
@@ -270,6 +284,7 @@ impl<MaskingStrategy> ValueExt for Secret<serde_json::Value, MaskingStrategy>
 where
     MaskingStrategy: Strategy<serde_json::Value>,
 {
+        /// Parses the value of type T from the given type_name using serde deserialization.
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
@@ -279,6 +294,8 @@ where
 }
 
 impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
+        /// Parses the value of the specified type using serde deserialization and returns a CustomResult
+    /// containing the parsed value or a ParsingError if deserialization fails.
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
@@ -312,6 +329,7 @@ pub trait StringExt<T> {
 }
 
 impl<T> StringExt<T> for String {
+        /// Parses the input string into an enum variant of type T, and returns a CustomResult containing the parsed value or a ParsingError.
     fn parse_enum(self, enum_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
@@ -323,6 +341,8 @@ impl<T> StringExt<T> for String {
             .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
     }
 
+        /// Parse a JSON string into a specific struct type using serde deserialization,
+    /// and return a CustomResult containing the deserialized struct or a ParsingError.
     fn parse_struct<'de>(
         &'de self,
         type_name: &'static str,
@@ -368,6 +388,12 @@ pub trait AsyncExt<A, B> {
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
+        /// Asynchronously applies the provided function to the result of a successful future, then awaits the resulting future,
+    /// returning a new future with the transformed value. If the original future is an error, it simply returns the error.
+    ///
+    /// # Arguments
+    /// * `func` - A function that takes the successful value of the original future and returns a future with the transformed value.
+    ///
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
@@ -379,6 +405,14 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
         }
     }
 
+        /// Asynchronously maps the result of a `Future` using the provided function `func`.
+    ///
+    /// # Arguments
+    /// * `func` - The function used to map the result of the `Future`.
+    ///
+    /// # Returns
+    /// The mapped result of the `Future` wrapped in the same type of `Result`.
+    ///
     async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
@@ -395,6 +429,14 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
+        /// Asynchronously applies a function to the wrapped value and returns the result as a future.
+    ///
+    /// # Arguments
+    /// * `func` - A function that takes the wrapped value and returns a future of the same type.
+    ///
+    /// # Returns
+    /// The result of applying the function to the wrapped value as a future.
+    ///
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
@@ -406,6 +448,21 @@ impl<A: Send, B> AsyncExt<A, B> for Option<A> {
         }
     }
 
+        /// Asynchronously maps the option to another option by applying the provided function.
+    /// 
+    /// The `async_map` method takes a closure `func` that accepts the value inside the `Option` and returns a future. 
+    /// It then awaits the future and returns a new `Option` containing the result. 
+    /// If the original option is `Some`, the closure `func` is applied to the value and the result is awaited. 
+    /// If the original option is `None`, the `async_map` method returns `None` without applying the closure.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `func` - A closure that defines the mapping operation to be applied to the value inside the `Option`.
+    /// 
+    /// # Returns
+    /// 
+    /// The method returns a new `Option` containing the result of applying the function to the value inside the original `Option`, or `None` if the original option was `None`.
+    /// 
     async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
@@ -444,12 +501,14 @@ pub trait ConfigExt {
 }
 
 impl ConfigExt for u32 {
+        /// Checks if the string, after trimming leading and trailing whitespace, is empty or not.
     fn is_empty_after_trim(&self) -> bool {
         false
     }
 }
 
 impl ConfigExt for String {
+        /// This method trims the string and checks if the resulting string is empty.
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()
     }
@@ -460,6 +519,7 @@ where
     T: ConfigExt + Default + PartialEq<T>,
     U: Strategy<T>,
 {
+        /// Checks if the value returned by the peek method is equal to the default value of the type T.
     fn is_default(&self) -> bool
     where
         T: Default + PartialEq<T>,
@@ -467,10 +527,12 @@ where
         *self.peek() == T::default()
     }
 
+        /// Checks if the string, after trimming any leading or trailing whitespace, is empty.
     fn is_empty_after_trim(&self) -> bool {
         self.peek().is_empty_after_trim()
     }
 
+        /// Checks if the value returned by peek() is either the default value for type T or empty after trimming.
     fn is_default_or_empty(&self) -> bool
     where
         T: Default + PartialEq<T>,
@@ -490,6 +552,7 @@ pub trait XmlExt {
 }
 
 impl XmlExt for &str {
+        /// This method takes a string of XML data and attempts to parse it into a specified type using the serde deserialization framework. It returns a Result containing the parsed value of the specified type if successful, or a quick_xml::de::DeError if parsing fails.
     fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
     where
         T: serde::de::DeserializeOwned,
@@ -535,6 +598,7 @@ where
     T: std::fmt::Debug,
 {
     #[track_caller]
+        /// Check if the specified field is present in the current object. If the field is not present, return a `ValidationError` with a message indicating that the field is required.
     fn check_value_present(
         &self,
         field_name: &'static str,
@@ -550,6 +614,7 @@ where
 
     // This will allow the error message that was generated in this function to point to the call site
     #[track_caller]
+        /// Retrieves the required value from an Option. If the Option contains a value, it returns the value wrapped in a Result::Ok. If the Option is None, it returns a Result::Err containing a ValidationError indicating the missing required field.
     fn get_required_value(
         self,
         field_name: &'static str,
@@ -565,6 +630,8 @@ where
     }
 
     #[track_caller]
+        /// Parses the value of the specified enum from the input string, returning a CustomResult
+    /// containing the parsed enum value or a ParsingError if parsing fails.
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
         T: AsRef<str>,
@@ -582,6 +649,7 @@ where
     }
 
     #[track_caller]
+        /// Parses the value of type U from the given type_name using the ValueExt trait and serde deserialization.
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
         T: ValueExt,
@@ -593,6 +661,12 @@ where
         value.parse_value(type_name)
     }
 
+        /// Updates the value of the optional object with the provided value, if the value is not None.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The new value to update the optional object with.
+    ///
     fn update_value(&mut self, value: Self) {
         if let Some(a) = value {
             *self = Some(a)

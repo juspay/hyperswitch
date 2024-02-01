@@ -6,11 +6,22 @@ use crate::{selenium::*, tester};
 struct ZenSeleniumTest;
 
 impl SeleniumTest for ZenSeleniumTest {
+        /// Returns the name of the connector as a String.
     fn get_connector_name(&self) -> String {
         "zen".to_string()
     }
 }
 
+/// Asynchronously makes a payment using the ZenSeleniumTest instance with the provided WebDriver.
+///
+/// # Arguments
+///
+/// * `web_driver` - The WebDriver to use for making the payment
+///
+/// # Returns
+///
+/// * `Result<(), WebDriverError>` - A Result indicating success or an error of type WebDriverError
+///
 async fn should_make_zen_3ds_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let mycon = ZenSeleniumTest {};
     mycon
@@ -33,6 +44,7 @@ async fn should_make_zen_3ds_payment(web_driver: WebDriver) -> Result<(), WebDri
 
 #[test]
 #[serial]
+/// This method is a test case for the should_make_zen_3ds_payment function, which is used to test the functionality of making a 3DS payment using the Zen payment system.
 fn should_make_zen_3ds_payment_test() {
     tester!(should_make_zen_3ds_payment);
 }

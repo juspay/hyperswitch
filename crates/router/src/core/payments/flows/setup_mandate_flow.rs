@@ -23,6 +23,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::SetupMandate>
 {
+        /// Asynchronously constructs router data for setting up a mandate. This method takes various parameters such as the application state, connector ID, merchant account, key store, customer information, and merchant connector account type to create the required setup mandate router data. It then calls the `construct_payment_router_data` method from the `transformers` module to perform the actual data construction and returns the result as a future wrapped in a `RouterResult` enum.
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -50,6 +51,7 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
+        /// Asynchronously decides the flows based on the given parameters and returns a RouterResult.
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -176,6 +178,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously adds a payment method token to the application state using the provided connector data and tokenization action. Returns an optional String representing the result of the operation.
     async fn add_payment_method_token<'a>(
         &mut self,
         state: &AppState,
@@ -193,6 +196,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         .await
     }
 
+        /// Asynchronously creates a connector customer using the provided state and connector data.
+    /// Returns an optional string representing the created connector customer.
     async fn create_connector_customer<'a>(
         &self,
         state: &AppState,
@@ -207,6 +212,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         .await
     }
 
+        /// Builds a specific connector request based on the given state, connector data, and call connector action. 
+    /// If the call connector action is Trigger, it retrieves the connector integration, builds a request using the integration and connector configuration, and returns it along with a boolean value true. 
+    /// If the call connector action is not Trigger, it returns None along with a boolean value true.
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,
@@ -236,6 +244,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
 impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert the provided SetupMandateRequestData into a new instance of the current type.
+    /// If successful, returns the new instance with the provided data.
     fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.email,
@@ -250,6 +260,7 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
 
 #[allow(clippy::too_many_arguments)]
 impl types::SetupMandateRouterData {
+        /// Asynchronously decides the flow of the payment processing based on the confirmation status. If confirmation is true, it executes the connector processing step, saves the payment method, and initiates the mandate procedure. If confirmation is not true, it returns a clone of the current instance.
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -306,26 +317,37 @@ impl types::SetupMandateRouterData {
 }
 
 impl mandate::MandateBehaviour for types::SetupMandateRequestData {
+        /// This method returns the amount as an i64.
     fn get_amount(&self) -> i64 {
         0
     }
 
+        /// Retrieves the setup future usage for the current object, if it exists.
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
 
+        /// Returns the optional reference to the mandate ID associated with the payment.
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
 
+        /// Sets the mandate ID for the payment.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_mandate_id` - The new mandate ID to be set for the payment.
+    ///
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
 
+        /// This method returns a clone of the payment method data associated with the current object.
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
 
+        /// Retrieves the setup mandate details, if available, to be used for further processing.
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
@@ -334,6 +356,8 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
 impl TryFrom<types::SetupMandateRequestData> for types::PaymentMethodTokenizationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a new instance of the current type from the provided `SetupMandateRequestData`.
+    /// Returns a Result with the newly created instance if successful, or an error if the conversion fails.
     fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,

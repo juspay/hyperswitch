@@ -78,6 +78,7 @@ pub(crate) mod diesel_impl {
     pub struct DieselArray<T>(Vec<Option<T>>);
 
     impl<T> From<DieselArray<T>> for Vec<T> {
+                /// Converts a DieselArray into the specified type.
         fn from(array: DieselArray<T>) -> Self {
             array.0.into_iter().flatten().collect()
         }
@@ -90,6 +91,15 @@ pub(crate) mod diesel_impl {
     {
         type Row = Vec<Option<T>>;
 
+                /// Takes a row of data and constructs a new instance of the current type.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `row` - A row of data, which is used to build the new instance.
+        /// 
+        /// # Returns
+        /// 
+        /// A Result containing the newly constructed instance of the current type, or an error if the construction fails.
         fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
             Ok(Self(row))
         }
@@ -98,6 +108,7 @@ pub(crate) mod diesel_impl {
     pub struct OptionalDieselArray<T>(Option<Vec<Option<T>>>);
 
     impl<T> From<OptionalDieselArray<T>> for Option<Vec<T>> {
+                /// Converts an OptionalDieselArray into Self by flattening the inner array and collecting the elements into Self.
         fn from(option_array: OptionalDieselArray<T>) -> Self {
             option_array
                 .0

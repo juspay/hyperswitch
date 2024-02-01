@@ -78,6 +78,7 @@ pub trait PTError: Send + Sync + 'static {
 }
 
 impl<T: PTError> From<T> for ProcessTrackerError {
+     /// This method takes a value of type T and converts it to a value of type Self using the `to_pt_error` method.
     fn from(value: T) -> Self {
         value.to_pt_error()
     }
@@ -86,6 +87,7 @@ impl<T: PTError> From<T> for ProcessTrackerError {
 impl<T: PTError + std::fmt::Debug + std::fmt::Display> From<error_stack::Report<T>>
     for ProcessTrackerError
 {
+    /// Converts the given error_stack::Report<T> into the current type. It logs the error's current context using the logger and then returns the error's current context as a pt_error.
     fn from(error: error_stack::Report<T>) -> Self {
         logger::error!(error=%error.current_context());
         error.current_context().to_pt_error()

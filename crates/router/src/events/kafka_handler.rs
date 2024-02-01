@@ -7,6 +7,7 @@ use crate::{
     services::kafka::{KafkaError, KafkaMessage, KafkaProducer},
 };
 impl EventHandler for KafkaProducer {
+        /// Logs the given event to Kafka after retrieving the appropriate topic based on the event type.
     fn log_event(&self, event: RawEvent) {
         let topic = self.get_topic(event.event_type);
         if let Err(er) = self.log_kafka_event(topic, &event) {
@@ -16,10 +17,13 @@ impl EventHandler for KafkaProducer {
 }
 
 impl KafkaMessage for RawEvent {
+        /// Returns the key of the current instance as a String.
     fn key(&self) -> String {
         self.key.clone()
     }
 
+        /// Retrieves the value of the message payload as a vector of bytes. 
+    /// 
     fn value(&self) -> MQResult<Vec<u8>> {
         // Add better error logging here
         serde_json::to_vec(&self.payload)

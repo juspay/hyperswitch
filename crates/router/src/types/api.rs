@@ -83,6 +83,10 @@ pub trait ConnectorMandateRevoke:
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+        /// Retrieves the connector transaction ID from the given payment attempt and returns it as a Result. 
+    /// If the connector transaction ID exists, it will be returned within the Ok variant. 
+    /// If the connector transaction ID does not exist, None will be returned within the Ok variant.
+    /// If an error occurs while retrieving the connector transaction ID, an ApiErrorResponse will be returned within the Err variant. 
     fn connector_transaction_id(
         &self,
         payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
@@ -252,6 +256,9 @@ pub enum SessionSurchargeDetails {
 }
 
 impl SessionSurchargeDetails {
+        /// Fetches the surcharge details for a given payment method, payment method type, and card network.
+    /// If the surcharge details are calculated, it retrieves the surcharge details based on the provided parameters.
+    /// If the surcharge details are predetermined, it returns a clone of the predetermined surcharge details.
     pub fn fetch_surcharge_details(
         &self,
         payment_method: &enums::PaymentMethod,
@@ -293,6 +300,7 @@ pub enum PayoutConnectorCallType {
 
 #[cfg(feature = "payouts")]
 impl PayoutConnectorData {
+        /// Retrieves a connector by its name, returning a customized result or an API error response.
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -313,6 +321,17 @@ impl PayoutConnectorData {
         })
     }
 
+        /// Converts a given payout connector name to the corresponding BoxedConnector enum.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_connectors` - A reference to the Connectors struct.
+    /// * `connector_name` - A string slice containing the name of the payout connector.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<BoxedConnector, errors::ApiErrorResponse>` - A custom result type either containing the BoxedConnector enum or an ApiErrorResponse error.
+    /// 
     fn convert_connector(
         _connectors: &Connectors,
         connector_name: &str,
@@ -330,6 +349,7 @@ impl PayoutConnectorData {
 }
 
 impl ConnectorData {
+        /// Retrieves a connector by its name from the provided Connectors instance, along with the specified connector type and optional connector ID.
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
@@ -350,6 +370,7 @@ impl ConnectorData {
         })
     }
 
+        /// This method takes a connector name as input and returns the corresponding boxed connector based on the name provided. It matches the connector name with the predefined enum values and returns the corresponding connector. If the connector name is not found or is invalid, it returns an error with a corresponding message.
     pub fn convert_connector(
         _connectors: &Connectors,
         connector_name: &str,
@@ -455,6 +476,7 @@ mod test {
     use super::*;
 
     #[test]
+        /// This method tests the successful parsing of connector strings and conversion to corresponding enums. It checks if the parsing and conversion for "aci", "shift4", and "authorizedotnet" connectors are successful, and asserts that the returned results are as expected.
     fn test_convert_connector_parsing_success() {
         let result = enums::Connector::from_str("aci");
         assert!(result.is_ok());
@@ -470,6 +492,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the conversion of a string to a Connector enum and asserts that the parsing fails for unknown types.
     fn test_convert_connector_parsing_fail_for_unknown_type() {
         let result = enums::Connector::from_str("unknowntype");
         assert!(result.is_err());
@@ -479,6 +502,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the parsing failure for camel case connector names.
     fn test_convert_connector_parsing_fail_for_camel_case() {
         let result = enums::Connector::from_str("Paypal");
         assert!(result.is_err());

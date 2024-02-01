@@ -122,6 +122,7 @@ pub mod metric_behaviour {
 }
 
 impl From<SdkEventMetrics> for NameDescription {
+        /// Constructs a new instance of Self using the provided SdkEventMetrics value.
     fn from(value: SdkEventMetrics) -> Self {
         Self {
             name: value.to_string(),
@@ -131,6 +132,7 @@ impl From<SdkEventMetrics> for NameDescription {
 }
 
 impl From<SdkEventDimensions> for NameDescription {
+        /// Constructs a new instance of Self using the provided SdkEventDimensions.
     fn from(value: SdkEventDimensions) -> Self {
         Self {
             name: value.to_string(),
@@ -151,6 +153,7 @@ pub struct SdkEventMetricsBucketIdentifier {
 }
 
 impl SdkEventMetricsBucketIdentifier {
+        /// Creates a new instance of the struct with the specified optional parameters.
     pub fn new(
         payment_method: Option<String>,
         platform: Option<String>,
@@ -173,6 +176,7 @@ impl SdkEventMetricsBucketIdentifier {
 }
 
 impl Hash for SdkEventMetricsBucketIdentifier {
+        /// Hashes the fields of the struct using the given hasher.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.payment_method.hash(state);
         self.platform.hash(state);
@@ -185,6 +189,7 @@ impl Hash for SdkEventMetricsBucketIdentifier {
 }
 
 impl PartialEq for SdkEventMetricsBucketIdentifier {
+        /// Compares two values and returns true if they are equal, based on their hash values.
     fn eq(&self, other: &Self) -> bool {
         let mut left = DefaultHasher::new();
         self.hash(&mut left);

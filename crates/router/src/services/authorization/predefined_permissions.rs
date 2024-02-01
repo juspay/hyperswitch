@@ -13,14 +13,21 @@ pub struct RoleInfo {
 }
 
 impl RoleInfo {
+        /// This method returns a reference to the vector of permissions associated with the current instance. 
     pub fn get_permissions(&self) -> &Vec<Permission> {
         &self.permissions
     }
 
+        /// This method returns the name associated with the current object, if one exists.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns an `Option` containing a reference to a static string slice if the name is present, or `None` if it is not.
     pub fn get_name(&self) -> Option<&'static str> {
         self.name
     }
 
+        /// Checks if the current entity is invitable.
     pub fn is_invitable(&self) -> bool {
         self.is_invitable
     }
@@ -306,18 +313,42 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles
 });
 
+/// Retrieves the role name from the given role ID by looking up the role ID in the predefined permissions map.
+/// 
+/// # Arguments
+/// 
+/// * `role_id` - A string slice representing the role ID for which the role name is to be retrieved.
+/// 
+/// # Returns
+/// 
+/// An optional static string reference containing the role name if the role ID is found in the predefined permissions map, otherwise None.
+/// 
 pub fn get_role_name_from_id(role_id: &str) -> Option<&'static str> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
         .and_then(|role_info| role_info.name)
 }
 
+
+/// Checks if a role with the given role ID is invitable.
+///
+/// # Arguments
+///
+/// * `role_id` - A string slice representing the role ID to be checked
+///
+/// # Returns
+///
+/// A boolean value indicating whether the role is invitable or not.
+///
 pub fn is_role_invitable(role_id: &str) -> bool {
     PREDEFINED_PERMISSIONS
         .get(role_id)
         .map_or(false, |role_info| role_info.is_invitable)
 }
 
+
+/// Checks if a role is deletable based on its role ID.
+/// If the role ID exists in the predefined permissions map, it returns true if the role is deletable, otherwise it returns false.
 pub fn is_role_deletable(role_id: &str) -> bool {
     PREDEFINED_PERMISSIONS
         .get(role_id)

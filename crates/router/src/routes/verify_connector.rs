@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::VerifyPaymentConnector))]
+/// Handles the verification of payment connector credentials by wrapping the verification process in a server and applying the necessary authentication and API locking mechanisms. 
 pub async fn payment_connector_verify(
     state: web::Data<AppState>,
     req: HttpRequest,

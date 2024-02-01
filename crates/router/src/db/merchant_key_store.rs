@@ -43,6 +43,7 @@ pub trait MerchantKeyStoreInterface {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for Store {
+        /// Asynchronously inserts a merchant key store into the database after constructing a new store, encrypting the data, inserting it into the database, and converting it using the provided key.
     async fn insert_merchant_key_store(
         &self,
         merchant_key_store: domain::MerchantKeyStore,
@@ -62,6 +63,7 @@ impl MerchantKeyStoreInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Retrieves the merchant key store by the given merchant ID and decrypts the key using the provided Secret. If the "accounts_cache" feature is enabled, it first checks the in-memory cache for the key store and populates it if not found.
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -104,6 +106,9 @@ impl MerchantKeyStoreInterface for Store {
         }
     }
 
+        /// Asynchronously deletes the merchant key store associated with the given merchant ID. 
+    /// Returns a CustomResult containing a boolean value indicating the success of the deletion, 
+    /// or an errors::StorageError if the operation fails.
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -137,6 +142,17 @@ impl MerchantKeyStoreInterface for Store {
     }
 
     #[cfg(feature = "olap")]
+        /// Fetches and decrypts multiple key stores for the specified merchant IDs using the provided secret key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_ids` - A vector of merchant IDs for which the key stores are to be fetched and decrypted.
+    /// * `key` - A reference to the secret key used for decryption.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `MerchantKeyStore` objects if successful, or a `StorageError` if an error occurs.
+    /// 
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,
@@ -166,6 +182,9 @@ impl MerchantKeyStoreInterface for Store {
 
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for MockDb {
+        /// Asynchronously inserts a merchant key store into the storage. It checks for duplicate merchant IDs
+    /// and returns an error if found. Otherwise, it converts the merchant key store, pushes it into the
+    /// locked merchant key store, and converts the key before returning the result.
     async fn insert_merchant_key_store(
         &self,
         merchant_key_store: domain::MerchantKeyStore,
@@ -194,6 +213,7 @@ impl MerchantKeyStoreInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Retrieves the merchant key store by the given merchant ID and decrypts it using the provided key.
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -213,6 +233,11 @@ impl MerchantKeyStoreInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously deletes a merchant's key store by the provided merchant ID.
+    /// If a matching merchant key store is found, it is removed from the key store collection
+    /// and the method returns `Ok(true)`. If no matching merchant key store is found, an error
+    /// of type `errors::StorageError` is returned with a `ValueNotFound` variant containing a
+    /// message indicating that no merchant key store was found for the provided merchant ID.
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -230,6 +255,17 @@ impl MerchantKeyStoreInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+        /// Retrieves the key stores for multiple merchants by their IDs, and decrypts the key using the provided secret key.
+    /// 
+    /// # Arguments
+    ///
+    /// * `merchant_ids` - A vector of merchant IDs for which to retrieve the key stores.
+    /// * `key` - A reference to the secret key used to decrypt the key stores.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a vector of `MerchantKeyStore` instances, or a `StorageError` if an error occurs during storage operations.
+    ///
     async fn list_multiple_key_stores(
         &self,
         merchant_ids: Vec<String>,
@@ -264,6 +300,7 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+        /// Asynchronously tests the functionality of the mock merchant key store interface by performing various operations such as inserting, retrieving, and validating merchant keys. The method creates a mock database, generates a master key, inserts a new merchant key, retrieves the inserted merchant key, and performs validation checks for various scenarios such as inserting a duplicate key, finding a non-existent key, and finding a key with an incorrect master key.
     async fn test_mock_db_merchant_key_store_interface() {
         #[allow(clippy::expect_used)]
         let mock_db = MockDb::new(&redis_interface::RedisSettings::default())

@@ -17,6 +17,7 @@ pub(crate) use self::{
     generate_schema::polymorphic_macro_derive_inner,
 };
 
+/// This method takes a `DeriveInput` AST and generates an implementation of the `Display` trait for the given input.
 pub(crate) fn debug_as_display_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();

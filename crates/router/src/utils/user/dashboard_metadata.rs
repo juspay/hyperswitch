@@ -16,6 +16,7 @@ use crate::{
     headers, AppState,
 };
 
+/// Inserts the merchant-scoped metadata to the database for a specific user, merchant, and organization, with the given key and value. It also handles the creation and modification timestamps.
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &AppState,
     user_id: String,
@@ -50,6 +51,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             e.change_context(UserErrors::InternalServerError)
         })
 }
+/// Inserts user scoped metadata into the database with the provided details.
 pub async fn insert_user_scoped_metadata_to_db(
     state: &AppState,
     user_id: String,
@@ -85,6 +87,18 @@ pub async fn insert_user_scoped_metadata_to_db(
         })
 }
 
+/// Asynchronously retrieves the merchant scoped metadata from the database for a given merchant and organization, based on the provided metadata keys.
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state containing the database connection
+/// * `merchant_id` - The ID of the merchant
+/// * `org_id` - The ID of the organization
+/// * `metadata_keys` - The metadata keys to retrieve
+/// 
+/// # Returns
+/// 
+/// A `UserResult` containing a vector of `DashboardMetadata` if successful, otherwise an error
 pub async fn get_merchant_scoped_metadata_from_db(
     state: &AppState,
     merchant_id: String,
@@ -98,6 +112,7 @@ pub async fn get_merchant_scoped_metadata_from_db(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("DB Error Fetching DashboardMetaData")
 }
+/// Retrieves user-scoped metadata from the database based on the provided user ID, merchant ID, organization ID, and list of metadata keys. Returns a vector of DashboardMetadata wrapped in a UserResult.
 pub async fn get_user_scoped_metadata_from_db(
     state: &AppState,
     user_id: String,
@@ -122,6 +137,7 @@ pub async fn get_user_scoped_metadata_from_db(
     }
 }
 
+/// Asynchronously updates the metadata for a specific merchant and organization with the provided key and value, and returns the updated dashboard metadata.
 pub async fn update_merchant_scoped_metadata(
     state: &AppState,
     user_id: String,
@@ -151,6 +167,7 @@ pub async fn update_merchant_scoped_metadata(
         .await
         .change_context(UserErrors::InternalServerError)
 }
+/// Asynchronously updates the scoped metadata for a specific user in the database, including the user ID, merchant ID, organization ID, metadata key, and metadata value. The method returns a UserResult containing the updated DashboardMetadata.
 pub async fn update_user_scoped_metadata(
     state: &AppState,
     user_id: String,
@@ -181,6 +198,9 @@ pub async fn update_user_scoped_metadata(
         .change_context(UserErrors::InternalServerError)
 }
 
+/// Deserializes the data contained in the DashboardMetadata into a response of type T.
+/// If the data is None, it returns Ok(None). If the deserialization is successful, it returns Ok(Some(T)).
+/// If there is an error during deserialization, it returns an Err with UserErrors::InternalServerError.
 pub fn deserialize_to_response<T>(data: Option<&DashboardMetadata>) -> UserResult<Option<T>>
 where
     T: serde::de::DeserializeOwned,
@@ -191,6 +211,7 @@ where
         .attach_printable("Error Serializing Metadata from DB")
 }
 
+/// Separates the given metadata keys into two separate vectors based on their scope (merchant or user).
 pub fn separate_metadata_type_based_on_scope(
     metadata_keys: Vec<DBEnum>,
 ) -> (Vec<DBEnum>, Vec<DBEnum>) {
@@ -225,6 +246,13 @@ pub fn separate_metadata_type_based_on_scope(
     (merchant_scoped, user_scoped)
 }
 
+/// Checks if an update is required for the dashboard metadata.
+///
+/// This method takes a reference to a UserResult containing DashboardMetadata and
+/// returns a boolean value indicating whether an update is required. If the UserResult
+/// is Ok, it means no update is required and the method returns false. If the UserResult
+/// is an Err containing UserErrors::MetadataAlreadySet, it means an update is required
+/// and the method returns true.
 pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     match metadata {
         Ok(_) => false,
@@ -232,6 +260,7 @@ pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     }
 }
 
+/// Checks if backfill is required for the given metadata key.
 pub fn is_backfill_required(metadata_key: &DBEnum) -> bool {
     matches!(
         metadata_key,
@@ -239,6 +268,9 @@ pub fn is_backfill_required(metadata_key: &DBEnum) -> bool {
     )
 }
 
+/// Sets the IP address in the request if it is required for the production agreement. 
+/// If the request is a ProductionAgreement, it extracts the IP address from the X-Forwarded-For header 
+/// in the provided headers and sets it in the request object. 
 pub fn set_ip_address_if_required(
     request: &mut SetMetaDataRequest,
     headers: &HeaderMap,
@@ -266,6 +298,7 @@ pub fn set_ip_address_if_required(
     Ok(())
 }
 
+/// Parses a comma-separated string into a collection of GetMetaDataRequest enums and returns a UserResult containing a GetMultipleMetaDataPayload.
 pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPayload> {
     Ok(GetMultipleMetaDataPayload {
         results: query

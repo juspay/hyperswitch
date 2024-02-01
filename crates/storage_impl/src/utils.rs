@@ -5,6 +5,16 @@ use error_stack::{IntoReport, ResultExt};
 
 use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
 
+/// Asynchronously retrieves a connection to the PostgreSQL database based on the provided DatabaseStore.
+/// If only OLAP is enabled, it gets a replica pool. If OLTP is enabled, or both OLAP and OLTP are enabled or disabled, it gets a master pool.
+/// 
+/// # Arguments
+///
+/// * `store` - A reference to a type that implements DatabaseStore trait
+///
+/// # Returns
+///
+/// An async result containing a PooledConnection to the PostgreSQL database or a StorageError if an error occurs.
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
@@ -32,6 +42,8 @@ pub async fn pg_connection_read<T: DatabaseStore>(
         .change_context(StorageError::DatabaseConnectionError)
 }
 
+/// Asynchronously writes to the Postgres database using the provided DatabaseStore.
+/// Returns a Result containing a pooled connection to the master database, or a StorageError if an error occurs.
 pub async fn pg_connection_write<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
@@ -47,6 +59,16 @@ pub async fn pg_connection_write<T: DatabaseStore>(
         .change_context(StorageError::DatabaseConnectionError)
 }
 
+/// Asynchronously tries to get a value from Redis, and if the value is not found in Redis, falls back to a database call to retrieve the value. 
+/// 
+/// # Arguments
+/// 
+/// * `redis_fut` - A future that resolves to a result from Redis.
+/// * `database_call_closure` - A closure that represents the database call to be made if the value is not found in Redis.
+/// 
+/// # Returns
+/// 
+/// Returns a `Result` containing the retrieved value from either Redis or the database, or an error if the retrieval fails.
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(
     redis_fut: RFut,
     database_call_closure: F,

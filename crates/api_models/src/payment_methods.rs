@@ -256,11 +256,13 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
+/// Returns true if the item is saved in the locker by default, otherwise returns false.
 fn saved_in_locker_default() -> bool {
     true
 }
 
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
+        /// Constructs a new instance of the struct from the provided CardDetailsPaymentMethod.
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
             scheme: None,
@@ -283,6 +285,9 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
 }
 
 impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
+        /// Create a new instance of Self (CardDetail) from the provided CardDetailFromLocker by
+    /// mapping the fields from the input CardDetailFromLocker to the corresponding fields
+    /// in Self (CardDetail).
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
             issuer_country: item.issuer_country,
@@ -387,6 +392,15 @@ pub enum SurchargeResponse {
 }
 
 impl From<Surcharge> for SurchargeResponse {
+        /// Converts a Surcharge enum into the Self enum.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The Surcharge enum to convert
+    ///
+    /// # Returns
+    ///
+    /// The converted Self enum
     fn from(value: Surcharge) -> Self {
         match value {
             Surcharge::Fixed(amount) => Self::Fixed(amount),
@@ -401,6 +415,7 @@ pub struct SurchargePercentage {
 }
 
 impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercentage {
+        /// Constructs a new instance of Self from the given Percentage value.
     fn from(value: Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>) -> Self {
         Self {
             percentage: value.get_percentage(),
@@ -450,6 +465,9 @@ pub struct ResponsePaymentMethodIntermediate {
 }
 
 impl ResponsePaymentMethodIntermediate {
+        /// Creates a new instance of PaymentMethodConfig with the specified payment method type, connector,
+    /// and payment method. It initializes the payment_method_type, payment_experience, card_networks,
+    /// payment_method, and connector fields accordingly.
     pub fn new(
         pm_type: RequestPaymentMethodTypes,
         connector: String,
@@ -543,6 +561,7 @@ pub struct PaymentMethodListRequest {
 }
 
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+        /// Deserialize method for PaymentMethodListRequest
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -685,6 +704,7 @@ pub struct PaymentMethodList {
 /// and `payment_method_issuers`. Otherwise only consider
 /// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
 impl serde::Serialize for PaymentMethodList {
+        /// Serializes the PaymentMethodList struct using the provided serializer.
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

@@ -20,6 +20,26 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::CompleteAuthorize>
 {
+        /// Asynchronously constructs router data for a specific type of payment authorization.
+    ///
+    /// This method takes in various parameters such as the application state, connector ID, merchant account,
+    /// key store, customer information, and merchant connector account type, and uses them to construct
+    /// router data for a complete authorization payment. It then returns a `RouterResult` containing the
+    /// complete authorize API, complete authorize data types, and payments response data types.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state
+    /// * `connector_id` - The connector ID
+    /// * `merchant_account` - The merchant account information
+    /// * `key_store` - The key store for the merchant
+    /// * `customer` - An optional customer information
+    /// * `merchant_connector_account` - The type of merchant connector account
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing the complete authorize API, complete authorize data types, and payments response data types.
+    ///
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -59,6 +79,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         types::PaymentsResponseData,
     >
 {
+        /// Asynchronously decides the flows for processing a payment by executing the connector integration 
+    /// and handling the response to return a RouterResult containing the payment response data.
     async fn decide_flows<'a>(
         mut self,
         state: &AppState,
@@ -89,6 +111,18 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         Ok(resp)
     }
 
+        /// Asynchronously adds an access token to the specified merchant account using the provided state, connector data, and merchant account information.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state containing necessary dependencies and configurations.
+    /// * `connector` - The connector data needed to communicate with external APIs.
+    /// * `merchant_account` - The merchant account to which the access token will be added.
+    ///
+    /// # Returns
+    ///
+    /// The result of adding the access token, which includes information about the success or failure of the operation.
+    ///
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -98,6 +132,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously adds a payment method token. If the connector is Payme, it calls the `add_payment_method_token` method from the `tokenization` module passing the provided `state`, `connector`, `TokenizationAction`, `self`, and `PaymentMethodTokenizationData`. Otherwise, it returns `Ok(None)`.
     async fn add_payment_method_token<'a>(
         &mut self,
         state: &AppState,
@@ -120,6 +155,18 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         }
     }
 
+        /// Asynchronously builds a flow-specific connector request based on the provided connector data and action.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state.
+    /// * `connector` - The connector data for which the request is to be built.
+    /// * `call_connector_action` - The action to be performed on the connector.
+    /// 
+    /// # Returns
+    /// 
+    /// A tuple containing an optional service request and a boolean indicating whether the request was successfully built.
+    ///
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,
@@ -145,6 +192,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         Ok((request, true))
     }
 
+        /// Asynchronously performs preprocessing steps on the current state and connector data.
+    ///
+    /// This method takes in the current application state and connector data, and then passes them to the
+    /// complete_authorize_preprocessing_steps function with the current object reference and a boolean value of true.
+    /// It then awaits the result of the preprocessing steps and returns the updated state.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The reference to the current application state
+    /// * `connector` - The reference to the connector data
+    ///
+    /// # Returns
+    ///
+    /// The result of the preprocessing steps, wrapped in a RouterResult
     async fn preprocessing_steps<'a>(
         self,
         state: &AppState,
@@ -154,6 +215,18 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     }
 }
 
+/// Asynchronously completes the authorization preprocessing steps based on the provided data.
+///
+/// # Arguments
+///
+/// * `state` - The application state
+/// * `router_data` - The router data containing the authorization and payment response data
+/// * `confirm` - A boolean indicating whether to confirm the preprocessing steps
+/// * `connector` - The connector data for the authorization
+///
+/// # Returns
+///
+/// Returns a `RouterResult` containing the updated router data after completing the authorization preprocessing steps.
 pub async fn complete_authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
     router_data: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
@@ -228,6 +301,14 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
 impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a new instance of the struct by converting from the provided `CompleteAuthorizeData`. 
+    /// If successful, returns a `Result` containing the newly created instance. 
+    ///
+    /// # Arguments
+    /// * `data` - The `CompleteAuthorizeData` to convert from.
+    ///
+    /// # Returns
+    /// * If successful, returns a `Result` containing the newly created instance of the struct.
     fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data

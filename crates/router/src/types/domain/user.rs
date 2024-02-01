@@ -40,6 +40,7 @@ pub mod dashboard_metadata;
 pub struct UserName(Secret<String>);
 
 impl UserName {
+        /// Creates a new User with the given name, after performing validation checks to ensure the name is valid.
     pub fn new(name: Secret<String>) -> UserResult<Self> {
         let name = name.expose();
         let is_empty_or_whitespace = name.trim().is_empty();
@@ -55,6 +56,7 @@ impl UserName {
         }
     }
 
+        /// Retrieves the secret value contained within the current instance.
     pub fn get_secret(self) -> Secret<String> {
         self.0
     }
@@ -63,6 +65,10 @@ impl UserName {
 impl TryFrom<pii::Email> for UserName {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to create a new User from a given pii::Email value. 
+    /// 
+    /// If successful, it returns a UserResult containing the newly created User. 
+    /// If the email is invalid, it returns a UserResult containing an InvalidEmailError.
     fn try_from(value: pii::Email) -> UserResult<Self> {
         Self::new(Secret::new(
             value
@@ -88,6 +94,7 @@ static BLOCKED_EMAIL: Lazy<HashSet<String>> = Lazy::new(|| {
 });
 
 impl UserEmail {
+        /// Creates a new User object with the provided email, performing validation and parsing checks.
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         let email_string = email.expose();
         let email =
@@ -108,6 +115,16 @@ impl UserEmail {
         }
     }
 
+        /// Converts a pii::Email into a UserResult<Self>.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `email` - A pii::Email to be converted.
+    /// 
+    /// # Returns
+    /// 
+    /// * If the email is valid and not in the list of blocked domains, returns Ok(Self(email)), 
+    ///   otherwise returns Err(UserErrors::EmailParsingError) or Err(UserErrors::InvalidEmailError).
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
         let email_string = email.peek();
         if validator::validate_email(email_string) {
@@ -124,10 +141,12 @@ impl UserEmail {
         }
     }
 
+        /// Consumes the current instance and returns the inner value of type `pii::Email`.
     pub fn into_inner(self) -> pii::Email {
         self.0
     }
 
+        /// Retrieves the secret value from the current instance. 
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
         (*self.0).clone()
     }
@@ -136,6 +155,15 @@ impl UserEmail {
 impl TryFrom<pii::Email> for UserEmail {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create an instance of the current type from a value of type pii::Email.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - The value of type pii::Email to be converted
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing the instance of the current type if the conversion is successful, or an error if it fails.
     fn try_from(value: pii::Email) -> Result<Self, Self::Error> {
         Self::from_pii_email(value)
     }
@@ -144,15 +172,25 @@ impl TryFrom<pii::Email> for UserEmail {
 impl ops::Deref for UserEmail {
     type Target = Secret<String, pii::EmailStrategy>;
 
+        /// Returns a reference to the value contained in the SmartPointer.
     fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+            &self.0
+        }
 }
 
 #[derive(Clone)]
 pub struct UserPassword(Secret<String>);
 
 impl UserPassword {
+        /// Creates a new User object with the provided password.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `password` - A `Secret<String>` containing the user's password.
+    /// 
+    /// # Returns
+    /// 
+    /// A `UserResult` containing either the newly created `User` object if the password is not empty, or a `UserErrors::PasswordParsingError` if the password is empty.
     pub fn new(password: Secret<String>) -> UserResult<Self> {
         let password = password.expose();
         if password.is_empty() {
@@ -162,6 +200,7 @@ impl UserPassword {
         }
     }
 
+        /// Returns a clone of the secret value stored in the struct.
     pub fn get_secret(&self) -> Secret<String> {
         self.0.clone()
     }
@@ -171,6 +210,7 @@ impl UserPassword {
 pub struct UserCompanyName(String);
 
 impl UserCompanyName {
+        /// Creates a new User with the provided company name after performing validation checks.
     pub fn new(company_name: String) -> UserResult<Self> {
         let company_name = company_name.trim();
         let is_empty_or_whitespace = company_name.is_empty();
@@ -187,6 +227,7 @@ impl UserCompanyName {
         }
     }
 
+        /// Retrieves the secret string stored in the struct.
     pub fn get_secret(self) -> String {
         self.0
     }
@@ -196,6 +237,7 @@ impl UserCompanyName {
 pub struct NewUserOrganization(diesel_org::OrganizationNew);
 
 impl NewUserOrganization {
+        /// Inserts the organization into the database using the provided `state` and returns a `UserResult` containing the inserted `Organization`.
     pub async fn insert_org_in_db(self, state: AppState) -> UserResult<Organization> {
         state
             .store
@@ -211,6 +253,7 @@ impl NewUserOrganization {
             .attach_printable("Error while inserting organization")
     }
 
+        /// Retrieves the organization ID associated with the current instance.
     pub fn get_organization_id(&self) -> String {
         self.0.org_id.clone()
     }
@@ -218,6 +261,15 @@ impl NewUserOrganization {
 
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
     type Error = error_stack::Report<UserErrors>;
+        /// Tries to create a new instance of User from a SignUpWithMerchantIdRequest value.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A SignUpWithMerchantIdRequest value to create the User instance from.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a UserResult containing the new User instance if successful, or an error if the creation fails.
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let new_organization = api_org::OrganizationNew::new(Some(
             UserCompanyName::new(value.company_name)?.get_secret(),
@@ -228,6 +280,7 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
 }
 
 impl From<user_api::SignUpRequest> for NewUserOrganization {
+        /// Converts a user signup request into a new organization entity and returns it.
     fn from(_value: user_api::SignUpRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -236,6 +289,7 @@ impl From<user_api::SignUpRequest> for NewUserOrganization {
 }
 
 impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
+        /// Constructs a new instance of `Self` from a `user_api::ConnectAccountRequest`.
     fn from(_value: user_api::ConnectAccountRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -244,6 +298,7 @@ impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
 }
 
 impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
+        /// Converts a `CreateInternalUserRequest` from the `user_api` module into the current type.
     fn from(_value: user_api::CreateInternalUserRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -252,6 +307,7 @@ impl From<user_api::CreateInternalUserRequest> for NewUserOrganization {
 }
 
 impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
+        /// Converts a UserMerchantCreateRequestWithToken into an OrganizationNew struct.
     fn from(value: UserMerchantCreateRequestWithToken) -> Self {
         Self(diesel_org::OrganizationNew {
             org_id: value.2.org_id,
@@ -262,6 +318,8 @@ impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
 
 type InviteeUserRequestWithInvitedUserToken = (user_api::InviteUserRequest, UserFromToken);
 impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
+        /// Constructs a new instance of Self using the provided InviteeUserRequestWithInvitedUserToken.
+    /// This method creates a new organization using api_org::OrganizationNew, then converts it into a database organization using ForeignFrom::foreign_from. Finally, it returns a new instance of Self with the converted database organization.
     fn from(_value: InviteeUserRequestWithInvitedUserToken) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -273,6 +331,7 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
 pub struct MerchantId(String);
 
 impl MerchantId {
+        /// Creates a new User instance with the provided merchant ID. The method trims leading and trailing whitespace, converts the string to lowercase, and replaces any spaces with underscores. It then checks if the modified merchant ID is empty or contains invalid characters. If the merchant ID is invalid, it returns a UserResult with a MerchantIdParsingError. If the merchant ID is valid, it returns a UserResult with the new User instance containing the modified merchant ID.
     pub fn new(merchant_id: String) -> UserResult<Self> {
         let merchant_id = merchant_id.trim().to_lowercase().replace(' ', "_");
         let is_empty_or_whitespace = merchant_id.is_empty();
@@ -285,6 +344,7 @@ impl MerchantId {
         }
     }
 
+        /// Returns the secret value stored in the struct.
     pub fn get_secret(&self) -> String {
         self.0.clone()
     }
@@ -298,18 +358,23 @@ pub struct NewUserMerchant {
 }
 
 impl NewUserMerchant {
+    /// Retrieves the company name associated with the user, if one exists.
+    /// Returns an `Option` containing the company name, or `None` if the user does not have a company name associated with them.
     pub fn get_company_name(&self) -> Option<String> {
         self.company_name.clone().map(UserCompanyName::get_secret)
     }
 
+        /// This method retrieves the merchant ID by calling the `get_secret` method on the `merchant_id` field of the struct.
     pub fn get_merchant_id(&self) -> String {
         self.merchant_id.get_secret()
     }
 
+        /// Returns a new user organization by cloning the existing new_organization field.
     pub fn get_new_organization(&self) -> NewUserOrganization {
         self.new_organization.clone()
     }
 
+        /// Asynchronously checks if a user already exists in the database based on the merchant ID.
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
@@ -329,6 +394,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
+        /// Asynchronously creates a new merchant account and inserts it into the database. It first checks if the merchant already exists in the database, and if not, it creates a new merchant account using the admin API and inserts it into the database. If any error occurs during the process, it returns an internal server error with a printable error message.
     pub async fn create_new_merchant_and_insert_in_db(&self, state: AppState) -> UserResult<()> {
         self.check_if_already_exists_in_db(state.clone()).await?;
         Box::pin(admin::create_merchant_account(
@@ -364,6 +430,8 @@ impl NewUserMerchant {
 impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create a new User instance from a given SignUpRequest instance. 
+    /// If successful, returns a UserResult containing the new User instance, otherwise returns an error.
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let merchant_id = MerchantId::new(format!(
             "merchant_{}",
@@ -382,6 +450,8 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
 impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create a new instance of the current struct from a ConnectAccountRequest,
+    /// generating a new merchant ID and creating a new user organization based on the input value.
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
         let merchant_id = MerchantId::new(format!(
             "merchant_{}",
@@ -399,6 +469,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
 
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
+        /// Attempts to create a new User instance from a SignUpWithMerchantIdRequest value.
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let company_name = Some(UserCompanyName::new(value.company_name.clone())?);
         let merchant_id = MerchantId::new(value.company_name.clone())?;
@@ -415,6 +486,15 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
 impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create a new instance of User from a CreateInternalUserRequest.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A user_api::CreateInternalUserRequest object containing the necessary data to create a new internal user.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result containing the newly created User instance if successful, or an error if the creation fails.
     fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
         let merchant_id =
             MerchantId::new(consts::user_role::INTERNAL_USER_MERCHANT_ID.to_string())?;
@@ -430,6 +510,8 @@ impl TryFrom<user_api::CreateInternalUserRequest> for NewUserMerchant {
 
 impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
+        /// Attempts to create a new User from the provided InviteeUserRequestWithInvitedUserToken.
+    /// If successful, returns a UserResult containing the newly created User. 
     fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
         let merchant_id = MerchantId::new(value.clone().1.merchant_id)?;
         let new_organization = NewUserOrganization::from(value);
@@ -447,6 +529,7 @@ type UserMerchantCreateRequestWithToken =
 impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to create a UserMerchant from a UserMerchantCreateRequestWithToken.
     fn try_from(value: UserMerchantCreateRequestWithToken) -> UserResult<Self> {
         let merchant_id = if matches!(env::which(), env::Env::Production) {
             MerchantId::new(value.1.company_name.clone())?
@@ -474,26 +557,35 @@ pub struct NewUser {
 }
 
 impl NewUser {
+        /// Returns the user ID associated with the current instance.
     pub fn get_user_id(&self) -> String {
         self.user_id.clone()
     }
 
+        /// This method returns the email associated with the user.
     pub fn get_email(&self) -> UserEmail {
         self.email.clone()
     }
 
+        /// Returns the name of the instance as a Secret<String>.
     pub fn get_name(&self) -> Secret<String> {
         self.name.clone().get_secret()
     }
 
+        /// Returns a new user merchant associated with the current instance.
     pub fn get_new_merchant(&self) -> NewUserMerchant {
         self.new_merchant.clone()
     }
 
+        /// Retrieves the password of the user.
+    /// 
     pub fn get_password(&self) -> UserPassword {
         self.password.clone()
     }
 
+        /// Asynchronously inserts the user into the database using the provided storage interface.
+    /// Returns a UserResult containing the UserFromStorage if the insertion is successful,
+    /// or returns an error if a unique violation occurs or an internal server error is encountered.
     pub async fn insert_user_in_db(
         &self,
         db: &dyn StorageInterface,
@@ -511,6 +603,8 @@ impl NewUser {
         .attach_printable("Error while inserting user")
     }
 
+        /// Asynchronously checks if a user already exists in the database based on their email address.
+    /// If the user exists, it returns an error indicating that the user already exists. Otherwise, it returns Ok().
     pub async fn check_if_already_exists_in_db(&self, state: AppState) -> UserResult<()> {
         if state
             .store
@@ -523,6 +617,8 @@ impl NewUser {
         Ok(())
     }
 
+        /// Inserts a new user and a new merchant into the database after checking if the user already exists. 
+    /// Returns a UserResult containing the UserFromStorage if successful.
     pub async fn insert_user_and_merchant_in_db(
         &self,
         state: AppState,
@@ -540,6 +636,7 @@ impl NewUser {
         created_user
     }
 
+        /// Inserts a new user role into the database with the provided role ID and user status for the current user.
     pub async fn insert_user_role_in_db(
         self,
         state: AppState,
@@ -573,6 +670,17 @@ impl NewUser {
 impl TryFrom<NewUser> for storage_user::UserNew {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create a new User from a NewUser instance by generating a hashed password
+    /// and initializing the user_id, name, email, and password fields.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A NewUser instance containing user information.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing the newly created User if the password hash generation is successful, 
+    /// otherwise an error with the cause of the failure.
     fn try_from(value: NewUser) -> UserResult<Self> {
         let hashed_password = password::generate_password_hash(value.password.get_secret())?;
         Ok(Self {
@@ -588,6 +696,15 @@ impl TryFrom<NewUser> for storage_user::UserNew {
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to create a new User instance from the given SignUpWithMerchantIdRequest value.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A SignUpWithMerchantIdRequest value containing the user's sign-up information
+    /// 
+    /// # Returns
+    /// 
+    /// * A UserResult containing a new User instance if successful, otherwise an error
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
@@ -608,6 +725,16 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
 impl TryFrom<user_api::SignUpRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Attempts to create a new User instance from a SignUpRequest. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A SignUpRequest struct containing user sign up information
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing either a new User instance or an error if the conversion fails
+    /// 
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
@@ -628,6 +755,7 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
 impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to convert a `ConnectAccountRequest` into a `User` and returns a `UserResult` containing the result.
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
@@ -648,6 +776,15 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
 impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to create a new instance of User from the given CreateInternalUserRequest.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - The CreateInternalUserRequest to create the User from.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing the newly created User if successful, or an error if any of the fields fail to convert.
     fn try_from(value: user_api::CreateInternalUserRequest) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
@@ -668,6 +805,8 @@ impl TryFrom<user_api::CreateInternalUserRequest> for NewUser {
 impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
+        /// Tries to create a new instance of the current struct from a UserMerchantCreateRequestWithToken value. 
+    /// If successful, returns the new instance, otherwise returns an error.
     fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
         let user = value.0.clone();
         let new_merchant = NewUserMerchant::try_from(value)?;
@@ -684,6 +823,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
 
 impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
     type Error = error_stack::Report<UserErrors>;
+        /// Attempts to create a new User from the provided InviteeUserRequestWithInvitedUserToken.
     fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
@@ -705,16 +845,20 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
 pub struct UserFromStorage(pub storage_user::User);
 
 impl From<storage_user::User> for UserFromStorage {
+        /// Converts a `storage_user::User` into an instance of `Self`.
     fn from(value: storage_user::User) -> Self {
         Self(value)
     }
 }
 
 impl UserFromStorage {
+        /// Returns the user ID associated with the current instance.
     pub fn get_user_id(&self) -> &str {
         self.0.user_id.as_str()
     }
 
+        /// Compares the provided candidate password with the user's stored password,
+    /// returning Ok(()) if the passwords match and Err(UserErrors::InvalidCredentials) if they do not.
     pub fn compare_password(&self, candidate: Secret<String>) -> UserResult<()> {
         match password::is_correct_password(candidate, self.0.password.clone()) {
             Ok(true) => Ok(()),
@@ -723,14 +867,17 @@ impl UserFromStorage {
         }
     }
 
+        /// Retrieves the name of the secret value.
     pub fn get_name(&self) -> Secret<String> {
         self.0.name.clone()
     }
 
+        /// Returns the email address associated with the Personal Identifiable Information (PII) instance.
     pub fn get_email(&self) -> pii::Email {
         self.0.email.clone()
     }
 
+        /// Asynchronously retrieves the role of the user from the database using the provided application state.
     pub async fn get_role_from_db(&self, state: AppState) -> UserResult<UserRole> {
         state
             .store
@@ -739,6 +886,15 @@ impl UserFromStorage {
             .change_context(UserErrors::InternalServerError)
     }
 
+        /// Asynchronously retrieves a list of user roles from the database for the current user.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state containing the database store.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Vec` of `UserRole` representing the roles associated with the current user.
     pub async fn get_roles_from_db(&self, state: &AppState) -> UserResult<Vec<UserRole>> {
         state
             .store
@@ -748,6 +904,10 @@ impl UserFromStorage {
     }
 
     #[cfg(feature = "email")]
+        /// Calculates the number of days left for a user to verify their account.
+    /// If the user is already verified, returns `None`.
+    /// If the user is unverified and within the allowed unverified duration, returns the number of days left for verification.
+    /// If the user is unverified and has exceeded the allowed unverified duration, returns an error.
     pub fn get_verification_days_left(&self, state: &AppState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
             return Ok(None);
@@ -770,10 +930,21 @@ impl UserFromStorage {
         Ok(Some(days_left_for_verification.whole_days()))
     }
 
+        /// This method returns the preferred merchant ID associated with the current instance, if it exists.
     pub fn get_preferred_merchant_id(&self) -> Option<String> {
         self.0.preferred_merchant_id.clone()
     }
 
+        /// Retrieves the role of a user for a specific merchant from the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state.
+    /// * `merchant_id` - The ID of the merchant.
+    /// 
+    /// # Returns
+    /// 
+    /// The user's role for the specified merchant, wrapped in a `UserResult`. If the role is not found, it returns an error indicating that the role was not found. If an internal server error occurs during the retrieval process, it returns an internal server error.
     pub async fn get_role_from_db_by_merchant_id(
         &self,
         state: &AppState,
@@ -795,6 +966,7 @@ impl UserFromStorage {
 }
 
 impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
+        /// Constructs a new instance of Self from the given ModuleInfo value.
     fn from(value: info::ModuleInfo) -> Self {
         Self {
             module: value.module.into(),
@@ -805,6 +977,7 @@ impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
 }
 
 impl From<info::PermissionModule> for user_role_api::PermissionModule {
+        /// Converts a value of type info::PermissionModule into the corresponding Self enum variant.
     fn from(value: info::PermissionModule) -> Self {
         match value {
             info::PermissionModule::Payments => Self::Payments,
@@ -826,6 +999,8 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
 }
 
 impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
+        /// This method creates a new instance of the current struct using the provided `info::PermissionInfo` value.
+    /// It initializes the `enum_name` field with the converted value from `value.enum_name` and sets the `description` field with the `value.description` directly.
     fn from(value: info::PermissionInfo) -> Self {
         Self {
             enum_name: value.enum_name.into(),
@@ -838,6 +1013,10 @@ pub struct UserAndRoleJoined(pub storage_user::User, pub UserRole);
 
 impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
     type Error = ();
+        /// Tries to convert a UserAndRoleJoined struct into a Result<Self, Self::Error> where Self
+    /// is the current struct and Self::Error is the associated error type. It matches the user
+    /// status and retrieves the role name from the role id, then constructs a new instance of
+    /// the current struct with the extracted data.
     fn try_from(user_and_role: UserAndRoleJoined) -> Result<Self, Self::Error> {
         let status = match user_and_role.1.status {
             UserStatus::Active => user_role_api::UserStatus::Active,
@@ -867,6 +1046,9 @@ pub enum SignInWithRoleStrategyType {
 }
 
 impl SignInWithRoleStrategyType {
+        /// Determines the appropriate sign-in strategy based on the user's roles. If the user has no roles, an internal server error is returned.
+    /// If the user has an active single role, the sign-in strategy is set to SingleRole with the corresponding user and role.
+    /// If the user has multiple roles, the sign-in strategy is set to MultipleRoles with the user and all of their roles.
     pub async fn decide_signin_strategy_by_user_roles(
         user: UserFromStorage,
         user_roles: Vec<UserRole>,
@@ -891,6 +1073,7 @@ impl SignInWithRoleStrategyType {
         }
     }
 
+        /// Asynchronously retrieves the sign-in response for the user based on the authentication strategy.
     pub async fn get_signin_response(
         self,
         state: &AppState,
@@ -908,6 +1091,14 @@ pub struct SignInWithSingleRoleStrategy {
 }
 
 impl SignInWithSingleRoleStrategy {
+        /// Asynchronously generates a sign-in response for the given user, using the provided application state.
+    ///
+    /// # Arguments
+    /// * `state` - The application state containing necessary information for generating the sign-in response.
+    ///
+    /// # Returns
+    /// An asynchronous result containing the sign-in response, or an error if the sign-in response could not be generated.
+    ///
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
@@ -925,6 +1116,7 @@ pub struct SignInWithMultipleRolesStrategy {
 }
 
 impl SignInWithMultipleRolesStrategy {
+        /// Asynchronously retrieves the sign-in response for the user. This includes fetching merchant accounts and details, creating a user authentication token, and determining the verification days left for the user.
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let merchant_accounts = state
             .store

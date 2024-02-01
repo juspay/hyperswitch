@@ -12,6 +12,7 @@ use crate::{
     core::errors::{self, CustomResult},
 };
 
+/// Asynchronously retrieves a value from Redis using the provided key. If the value is not found in Redis or if deserialization fails, the provided function `fun` is called to fetch the value and store it in Redis before returning it. 
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &dyn StorageInterface,
     key: impl AsRef<str>,
@@ -52,6 +53,7 @@ where
     }
 }
 
+/// Asynchronously retrieves a value from an in-memory cache, or populates the cache by calling a provided function if the value is not found. This method takes a store, key, function, and cache as parameters, where the store is the storage interface, key is the key to retrieve from the cache, fun is the function to populate the cache if the value is not found, and cache is the in-memory cache. The method returns a CustomResult containing the retrieved or populated value, or an error if the operation fails.
 pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -73,6 +75,16 @@ where
     }
 }
 
+/// Asynchronously redacts a value from the cache using the provided key and a function to retrieve the data if not found in the cache. The redacted value is also deleted from the Redis store.
+/// 
+/// # Arguments
+/// * `store` - A reference to a storage interface
+/// * `key` - The key used to retrieve the value from the cache and Redis store
+/// * `fun` - A closure that returns a future containing the data to be redacted
+/// * `in_memory` - An optional reference to a Cache instance for in-memory caching
+/// 
+/// # Returns
+/// A custom result containing the redacted data or a storage error
 pub async fn redact_cache<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
@@ -100,6 +112,16 @@ where
     Ok(data)
 }
 
+/// Asynchronously publishes the given cache keys into a redact channel using the provided storage interface.
+///
+/// # Arguments
+///
+/// * `store` - A reference to a storage interface that provides access to the necessary storage functionality.
+/// * `keys` - An iterator of CacheKind instances that represent the cache keys to be published into the redact channel.
+///
+/// # Returns
+///
+/// A custom result containing the total number of cache keys successfully published into the redact channel, or a storage error if the operation fails.
 pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a>> + Send>(
     store: &dyn StorageInterface,
     keys: K,
@@ -125,6 +147,7 @@ pub async fn publish_into_redact_channel<'a, K: IntoIterator<Item = CacheKind<'a
         .sum::<usize>())
 }
 
+/// Asynchronously publishes data into a storage and then redacts the published data. 
 pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &dyn StorageInterface,
     key: CacheKind<'a>,
@@ -139,6 +162,7 @@ where
     Ok(data)
 }
 
+/// Asynchronously publishes data into a redact channel for multiple cache keys and returns the result.
 pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
     store: &dyn StorageInterface,
     keys: K,

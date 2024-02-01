@@ -69,12 +69,25 @@ pub enum Assert<'a> {
 pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+        /// Retrieves the saved test cases as a JSON value.
     fn get_saved_testcases(&self) -> serde_json::Value {
         get_saved_testcases()
     }
+        /// This method returns the ConnectorAuthentication configuration for the current instance.
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
         get_configs()
     }
+        /// Retries clicking on a web element a specified number of times at a given interval
+    ///
+    /// # Arguments
+    /// * `times` - The number of times to retry clicking the element
+    /// * `interval` - The interval in seconds between each retry
+    /// * `driver` - The WebDriver used for interacting with the web page
+    /// * `by` - The method used to locate the web element (e.g. by ID, by class name)
+    ///
+    /// # Returns
+    /// * `Result<(), WebDriverError>` - A result indicating success or an error if clicking the element failed
+    ///
     async fn retry_click(
         &self,
         times: i32,
@@ -94,6 +107,7 @@ pub trait SeleniumTest {
         return res;
     }
     fn get_connector_name(&self) -> String;
+        /// This method iterates through a vector of Event enums and performs corresponding actions based on the event type. It uses a WebDriver to execute various actions such as asserting, running conditional events, triggering specific actions like clicking, sending keys, changing query parameters, and more. It returns a Result indicating whether the actions were completed successfully or if a WebDriverError occurred.
     async fn complete_actions(
         &self,
         driver: &WebDriver,
@@ -366,6 +380,17 @@ pub trait SeleniumTest {
         Ok(())
     }
 
+        /// Asynchronously clicks on the specified web element using the provided WebDriver and locator strategy.
+    ///
+    /// # Arguments
+    ///
+    /// * `driver` - The WebDriver instance to use for interacting with the web element.
+    /// * `by` - The locator strategy to use for finding the web element.
+    ///
+    /// # Returns
+    ///
+    /// Returns a Result indicating success or an error of type WebDriverError.
+    ///
     async fn click_element(&self, driver: &WebDriver, by: By) -> Result<(), WebDriverError> {
         let ele = driver.query(by).first().await?;
         ele.wait_until().enabled().await?;
@@ -375,6 +400,8 @@ pub trait SeleniumTest {
         ele.click().await
     }
 
+
+        /// Asynchronously makes a redirection payment using the provided web driver and list of actions. This method supports failure retries by executing the steps again if the initial execution fails.
     async fn make_redirection_payment(
         &self,
         web_driver: WebDriver,
@@ -390,6 +417,19 @@ pub trait SeleniumTest {
             result
         }
     }
+        /// Executes a series of actions using the provided web driver, based on the automation configurations.
+    ///
+    /// If the automation configuration specifies to run a minimum number of steps, only the first 3 actions will be executed. Otherwise, all actions will be executed.
+    ///
+    /// # Arguments
+    ///
+    /// * `web_driver` - The web driver to use for executing the actions.
+    /// * `actions` - A vector of Event containing the actions to be executed.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or a WebDriverError if an error occurs during execution.
+    ///
     async fn execute_steps(
         &self,
         web_driver: WebDriver,
@@ -403,6 +443,19 @@ pub trait SeleniumTest {
             self.complete_actions(&web_driver, actions).await
         }
     }
+
+        /// Asynchronously makes a Google Pay (GPay) payment using the provided WebDriver, URL, and list of actions.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `web_driver` - The WebDriver to use for making the payment.
+    /// * `url` - The URL of the payment page.
+    /// * `actions` - A vector of events representing the actions to be performed for the payment.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result indicating success or failure, with the potential error being a WebDriverError.
+    /// 
     async fn make_gpay_payment(
         &self,
         web_driver: WebDriver,
@@ -411,6 +464,7 @@ pub trait SeleniumTest {
     ) -> Result<(), WebDriverError> {
         self.execute_gpay_steps(web_driver, url, actions).await
     }
+    /// Executes a series of Google Pay automation steps using the provided WebDriver and URL. The method triggers a sequence of events such as navigating to the specified URL, clicking on a Google Pay button, logging in with a Gmail account, switching tabs, waiting for elements to load, and more. The method then completes the default actions followed by the custom actions provided as a vector of Event enum. 
     async fn execute_gpay_steps(
         &self,
         web_driver: WebDriver,
@@ -458,6 +512,18 @@ pub trait SeleniumTest {
         self.complete_actions(&web_driver, default_actions).await?;
         self.complete_actions(&web_driver, actions).await
     }
+        /// Makes an Affirm payment by completing a series of actions on the provided WebDriver.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `driver` - The WebDriver used to interact with the web page.
+    /// * `url` - The URL of the page where the payment process is initiated.
+    /// * `actions` - Additional actions to be performed after the standard Affirm payment process.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result indicating success or an error of type WebDriverError.
+    /// 
     async fn make_affirm_payment(
         &self,
         driver: WebDriver,
@@ -507,6 +573,7 @@ pub trait SeleniumTest {
         affirm_actions.extend(actions);
         self.complete_actions(&driver, affirm_actions).await
     }
+        /// This method is used to perform a series of actions to test a webhook by simulating a payment process, retrieving events from the outgoing webhook endpoint, and comparing the webhook response with the expected payment ID and status. If the comparison is successful, the method returns Ok(()), otherwise it retries a specified number of times before returning an error indicating that the webhook was not found.
     async fn make_webhook_test(
         &self,
         web_driver: WebDriver,
@@ -561,6 +628,18 @@ pub trait SeleniumTest {
         }
         Err(WebDriverError::CustomError("Webhook Not Found".to_string()))
     }
+        /// Asynchronously makes a PayPal payment by executing a series of actions using the provided web driver and URL. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `web_driver` - The web driver to use for interacting with the web page.
+    /// * `url` - The URL of the PayPal payment page.
+    /// * `actions` - A vector of events representing the actions to be performed on the PayPal payment page.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` indicating success or an error of type `WebDriverError`.
+    /// 
     async fn make_paypal_payment(
         &self,
         web_driver: WebDriver,
@@ -579,6 +658,18 @@ pub trait SeleniumTest {
             result
         }
     }
+        /// Executes a series of PayPal automation steps using the provided WebDriver, URL, and list of events.
+    ///
+    /// # Arguments
+    ///
+    /// * `web_driver` - The WebDriver to interact with the web page.
+    /// * `url` - The URL to navigate to before performing the PayPal automation steps.
+    /// * `actions` - A list of events representing the automation steps to be executed after the PayPal-specific actions.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), WebDriverError>` - A result indicating success or failure, with an optional error message.
+    ///
     async fn execute_paypal_steps(
         &self,
         web_driver: WebDriver,
@@ -627,6 +718,18 @@ pub trait SeleniumTest {
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
     }
+        /// Asynchronously makes a Clearpay payment by completing a series of actions on the provided WebDriver instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `driver` - The WebDriver instance to use for making the Clearpay payment.
+    /// * `url` - The URL to navigate to in order to initiate the Clearpay payment process.
+    /// * `actions` - Additional actions to be performed as part of the Clearpay payment process.
+    ///
+    /// # Returns
+    ///
+    /// A Result indicating success or an error of type WebDriverError.
+    ///
     async fn make_clearpay_payment(
         &self,
         driver: WebDriver,
@@ -690,6 +793,16 @@ pub trait SeleniumTest {
         self.complete_actions(&driver, clearpay_actions).await
     }
 }
+/// Asynchronously checks if the specified text is currently present in the web page.
+///
+/// # Arguments
+///
+/// * `driver` - The WebDriver instance to use for finding the text.
+/// * `key` - The text to search for in the web page.
+///
+/// # Returns
+///
+/// Returns a `WebDriverResult` with a boolean value indicating whether the text is present or not. If the text is present, it returns `true`, otherwise `false`. If the element containing the text is hidden, it returns an error.
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();
     xpath.push_str(key);
@@ -701,6 +814,18 @@ async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<b
     }
     result.is_present().await
 }
+///
+/// Asynchronously checks if the specified text is present in the web page.
+/// 
+/// # Arguments
+/// 
+/// * `driver` - The WebDriver used to interact with the web page.
+/// * `key` - The text to search for in the web page.
+/// 
+/// # Returns
+/// 
+/// A `WebDriverResult` containing a boolean value indicating whether the text is present in the web page or not.
+/// 
 async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();
     xpath.push_str(key);
@@ -708,6 +833,17 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
     let result = driver.query(By::XPath(&xpath)).first().await?;
     result.is_present().await
 }
+/// Asynchronously checks if an element is present on the web page using the specified WebDriver instance and method of locating the element.
+///
+/// # Arguments
+///
+/// * `driver` - The WebDriver instance to use for querying the web page.
+/// * `by` - The method of locating the element (e.g. by id, class, name, etc.).
+///
+/// # Returns
+///
+/// A `WebDriverResult` containing a boolean value indicating whether the element is present on the web page or not.
+///
 async fn is_element_present(driver: &WebDriver, by: By) -> WebDriverResult<bool> {
     let element = driver.query(by).first().await?;
     element.is_present().await
@@ -781,6 +917,7 @@ macro_rules! tester {
     }};
 }
 
+/// This method retrieves saved test cases from a file specified by the environment variable "CONNECTOR_TESTS_FILE_PATH". If the environment variable is not set, it returns an empty JSON value. It then reads the contents of the file, parses the JSON data, and returns the resulting serde_json::Value.
 fn get_saved_testcases() -> serde_json::Value {
     let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
     if env_value.is_none() {
@@ -795,6 +932,11 @@ fn get_saved_testcases() -> serde_json::Value {
     // Parse the JSON data
     serde_json::from_str(&contents).expect("Failed to parse JSON")
 }
+/// Retrieves the connector authentication configurations from the file path specified in the environment variable "CONNECTOR_AUTH_FILE_PATH".
+/// 
+/// # Panics
+/// 
+/// This method will panic if the "CONNECTOR_AUTH_FILE_PATH" environment variable is not set, or if the file specified by the path is not found, or if the connector authentication config file cannot be read or parsed.
 fn get_configs() -> connector_auth::ConnectorAuthentication {
     let path =
         env::var("CONNECTOR_AUTH_FILE_PATH").expect("connector authentication file path not set");
@@ -804,6 +946,7 @@ fn get_configs() -> connector_auth::ConnectorAuthentication {
     .expect("Failed to read connector authentication config file")
 }
 
+/// Checks if a test should be ignored based on the test name. 
 pub fn should_ignore_test(name: &str) -> bool {
     let conf = get_saved_testcases()
         .get("tests_to_ignore")
@@ -824,6 +967,7 @@ pub fn should_ignore_test(name: &str) -> bool {
     tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
 }
 
+/// Returns the name of the browser as a String.
 pub fn get_browser() -> String {
     "firefox".to_string()
 }
@@ -854,6 +998,7 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
     }
 }
 
+/// This method retrieves the path to the user's Chrome profile directory. It first gets the current executable's path, and then constructs the base path by taking the parent directory and truncating it to the first three components. On macOS, it appends the path to the default Chrome profile directory. It then returns the base path as a `Result` with the profile path as `Ok` or a `WebDriverError` as `Err`.
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -872,6 +1017,8 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     Ok(base_path)
 }
 
+/// Retrieves the path to the Firefox profile directory based on the current operating system.
+/// Returns a Result containing the path as a String if successful, or a WebDriverError if an error occurs.
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -897,6 +1044,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     Ok(base_path)
 }
 
+/// Given a browser name, returns the corresponding WebDriver URL for that browser.
 pub fn make_url(browser: &str) -> &'static str {
     match browser {
         "firefox" => "http://localhost:4444",
@@ -905,6 +1053,7 @@ pub fn make_url(browser: &str) -> &'static str {
     }
 }
 
+/// This method takes a Result type as input and checks its content. If the inner Result is Ok with a nested Ok value, it returns true. If the inner Result is Ok with a nested Err value, it prints an error message and returns false. If the outer Result is Err, it checks if the error can be downcasted to a specific type and prints a corresponding error message. Finally, it returns false.
 pub fn handle_test_error(
     res: Result<Result<(), WebDriverError>, Box<dyn std::any::Any + Send>>,
 ) -> bool {

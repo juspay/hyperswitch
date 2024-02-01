@@ -30,6 +30,8 @@ pub struct StripeBillingDetails {
 }
 
 impl From<StripeBillingDetails> for payments::Address {
+        /// Converts a `StripeBillingDetails` struct into the current struct, mapping the address
+    /// field and creating a `PhoneDetails` object with the phone number from the input details.
     fn from(details: StripeBillingDetails) -> Self {
         Self {
             address: details.address,
@@ -65,6 +67,7 @@ pub enum StripePaymentMethodType {
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
+        /// Converts a `StripePaymentMethodType` enum variant into an instance of the current type.
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
@@ -90,6 +93,7 @@ pub enum StripePaymentMethodDetails {
 }
 
 impl From<StripeCard> for payments::Card {
+        /// Creates a new instance of Self (presumably a StripeCard) from a given StripeCard instance.
     fn from(card: StripeCard) -> Self {
         Self {
             card_number: card.number,
@@ -108,6 +112,7 @@ impl From<StripeCard> for payments::Card {
 }
 
 impl From<StripeWallet> for payments::WalletData {
+        /// Converts a StripeWallet enum into a corresponding enum variant of Self.
     fn from(wallet: StripeWallet) -> Self {
         match wallet {
             StripeWallet::ApplePay(data) => Self::ApplePay(data),
@@ -116,14 +121,24 @@ impl From<StripeWallet> for payments::WalletData {
 }
 
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
-    fn from(item: StripePaymentMethodDetails) -> Self {
-        match item {
-            StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
-            StripePaymentMethodDetails::Wallet(wallet) => {
-                Self::Wallet(payments::WalletData::from(wallet))
+        /// Converts a StripePaymentMethodDetails enum into the corresponding PaymentMethodDetails enum.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `item` - A StripePaymentMethodDetails enum to be converted
+        /// 
+        /// # Returns
+        /// 
+        /// The corresponding PaymentMethodDetails enum
+        /// 
+        fn from(item: StripePaymentMethodDetails) -> Self {
+            match item {
+                StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
+                StripePaymentMethodDetails::Wallet(wallet) => {
+                    Self::Wallet(payments::WalletData::from(wallet))
+                }
             }
         }
-    }
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -136,6 +151,7 @@ pub struct Shipping {
 }
 
 impl From<Shipping> for payments::Address {
+        /// Takes a Shipping object and constructs a new instance of Self with the address and phone details from the Shipping object.
     fn from(details: Shipping) -> Self {
         Self {
             address: details.address,
@@ -175,6 +191,8 @@ pub struct StripeSetupIntentRequest {
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert a `StripeSetupIntentRequest` into an `errors::RouterResult<Self>`. 
+    /// This method performs various data transformations and error handling to create the desired result.
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
             item.connector.and_then(|v| {
@@ -311,6 +329,7 @@ pub enum StripeSetupStatus {
 }
 
 impl From<api_enums::IntentStatus> for StripeSetupStatus {
+        /// Converts an `IntentStatus` enum to a corresponding enum value of the current type.
     fn from(item: api_enums::IntentStatus) -> Self {
         match item {
             api_enums::IntentStatus::Succeeded | api_enums::IntentStatus::PartiallyCaptured => {
@@ -342,10 +361,11 @@ pub enum CancellationReason {
 }
 
 impl ToString for CancellationReason {
+        /// Converts the enum variant into a String representation.
     fn to_string(&self) -> String {
         String::from(match self {
             Self::Duplicate => "duplicate",
-            Self::Fraudulent => "fradulent",
+            Self::Fraudulent => "fraudulent",
             Self::RequestedByCustomer => "requested_by_customer",
             Self::Abandoned => "abandoned",
         })
@@ -358,6 +378,7 @@ pub struct StripePaymentCancelRequest {
 }
 
 impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
+        /// Converts a StripePaymentCancelRequest into Self, setting the cancellation reason if it exists.
     fn from(item: StripePaymentCancelRequest) -> Self {
         Self {
             cancellation_reason: item.cancellation_reason.map(|c| c.to_string()),
@@ -397,6 +418,21 @@ pub enum StripeNextAction {
     },
 }
 
+/// Converts the provided `next_action` data into a `StripeNextAction` enum
+/// based on the type of next action. If the next action is a redirect to URL,
+/// it creates a `StripeNextAction::RedirectToUrl` variant with the provided
+/// `redirect_to_url` and `return_url`. If the next action is to display bank
+/// transfer information, it creates a `StripeNextAction::DisplayBankTransferInformation`
+/// variant with the provided bank transfer details. If the next action is to
+/// use a third-party SDK session token, it creates a `StripeNextAction::ThirdPartySdkSessionToken`
+/// variant with the provided session token. If the next action is to display
+/// QR code information, it creates a `StripeNextAction::QrCodeInformation` variant
+/// with the provided image data URL, display timestamp, and QR code URL. If the
+/// next action is to display voucher information, it creates a
+/// `StripeNextAction::DisplayVoucherInformation` variant with the provided voucher
+/// details. If the next action is to display wait screen information, it creates
+/// a `StripeNextAction::WaitScreenInformation` variant with the provided display
+/// timestamps. Returns `None` if the `next_action` is `None`.
 pub(crate) fn into_stripe_next_action(
     next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
@@ -483,6 +519,7 @@ pub struct StripePaymentMethod {
 }
 
 impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
+        /// Constructs a new instance of the StripeSetupIntent from the given PaymentsResponse.
     fn from(resp: payments::PaymentsResponse) -> Self {
         Self {
             object: "setup_intent".to_owned(),
@@ -542,12 +579,14 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
+/// Returns the default limit value, which is 10.
 fn default_limit() -> u32 {
     10
 }
 
 impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert a StripePaymentListConstraints into a Result<Self, Self::Error>.
     fn try_from(item: StripePaymentListConstraints) -> Result<Self, Self::Error> {
         Ok(Self {
             customer_id: item.customer,
@@ -564,6 +603,8 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
 }
 
 #[inline]
+/// Converts a Unix timestamp to a PrimitiveDateTime if a timestamp is provided,
+/// otherwise returns None. Returns an ApiErrorResponse if an error occurs during conversion.
 fn from_timestamp_to_datetime(
     time: Option<i64>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ApiErrorResponse> {

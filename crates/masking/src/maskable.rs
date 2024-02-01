@@ -17,6 +17,7 @@ pub enum Maskable<T: Eq + PartialEq + Clone> {
 }
 
 impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for Maskable<T> {
+        /// Formats the value based on the enum variant.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Masked(secret_value) => std::fmt::Debug::fmt(secret_value, f),
@@ -26,6 +27,7 @@ impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for Maskable<T
 }
 
 impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for Maskable<T> {
+        /// Hashes the value using the provided hasher `H`. If the value is a `Masked`, it uses the `peek` method from `PeekInterface` to hash the inner value. If the value is a `Normal`, it directly hashes the value using the provided hasher `H`.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Self::Masked(value) => crate::PeekInterface::peek(value).hash(state),
@@ -75,6 +77,7 @@ pub trait Mask {
 
 impl Mask for String {
     type Output = Self;
+        /// Converts the value into a `Maskable` instance with the value wrapped in a `Masked` enum variant.
     fn into_masked(self) -> Maskable<Self::Output> {
         Maskable::new_masked(self.into())
     }
@@ -82,18 +85,23 @@ impl Mask for String {
 
 impl Mask for Secret<String> {
     type Output = String;
+        /// Converts the value into a Maskable type, which can be used to perform masked operations on the value.
     fn into_masked(self) -> Maskable<Self::Output> {
         Maskable::new_masked(self)
     }
 }
 
 impl<T: Eq + PartialEq + Clone> From<T> for Maskable<T> {
+        /// Creates a new instance of Self using the provided value. This method is a convenience
+    /// wrapper around the new_normal method, allowing for a more concise syntax when creating
+    /// instances of Self with a single value.
     fn from(value: T) -> Self {
         Self::new_normal(value)
     }
 }
 
 impl From<&str> for Maskable<String> {
+        /// Creates a new instance of Self from the given string value.
     fn from(value: &str) -> Self {
         Self::new_normal(value.to_string())
     }

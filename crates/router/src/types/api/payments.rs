@@ -25,6 +25,7 @@ pub(crate) trait PaymentsRequestExt {
 }
 
 impl PaymentsRequestExt for PaymentsRequest {
+        /// Determines the type of mandate transaction based on the presence of mandate data and mandate ID.
     fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
@@ -90,6 +91,7 @@ pub trait PaymentIdTypeExt {
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
+        /// Retrieves the payment intent ID from the enum variant and returns it as a Result.
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
@@ -111,6 +113,7 @@ pub(crate) trait MandateValidationFieldsExt {
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
+        /// Validates the mandate data and mandate ID and returns the type of mandate transaction.
     fn validate_and_get_mandate_type(
         &self,
     ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
@@ -239,6 +242,7 @@ mod payments_test {
     use super::*;
 
     #[allow(dead_code)]
+        /// Creates a new Card with default values for the card details.
     fn card() -> Card {
         Card {
             card_number: "1234432112344321".to_string().try_into().unwrap(),
@@ -256,6 +260,7 @@ mod payments_test {
     }
 
     #[allow(dead_code)]
+        /// Creates a new payments request with a default amount of 200, and a default payment method of type Card.
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
@@ -266,6 +271,7 @@ mod payments_test {
 
     //#[test] // FIXME: Fix test
     #[allow(dead_code)]
+        /// Retrieves a payments request, serializes it into a JSON string, and then de-serializes it back into a PaymentsRequest object to verify the integrity of the serialization process.
     fn verify_payments_request() {
         let pay_req = payments_request();
         let serialized =
@@ -277,6 +283,7 @@ mod payments_test {
 
     // Intended to test the serialization and deserialization of the enum PaymentIdType
     #[test]
+        /// Tests the serialization and deserialization of the PaymentIdType enum
     fn test_connector_id_type() {
         let sample_1 = PaymentIdType::PaymentIntentId("test_234565430uolsjdnf48i0".to_string());
         let s_sample_1 = serde_json::to_string(&sample_1).unwrap();

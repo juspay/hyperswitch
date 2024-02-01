@@ -8,6 +8,7 @@
 ///
 /// Panics if running the `cargo metadata` command fails.
 #[allow(clippy::expect_used)]
+/// Retrieves the cargo workspace members and sets them as environment variables for the Rust compiler.
 pub fn set_cargo_workspace_members_env() {
     use std::io::Write;
 

@@ -27,6 +27,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads and retrieves metrics data based on the provided dimensions, publishable key, filters, granularity, time range, and database connection pool.
     async fn load_metrics(
         &self,
         dimensions: &[SdkEventDimensions],

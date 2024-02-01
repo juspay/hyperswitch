@@ -35,6 +35,7 @@ mod macros;
 /// }
 /// ```
 #[proc_macro_derive(DebugAsDisplay)]
+/// This function takes a proc_macro::TokenStream as input and uses the syn crate to parse it as a syn::DeriveInput. It then calls the debug_as_display_inner method from the macros module, passing the parsed input as a parameter. The result is then converted into a proc_macro::TokenStream and returned.
 pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -71,6 +72,7 @@ pub fn debug_as_display_derive(input: proc_macro::TokenStream) -> proc_macro::To
 /// }
 /// ```
 #[proc_macro_derive(DieselEnum, attributes(storage_type))]
+/// This method is a procedural macro that takes a `TokenStream` as input, parses it into a `DeriveInput` using the `syn` crate, and then calls the `diesel_enum_derive_inner` method from the `macros` module to generate the necessary code for deriving the `Enum` trait for a given enum. If the `diesel_enum_derive_inner` method returns an error, it is converted into a compile error. The resulting tokens are then converted back into a `TokenStream` and returned.
 pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let tokens =
@@ -99,6 +101,7 @@ pub fn diesel_enum_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// }
 /// ```
 #[proc_macro_derive(DieselEnumText)]
+/// This method takes a proc_macro::TokenStream as input, parses it as a syn::DeriveInput, and then passes it to the diesel_enum_text_derive_inner method from the macros module. It then converts the resulting tokens into a proc_macro::TokenStream and returns it.
 pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
     let tokens = macros::diesel_enum_text_derive_inner(&ast)
@@ -137,6 +140,7 @@ pub fn diesel_enum_derive_string(input: proc_macro::TokenStream) -> proc_macro::
 /// }
 /// ```
 #[proc_macro_attribute]
+/// This method is a procedural macro that takes in two token streams as input. It parses the first token stream as a custom metadata type called DieselEnumMeta, and the second token stream as a Rust enum type using the syn crate. It then calls a custom attribute macro from the macros::diesel module, passing in the parsed metadata and enum as arguments. If the attribute macro returns a Result containing an error, the error is converted to a compile error. The resulting token stream is returned as output.
 pub fn diesel_enum(
     args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
@@ -174,9 +178,11 @@ pub fn diesel_enum(
 // FIXME: Remove allowed warnings, raise compile errors in a better manner instead of panicking
 #[allow(clippy::panic, clippy::unwrap_used)]
 #[proc_macro_derive(Setter, attributes(auth_based))]
+/// Parses a given input token stream and generates a series of setter methods for a given struct, based on its fields. Each setter method allows for setting a specific field of the struct and returns a mutable reference to the struct itself.
 pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     let ident = &input.ident;
+
     // All the fields in the parent struct
     let fields = if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
@@ -200,6 +206,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let ty = &f.ty;
         if check_if_auth_based_attr_is_present(f, "auth_based") {
             quote::quote! {
+                /// Sets the value of the field {name} and returns a mutable reference to the struct if the `is_merchant_flow` flag is true. Otherwise, it only returns a mutable reference to the struct.
                 pub fn #method_ident(&mut self, val:#ty, is_merchant_flow: bool)->&mut Self{
                     if is_merchant_flow {
                         self.#name = val;
@@ -209,6 +216,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         } else {
             quote::quote! {
+                /// Sets the value of the field {name} and returns a mutable reference to the struct.
                 pub fn #method_ident(&mut self, val:#ty)->&mut Self{
                     self.#name = val;
                     self
@@ -216,6 +224,7 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     });
+
     let output = quote::quote! {
     #[automatically_derived]
     impl #ident {
@@ -223,10 +232,12 @@ pub fn setter(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
     };
+
     output.into()
 }
 
 #[inline]
+/// Checks if the given attribute identifier is present in the list of attributes for the given field.
 fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
     for i in f.attrs.iter() {
         if i.path().is_ident(ident) {
@@ -358,6 +369,7 @@ fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
 /// [Serialize]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 /// [Display]: ::core::fmt::Display
 #[proc_macro_derive(ApiError, attributes(error))]
+/// This method takes a proc_macro::TokenStream as input and parses it as a syn::DeriveInput. It then calls the api_error_derive_inner method from the macros module with the parsed input, and returns the resulting proc_macro::TokenStream.
 pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -461,6 +473,7 @@ pub fn api_error_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 /// imports, since use statements are not allowed inside of impl blocks. This technique is
 /// used by `diesel`.
 #[proc_macro_derive(PaymentOperation, attributes(operation))]
+/// This method takes a proc_macro::TokenStream as input and derives an operation based on the input. It first parses the input into a syn::DeriveInput, then calls the operation_derive_inner method from the macros::operation module to derive the operation. If an error occurs during the derivation process, it returns a compile error.
 pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     macros::operation::operation_derive_inner(input)
@@ -509,6 +522,10 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     PolymorphicSchema,
     attributes(mandatory_in, generate_schemas, remove_in)
 )]
+/// This method takes a `proc_macro::TokenStream` as input and parses it as a `syn::DeriveInput`. 
+/// It then calls the `polymorphic_macro_derive_inner` method from the `macros` module and 
+/// processes the result. If there is an error, it is converted into a compile error. The final 
+/// result is returned as a `proc_macro::TokenStream`.
 pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -538,6 +555,10 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 /// }
 /// ```
 #[proc_macro_derive(ConfigValidate)]
+/// This method takes a `proc_macro::TokenStream` as input, parses it as a `syn::DeriveInput`,
+/// and then passes it to the `macros::misc::validate_config` method to validate the configuration.
+/// If validation fails, it converts the error into a compile error. Finally, it returns the result
+/// as a `proc_macro::TokenStream`.
 pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
@@ -576,6 +597,9 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     }
 /// }
 #[proc_macro_derive(TryGetEnumVariant, attributes(error))]
+/// This function takes a `proc_macro::TokenStream` as input and tries to parse it as a `syn::DeriveInput`.
+/// It then calls the `try_get_enum_variant` function from the `macros::try_get_enum` module, passing the parsed input as an argument.
+/// If successful, it returns the result as a `proc_macro::TokenStream`. If an error occurs, it converts the error into a compile error and returns it as a `proc_macro::TokenStream`.
 pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 

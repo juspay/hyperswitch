@@ -7,6 +7,7 @@ use crate::{
     utils::{Encode, ValueExt},
 };
 
+/// Populates the IP address into the browser information of the given PaymentsRequest payload
 pub fn populate_ip_into_browser_info(
     req: &actix_web::HttpRequest,
     payload: &mut api::PaymentsRequest,

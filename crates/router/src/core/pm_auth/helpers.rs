@@ -16,6 +16,16 @@ pub trait PaymentAuthConnectorDataExt {
     ) -> errors::CustomResult<BoxedPaymentAuthConnector, ApiErrorResponse>;
 }
 
+/// Retrieves the authentication type of a merchant connector account and converts it into a custom result.
+///
+/// # Arguments
+///
+/// * `merchant_connector_account` - The merchant connector account for which the authentication type needs to be retrieved
+///
+/// # Returns
+///
+/// A `CustomResult` containing the `ConnectorAuthType` if successful, otherwise an `ApiErrorResponse`
+///
 pub fn get_connector_auth_type(
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> errors::CustomResult<pm_auth_types::ConnectorAuthType, ApiErrorResponse> {

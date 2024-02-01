@@ -8,6 +8,7 @@ use euclid::{
     types::DummyOutput,
 };
 
+/// This method retrieves program data and backend input for payment processing. It parses a specified code to create a program and then constructs a BackendInput struct with predetermined data.
 fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
     let code1 = r#"
         default: ["stripe", "adyen", "checkout"]
@@ -64,6 +65,7 @@ fn get_program_data() -> (ast::Program<DummyOutput>, inputs::BackendInput) {
     (program, inp)
 }
 
+/// This method compares the performance of raw interpreter backend and valued interpreter backend using Criterion benchmarks. It first retrieves the program data and inputs. Then it creates instances of raw interpreter backend and valued interpreter backend with the program data. Finally, it benchmarks the execution of both backends using the provided inputs.
 fn interpreter_vs_jit_vs_vir_interpreter(c: &mut Criterion) {
     let (program, binputs) = get_program_data();
 

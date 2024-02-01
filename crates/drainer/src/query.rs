@@ -16,6 +16,10 @@ pub trait ExecuteQuery {
 
 #[async_trait::async_trait]
 impl ExecuteQuery for kv::DBOperation {
+        /// Asynchronously executes a query on the database using the provided store and returns a CustomResult
+    /// containing either a successful execution or a DatabaseError. It records the execution time and
+    /// logs the operation and table being executed. It also updates the metrics for successful and
+    /// failed query executions.
     async fn execute_query(
         self,
         store: &Arc<Store>,
@@ -58,6 +62,7 @@ impl ExecuteQuery for kv::DBOperation {
 }
 
 #[inline(always)]
+/// Records the delay between pushing a metric and draining it, then logs the delay and records it as a metric.
 fn push_drainer_delay(pushed_at: i64, operation: &str, table: &str, tags: &[metrics::KeyValue]) {
     let drained_at = common_utils::date_time::now_unix_timestamp();
     let delay = drained_at - pushed_at;

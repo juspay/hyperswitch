@@ -66,6 +66,8 @@ pub trait Feature<F, T> {
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
+        /// Adds a payment method token using the provided state, connector data, and tokenization action. 
+    /// Returns an optional string representing the result of the operation.
     async fn add_payment_method_token<'a>(
         &mut self,
         _state: &AppState,
@@ -80,6 +82,7 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+        /// This method performs preprocessing steps using the provided state and connector data, and returns the result as a RouterResult.
     async fn preprocessing_steps<'a>(
         self,
         _state: &AppState,
@@ -93,6 +96,24 @@ pub trait Feature<F, T> {
         Ok(self)
     }
 
+        /// Asynchronously creates a new connector customer using the provided `ConnectorData` and `AppState`.
+    /// Returns an `Option<String>` representing the result of the operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state containing necessary information for creating the customer.
+    /// * `connector` - The connector data containing details for creating the customer.
+    ///
+    /// # Constraints
+    ///
+    /// * `F` must implement the `Clone` trait.
+    /// * The method must be called on a type that implements `Sized`.
+    /// * The `Connector` must implement `services::ConnectorIntegration` with the specified generic types.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<String>` representing the result of the operation, where `Some(String)` contains the identifier of the newly created customer, and `None` indicates that the operation was unsuccessful.
+    ///
     async fn create_connector_customer<'a>(
         &self,
         _state: &AppState,
@@ -363,6 +384,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnector<T> {
+        /// Get the flow type for a payment action based on the query parameters, JSON payload, and the payment action itself.
     fn get_flow_type(
         &self,
         _query_params: &str,

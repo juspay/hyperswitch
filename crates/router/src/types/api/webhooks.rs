@@ -30,6 +30,16 @@ pub struct IncomingWebhookRequestDetails<'a> {
 
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
+        /// Retrieves the decoding algorithm to use for decoding the body of an incoming webhook request.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The details of the incoming webhook request.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `Box` of a type that implements the `crypto::DecodeMessage` trait and can be sent across threads, or an error of type `errors::ConnectorError`.
+    ///
     fn get_webhook_body_decoding_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -37,6 +47,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Box::new(crypto::NoAlgorithm))
     }
 
+        /// Asynchronously retrieves the webhook body and decodes the merchant secret for a given merchant ID.
+    ///
+    /// # Arguments
+    /// * `&self` - The reference to the current instance of the struct.
+    /// * `_db` - A reference to the storage interface for database operations.
+    /// * `_merchant_id` - The ID of the merchant whose webhook body and secret are being retrieved.
+    ///
+    /// # Returns
+    /// A `CustomResult` containing the decoded merchant secret as a vector of bytes, or an error of type `ConnectorError`.
+    ///
     async fn get_webhook_body_decoding_merchant_secret(
         &self,
         _db: &dyn StorageInterface,
@@ -45,6 +65,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+        /// This method takes an IncomingWebhookRequestDetails reference as input and returns a CustomResult containing the body of the request, decoded as a vector of unsigned bytes. If successful, it returns Ok with the body of the request as a vector of bytes. If there is an error, it returns Err with a ConnectorError.
     fn get_webhook_body_decoding_message(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -52,6 +73,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(request.body.to_vec())
     }
 
+        /// Decodes the body of a webhook request using the specified algorithm and merchant ID,
+    /// returning the decoded message as a vector of bytes.
     async fn decode_webhook_body(
         &self,
         db: &dyn StorageInterface,
@@ -73,6 +96,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
+        /// Retrieves the verification algorithm for the source of a webhook request.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The details of the incoming webhook request.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `Box` that implements the `VerifySignature` trait and can be sent across threads, or an error of type `ConnectorError`.
+    ///
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -127,6 +160,23 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(merchant_secret)
     }
 
+        /// Asynchronously retrieves the webhook source verification merchant secret for a given merchant account and connector name.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_account` - A reference to the merchant account for which the secret is being retrieved.
+    /// * `connector_name` - The name of the connector for which the secret is being retrieved.
+    /// * `merchant_connector_account` - The merchant connector account containing the webhook details.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the `ConnectorWebhookSecrets` if successful, otherwise a `ConnectorError`.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if the webhook source verification fails or if the merchant connector webhook details cannot be deserialized.
+    ///
+        /// This method is used to retrieve the verification signature for the incoming webhook request. It takes the incoming webhook request details and the connector webhook secrets as input parameters and returns a result containing a vector of bytes representing the verification signature. If successful, it returns an empty vector.
     fn get_webhook_source_verification_signature(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -135,6 +185,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+        /// Retrieves the verification message for the webhook source based on the incoming webhook request details, merchant ID, and connector webhook secrets.
     fn get_webhook_source_verification_message(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -144,6 +195,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+        /// Asynchronously verifies the source of a webhook call by fetching the connector data, retrieving the webhook secrets, constructing the webhook router data, and executing the connector processing step. Returns a boolean indicating whether the source is verified or not.
     async fn verify_webhook_source_verification_call(
         &self,
         state: &crate::routes::AppState,
@@ -256,6 +308,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
+        /// Retrieves the API response for a webhook request and returns it as a Result.
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -264,6 +317,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(services::api::ApplicationResponse::StatusOk)
     }
 
+        /// This method retrieves the details of a dispute from the incoming webhook request.
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,

@@ -11,6 +11,7 @@ newtype!(
 );
 
 impl common_utils::events::ApiEventMetric for CustomerResponse {
+        /// Returns the API event type if it exists, otherwise returns None.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         self.0.get_api_event_type()
     }
@@ -21,6 +22,7 @@ pub(crate) trait CustomerRequestExt: Sized {
 }
 
 impl From<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResponse {
+        /// Converts a tuple containing a Customer and an optional AddressDetails into a CustomerResponse
     fn from((cust, address): (domain::Customer, Option<payments::AddressDetails>)) -> Self {
         customers::CustomerResponse {
             customer_id: cust.customer_id,

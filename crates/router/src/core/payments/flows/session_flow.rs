@@ -29,6 +29,7 @@ impl
     ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for PaymentData<api::Session>
 {
+        /// Asynchronously constructs a router data for payment session using the provided state, connector ID, merchant account, key store, customer, and merchant connector account. Returns a RouterResult containing the constructed PaymentsSessionRouterData.
     async fn construct_router_data<'a>(
         &self,
         state: &routes::AppState,
@@ -56,6 +57,7 @@ impl
 
 #[async_trait]
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
+        /// Asynchronously decides the flow of the application based on the provided state, connector data, customer information, connector action, merchant account, connector request, and merchant key store. It also adds a session token created metric with the connector name as an attribute. 
     async fn decide_flows<'a>(
         self,
         state: &routes::AppState,
@@ -84,6 +86,18 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         .await
     }
 
+        /// Asynchronously adds an access token for the specified merchant account using the provided connector and application state.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state containing the necessary resources for adding the access token.
+    /// * `connector` - The connector data used to authenticate and authorize the access token.
+    /// * `merchant_account` - The merchant account for which the access token is being added.
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing the result of adding the access token.
+    ///
     async fn add_access_token<'a>(
         &self,
         state: &routes::AppState,
@@ -94,6 +108,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     }
 }
 
+/// Parses the connector metadata into Apple Pay session token metadata and returns a `RouterResult` containing the parsed metadata.
 fn get_applepay_metadata(
     connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<payment_types::ApplepaySessionTokenMetadata> {
@@ -124,7 +139,21 @@ fn get_applepay_metadata(
         })
 }
 
-fn build_apple_pay_session_request(
+/// Builds a request for initiating an Apple Pay session, using the provided Apple Pay session request object,
+/// Apple Pay merchant certificate, and merchant certificate key. The method constructs a request to the Apple Pay
+/// payment session endpoint and includes the necessary headers, request body, and certificates for authentication.
+///
+/// # Arguments
+///
+/// * `state` - The application state containing configuration and other context information.
+/// * `request` - The Apple Pay session request object containing the payment details.
+/// * `apple_pay_merchant_cert` - The Apple Pay merchant certificate in string format.
+/// * `apple_pay_merchant_cert_key` - The Apple Pay merchant certificate key in string format.
+///
+/// # Returns
+///
+/// A `RouterResult` containing a `Request` object for initiating the Apple Pay session.
+pub fn build_apple_pay_session_request(
     state: &routes::AppState,
     request: payment_types::ApplepaySessionRequest,
     apple_pay_merchant_cert: String,
@@ -148,6 +177,7 @@ fn build_apple_pay_session_request(
     Ok(session_request)
 }
 
+/// Asynchronously creates an Apple Pay session token by taking the state, router data, and connector data as input parameters. If the response is delayed, it creates an Apple Pay session response with no session and none as the Apple Pay payment request. If the response is not delayed, it retrieves the Apple Pay metadata, payment request data, Apple Pay session request, and merchant keys. It then obtains the amount info for Apple Pay, the Apple Pay payment request, and builds the Apple Pay session request. Subsequently, it calls the connector API, logs any errors in the session call response, and parses the session response. Finally, it creates the Apple Pay session response with the obtained session response, Apple Pay payment request, and connector name, and returns the result.
 async fn create_applepay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
@@ -393,6 +423,18 @@ async fn create_applepay_session_token(
     }
 }
 
+/// Generates an Apple Pay session request for simplified Apple Pay integration.
+///
+/// # Arguments
+///
+/// * `apple_pay_merchant_identifier` - The merchant identifier for Apple Pay integration
+/// * `session_token_data` - The session token data for simplified Apple Pay
+///
+/// # Returns
+///
+/// An ApplepaySessionRequest containing the merchant identifier, display name, initiative, and initiative context for the simplified Apple Pay integration.
+///
+
 fn get_session_request_for_simplified_apple_pay(
     apple_pay_merchant_identifier: String,
     session_token_data: payment_types::SessionTokenForSimplifiedApplePay,
@@ -405,6 +447,7 @@ fn get_session_request_for_simplified_apple_pay(
     }
 }
 
+/// Generates an Apple Pay session request based on the provided session token data.
 fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
 ) -> payment_types::ApplepaySessionRequest {
@@ -416,6 +459,7 @@ fn get_session_request_for_manual_apple_pay(
     }
 }
 
+/// Retrieves the Apple Pay amount information based on the label and session data provided.
 fn get_apple_pay_amount_info(
     label: &str,
     session_data: types::PaymentsSessionData,
@@ -435,6 +479,7 @@ fn get_apple_pay_amount_info(
     Ok(amount_info)
 }
 
+/// Returns an Apple Pay payment request based on the provided amount information, payment request metadata, session data, and merchant identifier.
 fn get_apple_pay_payment_request(
     amount_info: payment_types::AmountInfo,
     payment_request_data: payment_types::PaymentRequestMetadata,
@@ -452,6 +497,8 @@ fn get_apple_pay_payment_request(
     Ok(applepay_payment_request)
 }
 
+/// Creates an Apple Pay session response based on the provided session response, Apple Pay payment request, connector name, delayed response flag, and next action. 
+/// If the session response is Some, it constructs a session token with the Apple Pay session token response and other provided data. If the session response is None, it constructs a session token with no session token received.
 fn create_apple_pay_session_response(
     router_data: &types::PaymentsSessionRouterData,
     session_response: Option<payment_types::ApplePaySessionResponse>,
@@ -487,6 +534,7 @@ fn create_apple_pay_session_response(
     }
 }
 
+/// Creates a Google Pay session token based on the provided state, router data, and connector data. If the session response is delayed, it returns a delayed session token with the necessary next action. Otherwise, it parses the Google Pay metadata, constructs the session data, and returns a Google Pay session token with the merchant info, allowed payment methods, transaction info, and next action for confirmation.
 fn create_gpay_session_token(
     state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
@@ -565,7 +613,17 @@ fn create_gpay_session_token(
         })
     }
 }
-
+/// This method checks if the given connector has a delayed session response based on the state of the application.
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state containing configuration information
+/// * `connector` - The connector data for which the delayed session response is to be checked
+/// 
+/// # Returns
+/// 
+/// A boolean value indicating if the connector has a delayed session response
+/// 
 fn is_session_response_delayed(state: &routes::AppState, connector: &api::ConnectorData) -> bool {
     let connectors_with_delayed_response = &state
         .conf
@@ -575,6 +633,7 @@ fn is_session_response_delayed(state: &routes::AppState, connector: &api::Connec
     connectors_with_delayed_response.contains(&connector.connector_name)
 }
 
+/// Logs the error response if the given response is an error, using the logger crate. 
 fn log_session_response_if_error(
     response: &Result<Result<types::Response, types::Response>, Report<errors::ApiClientError>>,
 ) {
@@ -588,6 +647,7 @@ fn log_session_response_if_error(
 }
 
 impl types::PaymentsSessionRouterData {
+        /// This method decides the flow of the payment process based on the type of token being used. If the token is of type GpayMetadata, it creates a Google Pay session token. If the token is of type ApplePayMetadata, it creates an Apple Pay session token. If the token is of type Connector, it retrieves the connector integration, executes the connector processing step, and returns the payment response. 
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::AppState,

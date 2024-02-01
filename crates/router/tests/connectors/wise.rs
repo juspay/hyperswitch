@@ -16,6 +16,7 @@ use crate::{
 struct WiseTest;
 impl ConnectorActions for WiseTest {}
 impl utils::Connector for WiseTest {
+        /// This method returns the connector data for the Adyen connector. It creates a new instance of ConnectorData with Adyen as the connector, Adyen as the connector name, GetToken set to Connector, and merchant_connector_id set to None.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Adyen;
         types::api::ConnectorData {
@@ -27,6 +28,7 @@ impl utils::Connector for WiseTest {
     }
 
     #[cfg(feature = "payouts")]
+        /// This method returns the payout data for a Wise connector, including the connector itself, the connector name, and the method to retrieve the token.
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Wise;
         Some(types::api::PayoutConnectorData {
@@ -36,6 +38,7 @@ impl utils::Connector for WiseTest {
         })
     }
 
+        /// Retrieves the authentication token for the connector.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -45,6 +48,7 @@ impl utils::Connector for WiseTest {
         )
     }
 
+        /// Returns the name "wise" as a String.
     fn get_name(&self) -> String {
         "wise".to_string()
     }
@@ -52,6 +56,8 @@ impl utils::Connector for WiseTest {
 
 impl WiseTest {
     #[cfg(feature = "payouts")]
+        /// Retrieves the payment information for the user,
+    /// including country, currency, address, and payout method data.
     fn get_payout_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -90,6 +96,8 @@ static CONNECTOR: WiseTest = WiseTest {};
 // Creates a recipient at connector's end
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates a payout recipient using the bank payout type and payment information retrieved from WiseTest. 
+/// Expects a response from the create_payout_recipient method and asserts that the status of the response is RequiresCreation.
 async fn should_create_payout_recipient() {
     let payout_type = enums::PayoutType::Bank;
     let payment_info = WiseTest::get_payout_info();
@@ -106,6 +114,7 @@ async fn should_create_payout_recipient() {
 // Create BACS payout
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates a BACS payout by first creating a recipient and then creating the payout itself.
 async fn should_create_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
     let payout_info = WiseTest::get_payout_info();
@@ -137,6 +146,8 @@ async fn should_create_bacs_payout() {
 // Create and fulfill BACS payout
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates a payout recipient of type Bank and fulfills the payout, 
+/// checking that the recipient is created and the payout is successfully fulfilled.
 async fn should_create_and_fulfill_bacs_payout() {
     let payout_type = enums::PayoutType::Bank;
     let payout_info = WiseTest::get_payout_info();

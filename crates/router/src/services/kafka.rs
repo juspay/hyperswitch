@@ -26,6 +26,7 @@ pub trait KafkaMessage
 where
     Self: Serialize,
 {
+        /// This method returns a Result containing a vector of bytes representing the serialized JSON value of the object.
     fn value(&self) -> MQResult<Vec<u8>> {
         // Add better error logging here
         serde_json::to_vec(&self)
@@ -35,6 +36,9 @@ where
 
     fn key(&self) -> String;
 
+        /// Returns the creation timestamp of the object, if available.
+    /// 
+    /// If the creation timestamp is not available, it returns None.
     fn creation_timestamp(&self) -> Option<i64> {
         None
     }
@@ -48,12 +52,14 @@ struct KafkaEvent<'a, T: KafkaMessage> {
 }
 
 impl<'a, T: KafkaMessage> KafkaEvent<'a, T> {
+        /// Creates a new instance of Self with the given event reference and sets the sign_flag to 1.
     fn new(event: &'a T) -> Self {
         Self {
             event,
             sign_flag: 1,
         }
     }
+        /// Creates a new instance of the `Self` type with the provided event and a sign flag set to -1.
     fn old(event: &'a T) -> Self {
         Self {
             event,
@@ -63,10 +69,14 @@ impl<'a, T: KafkaMessage> KafkaEvent<'a, T> {
 }
 
 impl<'a, T: KafkaMessage> KafkaMessage for KafkaEvent<'a, T> {
+        /// This method returns the key associated with the event.
     fn key(&self) -> String {
         self.event.key()
     }
 
+        /// Retrieves the creation timestamp of the event, if available. 
+    /// If the event has a creation timestamp, it returns Some with the timestamp value, 
+    /// otherwise it returns None.
     fn creation_timestamp(&self) -> Option<i64> {
         self.event.creation_timestamp()
     }
@@ -85,6 +95,7 @@ pub struct KafkaSettings {
 }
 
 impl KafkaSettings {
+        /// Validates the configuration values of the current instance and returns a Result indicating success or an ApplicationError if any of the required Kafka topics are empty.
     pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
@@ -153,6 +164,7 @@ pub struct KafkaProducer {
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
 
 impl std::fmt::Debug for RdKafkaProducer {
+        /// Formats the `RdKafkaProducer` for display.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("RdKafkaProducer")
     }
@@ -170,6 +182,7 @@ pub enum KafkaError {
 
 #[allow(unused)]
 impl KafkaProducer {
+        /// Asynchronously creates a new KafkaManager instance using the provided KafkaSettings configuration.
     pub async fn create(conf: &KafkaSettings) -> MQResult<Self> {
         Ok(Self {
             producer: Arc::new(RdKafkaProducer(
@@ -189,6 +202,7 @@ impl KafkaProducer {
         })
     }
 
+        /// Logs a Kafka event to the specified topic using the Kafka producer.
     pub fn log_kafka_event<T: KafkaMessage + std::fmt::Debug>(
         &self,
         topic: &str,
@@ -211,6 +225,8 @@ impl KafkaProducer {
             .change_context(KafkaError::GenericError)
     }
 
+        /// Asynchronously logs a payment attempt by sending a Kafka event to the attempt analytics topic.
+    /// If an old attempt is provided, it also sends a Kafka event for the old attempt before sending one for the new attempt.
     pub async fn log_payment_attempt(
         &self,
         attempt: &PaymentAttempt,
@@ -232,6 +248,7 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add positive attempt event {attempt:?}"))
     }
 
+        /// Asynchronously logs a payment attempt deletion by sending the old payment attempt data to the Kafka event topic for analytics. If an error occurs, it attaches a printable lazy error message indicating the failure to add the negative attempt event.
     pub async fn log_payment_attempt_delete(
         &self,
         delete_old_attempt: &PaymentAttempt,
@@ -245,6 +262,7 @@ impl KafkaProducer {
         })
     }
 
+        /// Asynchronously logs a payment intent and its old state to a Kafka event. If an old intent is provided, a negative event is logged first before logging the new intent event. Returns a Result indicating success or failure.
     pub async fn log_payment_intent(
         &self,
         intent: &PaymentIntent,
@@ -266,6 +284,7 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add positive intent event {intent:?}"))
     }
 
+        /// Asynchronously logs a payment intent deletion event to a Kafka topic, using the provided old payment intent.
     pub async fn log_payment_intent_delete(
         &self,
         delete_old_intent: &PaymentIntent,
@@ -279,6 +298,7 @@ impl KafkaProducer {
         })
     }
 
+        /// Asynchronously logs a refund event to a Kafka topic. If an old_refund is provided, it also logs a negative refund event before logging the new positive refund event.
     pub async fn log_refund(&self, refund: &Refund, old_refund: Option<Refund>) -> MQResult<()> {
         if let Some(negative_event) = old_refund {
             self.log_kafka_event(
@@ -296,6 +316,12 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add positive refund event {refund:?}"))
     }
 
+        /// Asynchronously logs the deletion of an old refund by sending a Kafka event to the refund analytics topic.
+    ///
+    /// # Arguments
+    ///
+    /// * `delete_old_refund` - A reference to the refund being deleted.
+    ///
     pub async fn log_refund_delete(&self, delete_old_refund: &Refund) -> MQResult<()> {
         self.log_kafka_event(
             &self.refund_analytics_topic,
@@ -306,6 +332,7 @@ impl KafkaProducer {
         })
     }
 
+        /// Returns the topic associated with the given event type.
     pub fn get_topic(&self, event: EventType) -> &str {
         match event {
             EventType::ApiLogs => &self.api_logs_topic,
@@ -319,8 +346,8 @@ impl KafkaProducer {
 }
 
 impl Drop for RdKafkaProducer {
+        /// Flushes the producer to send any pending messages to Kafka within a specified timeout period.
     fn drop(&mut self) {
-        // Flush the producer to send any pending messages
         match self.0.flush(rdkafka::util::Timeout::After(
             std::time::Duration::from_secs(5),
         )) {

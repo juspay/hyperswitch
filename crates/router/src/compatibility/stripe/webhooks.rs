@@ -28,6 +28,10 @@ pub struct StripeOutgoingWebhook {
 }
 
 impl OutgoingWebhookType for StripeOutgoingWebhook {
+        /// Calculates the signature for outgoing webhooks based on the provided payment response hash key. 
+    /// If the payment response hash key is not provided, it returns an error. 
+    /// It then encodes the webhook payload to JSON and signs the message using HmacSha256 with the payment response hash key. 
+    /// Finally, it constructs and returns the signature in the format "t={timestamp},v1={signature}".
     fn get_outgoing_webhooks_signature(
         &self,
         payment_response_hash_key: Option<String>,
@@ -59,6 +63,13 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
         Ok(Some(format!("t={t},v1={v1}")))
     }
 
+        /// Adds a webhook header to the given vector of header tuples with the provided signature.
+    ///
+    /// # Arguments
+    ///
+    /// * `header` - A mutable reference to a vector of tuples containing header key-value pairs.
+    /// * `signature` - A string representing the signature to be added to the header vector.
+    ///
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
         header.push((
             headers::STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE.to_string(),
@@ -116,6 +127,7 @@ pub enum StripeDisputeStatus {
 }
 
 impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
+        /// Converts a `DisputeResponse` from the API to a `Self` object.
     fn from(res: api_models::disputes::DisputeResponse) -> Self {
         Self {
             id: res.dispute_id,
@@ -129,6 +141,7 @@ impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
 }
 
 impl From<api_models::mandates::MandateResponse> for StripeMandateResponse {
+        /// Converts a MandateResponse from the API into a StripeMandate.
     fn from(res: api_models::mandates::MandateResponse) -> Self {
         Self {
             mandate_id: res.mandate_id,
@@ -140,6 +153,7 @@ impl From<api_models::mandates::MandateResponse> for StripeMandateResponse {
 }
 
 impl From<MandateStatus> for StripeMandateStatus {
+        /// Converts a MandateStatus enum variant into a corresponding instance of the Self enum.
     fn from(status: MandateStatus) -> Self {
         match status {
             MandateStatus::Active => Self::Active,
@@ -150,6 +164,7 @@ impl From<MandateStatus> for StripeMandateStatus {
 }
 
 impl From<DisputeStatus> for StripeDisputeStatus {
+        /// Converts a DisputeStatus enum into a corresponding Self enum value.
     fn from(status: DisputeStatus) -> Self {
         match status {
             DisputeStatus::DisputeOpened => Self::WarningNeedsResponse,
@@ -163,6 +178,7 @@ impl From<DisputeStatus> for StripeDisputeStatus {
     }
 }
 
+/// Maps custom enum event types to their corresponding Stripe event type strings.
 fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static str {
     match event_type {
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
@@ -194,6 +210,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
 }
 
 impl From<api::OutgoingWebhook> for StripeOutgoingWebhook {
+        /// Converts an `api::OutgoingWebhook` into a `Self` instance.
     fn from(value: api::OutgoingWebhook) -> Self {
         Self {
             id: value.event_id,
@@ -218,6 +235,7 @@ impl From<api::OutgoingWebhook> for StripeOutgoingWebhook {
 }
 
 impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
+        /// Converts an api::OutgoingWebhookContent enum into the corresponding Self enum variant
     fn from(value: api::OutgoingWebhookContent) -> Self {
         match value {
             api::OutgoingWebhookContent::PaymentDetails(payment) => {

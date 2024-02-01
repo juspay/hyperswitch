@@ -13,6 +13,23 @@ use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
+        /// Asynchronously finds a payment attempt by the given payment ID, merchant ID, attempt ID, and storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `_payment_id` - The payment ID to search for
+    /// * `_merchant_id` - The merchant ID to search for
+    /// * `_attempt_id` - The attempt ID to search for
+    /// * `_storage_scheme` - The storage scheme to be used for the search
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<PaymentAttempt, StorageError>` - A result containing either the found payment attempt or a storage error
+    ///
+    /// # Errors
+    ///
+    /// * Returns a `StorageError` with the reason for the error if the operation fails
+    ///
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         _payment_id: &str,
@@ -24,6 +41,22 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+        /// Asynchronously retrieves filters for payments based on the provided payment intents, merchant ID, and storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `pi` - A slice of payment intents to use for filtering payments.
+    /// * `merchant_id` - The ID of the merchant for which the filters are being retrieved.
+    /// * `storage_scheme` - The storage scheme to use for retrieving the filters.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the payment list filters if successful, otherwise a `StorageError` if an error occurs.
+    ///
+    /// # Errors
+    ///
+    /// This method returns a `StorageError::MockDbError` indicating a mock database error.
+    ///
     async fn get_filters_for_payments(
         &self,
         _pi: &[data_models::payments::PaymentIntent],
@@ -34,6 +67,26 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+        /// Asynchronously retrieves the total count of filtered payment attempts based on the provided criteria. 
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The ID of the merchant for which payment attempts are being filtered.
+    /// * `_active_attempt_ids` - A list of active attempt IDs to filter the payment attempts.
+    /// * `_connector` - An optional list of connectors to filter the payment attempts.
+    /// * `_payment_method` - An optional list of payment methods to filter the payment attempts.
+    /// * `_payment_method_type` - An optional list of payment method types to filter the payment attempts.
+    /// * `_authentication_type` - An optional list of authentication types to filter the payment attempts.
+    /// * `_storage_scheme` - The storage scheme used by the merchant.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the total count of filtered payment attempts as an `i64`, or a `StorageError` if the operation fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `MockDbError` if the operation encounters a mock database error.
+    ///
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         _merchant_id: &str,
@@ -47,6 +100,22 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+        /// Finds a payment attempt by its attempt ID and merchant ID in the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `_attempt_id` - The ID of the payment attempt to be found.
+    /// * `_merchant_id` - The ID of the merchant associated with the payment attempt.
+    /// * `_storage_scheme` - The storage scheme to be used for the search.
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<PaymentAttempt, StorageError>` - A result containing either the found payment attempt or a storage error.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `StorageError::MockDbError` if the function is called with a `MockDb` implementation.
+    ///
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         _attempt_id: &str,
@@ -57,6 +126,26 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+        /// Asynchronously finds a payment attempt by preprocessing ID and merchant ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `_preprocessing_id` - The preprocessing ID of the payment attempt
+    /// * `_merchant_id` - The ID of the merchant associated with the payment attempt
+    /// * `_storage_scheme` - The storage scheme to be used for the operation
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `PaymentAttempt` if successful, or a `StorageError` if an error occurs
+    ///
+    /// # Errors
+    ///
+    /// An error of type `StorageError` is returned if the operation fails
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the storage type is `MockDb`
+    ///
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         _preprocessing_id: &str,
@@ -67,6 +156,15 @@ impl PaymentAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+        /// Asynchronously finds a payment attempt by the merchant ID and connector transaction ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    /// * `_merchant_id` - The ID of the merchant
+    /// * `_connector_txn_id` - The ID of the connector transaction
+    /// * `_storage_scheme` - The storage scheme to use
+    ///
+    /// # Returns
+    /// The result of the operation, containing either a PaymentAttempt or a StorageError
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         _merchant_id: &str,
@@ -76,7 +174,15 @@ impl PaymentAttemptInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
-
+        /// Asynchronously finds payment attempts by merchant ID and payment ID using the specified storage scheme.
+    /// 
+    /// # Arguments
+    /// * `_merchant_id` - The ID of the merchant
+    /// * `_payment_id` - The ID of the payment
+    /// * `_storage_scheme` - The storage scheme to use for retrieval
+    /// 
+    /// # Returns
+    /// * `CustomResult<Vec<PaymentAttempt>, StorageError>` - A result containing a vector of PaymentAttempt objects, or a StorageError if an error occurs
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         _merchant_id: &str,
@@ -88,6 +194,7 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[allow(clippy::panic)]
+        /// Inserts a new payment attempt into the storage, populating derived fields and returning the inserted payment attempt.
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -154,6 +261,18 @@ impl PaymentAttemptInterface for MockDb {
 
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
+        /// Updates a payment attempt with the given attempt ID and returns the updated payment attempt.
+    ///
+    /// # Arguments
+    ///
+    /// * `this` - The original payment attempt to be updated
+    /// * `payment_attempt` - The updated payment attempt data
+    /// * `_storage_scheme` - The storage scheme to use for the update
+    ///
+    /// # Returns
+    ///
+    /// The updated payment attempt, or a `StorageError` if the update fails
+    ///
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -176,6 +295,7 @@ impl PaymentAttemptInterface for MockDb {
         Ok(item.clone())
     }
 
+        /// Asynchronously finds a payment attempt by the given connector transaction ID, payment ID, and merchant ID using the specified storage scheme.
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         _connector_transaction_id: &str,
@@ -189,6 +309,18 @@ impl PaymentAttemptInterface for MockDb {
 
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
+        /// Asynchronously finds the last successful payment attempt by the given payment ID and merchant ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_id` - The ID of the payment to search for.
+    /// * `merchant_id` - The ID of the merchant to search for.
+    /// * `_storage_scheme` - The storage scheme to use for the merchant.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the last successful `PaymentAttempt` found, or a `StorageError` if an error occurs.
+    ///
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -207,6 +339,7 @@ impl PaymentAttemptInterface for MockDb {
             .unwrap())
     }
     #[allow(clippy::unwrap_used)]
+        /// Asynchronously finds and returns the last successful or partially captured payment attempt based on the provided payment ID and merchant ID, using the specified storage scheme.
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,

@@ -13,6 +13,7 @@ use crate::{
 };
 pub trait ApiLogsFilterAnalytics: LoadRow<ApiLogsResult> {}
 
+/// This method takes in a merchant ID, query parameters, and a pool of analytics data source, and returns a filtered list of API logs results. The method constructs a query based on the input parameters and executes it using the provided pool, returning the results or an error if the query execution fails.
 pub async fn get_api_event<T>(
     merchant_id: &String,
     query_param: ApiLogsRequest,

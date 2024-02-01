@@ -90,6 +90,7 @@ pub struct GatewayStatusMappingUpdate {
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
+        /// Constructs a new instance of GatewayStatusMappingUpdate by extracting the fields from the provided value and returning a new instance with the extracted fields.
     fn from(value: GatewayStatusMappingUpdate) -> Self {
         let GatewayStatusMappingUpdate {
             decision,
@@ -112,6 +113,9 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
 }
 
 impl ApiEventMetric for GatewayStatusMap {
+        /// Returns the API event type as an Option. 
+    ///
+    /// If the API event type is available, it returns Some(ApiEventsType::Gsm), otherwise it returns None.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Gsm)
     }

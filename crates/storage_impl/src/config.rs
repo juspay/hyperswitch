@@ -23,6 +23,7 @@ pub enum QueueStrategy {
 }
 
 impl From<QueueStrategy> for bb8::QueueStrategy {
+        /// Converts a value of type QueueStrategy into the corresponding instance of the enum implementing the QueueStrategy trait.
     fn from(value: QueueStrategy) -> Self {
         match value {
             QueueStrategy::Fifo => Self::Fifo,
@@ -32,6 +33,7 @@ impl From<QueueStrategy> for bb8::QueueStrategy {
 }
 
 impl Default for Database {
+        /// Returns a new instance with default values for the database connection configuration.
     fn default() -> Self {
         Self {
             username: String::new(),

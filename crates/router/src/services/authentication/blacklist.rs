@@ -17,6 +17,7 @@ use crate::{
 };
 
 #[cfg(feature = "olap")]
+/// Inserts a user ID into the blacklist with an expiry time based on the JWT token time in seconds.
 pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {
     let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
     let expiry =
@@ -32,6 +33,8 @@ pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserRe
         .change_context(UserErrors::InternalServerError)
 }
 
+/// Asynchronously checks if a user is in the blacklist by retrieving the token of the user from Redis, 
+/// comparing its timestamp with the token expiry and returning a boolean value based on the comparison result.
 pub async fn check_user_in_blacklist<A: AppStateInfo>(
     state: &A,
     user_id: &str,
@@ -47,6 +50,7 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
+/// Retrieves a Redis connection from the application state and returns it as an `Arc` wrapped in a `RouterResult`.
 fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
     state
         .store()
@@ -55,6 +59,15 @@ fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisCon
         .attach_printable("Failed to get redis connection")
 }
 
+/// Converts the given `expiry` value of type `u64` to an `i64` value and returns a `RouterResult` with the converted value.
+///
+/// # Arguments
+///
+/// * `expiry` - A value of type `u64` representing the expiry time.
+///
+/// # Returns
+///
+/// A `RouterResult` containing the converted `i64` value. If the conversion is successful, the `RouterResult` will contain the converted value. If an error occurs during the conversion, an `ApiErrorResponse` with the status code `InternalServerError` will be returned.
 fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
     expiry
         .try_into()

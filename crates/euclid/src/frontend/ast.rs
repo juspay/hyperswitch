@@ -47,6 +47,7 @@ pub enum ValueType {
 }
 
 impl ValueType {
+        /// Returns the DataType of the current enum variant.
     pub fn get_type(&self) -> DataType {
         match self {
             Self::Number(_) => DataType::Number,

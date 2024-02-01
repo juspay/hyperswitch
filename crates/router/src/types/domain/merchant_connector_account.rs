@@ -64,6 +64,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
     type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
+        /// Asynchronously converts the current object into a `CustomResult` containing the destination type or a `ValidationError`.
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
             diesel_models::merchant_connector_account::MerchantConnectorAccount {
@@ -96,6 +97,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         )
     }
 
+        /// Asynchronously converts the provided data back to the original type, decrypting the connector account details using the provided key.
     async fn convert_back(
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
@@ -135,6 +137,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         })
     }
 
+        /// Asynchronously constructs a new instance of the struct, returning a `CustomResult` containing the new instance of the destination type or a `ValidationError`.
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(Self::NewDstType {
@@ -165,6 +168,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
+        /// Convert a MerchantConnectorAccountUpdate into Self
     fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
         match merchant_connector_account_update {
             MerchantConnectorAccountUpdate::Update {

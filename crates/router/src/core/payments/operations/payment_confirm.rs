@@ -47,6 +47,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves trackers for a given payment, including payment intent, payment attempt, customer details, and business profile. The method performs various validation checks and fetches relevant entities based on the payment status, before constructing the response containing the necessary data for tracking the payment.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -542,6 +543,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     for PaymentConfirm
 {
     #[instrument(skip_all)]
+        /// This method either retrieves existing customer details from the database or creates new customer details if they do not exist. 
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -567,6 +569,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously generates payment method data for a merchant using the provided state, payment data, storage scheme, key store, and customer details. Returns a tuple containing a boxed operation and an optional payment method data.
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -589,6 +592,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously adds a task to the process tracker. This method spawns a future in a background thread, allowing the current thread to continue without waiting for the spawned future to complete. The lifecycle of the spawned thread is not handled by the runtime, so it won't affect the current thread or the server shutdown.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The state of the application.
+    /// * `payment_attempt` - The payment attempt to be added to the process tracker.
+    /// * `requeue` - A boolean indicating whether the task should be requeued.
+    /// * `schedule_time` - An optional primitive date time at which the task should be scheduled.
+    ///
+    /// # Returns
+    ///
+    /// This method returns a `CustomResult` indicating whether the operation was successful or returned an `ApiErrorResponse`.
+    ///
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         state: &'a AppState,
@@ -619,6 +635,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Ok(())
     }
 
+        /// Asynchronously retrieves a connector choice for processing a payment based on the provided parameters. If a specific connector is not passed, the method uses a routing algorithm to determine the appropriate connector to use.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -633,6 +650,18 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously populates the payment data with surcharge details using the given state and merchant account.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The state to use for populating the payment data.
+    /// * `payment_data` - The payment data to be populated with surcharge details.
+    /// * `_merchant_account` - The merchant account information (unused in the current implementation).
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a unit value on success, or an ApiErrorResponse on failure.
+    ///
     async fn populate_payment_data<'a>(
         &'a self,
         state: &AppState,
@@ -648,6 +677,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates various payment trackers based on the provided payment data, customer information, storage scheme, updated customer details, merchant key store, suggestion for fraud risk management, and header payload. The method validates blocklists, hashes fingerprint data, updates payment and customer information in the database, and blocks the payment if it is present in the blocklist. Finally, it returns a tuple containing a boxed operation and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
@@ -1050,6 +1080,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     for PaymentConfirm
 {
     #[instrument(skip_all)]
+        /// Validates a payments request using the provided merchant account information.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request` - A reference to the payments request to be validated.
+    /// * `merchant_account` - A reference to the merchant account associated with the request.
+    /// 
+    /// # Returns
+    /// 
+    /// A `RouterResult` containing a tuple with a `BoxedOperation` and a `ValidateResult`.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,

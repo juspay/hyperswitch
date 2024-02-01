@@ -12,6 +12,7 @@ use crate::{
 struct CoinbaseTest;
 impl ConnectorActions for CoinbaseTest {}
 impl utils::Connector for CoinbaseTest {
+        /// This method returns the data required for connecting to the Coinbase API.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Coinbase;
         types::api::ConnectorData {
@@ -22,6 +23,7 @@ impl utils::Connector for CoinbaseTest {
         }
     }
 
+        /// This method retrieves the authentication token for the connector. It creates a new instance of ConnectorAuthentication and expects the Coinbase authentication configuration to be present. It then converts the authentication type to the appropriate ConnectorAuthType and returns it.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -31,6 +33,7 @@ impl utils::Connector for CoinbaseTest {
         )
     }
 
+        /// Returns the name "coinbase".
     fn get_name(&self) -> String {
         "coinbase".to_string()
     }
@@ -38,6 +41,7 @@ impl utils::Connector for CoinbaseTest {
 
 static CONNECTOR: CoinbaseTest = CoinbaseTest {};
 
+/// Retrieves the default payment information, if available.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(PaymentAddress {
@@ -64,6 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     })
 }
 
+/// Returns the payment method details for authorizing a payment, wrapped in an Option. If the payment method details are available, it returns Some with the payment method data, otherwise it returns None.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
@@ -102,6 +107,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 
 // Creates a payment using the manual capture flow
 #[actix_web::test]
+/// Asynchronously authorizes a payment using the CONNECTOR, and asserts that the response status is AuthenticationPending. It also checks if the response contains redirection data and asserts that it is not None.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -120,6 +126,7 @@ async fn should_only_authorize_payment() {
 
 // Synchronizes a successful transaction.
 #[actix_web::test]
+/// Asynchronously checks if an authorized payment should be synced. It uses the PSync functionality to retry until the status matches the authorized status, and then checks if the response status is Charged. 
 async fn should_sync_authorized_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -139,6 +146,7 @@ async fn should_sync_authorized_payment() {
 
 // Synchronizes a unresolved(underpaid) transaction.
 #[actix_web::test]
+/// Asynchronously checks if an unresolved payment should be synced. It retries syncing the payment data until the status matches 'Authorized', then performs a PSync request with the provided payment data and awaits the response. If the response status is 'Unresolved', the method passes; otherwise, it will fail with an assertion error.
 async fn should_sync_unresolved_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -158,6 +166,7 @@ async fn should_sync_unresolved_payment() {
 
 // Synchronizes a expired transaction.
 #[actix_web::test]
+/// Asynchronously checks if an expired payment should be synced. It sends a request to the connector to retry syncing a payment until the status matches 'Authorized'. It then expects a response and asserts that the status is 'Failure'.
 async fn should_sync_expired_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -177,6 +186,8 @@ async fn should_sync_expired_payment() {
 
 // Synchronizes a cancelled transaction.
 #[actix_web::test]
+/// Asynchronously attempts to sync a cancelled payment by retrying until the payment status matches the authorized status. 
+///
 async fn should_sync_cancelled_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -193,3 +204,4 @@ async fn should_sync_cancelled_payment() {
         .expect("PSync response");
     assert_eq!(response.status, enums::AttemptStatus::Voided);
 }
+

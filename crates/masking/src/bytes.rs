@@ -25,24 +25,28 @@ impl SecretBytesMut {
 }
 
 impl PeekInterface<BytesMut> for SecretBytesMut {
+        /// Returns a reference to the BytesMut contained within the current instance without consuming it.
     fn peek(&self) -> &BytesMut {
         &self.0
     }
 }
 
 impl fmt::Debug for SecretBytesMut {
+        /// Formats the `SecretBytesMut` struct for display, redacting the actual bytes in the underlying data.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SecretBytesMut([REDACTED])")
     }
 }
 
 impl From<BytesMut> for SecretBytesMut {
+        /// Creates a new instance of the current type from a `BytesMut` object.
     fn from(bytes: BytesMut) -> Self {
         Self::new(bytes)
     }
 }
 
 impl Drop for SecretBytesMut {
+        /// Zeroes out the contents of the vector and checks that all elements are zero before dropping the vector.
     fn drop(&mut self) {
         self.0.resize(self.0.capacity(), 0);
         self.0.as_mut().zeroize();
@@ -52,6 +56,7 @@ impl Drop for SecretBytesMut {
 
 #[cfg(all(feature = "bytes", feature = "serde"))]
 impl<'de> Deserialize<'de> for SecretBytesMut {
+        /// Deserialize the given Deserializer into a Result containing the deserialized value or an error.
     fn deserialize<D: de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct SecretBytesVisitor;
 

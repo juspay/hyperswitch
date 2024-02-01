@@ -11,6 +11,7 @@
     operation_id = "Create a Payout",
     security(("api_key" = []))
 )]
+/// Asynchronously creates a new payout. This method sends a request to the server to create a new payout and returns a future representing the result of the operation.
 pub async fn payouts_create() {}
 
 /// Payouts - Retrieve
@@ -28,6 +29,7 @@ pub async fn payouts_create() {}
     operation_id = "Retrieve a Payout",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves payouts from the system.
 pub async fn payouts_retrieve() {}
 
 /// Payouts - Update
@@ -46,6 +48,7 @@ pub async fn payouts_retrieve() {}
     operation_id = "Update a Payout",
     security(("api_key" = []))
 )]
+/// Asynchronously updates the payouts.
 pub async fn payouts_update() {}
 
 /// Payouts - Cancel
@@ -64,7 +67,10 @@ pub async fn payouts_update() {}
     operation_id = "Cancel a Payout",
     security(("api_key" = []))
 )]
-pub async fn payouts_cancel() {}
+/// This method cancels any pending payouts. It is an asynchronous function that will cancel any pending payouts and return a result indicating the success or failure of the operation.
+pub async fn payouts_cancel() {
+    // method implementation
+}
 
 /// Payouts - Fulfill
 #[utoipa::path(
@@ -82,4 +88,7 @@ pub async fn payouts_cancel() {}
     operation_id = "Fulfill a Payout",
     security(("api_key" = []))
 )]
-pub async fn payouts_fulfill() {}
+/// Asynchronously fulfills payouts.
+pub async fn payouts_fulfill() {
+    // implementation details
+}

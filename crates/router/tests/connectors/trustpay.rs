@@ -12,6 +12,7 @@ use crate::{
 struct TrustpayTest;
 impl ConnectorActions for TrustpayTest {}
 impl utils::Connector for TrustpayTest {
+        /// Retrieves the connector data for Trustpay, including the connector reference, connector name, type of token retrieval, and merchant connector ID if available.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Trustpay;
         types::api::ConnectorData {
@@ -22,6 +23,7 @@ impl utils::Connector for TrustpayTest {
         }
     }
 
+        /// This method retrieves the authentication token for the connector. It creates a new ConnectorAuthentication instance and retrieves the trustpay authentication configuration. It then converts the trustpay configuration into the appropriate ConnectorAuthType using the utils::to_connector_auth_type function.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -31,11 +33,13 @@ impl utils::Connector for TrustpayTest {
         )
     }
 
+        /// This method returns the name "trustpay" as a String.
     fn get_name(&self) -> String {
         "trustpay".to_string()
     }
 }
 
+/// Returns a default BrowserInformation struct with some default values for color depth, java enabled, java script enabled, language, screen height, screen width, time zone, accept header, user agent, and IP address.
 fn get_default_browser_info() -> BrowserInformation {
     BrowserInformation {
         color_depth: Some(24),
@@ -51,6 +55,7 @@ fn get_default_browser_info() -> BrowserInformation {
     }
 }
 
+/// Returns the default payment authorization data, including the default card payment method data, default browser information, and default router return URL.
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
@@ -65,6 +70,7 @@ fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
     })
 }
 
+/// Retrieves the default payment information, if available.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress {
@@ -92,6 +98,8 @@ static CONNECTOR: TrustpayTest = TrustpayTest {};
 // Cards Positive Tests
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment by calling the `make_payment` method of the `CONNECTOR` with default payment authorization data and payment information. 
+/// It then awaits the response and asserts that the status of the authorize response is 'Charged'.
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
         .make_payment(
@@ -105,6 +113,7 @@ async fn should_make_payment() {
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment, checks if the payment was successfully authorized, retrieves the transaction ID, and then retries syncing the payment until the status matches 'Charged'.
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
         .make_payment(
@@ -134,6 +143,9 @@ async fn should_sync_auto_captured_payment() {
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and then attempts to refund it. 
+/// The method uses the default payment authorization data, no additional refund data, and the default payment information. 
+/// It then awaits the response and asserts that the refund status is 'Success'.
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(
@@ -151,6 +163,7 @@ async fn should_refund_auto_captured_payment() {
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and refund, then retries the refund status until it matches the specified status.
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(
@@ -178,6 +191,7 @@ async fn should_sync_refund() {
 // Cards Negative scenerios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
+/// Asynchronously attempts to make a payment using incorrect card number and expects the payment to fail with a specific error message.
 async fn should_fail_payment_for_incorrect_card_number() {
     let payment_authorize_data = types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
@@ -201,6 +215,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
 
 // Creates a payment with incorrect expiry year.
 #[actix_web::test]
+/// This asynchronous method tests if a payment fails for an incorrect expiry year by creating a payment authorization data with a card whose expiry year is set to an incorrect value, making a payment using the authorization data and default payment info, and then asserting that the response contains an error message indicating that the provided expiration year is not valid.
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let payment_authorize_data = Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {

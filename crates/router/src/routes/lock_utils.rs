@@ -36,6 +36,7 @@ pub enum ApiIdentifier {
 }
 
 impl From<Flow> for ApiIdentifier {
+        /// Converts a `Flow` enum variant into a corresponding variant of the current enum.
     fn from(flow: Flow) -> Self {
         match flow {
             Flow::MerchantsAccountCreate

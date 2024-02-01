@@ -141,6 +141,18 @@ pub async fn update_merchant_default_config(
     Ok(())
 }
 
+/// Asynchronously updates the routing dictionary for a specific merchant in the database. 
+///
+/// # Arguments
+///
+/// * `db` - A reference to a dyn StorageInterface trait object
+/// * `merchant_id` - A string slice representing the ID of the merchant
+/// * `dictionary` - An instance of routing_types::RoutingDictionary containing the updated routing dictionary
+///
+/// # Returns
+///
+/// This method returns a RouterResult<()> indicating the success or failure of the update operation.
+///
 pub async fn update_merchant_routing_dictionary(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -164,6 +176,7 @@ pub async fn update_merchant_routing_dictionary(
     Ok(())
 }
 
+/// Asynchronously updates the routing algorithm in the database with the provided algorithm id and routing algorithm.
 pub async fn update_routing_algorithm(
     db: &dyn StorageInterface,
     algorithm_id: String,
@@ -231,6 +244,18 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
+/// Update the active algorithm reference in the business profile with the provided routing algorithm reference.
+///
+/// # Arguments
+///
+/// * `db` - The database interface for accessing and updating business profiles
+/// * `current_business_profile` - The current business profile that needs to be updated
+/// * `algorithm_id` - The new routing algorithm reference to be set as the active algorithm for the business profile
+///
+/// # Returns
+///
+/// This method returns a Result indicating success or failure, with the error type being a RouterResult
+///
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
@@ -264,7 +289,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
     Ok(())
 }
-
+/// Retrieves the merchant connector agnostic mandate configuration from the database. If the configuration exists, it is parsed and returned as a vector of DetailedConnectorChoice. If the configuration does not exist, a new empty configuration is created, serialized, and inserted into the database before being returned.
 pub async fn get_merchant_connector_agnostic_mandate_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -308,6 +333,17 @@ pub async fn get_merchant_connector_agnostic_mandate_config(
     }
 }
 
+/// Updates the agnostic mandate configuration for a specific merchant in the database.
+/// 
+/// # Arguments
+///
+/// * `db` - A reference to a trait object implementing the StorageInterface trait.
+/// * `merchant_id` - A string reference representing the ID of the merchant.
+/// * `mandate_config` - A vector of DetailedConnectorChoice representing the updated mandate configuration.
+///
+/// # Returns
+///
+/// Returns a RouterResult containing the updated mandate configuration if the update is successful.
 pub async fn update_merchant_connector_agnostic_mandate_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -333,6 +369,7 @@ pub async fn update_merchant_connector_agnostic_mandate_config(
     Ok(mandate_config)
 }
 
+/// Validate the connectors in the routing configuration for a specific merchant and profile.
 pub async fn validate_connectors_in_routing_config(
     db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
@@ -411,19 +448,16 @@ pub async fn validate_connectors_in_routing_config(
         routing_types::RoutingAlgorithm::Single(choice) => {
             check_connector_choice(choice)?;
         }
-
         routing_types::RoutingAlgorithm::Priority(list) => {
             for choice in list {
                 check_connector_choice(choice)?;
             }
         }
-
         routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
             for split in splits {
                 check_connector_choice(&split.connector)?;
             }
         }
-
         routing_types::RoutingAlgorithm::Advanced(program) => {
             let check_connector_selection =
                 |selection: &routing_types::ConnectorSelection| -> RouterResult<()> {
@@ -457,25 +491,44 @@ pub async fn validate_connectors_in_routing_config(
 
 /// Provides the identifier for the specific merchant's routing_dictionary_key
 #[inline(always)]
+/// Returns a routing dictionary key for the given merchant ID.
+///
+/// # Arguments
+///
+/// * `merchant_id` - A string slice representing the merchant ID
+///
+/// # Returns
+///
+/// A String containing the routing dictionary key
+///
 pub fn get_routing_dictionary_key(merchant_id: &str) -> String {
     format!("routing_dict_{merchant_id}")
 }
 
 /// Provides the identifier for the specific merchant's agnostic_mandate_config
 #[inline(always)]
+/// This method takes a merchant ID as a string input and returns the corresponding mandate configuration key as a string. The key is generated by appending the merchant ID to the string "pg_agnostic_mandate_".
 pub fn get_pg_agnostic_mandate_config_key(merchant_id: &str) -> String {
     format!("pg_agnostic_mandate_{merchant_id}")
 }
 
 /// Provides the identifier for the specific merchant's default_config
 #[inline(always)]
+/// Returns the default config key for a given merchant ID by formatting it as "routing_default_{merchant_id}".
 pub fn get_default_config_key(merchant_id: &str) -> String {
     format!("routing_default_{merchant_id}")
 }
+/// Returns the payment configuration routing ID for the given merchant ID.
+///
+/// # Arguments
+///
+/// * `merchant_id` - A string slice that represents the merchant's identifier.
+///
 pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
     format!("payment_config_id_{merchant_id}")
 }
 
+/// Returns the surcharge routing ID for a given merchant ID by formatting it as "payment_method_surcharge_id_{merchant_id}".
 pub fn get_payment_method_surcharge_routing_id(merchant_id: &str) -> String {
     format!("payment_method_surcharge_id_{merchant_id}")
 }

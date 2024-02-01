@@ -11,6 +11,21 @@ use crate::{
 
 #[async_trait::async_trait]
 impl VerifyConnector for connector::Paypal {
+        /// Asynchronously retrieves an access token using the provided `AppState` and `VerifyConnectorData`.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The `AppState` containing the application state.
+    /// * `connector_data` - The `VerifyConnectorData` containing the connector data.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing either `Some` `AccessToken` or an `ApiErrorResponse`.
+    ///
+    /// # Errors
+    ///
+    /// An `ApiErrorResponse` is returned if there is an error in retrieving the access token.
+    ///
     async fn get_access_token(
         state: &AppState,
         connector_data: VerifyConnectorData,

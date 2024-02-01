@@ -13,6 +13,14 @@ use super::{
 };
 use crate::{configs::settings, routes::AppState};
 
+/// Asynchronously sleeps for a random duration within the specified tolerance
+/// around the given delay, using the tokio runtime.
+///
+/// # Arguments
+///
+/// * `delay` - The desired delay in milliseconds
+/// * `tolerance` - The tolerance around the delay in milliseconds
+///
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
     // TODO: change this to `Uniform::try_from`
@@ -25,6 +33,19 @@ pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     .await
 }
 
+/// Asynchronously stores the provided data in Redis with the specified key and time-to-live (TTL).
+///
+/// # Arguments
+///
+/// * `state` - The application state containing the Redis connection
+/// * `key` - The key under which the data will be stored in Redis
+/// * `data` - The data to be serialized and stored in Redis
+/// * `ttl` - The time-to-live (TTL) for the stored data in seconds
+///
+/// # Returns
+///
+/// This method returns a `DummyConnectorResult` indicating the success or failure of storing the data in Redis.
+///
 pub async fn store_data_in_redis(
     state: &AppState,
     key: String,
@@ -45,6 +66,17 @@ pub async fn store_data_in_redis(
     Ok(())
 }
 
+/// Retrieves payment data from Redis using the provided payment ID.
+///
+/// # Arguments
+///
+/// * `state` - The application state containing the Redis connection.
+/// * `payment_id` - The ID of the payment data to retrieve from Redis.
+///
+/// # Returns
+///
+/// A result containing the payment data if found, or an error if the payment data is not found or if there is an internal server error.
+///
 pub async fn get_payment_data_from_payment_id(
     state: &AppState,
     payment_id: String,
@@ -63,7 +95,7 @@ pub async fn get_payment_data_from_payment_id(
         .await
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
-
+/// Retrieves payment data by attempt ID from the Redis store asynchronously. It first obtains a Redis connection from the application state, then uses it to retrieve a payment ID associated with the given attempt ID. Finally, it uses the payment ID to fetch the payment data from the Redis store. If successful, it returns the payment data; otherwise, it returns an error indicating that the payment was not found.
 pub async fn get_payment_data_by_attempt_id(
     state: &AppState,
     attempt_id: String,
@@ -89,6 +121,7 @@ pub async fn get_payment_data_by_attempt_id(
         .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
+/// Generates an HTML page for authorizing a payment based on the provided payment data, return URL, and dummy connector configuration.
 pub fn get_authorize_page(
     payment_data: types::DummyConnectorPaymentData,
     return_url: String,
@@ -166,6 +199,7 @@ pub fn get_authorize_page(
     .into_string()
 }
 
+/// Retrieves an expired payment page with a disclaimer and contact information for integration and testing purposes. 
 pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> String {
     html! {
         head {
@@ -214,6 +248,7 @@ pub trait ProcessPaymentAttempt {
 }
 
 impl ProcessPaymentAttempt for types::DummyConnectorCard {
+        /// Builds payment data from a given payment attempt and redirect URL. 
     fn build_payment_data_from_payment_attempt(
         self,
         payment_attempt: types::DummyConnectorPaymentAttempt,
@@ -238,6 +273,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
 }
 
 impl types::DummyConnectorCard {
+        /// Retrieves the card flow based on the card number. Returns a result containing the card flow or an error if the card is not supported.
     pub fn get_flow_from_card_number(
         self,
     ) -> types::DummyConnectorResult<types::DummyConnectorCardFlow> {
@@ -287,17 +323,20 @@ impl types::DummyConnectorCard {
 }
 
 impl ProcessPaymentAttempt for types::DummyConnectorWallet {
-    fn build_payment_data_from_payment_attempt(
-        self,
-        payment_attempt: types::DummyConnectorPaymentAttempt,
-        redirect_url: String,
-    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-        Ok(payment_attempt.clone().build_payment_data(
-            types::DummyConnectorStatus::Processing,
-            Some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url)),
-            payment_attempt.payment_request.return_url,
-        ))
-    }
+        /// Builds a payment data from a payment attempt with the provided redirect URL.
+        ///
+        /// It takes a payment attempt and a redirect URL as input and constructs a payment data with the status set to Processing and a redirect action to the provided URL. It then returns a Result containing the constructed payment data.
+        fn build_payment_data_from_payment_attempt(
+            self,
+            payment_attempt: types::DummyConnectorPaymentAttempt,
+            redirect_url: String,
+        ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+            Ok(payment_attempt.clone().build_payment_data(
+                types::DummyConnectorStatus::Processing,
+                Some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url)),
+                payment_attempt.payment_request.return_url,
+            ))
+        }
 }
 
 impl ProcessPaymentAttempt for types::DummyConnectorPayLater {
@@ -315,6 +354,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorPayLater {
 }
 
 impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
+        /// Builds payment data from the given payment attempt and redirect URL, by delegating the task to the appropriate payment method (card, wallet, or pay later) based on the current instance of DummyConnector.
     fn build_payment_data_from_payment_attempt(
         self,
         payment_attempt: types::DummyConnectorPaymentAttempt,
@@ -335,6 +375,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
 }
 
 impl types::DummyConnectorPaymentData {
+        /// Process a payment attempt by building a redirect URL and constructing payment data from the payment attempt.
     pub fn process_payment_attempt(
         state: &AppState,
         payment_attempt: types::DummyConnectorPaymentAttempt,

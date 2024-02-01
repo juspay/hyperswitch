@@ -115,6 +115,15 @@ pub mod metric_behaviour {
 }
 
 impl From<PaymentMetrics> for NameDescription {
+        /// Constructs a new instance of Self using the given PaymentMetrics value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The PaymentMetrics value to use for constructing the new instance.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of Self with `name` set to the string representation of the `value` and `desc` set to an empty string.
     fn from(value: PaymentMetrics) -> Self {
         Self {
             name: value.to_string(),
@@ -124,6 +133,17 @@ impl From<PaymentMetrics> for NameDescription {
 }
 
 impl From<PaymentDimensions> for NameDescription {
+        /// Constructs a new PaymentDimensions struct from the provided value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The PaymentDimensions value to be used in creating the new struct.
+    ///
+    /// # Returns
+    ///
+    /// A new PaymentDimensions struct with the name set to the string representation of the provided value
+    /// and the description set to an empty string.
+    ///
     fn from(value: PaymentDimensions) -> Self {
         Self {
             name: value.to_string(),
@@ -150,6 +170,7 @@ pub struct PaymentMetricsBucketIdentifier {
 }
 
 impl PaymentMetricsBucketIdentifier {
+        /// Creates a new instance of the struct with the provided optional parameters and a normalized time range.
     pub fn new(
         currency: Option<Currency>,
         status: Option<AttemptStatus>,
@@ -173,6 +194,7 @@ impl PaymentMetricsBucketIdentifier {
 }
 
 impl Hash for PaymentMetricsBucketIdentifier {
+        /// Hashes the fields of the struct using the provided Hasher instance.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.currency.hash(state);
         self.status.map(|i| i.to_string()).hash(state);
@@ -185,6 +207,16 @@ impl Hash for PaymentMetricsBucketIdentifier {
 }
 
 impl PartialEq for PaymentMetricsBucketIdentifier {
+        /// Compares the current object with another object to determine if they are equal based on their hash values.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - A reference to another object of the same type to compare with.
+    /// 
+    /// # Returns
+    /// 
+    /// * `true` if the hash values of the two objects are equal, `false` otherwise.
+    /// 
     fn eq(&self, other: &Self) -> bool {
         let mut left = DefaultHasher::new();
         self.hash(&mut left);

@@ -13,6 +13,25 @@ use crate::{
 };
 pub trait SdkEventsFilterAnalytics: LoadRow<SdkEventsResult> {}
 
+/// Asynchronously retrieves SDK events data based on the specified merchant ID, request parameters, and data source pool.
+/// 
+/// # Arguments
+/// 
+/// * `merchant_id` - The identifier of the merchant for which the SDK events data is to be retrieved.
+/// * `request` - The request object containing parameters for filtering the SDK events data.
+/// * `pool` - The data source pool implementing the `AnalyticsDataSource` and `SdkEventsFilterAnalytics` traits.
+/// 
+/// # Returns
+/// 
+/// A `FiltersResult` containing a vector of `SdkEventsResult` if the operation is successful.
+/// 
+/// # Constraints
+/// 
+/// The generic type `T` must implement the necessary traits for SQL operations.
+/// 
+/// # Errors
+/// 
+/// The method may return errors if there are issues with building or executing the SQL query.
 pub async fn get_sdk_event<T>(
     merchant_id: &str,
     request: SdkEventsRequest,

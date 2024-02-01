@@ -36,6 +36,22 @@ pub trait ConnectorAccessToken {
 
 #[async_trait::async_trait]
 impl ConnectorAccessToken for Store {
+        /// Asynchronously retrieves an access token for a given merchant and connector from the storage.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - The ID of the merchant for whom the access token is being retrieved.
+    /// * `connector_name` - The name of the connector for which the access token is being retrieved.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `CustomResult` containing an `Option` of `types::AccessToken` or a `StorageError` if an error occurs.
+    ///
+    /// # Remarks
+    ///
+    /// This function acquires a global lock on some resource to handle the race condition when multiple requests are trying to refresh the access token simultaneously.
+    /// If the access token is already being refreshed by another request, this function waits until the refresh process finishes and then uses the same access token.
+    ///
     async fn get_access_token(
         &self,
         merchant_id: &str,
@@ -62,6 +78,22 @@ impl ConnectorAccessToken for Store {
         Ok(access_token)
     }
 
+        /// Asynchronously sets the access token for a given merchant and connector in the storage. 
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The ID of the merchant for which the access token is being set.
+    /// * `connector_name` - The name of the connector for which the access token is being set.
+    /// * `access_token` - The access token to be set.
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<(), errors::StorageError>` - A result indicating success or an error of type `errors::StorageError`.
+    ///
+    /// # Errors
+    ///
+    /// This method can return an error of type `errors::StorageError` in case of serialization failure or key-value storage error.
+    ///
     async fn set_access_token(
         &self,
         merchant_id: &str,
@@ -82,6 +114,17 @@ impl ConnectorAccessToken for Store {
 
 #[async_trait::async_trait]
 impl ConnectorAccessToken for MockDb {
+        /// Asynchronously retrieves the access token for the specified merchant and connector from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - a string slice representing the ID of the merchant
+    /// * `connector_name` - a string slice representing the name of the connector
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing an `Option` of `types::AccessToken` if successful, otherwise returns a `StorageError`
+    ///
     async fn get_access_token(
         &self,
         _merchant_id: &str,
@@ -90,6 +133,22 @@ impl ConnectorAccessToken for MockDb {
         Ok(None)
     }
 
+        /// Asynchronously sets the access token for a given merchant and connector.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The ID of the merchant for which the access token is being set.
+    /// * `_connector_name` - The name of the connector for which the access token is being set.
+    /// * `_access_token` - The access token to be set.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` indicating whether the operation was successful or if an error occurred.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `StorageError` if an error occurs while setting the access token.
+    ///
     async fn set_access_token(
         &self,
         _merchant_id: &str,
@@ -165,6 +224,20 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
+        /// Asynchronously finds a merchant connector account by the given merchant ID and connector label,
+    /// using the provided MerchantKeyStore for decryption. If the "accounts_cache" feature is enabled, it
+    /// also checks for the account in the in-memory cache and populates it if not found.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A string slice representing the merchant ID
+    /// * `connector_label` - A string slice representing the connector label
+    /// * `key_store` - A reference to a MerchantKeyStore used for decryption
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing the found MerchantConnectorAccount or a StorageError if an error occurs.
+    ///
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -210,6 +283,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+        /// Asynchronously finds a merchant connector account by profile ID and connector name, using the provided key store for decryption. If the "accounts_cache" feature is enabled, the method will attempt to retrieve the account from the in-memory cache before querying the database. If the account is not found in the cache, it will be fetched from the database and then stored in the cache for future use.
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &str,
@@ -255,6 +329,10 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+        /// Asynchronously finds a merchant connector account by the specified merchant ID and connector name,
+    /// decrypts the retrieved accounts using the provided merchant key store, and returns a vector of
+    /// merchant connector accounts. If successful, it returns the vector of accounts, otherwise it
+    /// returns a StorageError.
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
@@ -284,6 +362,10 @@ impl MerchantConnectorAccountInterface for Store {
         .await
     }
 
+        /// Asynchronously finds a merchant connector account by the specified merchant ID and merchant connector ID,
+    /// using the provided merchant key store for encryption and decryption. If the 'accounts_cache' feature is enabled,
+    /// it will attempt to retrieve the account from the cache before querying the database. Returns a CustomResult
+    /// containing the found domain::MerchantConnectorAccount or an errors::StorageError if the operation fails.
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -326,6 +408,17 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+        /// Inserts a new merchant connector account into the database after constructing it, encrypting it, and converting it using the provided key store. 
+    ///
+    /// # Arguments
+    ///
+    /// * `t` - The new merchant connector account to be inserted
+    /// * `key_store` - The key store used for encryption and decryption
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the inserted merchant connector account on success, or a `StorageError` on failure.
+    ///
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -347,6 +440,9 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+        /// Asynchronously finds merchant connector accounts by merchant ID and disabled list,
+    /// using the provided merchant key store for decryption. Returns a vector of
+    /// `domain::MerchantConnectorAccount`, or a `StorageError` if an error occurs.
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
@@ -372,6 +468,11 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+        /// Asynchronously updates a merchant connector account in the storage with the provided
+    /// merchant connector account update internal and merchant key store. It performs the
+    /// necessary encryption and decryption operations using the key store. If the feature
+    /// "accounts_cache" is enabled, it also updates the caches for the account. Returns a
+    /// result containing the updated merchant connector account or a storage error.
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -430,6 +531,17 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+        /// Asynchronously deletes a merchant connector account by the given merchant ID and merchant connector ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A string reference representing the ID of the merchant
+    /// * `merchant_connector_id` - A string reference representing the ID of the merchant connector
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a boolean indicating whether the deletion was successful, or an `errors::StorageError` in case of failure.
+    ///
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -484,6 +596,7 @@ impl MerchantConnectorAccountInterface for Store {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
+        /// Asynchronously finds a merchant connector account by the given merchant ID and connector label, and decrypts the account using the provided key store. Returns a `CustomResult` containing the decrypted `MerchantConnectorAccount` if found, otherwise returns a `StorageError` indicating that the value was not found.
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -518,6 +631,9 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+        /// Asynchronously finds the merchant connector account by the given merchant ID and connector name,
+    /// then decrypts the account using the provided key store. Returns a vector of MerchantConnectorAccount
+    /// or a StorageError if decryption fails.
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
@@ -546,6 +662,9 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
+        /// Asynchronously finds a merchant connector account by the given profile ID and connector name.
+    /// If found, it converts the account using the provided key store and returns the result.
+    /// If not found, it returns an error indicating that the merchant connector account cannot be found.
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &str,
@@ -576,6 +695,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+        /// Asynchronously finds a merchant connector account by the given merchant ID and merchant connector ID,
+    /// and decrypts the account using the provided key store. If the account is found, it returns the decrypted
+    /// merchant connector account. If the account is not found, it returns a storage error indicating that the
+    /// account could not be found.
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -610,6 +733,8 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+        /// Asynchronously inserts a merchant connector account into the storage,
+    /// encrypting the sensitive data using the provided key store.
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -652,6 +777,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously finds merchant connector accounts by merchant ID and disabled list.
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
@@ -685,6 +811,18 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
+        /// Asynchronously updates a merchant connector account with the provided data and returns the updated account.
+    ///
+    /// # Arguments
+    ///
+    /// * `this` - The merchant connector account to be updated
+    /// * `merchant_connector_account` - The updated data for the merchant connector account
+    /// * `key_store` - The key store used for encryption and decryption
+    ///
+    /// # Returns
+    ///
+    /// The updated merchant connector account if found, or a `StorageError` if the account is not found.
+    ///
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -721,6 +859,17 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+        /// Asynchronously deletes a merchant connector account by the given merchant ID and merchant connector ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A string reference representing the merchant ID
+    /// * `merchant_connector_id` - A string reference representing the merchant connector ID
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a boolean indicating whether the deletion was successful, or a `StorageError` if the account was not found.
+    ///
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -774,6 +923,12 @@ mod merchant_connector_account_cache_tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+        /// Asynchronously tests the connector profile ID cache by performing a series of database operations
+    /// including insertion, retrieval, and deletion of merchant connector account data using Redis
+    /// cache. It subscribes to a Redis channel, inserts a merchant key into the database, retrieves
+    /// the merchant key, inserts a merchant connector account, populates the in-memory cache, deletes
+    /// the merchant connector account, and verifies the cache is empty. Returns () when the test is
+    /// successful.
     async fn test_connector_profile_id_cache() {
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())

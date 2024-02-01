@@ -54,6 +54,16 @@ pub enum ApiEventDimensions {
 }
 
 impl From<ApiEventDimensions> for NameDescription {
+        /// Converts an ApiEventDimensions struct into a new instance of the current struct.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The ApiEventDimensions struct to convert
+    ///
+    /// # Returns
+    ///
+    /// A new instance of the current struct with the name field set to the string representation of the value parameter and the desc field set to an empty string.
+    ///
     fn from(value: ApiEventDimensions) -> Self {
         Self {
             name: value.to_string(),
@@ -89,6 +99,7 @@ pub enum ApiEventMetrics {
 }
 
 impl From<ApiEventMetrics> for NameDescription {
+        /// Converts an ApiEventMetrics struct into a new instance of Self, initializing the name field with the string representation of the given value and the desc field with an empty string.
     fn from(value: ApiEventMetrics) -> Self {
         Self {
             name: value.to_string(),
@@ -108,6 +119,15 @@ pub struct ApiEventMetricsBucketIdentifier {
 }
 
 impl ApiEventMetricsBucketIdentifier {
+        /// Creates a new instance of Self with the provided normalized_time_range. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `normalized_time_range` - The normalized time range used to initialize the time_bucket and start_time.
+    /// 
+    /// # Returns
+    /// 
+    /// A new instance of Self with the time_bucket set to `normalized_time_range` and start_time set to `normalized_time_range.start_time`.
     pub fn new(normalized_time_range: TimeRange) -> Self {
         Self {
             time_bucket: normalized_time_range,
@@ -117,12 +137,15 @@ impl ApiEventMetricsBucketIdentifier {
 }
 
 impl Hash for ApiEventMetricsBucketIdentifier {
+        /// Hashes the current instance by hashing its time_bucket field and updating the provided Hasher state.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.time_bucket.hash(state);
     }
 }
 
 impl PartialEq for ApiEventMetricsBucketIdentifier {
+        /// Compares the current object with another object for equality by hashing both objects
+    /// using DefaultHasher and comparing the resulting hash values.
     fn eq(&self, other: &Self) -> bool {
         let mut left = DefaultHasher::new();
         self.hash(&mut left);

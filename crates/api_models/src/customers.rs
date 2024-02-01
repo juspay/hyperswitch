@@ -96,10 +96,12 @@ pub struct CustomerDeleteResponse {
     pub payment_methods_deleted: bool,
 }
 
+/// Generates a unique customer ID by calling the `generate_id` method from the `common_utils` module with a prefix of "cus".
 pub fn generate_customer_id() -> String {
     common_utils::generate_id(consts::ID_LENGTH, "cus")
 }
 
+/// This function returns a string representing an unknown merchant.
 fn unknown_merchant() -> String {
     String::from("merchant_unknown")
 }

@@ -16,6 +16,23 @@ impl
     ConstructFlowSpecificData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for PaymentData<api::Capture>
 {
+        /// Constructs router data for capturing payments.
+    ///
+    /// This method takes in the necessary data to construct router data for capturing payments, including the application state, connector ID, merchant account, key store, customer information, and merchant connector account type. It then utilizes the `transformers::construct_payment_router_data` function to transform the input data into a `RouterResult` containing `types::PaymentsCaptureRouterData`.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state.
+    /// * `connector_id` - The ID of the connector.
+    /// * `merchant_account` - The merchant account information.
+    /// * `key_store` - The merchant key store information.
+    /// * `customer` - An optional customer information.
+    /// * `merchant_connector_account` - The merchant connector account type.
+    ///
+    /// # Returns
+    ///
+    /// The constructed router data for capturing payments as a `RouterResult` containing `types::PaymentsCaptureRouterData`.
+    ///
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -45,6 +62,21 @@ impl
 impl Feature<api::Capture, types::PaymentsCaptureData>
     for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
+        /// Asynchronously decides the flows for processing a payment transaction by executing the connector integration
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state
+    /// * `connector` - The connector data
+    /// * `_customer` - The optional customer data
+    /// * `call_connector_action` - The action to be invoked on the connector
+    /// * `_merchant_account` - The merchant account data
+    /// * `connector_request` - The optional connector request
+    /// * `_key_store` - The merchant key store
+    /// 
+    /// # Returns
+    /// 
+    /// A `RouterResult` containing the response of the payment processing
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -75,6 +107,15 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         Ok(resp)
     }
 
+        /// Asynchronously adds an access token for a merchant account using the given state, connector data, and merchant account information.
+    /// 
+    /// # Arguments
+    /// * `state` - The state of the application
+    /// * `connector` - The connector data for the merchant account
+    /// * `merchant_account` - The information of the merchant account
+    /// 
+    /// # Returns
+    /// The result of adding the access token, wrapped in a `RouterResult`
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -84,6 +125,18 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously builds a flow-specific connector request based on the provided connector data and action.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The shared application state
+    /// * `connector` - The connector data to build the request for
+    /// * `call_connector_action` - The action to perform on the connector
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the built request and a boolean indicating whether the request was successfully built
+    ///
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,

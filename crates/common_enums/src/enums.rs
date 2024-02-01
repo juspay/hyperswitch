@@ -166,6 +166,7 @@ pub enum RoutableConnectors {
 }
 
 impl AttemptStatus {
+        /// Checks if the status is a terminal status, i.e., a status that indicates the end of the transaction.
     pub fn is_terminal_status(self) -> bool {
         match self {
             Self::RouterDeclined
@@ -583,6 +584,7 @@ impl Currency {
         }
     }
 
+        /// Returns the ISO 4217 code for the currency.
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
@@ -733,6 +735,7 @@ impl Currency {
         }
     }
 
+        /// Checks if the currency is a zero-decimal currency
     pub fn is_zero_decimal_currency(self) -> bool {
         match self {
             Self::BIF
@@ -883,6 +886,7 @@ impl Currency {
         }
     }
 
+        /// Checks if the currency is a three-decimal currency.
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
             Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR | Self::TND => {

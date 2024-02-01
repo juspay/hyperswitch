@@ -12,6 +12,7 @@ use crate::{
     },
 };
 
+/// Retrieves authorization information for a user based on the provided `AppState` and `HttpRequest`.
 pub async fn get_authorization_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -29,6 +30,7 @@ pub async fn get_authorization_info(
     .await
 }
 
+/// Asynchronously handles a request to list all roles. The method creates a Flow::ListRoles, wraps the flow in a server_wrap, and awaits the result. The server_wrap function takes in various parameters including the state, request, user_role_core::list_roles function, JWT authentication with UsersRead permission, and a LockAction. 
 pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
     Box::pin(api::server_wrap(
@@ -43,6 +45,7 @@ pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> Htt
     .await
 }
 
+/// Asynchronously handles the HTTP request to retrieve a role based on the provided role ID. 
 pub async fn get_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -64,6 +67,14 @@ pub async fn get_role(
     .await
 }
 
+/// Asynchronously retrieves the role of a user from the provided token. 
+/// 
+/// # Arguments
+/// * `state` - The web data state of the application.
+/// * `req` - The HTTP request.
+/// 
+/// # Returns
+/// The HTTP response containing the user's role.
 pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetRoleFromToken;
     Box::pin(api::server_wrap(
@@ -78,6 +89,7 @@ pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -
     .await
 }
 
+/// Asynchronously updates the role of a user based on the provided JSON payload and HTTP request. 
 pub async fn update_user_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -97,6 +109,7 @@ pub async fn update_user_role(
     .await
 }
 
+/// Handles the HTTP request to accept an invitation by calling the `accept_invitation` function from the `user_role_core` module. It creates a new `AcceptInvitation` flow, extracts the JSON payload from the request, and passes it to the `accept_invitation` function after wrapping it using the `api::server_wrap` function with necessary parameters.
 pub async fn accept_invitation(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -116,6 +129,7 @@ pub async fn accept_invitation(
     .await
 }
 
+/// Asynchronously handles the request to delete a user role by wrapping the core logic in the API server. 
 pub async fn delete_user_role(
     state: web::Data<AppState>,
     req: HttpRequest,

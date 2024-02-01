@@ -30,6 +30,7 @@ pub struct SupplementaryVaultData {
 
 pub trait Vaultable: Sized {
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError>;
+        /// This method retrieves a value for a given customer ID, if provided. If no customer ID is provided, it returns an empty string. 
     fn get_value2(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         Ok(String::new())
     }
@@ -40,6 +41,7 @@ pub trait Vaultable: Sized {
 }
 
 impl Vaultable for api::Card {
+        /// Retrieves the value1 of the tokenized card for the specified customer, if available.
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
@@ -59,6 +61,7 @@ impl Vaultable for api::Card {
             .attach_printable("Failed to encode card value1")
     }
 
+        /// Retrieves the value2 of a tokenized card, encoded as a JSON string. If a customer_id is provided, it is used in the TokenizedCardValue2 struct. Returns a CustomResult containing the encoded value2 or a VaultError if the encoding fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedCardValue2 {
             card_security_code: Some(self.card_cvc.peek().clone()),
@@ -73,6 +76,7 @@ impl Vaultable for api::Card {
             .attach_printable("Failed to encode card value2")
     }
 
+        /// Parses the given values into TokenizedCardValue1 and TokenizedCardValue2 structs, then constructs a new instance of Self with the parsed values and returns it along with a SupplementaryVaultData instance wrapped in a CustomResult. If any parsing or construction fails, it returns a VaultError.
     fn from_values(
         value1: String,
         value2: String,
@@ -116,6 +120,9 @@ impl Vaultable for api::Card {
 }
 
 impl Vaultable for api_models::payments::BankTransferData {
+        /// Retrieves the value1 for a tokenized bank transfer payment method based on the customer ID,
+    /// then encodes the value1 data to a JSON string using the `Encode` trait, and returns a `CustomResult`
+    /// containing the encoded value1 string or a `VaultError` if the encoding process fails.
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
             data: self.to_owned(),
@@ -126,6 +133,8 @@ impl Vaultable for api_models::payments::BankTransferData {
             .attach_printable("Failed to encode bank transfer data")
     }
 
+        /// Retrieves the value2 for a given customer ID and encodes it as a JSON string. 
+    /// Returns a CustomResult containing the encoded value2 or a VaultError if the encoding fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
 
@@ -134,6 +143,9 @@ impl Vaultable for api_models::payments::BankTransferData {
             .attach_printable("Failed to encode bank transfer supplementary data")
     }
 
+        /// Parses the provided values into TokenizedBankTransferValue1 and TokenizedBankTransferValue2,
+    /// extracts the necessary data, and returns a tuple containing the bank transfer data
+    /// and supplementary vault data. If deserialization fails, a VaultError is returned.
     fn from_values(
         value1: String,
         value2: String,
@@ -160,6 +172,15 @@ impl Vaultable for api_models::payments::BankTransferData {
 }
 
 impl Vaultable for api::WalletData {
+        /// Retrieves the value1 data for a given customer ID from the tokenized wallet. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_customer_id` - An optional string representing the customer ID.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the value1 data as a string, or a `VaultError` if the request encoding fails.
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedWalletValue1 {
             data: self.to_owned(),
@@ -170,6 +191,9 @@ impl Vaultable for api::WalletData {
             .attach_printable("Failed to encode wallet data value1")
     }
 
+        /// Retrieves the value2 for a given customer ID from the tokenized wallet. 
+    /// If the customer ID is provided, it creates a TokenizedWalletValue2 using the given customer ID, encodes it to JSON, and returns the encoded value2 as a Result. 
+    /// If the encoding fails, it returns a CustomResult with a VaultError indicating the failure to encode the wallet data value2.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedWalletValue2 { customer_id };
 
@@ -178,6 +202,9 @@ impl Vaultable for api::WalletData {
             .attach_printable("Failed to encode wallet data value2")
     }
 
+        /// Parses the provided values into TokenizedWalletValue1 and TokenizedWalletValue2, then constructs a result containing
+    /// a tuple with the parsed wallet data and supplementary vault data. If successful, returns Ok with the tuple,
+    /// otherwise returns an error of type VaultError.
     fn from_values(
         value1: String,
         value2: String,
@@ -204,6 +231,7 @@ impl Vaultable for api::WalletData {
 }
 
 impl Vaultable for api_models::payments::BankRedirectData {
+        /// Retrieves the value1 for tokenized bank redirect data based on the provided customer ID, if available.
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
             data: self.to_owned(),
@@ -214,6 +242,7 @@ impl Vaultable for api_models::payments::BankRedirectData {
             .attach_printable("Failed to encode bank redirect data")
     }
 
+        /// Retrieves the value2 for a given customer ID, if provided, and encodes it to a JSON string
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
 
@@ -222,6 +251,7 @@ impl Vaultable for api_models::payments::BankRedirectData {
             .attach_printable("Failed to encode bank redirect supplementary data")
     }
 
+        /// Parses the given values into specific structures and constructs a tuple containing the parsed bank transfer data and supplementary vault data. 
     fn from_values(
         value1: String,
         value2: String,
@@ -257,6 +287,8 @@ pub enum VaultPaymentMethod {
 }
 
 impl Vaultable for api::PaymentMethodData {
+        /// Retrieves the value1 associated with the given customer ID for the payment method.
+    /// If the payment method is not supported or an error occurs during retrieval, a `VaultError` is returned.
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
@@ -277,6 +309,17 @@ impl Vaultable for api::PaymentMethodData {
             .attach_printable("Failed to encode payment method value1")
     }
 
+        /// Retrieves the value2 of a payment method associated with the specified customer ID.
+    /// 
+    /// If the payment method is a card, wallet, bank transfer, or bank redirect, it retrieves the value2 using the corresponding method. Otherwise, it returns an error indicating that the payment method is not supported.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `customer_id` - An optional String representing the customer ID.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the value2 of the payment method, or a `VaultError` if the operation fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
@@ -297,6 +340,7 @@ impl Vaultable for api::PaymentMethodData {
             .attach_printable("Failed to encode payment method value2")
     }
 
+        /// Parses two strings into VaultPaymentMethod enums, then matches the enums to create specific payment method objects and supplementary vault data. Returns a tuple containing the payment method object and the supplementary vault data, or an error if the payment method is not supported.
     fn from_values(
         value1: String,
         value2: String,
@@ -346,6 +390,7 @@ impl Vaultable for api::PaymentMethodData {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::CardPayout {
+        /// Retrieves the value1 of a tokenized card by encoding it to a JSON string. 
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
@@ -362,6 +407,7 @@ impl Vaultable for api::CardPayout {
             .attach_printable("Failed to encode card value1")
     }
 
+        /// Retrieves the value2 of a tokenized card for a specific customer. Returns a Result containing the encoded value2 as a string or a VaultError if the request encoding fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedCardValue2 {
             card_security_code: None,
@@ -376,6 +422,7 @@ impl Vaultable for api::CardPayout {
             .attach_printable("Failed to encode card value2")
     }
 
+        /// Parses two string values into TokenizedCardValue1 and TokenizedCardValue2 structs, then constructs a new card object and supplementary vault data object from the parsed values.
     fn from_values(
         value1: String,
         value2: String,
@@ -428,6 +475,7 @@ pub struct TokenizedBankInsensitiveValues {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
+        /// Retrieves sensitive bank data based on the type of payment method and encodes it to a JSON string.
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let bank_sensitive_data = match self {
             Self::Ach(b) => TokenizedBankSensitiveValues {
@@ -460,6 +508,7 @@ impl Vaultable for api::BankPayout {
         .attach_printable("Failed to encode wallet data bank_sensitive_data")
     }
 
+        /// Retrieves the tokenized bank insensitive data for a given customer ID. If the `customer_id` is None, it retrieves the bank insensitive data for all customers. Returns a `CustomResult` containing the tokenized bank insensitive data as a JSON string or a `VaultError` if the request encoding fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let bank_insensitive_data = match self {
             Self::Ach(b) => TokenizedBankInsensitiveValues {
@@ -489,6 +538,8 @@ impl Vaultable for api::BankPayout {
         .attach_printable("Failed to encode wallet data bank_insensitive_data")
     }
 
+        /// Parses the sensitive and insensitive bank data and constructs a bank transfer payment method based on the parsed data. 
+    /// Returns a tuple containing the bank transfer payment method and supplementary vault data, or a VaultError if parsing or deserialization fails.
     fn from_values(
         bank_sensitive_data: String,
         bank_insensitive_data: String,
@@ -555,6 +606,10 @@ pub enum VaultPayoutMethod {
 
 #[cfg(feature = "payouts")]
 impl Vaultable for api::PayoutMethodData {
+        /// Retrieves the value1 associated with the specified customer ID from the vault payout method.
+    /// If the payout method is a card, it retrieves the value1 associated with the customer ID from the card.
+    /// If the payout method is a bank, it retrieves the value1 associated with the customer ID from the bank.
+    /// It then encodes the retrieved value1 to a JSON string representation of the VaultPaymentMethod and returns it.
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value1(customer_id)?),
@@ -566,6 +621,9 @@ impl Vaultable for api::PayoutMethodData {
             .attach_printable("Failed to encode payout method value1")
     }
 
+        /// Retrieves the value2 for a given customer ID from either a Card or Bank payout method,
+    /// encodes the value2 as a JSON string, and returns a CustomResult containing the encoded string
+    /// or a VaultError if the encoding process fails.
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value2(customer_id)?),
@@ -577,6 +635,9 @@ impl Vaultable for api::PayoutMethodData {
             .attach_printable("Failed to encode payout method value2")
     }
 
+        /// Parses two string values into VaultPayoutMethod types and then matches them to create
+    /// corresponding payout methods and supplementary vault data, or returns an error if
+    /// the payout method is not supported.
     fn from_values(
         value1: String,
         value2: String,
@@ -617,6 +678,9 @@ pub struct Vault;
 
 impl Vault {
     #[instrument(skip_all)]
+        /// Retrieves payment method data from a locker using the given lookup key and merchant key store. 
+    /// This method asynchronously retrieves tokenized data from the state, parses it into payment method data 
+    /// and customer ID, and returns a tuple containing an optional payment method data and supplementary vault data.
     pub async fn get_payment_method_data_from_locker(
         state: &routes::AppState,
         lookup_key: &str,
@@ -633,6 +697,7 @@ impl Vault {
     }
 
     #[instrument(skip_all)]
+        /// Stores the payment method data in a locker, generates a token ID if none is provided, and creates a tokenized lookup key for the data. 
     pub async fn store_payment_method_data_in_locker(
         state: &routes::AppState,
         token_id: Option<String>,
@@ -668,6 +733,15 @@ impl Vault {
 
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
+        /// Retrieves payout method data from a temporary locker using the provided lookup key and merchant key store.
+    /// 
+    /// # Arguments
+    /// * `state` - The application state
+    /// * `lookup_key` - The lookup key used to retrieve the tokenized data
+    /// * `merchant_key_store` - The store containing merchant keys
+    /// 
+    /// # Returns
+    /// A tuple containing an optional `api::PayoutMethodData` and `SupplementaryVaultData`
     pub async fn get_payout_method_data_from_temporary_locker(
         state: &routes::AppState,
         lookup_key: &str,
@@ -685,6 +759,7 @@ impl Vault {
 
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
+        /// Asynchronously stores payout method data in the locker, using the provided state, token ID, payout method data, customer ID, and merchant key store. It retrieves value1 and value2 from the payout method data, then generates a lookup key using the token ID, value1, value2, and the merchant key from the merchant key store. The generated lookup key is returned as a result.
     pub async fn store_payout_method_data_in_locker(
         state: &routes::AppState,
         token_id: Option<String>,
@@ -719,6 +794,7 @@ impl Vault {
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously deletes a payment method from the locker using the provided lookup key.
     pub async fn delete_locker_payment_method_by_lookup_key(
         state: &routes::AppState,
         lookup_key: &Option<String>,
@@ -736,11 +812,21 @@ impl Vault {
 //------------------------------------------------TokenizeService------------------------------------------------
 
 #[inline(always)]
+/// Constructs and returns a Redis locker key by concatenating the LOCKER_REDIS_PREFIX with the provided lookup key.
+///
+/// # Arguments
+///
+/// * `lookup_key` - A reference to a string representing the lookup key
+///
+/// # Returns
+///
+/// A string containing the Redis locker key
 fn get_redis_locker_key(lookup_key: &str) -> String {
     format!("{}_{}", consts::LOCKER_REDIS_PREFIX, lookup_key)
 }
 
 #[instrument(skip(state, value1, value2))]
+/// This method creates and stores a tokenized payload in a Redis locker. It takes in the application state, two values to be tokenized, a lookup key, and an encryption key. The values are used to create a payload request which is then encrypted using the provided encryption key. The encrypted payload is then stored in a Redis locker with an expiry time. The method returns the lookup key if successful, otherwise it returns an error. 
 pub async fn create_tokenize(
     state: &routes::AppState,
     value1: String,
@@ -807,6 +893,7 @@ pub async fn create_tokenize(
 }
 
 #[instrument(skip(state))]
+/// Retrieves tokenized data from a Redis locker using the provided lookup key and encryption key. If the retrieval is successful, the method decrypts the data and returns it as a TokenizePayloadRequest. If the retrieval fails, an error response is returned indicating that the token is invalid or expired. The method also logs successful and failed retrieval attempts using the logger.
 pub async fn get_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
@@ -870,6 +957,7 @@ pub async fn get_tokenized_data(
 }
 
 #[instrument(skip(state))]
+/// Asynchronously deletes tokenized data from the Redis store using the provided lookup key.
 pub async fn delete_tokenized_data(state: &routes::AppState, lookup_key: &str) -> RouterResult<()> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
@@ -959,6 +1047,7 @@ pub async fn add_delete_tokenized_data_task(
     })
 }
 
+/// Asynchronously starts the tokenization data workflow by deleting tokenized data from the database and updating the process tracker status accordingly. If the deletion is successful, it logs a success message and marks the task as finished. If an error occurs during deletion, it logs an error message, retries the deletion, and updates the metrics for the number of retried deletions. Returns a result indicating success or a ProcessTrackerError if an error occurs during the process.
 pub async fn start_tokenize_data_workflow(
     state: &routes::AppState,
     tokenize_tracker: &storage::ProcessTracker,
@@ -996,6 +1085,8 @@ pub async fn start_tokenize_data_workflow(
     Ok(())
 }
 
+/// Fetches the schedule time for deleting and tokenizing payment method data from the database based on the given payment method and retry count.
+/// If the schedule time is found, it returns it as a `PrimitiveDateTime`, otherwise it returns `None`.
 pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
     pm: &enums::PaymentMethod,
@@ -1019,6 +1110,7 @@ pub async fn get_delete_tokenize_schedule_time(
     process_tracker_utils::get_time_from_delta(time_delta)
 }
 
+/// Asynchronously retries the delete tokenize process based on the schedule time
 pub async fn retry_delete_tokenize(
     db: &dyn db::StorageInterface,
     pm: &enums::PaymentMethod,

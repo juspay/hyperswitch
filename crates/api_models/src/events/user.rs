@@ -18,6 +18,7 @@ use crate::user::{
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
+        /// Returns the API event type as an Option. If the API event type is User, it includes the merchant ID and user ID associated with the event.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
             merchant_id: self.merchant_id.clone(),
@@ -28,6 +29,7 @@ impl ApiEventMetric for DashboardEntryResponse {
 
 #[cfg(feature = "recon")]
 impl ApiEventMetric for VerifyTokenResponse {
+        /// This method returns the API event type for the current instance. It creates an `ApiEventsType::User` variant with the merchant ID and user ID obtained from the current instance, and returns it wrapped in an `Option`.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::User {
             merchant_id: self.merchant_id.clone(),

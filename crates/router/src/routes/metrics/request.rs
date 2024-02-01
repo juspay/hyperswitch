@@ -3,6 +3,7 @@ use router_env::opentelemetry;
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
 
+/// Asynchronously records the request time metric for the given future and flow. It adds the request type to the flow metric, records the time taken by the future to complete, and adds the request type to the recorded request time metric. Finally, it returns the result of the future.
 pub async fn record_request_time_metric<F, R>(
     future: F,
     flow: &impl router_env::types::FlowMetric,
@@ -22,6 +23,22 @@ where
 }
 
 #[inline]
+/// Asynchronously records the operation time of a given future, updates the specified metric with the recorded time, and returns the result of the future.
+///
+/// # Arguments
+///
+/// * `future` - The future whose operation time will be recorded
+/// * `metric` - The metric to update with the recorded time
+/// * `key_value` - Additional key-value pairs to associate with the recorded time
+///
+/// # Generic
+///
+/// * `F` - The type of the future
+/// * `R` - The type of the result returned by the future
+///
+/// # Returns
+///
+/// The result of the future
 pub async fn record_operation_time<F, R>(
     future: F,
     metric: &once_cell::sync::Lazy<router_env::opentelemetry::metrics::Histogram<f64>>,
@@ -35,6 +52,7 @@ where
     result
 }
 
+/// Adds attributes to the OpenTelemetry KeyValue object with the specified key and value.
 pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
     key: &'static str,
     value: T,
@@ -42,6 +60,14 @@ pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
     router_env::opentelemetry::KeyValue::new(key, value)
 }
 
+/// Adds status code metrics to the request status.
+///
+/// # Arguments
+///
+/// * `status_code` - The status code to be added to the metrics.
+/// * `flow` - The flow of the request.
+/// * `merchant_id` - The ID of the merchant associated with the request.
+///
 pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) {
     super::REQUEST_STATUS.add(
         &super::CONTEXT,
@@ -53,7 +79,7 @@ pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) 
         ],
     )
 }
-
+/// Returns the HTTP status code of the given ApplicationResponse.
 pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
     match response {
         ApplicationResponse::Json(_)

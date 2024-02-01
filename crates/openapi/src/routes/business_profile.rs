@@ -32,7 +32,10 @@
     operation_id = "Create A Business Profile",
     security(("admin_api_key" = []))
 )]
-pub async fn business_profile_create() {}
+/// Creates a new business profile.
+pub async fn business_profile_create() {
+    // implementation here
+}
 
 /// Business Profile - List
 ///
@@ -50,7 +53,10 @@ pub async fn business_profile_create() {}
     operation_id = "List Business Profiles",
     security(("api_key" = []))
 )]
-pub async fn business_profiles_list() {}
+/// Asynchronously retrieves a list of business profiles.
+pub async fn business_profiles_list() {
+    // Method implementation goes here
+}
 
 /// Business Profile - Update
 ///
@@ -81,6 +87,7 @@ pub async fn business_profiles_list() {}
     operation_id = "Update a Business Profile",
     security(("api_key" = []))
 )]
+/// Asynchronously updates business profiles with the latest information.
 pub async fn business_profiles_update() {}
 
 /// Business Profile - Delete
@@ -101,7 +108,10 @@ pub async fn business_profiles_update() {}
     operation_id = "Delete the Business Profile",
     security(("api_key" = []))
 )]
-pub async fn business_profiles_delete() {}
+/// Asynchronously deletes a business profile.
+pub async fn business_profiles_delete() {
+    // implementation goes here
+}
 
 /// Business Profile - Retrieve
 ///
@@ -121,4 +131,5 @@ pub async fn business_profiles_delete() {}
     operation_id = "Retrieve a Business Profile",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves business profiles from the database.
 pub async fn business_profiles_retrieve() {}

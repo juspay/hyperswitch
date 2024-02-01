@@ -190,7 +190,10 @@
     operation_id = "Create a Payment",
     security(("api_key" = [])),
 )]
-pub fn payments_create() {}
+/// Creates a new payment record in the database.
+pub fn payments_create() {
+    // implementation goes here
+}
 
 /// Payments - Retrieve
 ///
@@ -210,6 +213,7 @@ pub fn payments_create() {}
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+/// This method retrieves the payments from the database and returns them.
 pub fn payments_retrieve() {}
 
 /// Payments - Update
@@ -267,7 +271,10 @@ pub fn payments_retrieve() {}
     operation_id = "Update a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-pub fn payments_update() {}
+/// Updates the payments in the system.
+pub fn payments_update() {
+    // implementation goes here
+}
 
 /// Payments - Confirm
 ///
@@ -317,7 +324,11 @@ pub fn payments_update() {}
     operation_id = "Confirm a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-pub fn payments_confirm() {}
+/// Confirms the payments for a transaction.
+/// This method handles the confirmation of payments for a specific transaction. It may involve updating the transaction status, updating the payment records, and sending notifications to relevant parties.
+pub fn payments_confirm() {
+    // implementation goes here
+}
 
 /// Payments - Capture
 ///
@@ -351,7 +362,10 @@ pub fn payments_confirm() {}
     operation_id = "Capture a Payment",
     security(("api_key" = []))
 )]
-pub fn payments_capture() {}
+/// Captures payments that have been authorized but not yet captured.
+pub fn payments_capture() {
+    // implementation goes here
+}
 
 /// Payments - Session token
 ///
@@ -368,7 +382,10 @@ pub fn payments_capture() {}
     operation_id = "Create Session tokens for a Payment",
     security(("publishable_key" = []))
 )]
-pub fn payments_connector_session() {}
+/// Creates and manages a session for connecting to the payments connector.
+pub fn payments_connector_session() {
+    // implementation goes here
+}
 
 /// Payments - Cancel
 ///
@@ -402,7 +419,10 @@ pub fn payments_connector_session() {}
     operation_id = "Cancel a Payment",
     security(("api_key" = []))
 )]
-pub fn payments_cancel() {}
+/// Cancels all pending payments.
+pub fn payments_cancel() {
+    // implementation details here
+}
 
 /// Payments - List
 ///
@@ -429,7 +449,10 @@ pub fn payments_cancel() {}
     operation_id = "List all Payments",
     security(("api_key" = []))
 )]
-pub fn payments_list() {}
+/// Returns a list of payments.
+pub fn payments_list() {
+    // implementation goes here
+}
 
 /// Payments - Incremental Authorization
 ///
@@ -449,4 +472,7 @@ pub fn payments_list() {}
   operation_id = "Increment authorized amount for a Payment",
   security(("api_key" = []))
 )]
-pub fn payments_incremental_authorization() {}
+/// This method is used to incrementally authorize payments. It allows for the authorization of additional funds beyond the original authorization amount for a payment transaction. 
+pub fn payments_incremental_authorization() {
+    // implementation goes here
+}

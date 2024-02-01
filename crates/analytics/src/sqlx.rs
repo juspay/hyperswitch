@@ -31,6 +31,7 @@ pub struct SqlxClient {
 }
 
 impl Default for SqlxClient {
+        /// Constructs and returns a new instance of the struct with a default configuration for the database connection pool.
     fn default() -> Self {
         let database_url = format!(
             "postgres://{}:{}@{}:{}/{}",
@@ -46,6 +47,7 @@ impl Default for SqlxClient {
 }
 
 impl SqlxClient {
+        /// Asynchronously creates a new instance of Self (presumably a DatabaseConnection) based on the provided Database configuration.
     pub async fn from_conf(conf: &Database) -> Self {
         let password = &conf.password.peek();
         let database_url = format!(
@@ -94,9 +96,12 @@ impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
     Type: DbType + FromStr + Display,
 {
+        /// Encodes the value of the struct by reference into the PgArgumentBuffer provided,
+    /// returning an sqlx::encode::IsNull value to indicate whether the value is null or not.
     fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> sqlx::encode::IsNull {
         self.0.to_string().encode(buf)
     }
+        /// Returns an estimate of the minimum and maximum number of bytes needed to represent the string representation of the integer.
     fn size_hint(&self) -> usize {
         self.0.to_string().size_hint()
     }
@@ -106,6 +111,7 @@ impl<'r, Type> Decode<'r, Postgres> for DBEnumWrapper<Type>
 where
     Type: DbType + FromStr + Display,
 {
+        /// Decodes a PgValueRef into a DBEnumWrapper.
     fn decode(
         value: PgValueRef<'r>,
     ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
@@ -123,6 +129,8 @@ impl<Type> sqlx::Type<Postgres> for DBEnumWrapper<Type>
 where
     Type: DbType + FromStr + Display,
 {
+        /// This method returns the Postgres type information by calling the `with_name` method of `PgTypeInfo`
+    /// and passing the result of the `name` method of `Type` as an argument.
     fn type_info() -> PgTypeInfo {
         PgTypeInfo::with_name(Type::name())
     }
@@ -132,6 +140,7 @@ impl<T> LoadRow<T> for SqlxClient
 where
     for<'a> T: FromRow<'a, PgRow>,
 {
+        /// This method takes a PgRow as input and attempts to create a CustomResult<T, QueryExecutionError> by using the from_row method of the generic type T to convert the PgRow into a T object. It then calls the into_report method to change the context of any potential QueryExecutionError::RowExtractionFailure that may occur during the process.
     fn load_row(row: PgRow) -> CustomResult<T, QueryExecutionError> {
         T::from_row(&row)
             .into_report()
@@ -149,6 +158,8 @@ impl super::refunds::filters::RefundFilterAnalytics for SqlxClient {}
 impl AnalyticsDataSource for SqlxClient {
     type Row = PgRow;
 
+        /// Asynchronously loads results of type T from the database using the provided query.
+    /// Returns a CustomResult containing a vector of type T if successful, or a QueryExecutionError if an error occurs.
     async fn load_results<T>(&self, query: &str) -> CustomResult<Vec<T>, QueryExecutionError>
     where
         Self: LoadRow<T>,
@@ -167,6 +178,8 @@ impl AnalyticsDataSource for SqlxClient {
 }
 #[async_trait::async_trait]
 impl HealthCheck for SqlxClient {
+        /// Performs a deep health check by executing a simple SQL query to the database using the pool provided.
+    /// If the query is successful, it returns Ok(()), otherwise, it returns a QueryExecutionError wrapped in a CustomResult.
     async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
         sqlx::query("SELECT 1")
             .fetch_all(&self.pool)
@@ -178,6 +191,8 @@ impl HealthCheck for SqlxClient {
 }
 
 impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
+        /// Converts a `PgRow` into a result of the current struct. Handles optional fields and converts
+    /// `PrimitiveDateTime` by removing millisecond precision to get accurate diffs against clickhouse.
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {
@@ -227,6 +242,7 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
 }
 
 impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
+        /// Converts a PostgreSQL row into a Result containing the specified struct, mapping row values to struct fields.
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {
@@ -288,6 +304,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
 }
 
 impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributionRow {
+        /// Maps the fields of a PgRow to the fields of the current struct and returns a Result containing the mapped values.
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {
@@ -354,6 +371,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
 }
 
 impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
+        /// Converts a PgRow into a Result<Self>, where Self is a struct with optional fields for currency, status, connector, authentication type, payment method, and payment method type. Each field is retrieved from the PgRow using try_get, with error handling to handle the case where the column is not found in the row. The method returns an Ok result containing the populated struct if all fields are successfully retrieved, or an error result if any retrieval fails.
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {
@@ -396,6 +414,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
 }
 
 impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
+        /// Constructs a SaleRefund from a database row, handling any missing or error values for the fields.
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {
@@ -426,12 +445,23 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
 }
 
 impl ToSql<SqlxClient> for PrimitiveDateTime {
+        /// Converts the current object to a SQL string representation using the provided TableEngine.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_table_engine` - A reference to the TableEngine to be used for the conversion.
+    /// 
+    /// # Returns
+    /// 
+    /// * Result<String, ParsingError> - A Result containing the SQL string representation of the object, or a ParsingError if the conversion fails.
+    /// 
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(self.to_string())
     }
 }
 
 impl ToSql<SqlxClient> for AnalyticsCollection {
+        /// Converts the enum variant to its corresponding SQL table name based on the provided TableEngine.
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
             Self::Payment => Ok("payment_attempt".to_string()),
@@ -453,6 +483,15 @@ impl<T> ToSql<SqlxClient> for Aggregate<T>
 where
     T: ToSql<SqlxClient>,
 {
+        /// Converts the AggregationFunction enum variant to its corresponding SQL representation based on the provided TableEngine.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `table_engine` - The TableEngine reference used to determine the appropriate SQL representation.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing the SQL representation as a String if successful, otherwise a ParsingError.
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Count { field: _, alias } => {
@@ -496,6 +535,7 @@ impl<T> ToSql<SqlxClient> for Window<T>
 where
     T: ToSql<SqlxClient>,
 {
+        /// Converts the window function to its equivalent SQL representation based on the provided table engine.
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Sum {

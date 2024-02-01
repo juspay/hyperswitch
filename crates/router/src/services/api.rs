@@ -64,12 +64,14 @@ impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
 where
     S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
 {
+        /// Returns a boxed connector integration.
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
         Box::new(self)
     }
 }
 
 pub trait ConnectorValidation: ConnectorCommon {
+        /// Validates the capture method and returns a CustomResult indicating success or a ConnectorError if the capture method is not supported.
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
@@ -87,6 +89,8 @@ pub trait ConnectorValidation: ConnectorCommon {
         }
     }
 
+        /// Validates the presence of a connector transaction ID in the PaymentsSyncRouterData request.
+    /// If the connector transaction ID is missing, it returns a custom error.
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -98,6 +102,7 @@ pub trait ConnectorValidation: ConnectorCommon {
             .map(|_| ())
     }
 
+        /// Returns whether the source verification is mandatory for the webhook.
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
@@ -105,6 +110,7 @@ pub trait ConnectorValidation: ConnectorCommon {
 
 #[async_trait::async_trait]
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+        /// This method returns a vector of tuples containing the headers for the given request data and connectors.
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -113,6 +119,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(vec![])
     }
 
+        /// Retrieves the content type of the data as a reference to a static string. 
     fn get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -122,6 +129,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Method::Post
     }
 
+        /// This method returns a URL as a result of type `CustomResult<String, errors::ConnectorError>`.
     fn get_url(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -130,6 +138,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(String::new())
     }
 
+        /// Retrieves the request body from the provided RouterData and Connectors, and returns it as a CustomResult.
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -138,6 +147,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(RequestContent::Json(Box::new(json!(r#"{}"#))))
     }
 
+        /// This method takes in a RouterData object and returns a CustomResult containing an Option of reqwest::multipart::Form. 
+    /// It currently always returns Ok(None), indicating that no form data is available. 
     fn get_request_form_data(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -165,6 +176,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(())
     }
 
+        /// Builds a request based on the provided RouterData and Connectors.
     fn build_request(
         &self,
         req: &types::RouterData<T, Req, Resp>,
@@ -181,6 +193,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+        /// Handles the response received from the router by cloning the provided data and returning it as a Result.
     fn handle_response(
         &self,
         data: &types::RouterData<T, Req, Resp>,
@@ -194,6 +207,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(data.clone())
     }
 
+        /// Retrieves an error response based on the provided response type.
     fn get_error_response(
         &self,
         _res: types::Response,
@@ -201,6 +215,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
+        /// Returns a custom error response based on the given HTTP response status code.
     fn get_5xx_error_response(
         &self,
         res: types::Response,
@@ -236,6 +251,15 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
     }
 
+        /// Retrieves the certificate for the given router data.
+    ///
+    /// # Arguments
+    ///
+    /// * `req` - The router data containing the request and response types.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the certificate as a `String`, or `None` if the certificate is not found.
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -243,6 +267,8 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+        /// This method is used to get the certificate key from the given RouterData. 
+    /// It returns a CustomResult containing the certificate key as a String, or an error of type ConnectorError.
     fn get_certificate_key(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -256,10 +282,11 @@ pub enum CaptureSyncMethod {
     Bulk,
 }
 
+#[instrument(skip_all)]
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all)]
+/// This method is responsible for executing the processing step of a connector integration. It takes in the application state, a boxed connector integration, request data, a call connector action, and an optional connector request. It then handles various scenarios based on the call connector action, such as handling response, status updates, avoiding the action, or triggering the action. It also logs events, handles responses, and manages errors related to the connector integration. The method returns a custom result containing the updated request data or an error related to the connector processing step.
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -511,6 +538,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// Asynchronously calls the connector API using the provided request and state. Records the current time, sends the request to the API client, and logs the elapsed time for the request. Finally, it handles the API client's response and returns a custom result containing either the successful response or an API client error.
 pub async fn call_connector_api(
     state: &AppState,
     request: Request,
@@ -529,6 +557,7 @@ pub async fn call_connector_api(
 }
 
 #[instrument(skip_all)]
+/// Sends an HTTP request using the specified state, request, and optional timeout. Logs the request details, bypasses the proxy if necessary, creates a client with the specified configuration, constructs request headers, and sends the request based on the request method. Records the operation time for metrics purposes and returns the response or an API client error.
 pub async fn send_request(
     state: &AppState,
     request: Request,
@@ -639,6 +668,7 @@ pub async fn send_request(
     .await
 }
 
+/// Checks if the given reqwest error indicates that the connection has been closed.
 fn is_connection_closed(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
@@ -653,6 +683,7 @@ fn is_connection_closed(error: &reqwest::Error) -> bool {
 }
 
 #[instrument(skip_all)]
+/// Asynchronously handles the response based on the status code received. Logs the response and status code, then decodes the response bytes and constructs a `types::Response` object based on the status code range. If the status code is in the range 200-202, 302, or 204, it returns a successful `types::Response`. If the status code is in the range 500-599, it returns an unsuccessful `types::Response`. If the status code is in the range 400-499, it also returns an unsuccessful `types::Response`. If the status code does not fall into any of these ranges, it returns an error with an "Unexpected response from server" message.
 async fn handle_response(
     response: CustomResult<reqwest::Response, errors::ApiClientError>,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -821,6 +852,9 @@ pub enum RedirectForm {
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
+        /// Constructs a new instance of the Self enum from a tuple containing a URL and a Method.
+    /// 
+    /// This method extracts the query parameters from the provided URL, removes them from the URL, and constructs a Form variant of the Self enum with the endpoint, method, and form fields.
     fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
         let form_fields = std::collections::HashMap::from_iter(
             redirect_url
@@ -846,6 +880,7 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
+/// This method is a utility for wrapping server-side request processing. It authenticates the request, performs locking actions, executes the main request processing function, and logs API events and metrics. It handles both successful and failed responses, serializes request and response data, and tracks request duration and status code. It also handles overhead latency and logs any errors that occur during the process.
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<A>,
@@ -996,6 +1031,7 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
+/// This method serves as a wrapper for server-side request handling. It takes in various parameters including flow metric, server state, request data, payload, function to execute, API authentication, and lock action. It records request method and URL path, logs the start of the request, and then proceeds to handle the request by recording request time metric, executing the provided function, and handling the response accordingly. It then logs the end of the request and returns the HTTP response.
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
     state: web::Data<A>,
@@ -1140,7 +1176,15 @@ where
     );
     res
 }
-
+/// Logs the given error and returns an HTTP response representing the error.
+///
+/// # Arguments
+///
+/// * `error` - The error to be logged and returned as an HTTP response.
+///
+/// # Returns
+///
+/// An HTTP response representing the given error.
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
     T: error_stack::Context + Clone + ResponseError,
@@ -1151,12 +1195,14 @@ where
 }
 
 pub trait EmbedError: Sized {
+        /// Consumes the current value and returns it.
     fn embed(self) -> Self {
         self
     }
 }
 
 impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
+        /// This method takes in a value and conditionally processes it based on the presence of a feature flag. If the "detailed_errors" feature is enabled, it converts the value into a JSON representation, extracts a specific nested error stack, converts it into a linear error stack, and then updates the stacktrace of an internal error within the value. If the feature is not enabled, it simply returns the original value. In either case, the method returns the processed or original value.
     fn embed(self) -> Self {
         #[cfg(feature = "detailed_errors")]
         {
@@ -1185,12 +1231,22 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
     }
 }
 
+/// Returns an HTTP response with a content type of `application/json` and a body containing the provided message body.
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
 
+/// Constructs a JSON response with a 500 Internal Server Error status code and the provided body.
+///
+/// # Arguments
+///
+/// * `response` - The body of the response, which must implement the MessageBody trait and be 'static.
+///
+/// # Returns
+///
+/// Returns an HttpResponse with a 500 Internal Server Error status code, content type set to application/json, and the provided body.
 pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
     response: T,
 ) -> HttpResponse {
@@ -1199,6 +1255,8 @@ pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
         .body(response)
 }
 
+/// Constructs an HTTP response with the given body, headers, and optional request duration, and sets the content type to JSON. 
+/// It also updates the X_HS_LATENCY header value if present in the headers, subtracting the external latency from the request duration.
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     mut headers: Vec<(String, String)>,
@@ -1223,10 +1281,12 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         .body(response)
 }
 
+/// Returns an HTTP response with a plaintext content type and the given body.
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
 }
 
+/// Returns an HTTP response with the given message body and content type.
 pub fn http_response_file_data<T: body::MessageBody + 'static>(
     res: T,
     content_type: mime::Mime,
@@ -1234,14 +1294,17 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
+/// This function takes a generic type T which implements the trait MessageBody and is 'static, and returns an HttpResponse with status Ok, content type set to TEXT_HTML, and the body set to the input parameter res.
 pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
 }
 
+/// This method creates and returns an HTTP response with a status code of 200 (Ok).
 pub fn http_response_ok() -> HttpResponse {
     HttpResponse::Ok().finish()
 }
 
+/// Generates an HTTP redirect response with the provided body and redirection information.
 pub fn http_redirect_response<T: body::MessageBody + 'static>(
     response: T,
     redirection_response: api::RedirectionResponse,
@@ -1256,6 +1319,15 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
         .body(response)
 }
 
+/// Constructs a new HTTP response with a BadRequest status code and a specified body.
+/// 
+/// # Arguments
+/// 
+/// * `response` - The body of the response, which must implement the MessageBody trait and be static.
+/// 
+/// # Returns
+/// 
+/// A new HttpResponse with a BadRequest status code and the specified body, with content type set to application/json.
 pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::BadRequest()
         .content_type(mime::APPLICATION_JSON)
@@ -1263,6 +1335,7 @@ pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpRes
 }
 
 pub trait ConnectorRedirectResponse {
+        /// Retrieves the flow type for a payment action based on the query parameters, JSON payload, and specified action.
     fn get_flow_type(
         &self,
         _query_params: &str,
@@ -1274,12 +1347,14 @@ pub trait ConnectorRedirectResponse {
 }
 
 pub trait Authenticate {
+        /// This method returns the client secret as an Option containing a reference to a String.
     fn get_client_secret(&self) -> Option<&String> {
         None
     }
 }
 
 impl Authenticate for api_models::payments::PaymentsRequest {
+        /// This method returns an optional reference to the client secret string associated with the current instance.
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -1292,6 +1367,7 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 }
 
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
+        /// This method returns the client secret, wrapped in an Option. If the client secret is present, it will be returned as Some(&String), otherwise None will be returned.
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)
     }
@@ -1305,6 +1381,7 @@ impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
+/// Builds a redirection form based on the provided `RedirectForm` variant, and initiates payment processing.
 pub fn build_redirection_form(
     form: &RedirectForm,
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
@@ -1746,6 +1823,15 @@ pub fn build_redirection_form(
     }
 }
 
+/// Builds a payment link HTML by modifying CSS, JS, and HTML templates with dynamic data provided in the `payment_link_data`.
+/// 
+/// # Arguments
+/// * `payment_link_data` - The data used to customize the payment link HTML.
+/// 
+/// # Returns
+/// * `CustomResult<String, errors::ApiErrorResponse>` - The result containing the rendered payment link HTML or an error response.
+
+/// Returns a string containing the HTML script tag for loading the Hyper Loader SDK with the specified SDK URL.
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
@@ -1807,6 +1893,7 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
+/// This method takes a PaymentLinkStatusData object and generates a payment link status page by modifying the CSS, JS, and HTML templates with dynamic data. It returns a CustomResult containing the rendered HTML page or an ApiErrorResponse if an error occurs.
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
@@ -1862,6 +1949,7 @@ pub fn get_payment_link_status(
 #[cfg(test)]
 mod tests {
     #[test]
+        /// This function tests the essence_str method of the APPLICATION_JSON mime type from the mime crate.
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }

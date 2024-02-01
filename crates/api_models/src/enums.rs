@@ -130,6 +130,7 @@ pub enum Connector {
 }
 
 impl Connector {
+        /// Checks if the given payment method supports access token authentication.
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
@@ -142,9 +143,11 @@ impl Connector {
                 | (Self::Volt, _)
         )
     }
+        /// Checks if the current module supports file storage.
     pub fn supports_file_storage_module(&self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout)
     }
+        /// Checks if the current state requires a defend dispute action.
     pub fn requires_defend_dispute(&self) -> bool {
         matches!(self, Self::Checkout)
     }
@@ -173,6 +176,7 @@ pub enum PayoutConnectors {
 
 #[cfg(feature = "payouts")]
 impl From<PayoutConnectors> for RoutableConnectors {
+        /// Converts a value of type PayoutConnectors into a value of the same type.
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
@@ -205,6 +209,7 @@ pub enum FrmConnectors {
 
 #[cfg(feature = "frm")]
 impl From<FrmConnectors> for RoutableConnectors {
+        /// Converts a value of type FrmConnectors into the corresponding value of the current enum type.
     fn from(value: FrmConnectors) -> Self {
         match value {
             FrmConnectors::Signifyd => Self::Signifyd,
@@ -525,6 +530,8 @@ pub enum PmAuthConnectors {
     Plaid,
 }
 
+/// Converts a string representation of a PM authentication connector into an enum value.
+/// If the conversion is successful, it returns the enum value wrapped in Some, otherwise returns None.
 pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
     PmAuthConnectors::from_str(connector_name).ok()
 }

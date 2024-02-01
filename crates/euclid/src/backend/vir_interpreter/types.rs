@@ -18,6 +18,7 @@ pub struct Context {
 }
 
 impl Context {
+        /// Checks if the given EuclidValue is present in the data structure.
     pub fn check_presence(&self, value: &EuclidValue) -> bool {
         let key = value.get_key();
 
@@ -51,6 +52,7 @@ impl Context {
         }
     }
 
+        /// Constructs a new instance of Self from the provided BackendInput, extracting relevant data and converting it into enum and numeric values as required.
     pub fn from_input(input: BackendInput) -> Self {
         let payment = input.payment;
         let payment_method = input.payment_method;

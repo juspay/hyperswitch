@@ -12,6 +12,8 @@ use crate::{
     utils::user::sample_data::generate_sample_data,
 };
 
+/// Generates sample data for a user based on the provided sample data request and the user's authentication token.
+/// The generated sample data includes payment intents, payment attempts, and refunds, and is then stored in the application state's store.
 pub async fn generate_sample_data_for_user(
     state: AppState,
     user_from_token: UserFromToken,
@@ -55,6 +57,7 @@ pub async fn generate_sample_data_for_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+/// Deletes sample data for a specific user, including payment intents, payment attempts, and refunds.
 pub async fn delete_sample_data_for_user(
     state: AppState,
     user_from_token: UserFromToken,

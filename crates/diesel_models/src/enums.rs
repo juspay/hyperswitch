@@ -191,6 +191,7 @@ impl<DB: Backend> FromSql<Jsonb, DB> for MandateDataType
 where
     serde_json::Value: FromSql<Jsonb, DB>,
 {
+        /// Convert a raw value from the database into a deserialized JSON value.
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
         Ok(serde_json::from_value(value)?)
@@ -201,6 +202,15 @@ impl ToSql<Jsonb, diesel::pg::Pg> for MandateDataType
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {
+        /// Converts the value to a SQL representation and writes it to the provided `Output`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `out` - A mutable reference to an `Output` value where the SQL representation will be written.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` indicating success or failure in serializing the value to SQL.
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
         let value = serde_json::to_value(self)?;
 

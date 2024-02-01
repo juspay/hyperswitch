@@ -9,6 +9,7 @@ use crate::routing::{
 use crate::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 
 impl ApiEventMetric for RoutingKind {
+        /// Retrieves the API event type, returning an optional value of the enum ApiEventsType.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

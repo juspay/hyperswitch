@@ -9,6 +9,8 @@ use masking::ZeroizableSecret;
 use serde::Serialize;
 
 #[test]
+/// This method demonstrates basic functionality for working with secret and non-secret data,
+/// including construction, cloning, formatting, and serialization.
 fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     #[cfg_attr(feature = "serde", derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -66,6 +68,7 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 #[test]
+/// This method demonstrates how to create and manipulate sensitive data without using the `Serialize` trait, and also includes examples of constructing, formatting, and (optionally) serializing the data.
 fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     #[cfg_attr(feature = "serde", derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -116,6 +119,7 @@ fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 #[test]
+/// This method demonstrates various operations on a Composite struct including construction, cloning, formatting, and serialization.
 fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     #[cfg_attr(all(feature = "alloc", feature = "serde"), derive(Serialize))]
     #[derive(Clone, Debug, PartialEq, Eq)]

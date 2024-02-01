@@ -17,6 +17,8 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
     ) -> Result<(), errors::ProcessTrackerError> {
         Err(errors::ProcessTrackerError::NotImplemented)?
     }
+        /// Asynchronously executes a workflow on a given state and process, using a provided operation that implements the ProcessTrackerWorkflow trait. 
+    /// Returns a Result indicating success or a ProcessTrackerError if an error occurs during execution.
     async fn execute_workflow<'a>(
         &'a self,
         operation: Box<dyn ProcessTrackerWorkflow<T>>,

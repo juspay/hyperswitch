@@ -90,11 +90,13 @@ enum MerchantAccountRoutingAlgorithm {
 }
 
 impl Default for MerchantAccountRoutingAlgorithm {
+        /// Returns a new instance of the current type with a default value for the routing algorithm reference.
     fn default() -> Self {
         Self::V1(routing_types::RoutingAlgorithmRef::default())
     }
 }
 
+/// Constructs a backend input for a DSL (Domain Specific Language) using the provided payment data.
 pub fn make_dsl_input<F>(
     payment_data: &payments_oss::PaymentData<F>,
 ) -> RoutingResult<dsl_inputs::BackendInput>
@@ -202,6 +204,7 @@ where
     })
 }
 
+/// Perform static routing using the specified algorithm and payment data, returning a vector of routable connector choices. If the algorithm is not specified, fallback to the default configuration for the merchant. Cache the algorithm and execute it based on its type, returning the selected connectors.
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &AppState,
     merchant_id: &str,
@@ -261,6 +264,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
     })
 }
 
+/// Ensure that the specified algorithm is cached and up to date for the given merchant and timestamp. If the algorithm is not present in the cache or has expired, it will be refreshed.
 async fn ensure_algorithm_cached_v1(
     state: &AppState,
     merchant_id: &str,
@@ -308,6 +312,9 @@ async fn ensure_algorithm_cached_v1(
     Ok(key)
 }
 
+/// Perform straight-through routing based on the provided algorithm and payment data.
+/// Returns a tuple containing a vector of routable connector choices and a boolean indicating
+/// whether the credentials identifier is none.
 pub fn perform_straight_through_routing<F: Clone>(
     algorithm: &routing_types::StraightThroughAlgorithm,
     payment_data: &payments_oss::PaymentData<F>,
@@ -331,6 +338,14 @@ pub fn perform_straight_through_routing<F: Clone>(
     })
 }
 
+/// Executes a DSL (Domain Specific Language) input using the provided interpreter and retrieves the routable connector choices based on the routing algorithm specified in the DSL output.
+/// 
+/// # Arguments
+/// * `backend_input` - The DSL input to be executed.
+/// * `interpreter` - The interpreter to be used for executing the DSL input.
+/// 
+/// # Returns
+/// A `RoutingResult` containing a vector of `RoutableConnectorChoice` representing the choices for routing connectors.
 fn execute_dsl_and_get_connector_v1(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
@@ -353,6 +368,19 @@ fn execute_dsl_and_get_connector_v1(
     })
 }
 
+/// Refreshes the routing cache with the specified key, algorithm, and timestamp.
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state
+/// * `key` - The key to use for caching
+/// * `algorithm_id` - The ID of the routing algorithm
+/// * `timestamp` - The timestamp for caching
+/// * `profile_id` - The optional profile ID for business profile routing feature
+/// 
+/// # Returns
+/// 
+/// * `RoutingResult<()>` - Represents the result of refreshing the routing cache
 pub async fn refresh_routing_cache_v1(
     state: &AppState,
     key: String,
@@ -418,6 +446,8 @@ pub async fn refresh_routing_cache_v1(
     Ok(())
 }
 
+/// Perform a volume split on a list of connector volume splits, using a specified random number generator seed if provided.
+/// Returns a Result containing a vector of routable connector choices, or an error if the volume split fails.
 pub fn perform_volume_split(
     mut splits: Vec<routing_types::ConnectorVolumeSplit>,
     rng_seed: Option<&str>,
@@ -454,6 +484,7 @@ pub fn perform_volume_split(
     Ok(splits.into_iter().map(|sp| sp.connector).collect())
 }
 
+/// Asynchronously retrieves the merchant's knowledge graph from the cache, or refreshes the cache if the graph is not present or has expired. 
 pub async fn get_merchant_kgraph<'a>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -506,6 +537,22 @@ pub async fn get_merchant_kgraph<'a>(
     Ok(cached_kgraph)
 }
 
+/// Asynchronously refreshes the kgraph cache for a merchant based on the provided parameters. 
+/// Retrieves the merchant connector accounts from the store based on the merchant id and disabled list using the provided key store. 
+/// Filters out connector accounts with types PaymentVas and PaymentMethodAuth. 
+/// Optionally filters the merchant connector accounts based on the business profile ID if the 'business_profile_routing' feature is enabled. 
+/// Converts the filtered merchant connector accounts into admin API merchant connector responses. 
+/// Constructs a kgraph using the converted merchant connector responses and saves it to the kgraph cache with the provided key and timestamp. 
+/// 
+/// # Arguments
+/// * `state` - The application state
+/// * `key_store` - The domain merchant key store
+/// * `timestamp` - The timestamp for the kgraph cache entry
+/// * `key` - The key for the kgraph cache entry
+/// * `profile_id` - Optional business profile ID for filtering merchant connector accounts (if 'business_profile_routing' feature is enabled)
+/// 
+/// # Returns
+/// This method returns a `RoutingResult` indicating the success or failure of refreshing the kgraph cache.
 pub async fn refresh_kgraph_cache(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -554,6 +601,7 @@ pub async fn refresh_kgraph_cache(
     Ok(())
 }
 
+/// Asynchronously performs k-graph filtering based on the provided parameters. It analyzes the backend input and merchant k-graph to filter the given routable connector choices and returns the final selection of routable connector choices that are both k-graph eligible and eligible based on the provided optional list of routable connectors.
 async fn perform_kgraph_filtering(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -602,6 +650,7 @@ async fn perform_kgraph_filtering(
     Ok(final_selection)
 }
 
+/// Performs eligibility analysis for routable connector choices based on the provided payment data and merchant information. If the "business_profile_routing" feature is enabled, it also takes into account the profile ID. Returns a list of eligible routable connector choices after filtering.
 pub async fn perform_eligibility_analysis<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -626,6 +675,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     .await
 }
 
+/// Perform fallback routing for a payment transaction based on the provided parameters. This method retrieves the fallback configuration for the merchant, constructs the backend input, and performs kgraph filtering to determine the routable connector choices for the transaction.
 pub async fn perform_fallback_routing<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -665,6 +715,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     .await
 }
 
+/// Performs eligibility analysis for routing with a fallback mechanism if necessary. This method takes in the application state, merchant key store, merchant last modified timestamp, chosen routable connector choices, payment data, eligible connectors, and optional profile ID for business profile routing. It then performs eligibility analysis for the chosen connectors and, if necessary, performs fallback routing. The final selected connectors for routing are logged and returned as a result.
 pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -717,6 +768,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     Ok(final_selection)
 }
 
+/// Performs the session flow routing based on the provided session input, returning a routing result
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
@@ -874,6 +926,7 @@ pub async fn perform_session_flow_routing(
     Ok(result)
 }
 
+/// Asynchronously performs session routing for the given payment method type input. It retrieves the merchant ID from the input, determines the chosen connectors based on the routing algorithm, filters the connectors using K-Graph filtering, selects a final choice of connector and returns it as an `Option` wrapped in a `RoutingResult`.
 async fn perform_session_routing_for_pm_type(
     session_pm_input: SessionRoutingPmTypeInput<'_>,
 ) -> RoutingResult<Option<(api::ConnectorData, Option<String>)>> {
@@ -1000,6 +1053,7 @@ async fn perform_session_routing_for_pm_type(
     Ok(final_choice)
 }
 
+/// Constructs a DSL input for surcharge based on the provided payment attempt, payment intent, and billing address.
 pub fn make_dsl_input_for_surcharge(
     payment_attempt: &oss_storage::PaymentAttempt,
     payment_intent: &oss_storage::PaymentIntent,

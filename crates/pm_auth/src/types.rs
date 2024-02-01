@@ -43,6 +43,7 @@ pub struct ExchangeTokenResponse {
 }
 
 impl From<ExchangeTokenResponse> for api_models::pm_auth::ExchangeTokenCreateResponse {
+        /// Creates a new instance of Self by extracting the access token from the given ExchangeTokenResponse.
     fn from(value: ExchangeTokenResponse) -> Self {
         Self {
             access_token: value.access_token,
@@ -119,6 +120,7 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
+        /// Returns a new instance of Self with the code "IR_00" and a message indicating that the API is under development and will be made available soon. The reason field is set to None, and the status code is set to the internal server error code.
     fn get_not_implemented() -> Self {
         Self {
             code: "IR_00".to_string(),

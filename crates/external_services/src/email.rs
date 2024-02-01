@@ -52,6 +52,8 @@ where
     T: EmailClient,
     <Self as EmailClient>::RichText: Send,
 {
+        /// Composes an email using the provided email data and sends it to the specified recipient.
+    /// If a proxy URL is provided, the email will be sent through the proxy.
     async fn compose_and_send_email(
         &self,
         email_data: Box<dyn EmailData + Send>,

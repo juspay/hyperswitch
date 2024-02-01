@@ -57,6 +57,18 @@ pub trait ConfigInterface {
 #[async_trait::async_trait]
 impl ConfigInterface for Store {
     #[instrument(skip_all)]
+        /// Asynchronously inserts a new configuration into the storage, returning the inserted configuration
+    /// if successful, or a `StorageError` if an error occurs.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The new configuration to be inserted into the storage.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the inserted configuration if successful, or a `StorageError` if an
+    /// error occurs.
+    ///
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -65,6 +77,8 @@ impl ConfigInterface for Store {
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+        /// Asynchronously updates the configuration in the database with the specified key and configuration update,
+    /// returning a Result containing the updated storage::Config or a StorageError if the update fails.
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -89,6 +103,16 @@ impl ConfigInterface for Store {
         .await
     }
 
+        /// Asynchronously finds a configuration by the given key from the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key to search for in the database
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<storage::Config, errors::StorageError>` - A result containing the found configuration or a storage error
+    ///
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -115,6 +139,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
+        /// Asynchronously finds a configuration by its key and unwraps it if found, or creates a new configuration with the provided default value if not found. Returns a `CustomResult` with the found or newly created configuration, or a `StorageError` if an error occurs during the process.
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -154,6 +179,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
+        /// Asynchronously deletes a configuration by its key from the storage. Returns a CustomResult containing a boolean indicating whether the configuration was deleted successfully or not, and an errors::StorageError if an error occurs during the deletion process. 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let deleted = storage::Config::delete_by_key(&conn, key)
@@ -174,6 +200,7 @@ impl ConfigInterface for Store {
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
     #[instrument(skip_all)]
+        /// Asynchronously inserts a new configuration into the storage. It takes a `ConfigNew` object as input and returns a `CustomResult` containing the inserted `Config` object or a `StorageError` if an error occurs during the insertion process.
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -193,6 +220,17 @@ impl ConfigInterface for MockDb {
         Ok(config_new)
     }
 
+        /// Asynchronously updates the configuration in the database for the given key with the provided configuration update.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - A reference to a string representing the key of the configuration to be updated.
+    /// * `config_update` - A storage::ConfigUpdate struct representing the update to be applied to the configuration.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing the updated storage::Config if the update was successful, otherwise an errors::StorageError.
+    ///
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -200,7 +238,8 @@ impl ConfigInterface for MockDb {
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.update_config_by_key(key, config_update).await
     }
-
+        /// Asynchronously updates the configuration with the given key using the provided configuration update. 
+    /// Returns a `CustomResult` containing the updated configuration if successful, otherwise returns a `StorageError`.
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -226,6 +265,8 @@ impl ConfigInterface for MockDb {
         result
     }
 
+        /// Asynchronously deletes a configuration by its key from the storage. 
+    /// Returns a CustomResult indicating whether the deletion was successful or an error occurred.
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let mut configs = self.configs.lock().await;
         let result = configs
@@ -243,6 +284,7 @@ impl ConfigInterface for MockDb {
         result
     }
 
+        /// Asynchronously finds a configuration by key in the storage. Returns a Result containing the found configuration or a StorageError if the configuration is not found.
     async fn find_config_by_key(
         &self,
         key: &str,
@@ -255,6 +297,17 @@ impl ConfigInterface for MockDb {
         })
     }
 
+        /// Asynchronously finds a configuration by key and unwraps it if found, otherwise returns the default configuration provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key used to search for the configuration.
+    /// * `_default_config` - An optional default configuration to return if the configuration is not found.
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<storage::Config, errors::StorageError>` - A custom result type containing the found configuration or a storage error.
+    ///
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -263,6 +316,8 @@ impl ConfigInterface for MockDb {
         self.find_config_by_key(key).await
     }
 
+
+        /// Asynchronously finds a configuration by its key from the database and returns a `CustomResult` containing the found `storage::Config` or an `errors::StorageError` in case of failure.
     async fn find_config_by_key_from_db(
         &self,
         key: &str,

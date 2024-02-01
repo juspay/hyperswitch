@@ -31,6 +31,16 @@ pub trait AuthorizationInterface {
 
 #[async_trait::async_trait]
 impl AuthorizationInterface for Store {
+        /// Asynchronously inserts a new authorization record into the storage. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authorization` - A new authorization record to be inserted into the storage.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the inserted `storage::Authorization` if successful, or a `errors::StorageError` if an error occurred during insertion.
+    /// 
     async fn insert_authorization(
         &self,
         authorization: storage::AuthorizationNew,
@@ -43,6 +53,7 @@ impl AuthorizationInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds all authorizations by a given merchant ID and payment ID in the storage.
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -55,6 +66,18 @@ impl AuthorizationInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates an authorization by merchant ID and authorization ID
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - The ID of the merchant
+    /// * `authorization_id` - The ID of the authorization
+    /// * `authorization` - The updated authorization data
+    /// 
+    /// # Returns
+    /// 
+    /// The updated authorization if successful, or a `StorageError` if an error occurs
+    /// 
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
         merchant_id: String,
@@ -76,6 +99,9 @@ impl AuthorizationInterface for Store {
 
 #[async_trait::async_trait]
 impl AuthorizationInterface for MockDb {
+        /// Asynchronously inserts a new authorization into the storage, checking for duplicate authorization IDs.
+    /// If a duplicate is found, returns a `StorageError` with the details. Otherwise, a new `Authorization` is created
+    /// and added to the store, and the new `Authorization` is returned.
     async fn insert_authorization(
         &self,
         authorization: storage::AuthorizationNew,
@@ -106,6 +132,7 @@ impl AuthorizationInterface for MockDb {
         Ok(authorization)
     }
 
+        /// Asynchronously finds all authorizations by a given merchant ID and payment ID.
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -121,6 +148,7 @@ impl AuthorizationInterface for MockDb {
         Ok(authorizations_found)
     }
 
+        /// Asynchronously updates an authorization by merchant ID and authorization ID. It searches for the authorization with the given merchant ID and authorization ID, updates it with the provided authorization update, and returns the updated authorization if found. If no matching authorization is found, it returns a `StorageError` indicating that the authorization could not be found.
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
         merchant_id: String,
