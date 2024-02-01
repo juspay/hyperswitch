@@ -11,6 +11,7 @@ mod adyen;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+#[cfg(feature = "dummy_connector")]
 mod bankofamerica;
 mod bitpay;
 mod bluesnap;
@@ -36,13 +37,17 @@ mod nexinets;
 mod nmi;
 mod noon;
 mod nuvei;
+#[cfg(feature = "dummy_connector")]
 mod opayo;
 mod opennode;
+#[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
 mod paypal;
 mod payu;
+mod placetopay;
 mod powertranz;
+#[cfg(feature = "dummy_connector")]
 mod prophetpay;
 mod rapyd;
 mod shift4;

@@ -108,7 +108,8 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 ))
@@ -297,12 +298,11 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                )
-                .into())
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gocardless"),
+            )
+            .into()),
         }
     }
 }
@@ -483,11 +483,10 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-                ))
-            }
+            | api_models::payments::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+            )),
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
@@ -578,6 +577,7 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference,
@@ -733,6 +733,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -767,6 +768,7 @@ impl<F>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -862,14 +864,14 @@ pub struct GocardlessWebhookEvent {
     pub events: Vec<WebhookEvent>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WebhookEvent {
     pub resource_type: WebhookResourceType,
     pub action: WebhookAction,
     pub links: WebhooksLink,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookResourceType {
     Payments,
@@ -877,7 +879,7 @@ pub enum WebhookResourceType {
     Mandates,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookAction {
     PaymentsAction(PaymentsAction),
@@ -885,7 +887,7 @@ pub enum WebhookAction {
     MandatesAction(MandatesAction),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentsAction {
     Created,
@@ -901,7 +903,7 @@ pub enum PaymentsAction {
     ResubmissionRequired,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundsAction {
     Created,
@@ -912,7 +914,7 @@ pub enum RefundsAction {
     FundsReturned,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MandatesAction {
     Created,
@@ -931,7 +933,7 @@ pub enum MandatesAction {
     Blocked,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebhooksLink {
     PaymentWebhooksLink(PaymentWebhooksLink),
@@ -939,17 +941,17 @@ pub enum WebhooksLink {
     MandateWebhookLink(MandateWebhookLink),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundWebhookLink {
     pub refund: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentWebhooksLink {
     pub payment: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MandateWebhookLink {
     pub mandate: String,
 }

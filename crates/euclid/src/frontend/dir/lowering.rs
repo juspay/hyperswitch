@@ -134,6 +134,7 @@ impl From<enums::CardRedirectType> for global_enums::PaymentMethodType {
             enums::CardRedirectType::Benefit => Self::Benefit,
             enums::CardRedirectType::Knet => Self::Knet,
             enums::CardRedirectType::MomoAtm => Self::MomoAtm,
+            enums::CardRedirectType::CardRedirect => Self::CardRedirect,
         }
     }
 }

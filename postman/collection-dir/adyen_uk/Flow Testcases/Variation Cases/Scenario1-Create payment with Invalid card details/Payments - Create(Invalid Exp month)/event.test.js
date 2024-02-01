@@ -75,12 +75,12 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "invalid_request" for "error type"
-if (jsonData?.error?.message) {
+// Response body should have value "connector error" for "error type"
+if (jsonData?.error?.type) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'error.message' matches 'Card Expired'",
+    "[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'",
     function () {
-      pm.expect(jsonData.error.message).to.eql("Card Expired");
+      pm.expect(jsonData.error.type).to.eql("invalid_request");
     },
   );
 }

@@ -13,7 +13,7 @@ macro_rules! dirval {
     (Connector = $name:ident) => {
         $crate::frontend::dir::DirValue::Connector(Box::new(
             $crate::frontend::ast::ConnectorChoice {
-                connector: $crate::frontend::dir::enums::Connector::$name,
+                connector: $crate::enums::RoutableConnectors::$name,
             },
         ))
     };
@@ -51,7 +51,7 @@ macro_rules! dirval {
     (Connector = $name:ident) => {
         $crate::frontend::dir::DirValue::Connector(Box::new(
             $crate::frontend::ast::ConnectorChoice {
-                connector: $crate::frontend::dir::enums::Connector::$name,
+                connector: $crate::enums::RoutableConnectors::$name,
                 sub_label: None,
             },
         ))
@@ -60,7 +60,7 @@ macro_rules! dirval {
     (Connector = ($name:ident, $sub_label:literal)) => {
         $crate::frontend::dir::DirValue::Connector(Box::new(
             $crate::frontend::ast::ConnectorChoice {
-                connector: $crate::frontend::dir::enums::Connector::$name,
+                connector: $crate::enums::RoutableConnectors::$name,
                 sub_label: Some($sub_label.to_string()),
             },
         ))
@@ -464,7 +464,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::Connector => Some(
-                enums::Connector::iter()
+                common_enums::RoutableConnectors::iter()
                     .map(|connector| {
                         DirValue::Connector(Box::new(ast::ConnectorChoice {
                             connector,
@@ -722,7 +722,10 @@ mod test {
             };
             let display_str = key.to_string();
 
-            assert_eq!(&json_str[1..json_str.len() - 1], display_str);
+            assert_eq!(
+                json_str.get(1..json_str.len() - 1).expect("Value metadata"),
+                display_str
+            );
             key_names.insert(key, display_str);
         }
 

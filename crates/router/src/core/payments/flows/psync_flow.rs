@@ -28,7 +28,10 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
-        transformers::construct_payment_router_data::<api::PSync, types::PaymentsSyncData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::PSync,
+            types::PaymentsSyncData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -36,7 +39,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }

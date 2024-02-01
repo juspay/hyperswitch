@@ -33,7 +33,7 @@ pub enum StripeErrorCode {
         expected_format: String,
     },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "Refund amount exceeds the payment amount.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_06",  message = "The refund amount exceeds the amount captured.")]
     RefundAmountExceedsPaymentAmount { param: String },
 
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_authentication_failure", message = "Payment failed while processing with connector. Retry payment.")]
@@ -241,6 +241,8 @@ pub enum StripeErrorCode {
     LockTimeout,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Merchant connector account is configured with invalid {config}")]
     InvalidConnectorConfiguration { config: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert currency to minor unit")]
+    CurrencyConversionFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -466,7 +468,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
             | errors::ApiErrorResponse::MandateDeserializationFailed
-            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            | errors::ApiErrorResponse::InternalServerError
+            | errors::ApiErrorResponse::HealthCheckError { .. } => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,
@@ -518,6 +521,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 connector_name,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::PaymentBlocked => Self::PaymentFailed,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
             },
@@ -595,6 +599,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::InvalidConnectorConfiguration { config } => {
                 Self::InvalidConnectorConfiguration { config }
             }
+            errors::ApiErrorResponse::CurrencyConversionFailed => Self::CurrencyConversionFailed,
         }
     }
 }
@@ -662,7 +667,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyNotSupported { .. }
             | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated
-            | Self::InvalidConnectorConfiguration { .. } => StatusCode::BAD_REQUEST,
+            | Self::InvalidConnectorConfiguration { .. }
+            | Self::CurrencyConversionFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

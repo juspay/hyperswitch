@@ -3,10 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use common_enums::enums::{Currency, RefundStatus};
-use common_utils::events::ApiEventMetric;
-
-use crate::analytics::MetricsResponse;
+use crate::{enums::Currency, refunds::RefundStatus};
 
 #[derive(
     Clone,
@@ -20,7 +17,7 @@ use crate::analytics::MetricsResponse;
     strum::Display,
     strum::EnumString,
 )]
-// TODO RefundType common_enums need to mapped to storage_model
+// TODO RefundType api_models_oss need to mapped to storage_model
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundType {
@@ -31,7 +28,7 @@ pub enum RefundType {
 }
 
 use super::{NameDescription, TimeRange};
-#[derive(Clone, Debug, Default, serde::Deserialize, masking::Serialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct RefundFilters {
     #[serde(default)]
     pub currency: Vec<Currency>,
@@ -115,8 +112,9 @@ impl From<RefundDimensions> for NameDescription {
 #[derive(Debug, serde::Serialize, Eq)]
 pub struct RefundMetricsBucketIdentifier {
     pub currency: Option<Currency>,
-    pub refund_status: Option<RefundStatus>,
+    pub refund_status: Option<String>,
     pub connector: Option<String>,
+
     pub refund_type: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
@@ -128,7 +126,7 @@ pub struct RefundMetricsBucketIdentifier {
 impl Hash for RefundMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.currency.hash(state);
-        self.refund_status.map(|i| i.to_string()).hash(state);
+        self.refund_status.hash(state);
         self.connector.hash(state);
         self.refund_type.hash(state);
         self.time_bucket.hash(state);
@@ -147,7 +145,7 @@ impl PartialEq for RefundMetricsBucketIdentifier {
 impl RefundMetricsBucketIdentifier {
     pub fn new(
         currency: Option<Currency>,
-        refund_status: Option<RefundStatus>,
+        refund_status: Option<String>,
         connector: Option<String>,
         refund_type: Option<String>,
         normalized_time_range: TimeRange,
@@ -162,7 +160,6 @@ impl RefundMetricsBucketIdentifier {
         }
     }
 }
-
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketValue {
     pub refund_success_rate: Option<f64>,
@@ -170,7 +167,6 @@ pub struct RefundMetricsBucketValue {
     pub refund_success_count: Option<u64>,
     pub refund_processed_amount: Option<u64>,
 }
-
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {
     #[serde(flatten)]
@@ -178,6 +174,3 @@ pub struct RefundMetricsBucketResponse {
     #[serde(flatten)]
     pub dimensions: RefundMetricsBucketIdentifier,
 }
-
-impl ApiEventMetric for RefundMetricsBucketResponse {}
-impl ApiEventMetric for MetricsResponse<RefundMetricsBucketResponse> {}

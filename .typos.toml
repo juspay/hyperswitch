@@ -24,6 +24,7 @@ optin = "optin" # Boku preflow name
 optin_id = "optin_id" # Boku's id for optin flow
 deriver = "deriver"
 Deriver = "Deriver"
+requestor_card_reference = "requestor_card_reference" 
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
@@ -35,9 +36,11 @@ ba = "ba" # ignore minor commit conversions
 ede = "ede" # ignore minor commit conversions
 daa = "daa" # Commit id
 afe = "afe" # Commit id
+Hashi = "Hashi" # HashiCorp
 
 [files]
 extend-exclude = [
     "config/redis.conf", # `typos` also checked "AKE" in the file, which is present as a quoted string
     "openapi/open_api_spec.yaml", # no longer updated
+    "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
 ]

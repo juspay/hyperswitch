@@ -248,7 +248,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         values: V,
-        ttl: Option<u32>,
+        ttl: Option<i64>,
     ) -> CustomResult<(), errors::RedisError>
     where
         V: TryInto<RedisMap> + Debug + Send + Sync,
@@ -260,11 +260,10 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .change_context(errors::RedisError::SetHashFailed);
-
         // setting expiry for the key
         output
             .async_and_then(|_| {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
             })
             .await
     }
@@ -384,6 +383,7 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         Ok(self
             .pool
+            .next()
             .hscan::<&str, &str>(key, pattern, count)
             .filter_map(|value| async move {
                 match value {
@@ -563,7 +563,7 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .map_err(|err| match err.current_context().kind() {
-                RedisErrorKind::NotFound => {
+                RedisErrorKind::NotFound | RedisErrorKind::Parse => {
                     err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
                 _ => err.change_context(errors::RedisError::StreamReadFailed),

@@ -11,6 +11,7 @@ use crate::{
     connector::utils::{
         self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
+    consts,
     core::errors::{self, CustomResult},
     services::{self, Method},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
@@ -222,7 +223,7 @@ impl TryFrom<(&ZenRouterData<&types::PaymentsAuthorizeRouterData>, &Card)> for Z
                 card: Some(ZenCardDetails {
                     number: ccard.card_number.clone(),
                     expiry_date: ccard
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned()),
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?,
                     cvv: ccard.card_cvc.clone(),
                 }),
                 descriptor: item
@@ -538,7 +539,7 @@ fn get_checkout_signature(
         .pay_wall_secret
         .clone()
         .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-    let mut signature_data = get_signature_data(checkout_request);
+    let mut signature_data = get_signature_data(checkout_request)?;
     signature_data.push_str(&pay_wall_secret);
     let payload_digest = digest::digest(&digest::SHA256, signature_data.as_bytes());
     let mut signature = hex::encode(payload_digest);
@@ -547,7 +548,9 @@ fn get_checkout_signature(
 }
 
 /// Fields should be in alphabetical order
-fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
+fn get_signature_data(
+    checkout_request: &CheckoutRequest,
+) -> Result<String, errors::ConnectorError> {
     let specified_payment_channel = match checkout_request.specified_payment_channel {
         ZenPaymentChannels::PclCard => "pcl_card",
         ZenPaymentChannels::PclGooglepay => "pcl_googlepay",
@@ -568,21 +571,19 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
     ];
     for index in 0..checkout_request.items.len() {
         let prefix = format!("items[{index}].");
+        let checkout_request_items = checkout_request
+            .items
+            .get(index)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         signature_data.push(format!(
             "{prefix}lineamounttotal={}",
-            checkout_request.items[index].line_amount_total
+            checkout_request_items.line_amount_total
         ));
-        signature_data.push(format!(
-            "{prefix}name={}",
-            checkout_request.items[index].name
-        ));
-        signature_data.push(format!(
-            "{prefix}price={}",
-            checkout_request.items[index].price
-        ));
+        signature_data.push(format!("{prefix}name={}", checkout_request_items.name));
+        signature_data.push(format!("{prefix}price={}", checkout_request_items.price));
         signature_data.push(format!(
             "{prefix}quantity={}",
-            checkout_request.items[index].quantity
+            checkout_request_items.quantity
         ));
     }
     signature_data.push(format!(
@@ -598,7 +599,7 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
     ));
     signature_data.push(format!("urlredirect={}", checkout_request.url_redirect));
     let signature = signature_data.join("&");
-    signature.to_lowercase()
+    Ok(signature.to_lowercase())
 }
 
 fn get_customer(
@@ -707,7 +708,8 @@ impl TryFrom<&ZenRouterData<&types::PaymentsAuthorizeRouterData>> for ZenPayment
             api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
             | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_) => {
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 ))?
@@ -790,7 +792,8 @@ impl TryFrom<&api_models::payments::CardRedirectData> for ZenPaymentsRequest {
         match value {
             api_models::payments::CardRedirectData::Knet {}
             | api_models::payments::CardRedirectData::Benefit {}
-            | api_models::payments::CardRedirectData::MomoAtm {} => {
+            | api_models::payments::CardRedirectData::MomoAtm {}
+            | api_models::payments::CardRedirectData::CardRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Zen"),
                 )
@@ -846,12 +849,15 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResponse {
     status: ZenPaymentStatus,
     id: String,
+    // merchant_transaction_id: Option<String>,
     merchant_action: Option<ZenMerchantAction>,
+    reject_code: Option<String>,
+    reject_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -867,18 +873,18 @@ pub struct CheckoutResponse {
     redirect_url: url::Url,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenMerchantAction {
     action: ZenActions,
     data: ZenMerchantActionData,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenActions {
     Redirect,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenMerchantActionData {
     redirect_url: url::Url,
@@ -911,6 +917,57 @@ impl<F, T>
     }
 }
 
+fn get_zen_response(
+    response: ApiResponse,
+    status_code: u16,
+) -> CustomResult<
+    (
+        enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
+> {
+    let redirection_data_action = response.merchant_action.map(|merchant_action| {
+        (
+            services::RedirectForm::from((merchant_action.data.redirect_url, Method::Get)),
+            merchant_action.action,
+        )
+    });
+    let (redirection_data, action) = match redirection_data_action {
+        Some((redirect_form, action)) => (Some(redirect_form), Some(action)),
+        None => (None, None),
+    };
+    let status = enums::AttemptStatus::foreign_try_from((response.status, action))?;
+    let error = if utils::is_payment_failure(status) {
+        Some(types::ErrorResponse {
+            code: response
+                .reject_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .reject_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.reject_reason,
+            status_code,
+            attempt_status: Some(status),
+            connector_transaction_id: Some(response.id.clone()),
+        })
+    } else {
+        None
+    };
+    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::ConnectorTransactionId(response.id.clone()),
+        redirection_data,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
+    };
+    Ok((status, error, payment_response_data))
+}
+
 impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -918,27 +975,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsR
     fn try_from(
         value: types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data_action = value.response.merchant_action.map(|merchant_action| {
-            (
-                services::RedirectForm::from((merchant_action.data.redirect_url, Method::Get)),
-                merchant_action.action,
-            )
-        });
-        let (redirection_data, action) = match redirection_data_action {
-            Some((redirect_form, action)) => (Some(redirect_form), Some(action)),
-            None => (None, None),
-        };
+        let (status, error, payment_response_data) =
+            get_zen_response(value.response.clone(), value.http_code)?;
 
         Ok(Self {
-            status: enums::AttemptStatus::foreign_try_from((value.response.status, action))?,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(value.response.id),
-                redirection_data,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
+            status,
+            response: error.map_or_else(|| Ok(payment_response_data), Err),
             ..value.data
         })
     }
@@ -964,6 +1006,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::Paym
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..value.data
         })
@@ -1012,9 +1055,12 @@ impl From<RefundStatus> for enums::RefundStatus {
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    reject_code: Option<String>,
+    reject_reason: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -1024,15 +1070,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status);
+        let (error, refund_response_data) = get_zen_refund_response(item.response, item.http_code)?;
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
-            }),
+            response: error.map_or_else(|| Ok(refund_response_data), Err),
             ..item.data
         })
     }
+}
+
+fn get_zen_refund_response(
+    response: RefundResponse,
+    status_code: u16,
+) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
+{
+    let refund_status = enums::RefundStatus::from(response.status);
+    let error = if utils::is_refund_failure(refund_status) {
+        Some(types::ErrorResponse {
+            code: response
+                .reject_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .reject_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.reject_reason,
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response.id.clone()),
+        })
+    } else {
+        None
+    };
+    let refund_response_data = types::RefundsResponseData {
+        connector_refund_id: response.id,
+        refund_status,
+    };
+    Ok((error, refund_response_data))
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
