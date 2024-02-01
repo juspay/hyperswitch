@@ -184,6 +184,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn handle_response(
         &self,
         data: &types::RouterData<T, Req, Resp>,
+        event_builder: &mut ConnectorEvent,
         _res: types::Response,
     ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
     where
@@ -191,6 +192,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Req: Clone,
         Resp: Clone,
     {
+        event_builder.set_error(json!({"error": "Not Implemented"}));
         Ok(data.clone())
     }
 
@@ -379,21 +381,10 @@ where
                                 .map_or_else(|value| value.status_code, |value| value.status_code)
                         })
                         .unwrap_or_default();
-                    let connector_event = ConnectorEvent::new(
+                    let mut connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        response
-                            .as_ref()
-                            .map(|response| {
-                                response
-                                    .as_ref()
-                                    .map_or_else(|value| value, |value| value)
-                                    .response
-                                    .escape_ascii()
-                                    .to_string()
-                            })
-                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
@@ -405,22 +396,13 @@ where
                         status_code,
                     );
 
-                    match connector_event.try_into() {
-                        Ok(event) => {
-                            state.event_handler().log_event(event);
-                        }
-                        Err(err) => {
-                            logger::error!(error=?err, "Error Logging Connector Event");
-                        }
-                    }
-
                     match response {
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
-                                    let mut data = connector_integration
-                                        .handle_response(req, body)
+                                    match connector_integration
+                                        .handle_response(req, &mut connector_event, body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -435,14 +417,40 @@ where
                                             )
                                         }
                                             error
-                                        })?;
-                                    data.connector_http_status_code = connector_http_status_code;
-                                    // Add up multiple external latencies in case of multiple external calls within the same request.
-                                    data.external_latency = Some(
-                                        data.external_latency
-                                            .map_or(external_latency, |val| val + external_latency),
-                                    );
-                                    data
+                                        }) {
+                                            Ok(mut data) => {
+
+                                                match connector_event.try_into() {
+                                                    Ok(event) => {
+                                                        state.event_handler().log_event(event);
+                                                    }
+                                                    Err(err) => {
+                                                        logger::error!(error=?err, "Error Logging Connector Event");
+                                                    }
+                                                };
+                                                data.connector_http_status_code = connector_http_status_code;
+                                                // Add up multiple external latencies in case of multiple external calls within the same request.
+                                                data.external_latency = Some(
+                                                    data.external_latency
+                                                        .map_or(external_latency, |val| val + external_latency),
+                                                );
+                                                Ok(data)
+                                            },
+                                            Err(err) => {
+
+                                                connector_event.set_error(json!({"error": err.to_string()}));
+
+                                                match connector_event.try_into() {
+                                                    Ok(event) => {
+                                                        state.event_handler().log_event(event);
+                                                    }
+                                                    Err(err) => {
+                                                        logger::error!(error=?err, "Error Logging Connector Event");
+                                                    }
+                                                }
+                                                Err(err)
+                                            },
+                                        }?;
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
@@ -459,6 +467,16 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
+                                    connector_event.set_error(json!({"error": body.response.escape_ascii().to_string(), "status_code": body.status_code}));
+
+                                    match connector_event.try_into() {
+                                        Ok(event) => {
+                                            state.event_handler().log_event(event);
+                                        }
+                                        Err(err) => {
+                                            logger::error!(error=?err, "Error Logging Connector Event");
+                                        }
+                                    };
                                     let error = match body.status_code {
                                         500..=511 => {
                                             connector_integration.get_5xx_error_response(body)?
@@ -481,6 +499,15 @@ where
                             Ok(response)
                         }
                         Err(error) => {
+                            connector_event.set_error(json!({"error": err.to_string()}));
+                            match connector_event.try_into() {
+                                Ok(event) => {
+                                    state.event_handler().log_event(event);
+                                }
+                                Err(err) => {
+                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                }
+                            };
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),

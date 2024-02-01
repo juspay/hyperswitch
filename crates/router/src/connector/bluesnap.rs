@@ -24,6 +24,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers, logger,
     services::{
         self,
@@ -572,12 +573,14 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         let response: bluesnap::BluesnapWalletTokenResponse = res
             .response
             .parse_struct("BluesnapWalletTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(response.clone());
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,

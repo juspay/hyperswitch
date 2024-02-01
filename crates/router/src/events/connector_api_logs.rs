@@ -11,6 +11,7 @@ pub struct ConnectorEvent {
     flow: String,
     request: String,
     response: Option<String>,
+    error: Option<String>,
     url: String,
     method: String,
     payment_id: String,
@@ -29,7 +30,6 @@ impl ConnectorEvent {
         connector_name: String,
         flow: &str,
         request: serde_json::Value,
-        response: Option<String>,
         url: String,
         method: Method,
         payment_id: String,
@@ -48,7 +48,8 @@ impl ConnectorEvent {
                 .unwrap_or(flow)
                 .to_string(),
             request: request.to_string(),
-            response,
+            response: None,
+            error: None,
             url,
             method: method.to_string(),
             payment_id,
@@ -62,6 +63,19 @@ impl ConnectorEvent {
             dispute_id,
             status_code,
         }
+    }
+
+    pub fn set_response_body(&mut self, response: &serde_json::Value) {
+        match masking::masked_serialize(response) {
+            Ok(masked) => {
+                self.response = Some(response.to_string());
+            }
+            Err(er) => self.set_error(json!({"error": er.to_string()})),
+        }
+    }
+
+    pub fn set_error(&mut self, error: serde_json::Value) {
+        self.error = Some(error.to_string());
     }
 }
 
