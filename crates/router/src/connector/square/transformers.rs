@@ -19,12 +19,8 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
     ) -> Result<Self, Self::Error> {
         let (_item, bank_debit_data) = value;
         match bank_debit_data {
-            BankDebitData::AchBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))
-            .into_report(),
-
-            BankDebitData::SepaBankDebit { .. }
+            BankDebitData::AchBankDebit { .. }
+            | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Square"),
@@ -83,14 +79,8 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
     ) -> Result<Self, Self::Error> {
         let (_item, pay_later_data) = value;
         match pay_later_data {
-            PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Square"),
-                ))
-                .into_report()
-            }
-
-            PayLaterData::KlarnaRedirect { .. }
+            PayLaterData::AfterpayClearpayRedirect { .. }
+            | PayLaterData::KlarnaRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
             | PayLaterData::AffirmRedirect { .. }
             | PayLaterData::PayBrightRedirect { .. }
@@ -108,14 +98,9 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
     fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
         let (_item, wallet_data) = value;
         match wallet_data {
-            WalletData::ApplePay(_) | WalletData::GooglePay(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Square"),
-                ))
-                .into_report()
-            }
-
-            WalletData::AliPayQr(_)
+            WalletData::ApplePay(_)
+            | WalletData::GooglePay(_)
+            | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
@@ -177,11 +162,8 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             api::PaymentMethodData::PayLater(pay_later_data) => {
                 Self::try_from((item, pay_later_data))
             }
-            api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))
-            .into_report(),
-            api::PaymentMethodData::BankRedirect(_)
+            api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
@@ -293,11 +275,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Square"),
-            ))
-            .into_report(),
-            api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
