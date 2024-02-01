@@ -228,6 +228,11 @@ stream = "SCHEDULER_STREAM"
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
+[scheduler.server]
+port = 3000
+host = "127.0.0.1"
+workers = 1
+
 [email]
 sender_email = "example@example.com"
 aws_region = ""
