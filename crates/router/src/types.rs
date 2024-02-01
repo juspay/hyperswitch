@@ -239,6 +239,12 @@ pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
     ConnectorAuthenticationResponse,
 >;
 
+pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
+    api::PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    ConnectorPostAuthenticationResponse,
+>;
+
 pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
     api::PreAuthentication,
     authentication::PreAuthNRequestData,
@@ -275,6 +281,12 @@ pub type ConnectorAuthenticationRouterData = RouterData<
     api::Authentication,
     ConnectorAuthenticationRequestData,
     ConnectorAuthenticationResponse,
+>;
+
+pub type ConnectorPostAuthenticationRouterData = RouterData<
+    api::PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    ConnectorPostAuthenticationResponse,
 >;
 
 #[cfg(feature = "payouts")]
@@ -439,6 +451,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub authentication_data: Option<crate::core::authentication::types::AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1059,6 +1072,8 @@ pub struct ConnectorAuthenticationRequestData {
     pub message_category: api_authentication::MessageCategory,
     pub device_channel: String,
     pub authentication_data: crate::core::authentication::types::AuthenticationData,
+    pub return_url: Option<String>,
+    pub sdk_information: Option<api_models::payments::SDKInformation>,
 }
 
 #[derive(Clone, Debug)]
@@ -1066,6 +1081,22 @@ pub struct ConnectorAuthenticationResponse {
     pub trans_status: String,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub three_dsserver_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectorPostAuthenticationRequestData {
+    pub authentication_data: crate::core::authentication::types::AuthenticationData,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectorPostAuthenticationResponse {
+    pub trans_status: String,
+    pub authentication_value: Option<String>,
+    pub eci: Option<String>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1471,6 +1502,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            authentication_data: None,
         }
     }
 }

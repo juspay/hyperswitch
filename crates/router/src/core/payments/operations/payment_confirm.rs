@@ -453,6 +453,25 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
+        let authentication = match payment_attempt.authentication_id.clone() {
+            Some(auth_id) => {
+                let auth = state
+                    .store
+                    .find_authentication_by_merchant_id_authentication_id(
+                        merchant_id.to_string(),
+                        auth_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+                let auth_data: authentication::types::AuthenticationData = auth
+                    .authentication_data
+                    .clone()
+                    .parse_value("authentication data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                Some((auth, auth_data))
+            }
+            None => None,
+        };
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -490,7 +509,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: request.frm_metadata.clone(),
-            authentication: None,
+            authentication,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -632,6 +651,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 None
             }
         });
+        print!("is_pre_authn_call {:?}", is_pre_authn_call);
         if is_pre_authn_call {
             if separate_authentication_requested && connector_supports_separate_authn {
                 if let Some(card_number) = card_number {
@@ -672,7 +692,69 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
             Ok(())
         } else {
+            print!("eneted");
             // call post authn service
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("'profile_id' not set in payment intent")?;
+            let merchant_connector_account = state
+                .store
+                .find_merchant_connector_account_by_profile_id_connector_name(
+                    profile_id,
+                    "threedsecureio",
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: format!("profile id {profile_id} and connector name threedsecureio"),
+                    },
+                )?;
+            let authentication = payment_data
+                .authentication
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            let post_auth_response = authentication::perform_post_authentication(
+                state,
+                merchant_connector_account.connector_name.clone(),
+                merchant_account.clone(),
+                helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone()),
+                authentication.1.clone(),
+            )
+            .await?;
+            let mut authentication_data = authentication.1.clone();
+            authentication_data.cavv = post_auth_response.authentication_value.clone();
+            authentication_data.eci = post_auth_response.eci.clone();
+            let auth_update = storage::AuthenticationUpdate::AuthenticationDataUpdate {
+                authentication_data: Some(
+                    Encode::<authentication::types::AuthenticationData>::encode_to_value(
+                        &authentication_data,
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ),
+                connector_authentication_id: None,
+                payment_method_id: None,
+                authentication_type: None,
+                authentication_status: if post_auth_response.trans_status == "Y" {
+                    Some(common_enums::AuthenticationStatus::Success)
+                } else {
+                    Some(common_enums::AuthenticationStatus::Failed)
+                },
+                lifecycle_status: None,
+            };
+            let new_authentication = state
+                .store
+                .update_authentication_by_merchant_id_authentication_id(
+                    authentication.0,
+                    auth_update,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            payment_data.authentication = Some((new_authentication, authentication_data));
             Ok(())
         }
     }

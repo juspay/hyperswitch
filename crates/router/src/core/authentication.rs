@@ -36,6 +36,8 @@ pub async fn perform_authentication(
     message_category: api::authentication::MessageCategory,
     device_channel: String,
     authentication_data: types::AuthenticationData,
+    return_url: Option<String>,
+    sdk_information: Option<payments::SDKInformation>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -64,6 +66,8 @@ pub async fn perform_authentication(
         merchant_account,
         merchant_connector_account,
         authentication_data,
+        return_url,
+        sdk_information,
     )?;
     let response = services::execute_connector_processing_step(
         &state,
@@ -88,5 +92,60 @@ pub async fn perform_authentication(
         trans_status: submit_evidence_response.trans_status,
         acs_url: submit_evidence_response.acs_url,
         challenge_request: submit_evidence_response.challenge_request,
+        acs_reference_number: submit_evidence_response.acs_reference_number,
+        acs_trans_id: submit_evidence_response.acs_trans_id,
+        three_dsserver_trans_id: submit_evidence_response.three_dsserver_trans_id,
+        acs_signed_content: submit_evidence_response.acs_signed_content,
+    })
+}
+
+pub async fn perform_post_authentication(
+    state: &AppState,
+    authentication_provider: String,
+    merchant_account: core_types::domain::MerchantAccount,
+    merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+    authentication_data: types::AuthenticationData,
+) -> CustomResult<core_types::api::authentication::PostAuthenticationResponse, ApiErrorResponse> {
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &authentication_provider,
+        api::GetToken::Connector,
+        merchant_connector_account.get_mca_id(),
+    )?;
+    let connector_integration: services::BoxedConnectorIntegration<
+        '_,
+        api::PostAuthentication,
+        core_types::ConnectorPostAuthenticationRequestData,
+        core_types::ConnectorPostAuthenticationResponse,
+    > = connector_data.connector.get_connector_integration();
+    let router_data = transformers::construct_post_authentication_router_data(
+        authentication_provider.clone(),
+        merchant_account,
+        merchant_connector_account,
+        authentication_data,
+    )?;
+    let response = services::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &router_data,
+        CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
+    let submit_evidence_response =
+        response
+            .response
+            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: authentication_provider,
+                status_code: err.status_code,
+                reason: err.reason,
+            })?;
+    Ok(core_types::api::PostAuthenticationResponse {
+        trans_status: submit_evidence_response.trans_status,
+        authentication_value: submit_evidence_response.authentication_value,
+        eci: submit_evidence_response.eci,
     })
 }

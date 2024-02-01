@@ -1,3 +1,4 @@
+use api_models::payments::SDKEphemPubKey;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
@@ -343,8 +344,12 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .threeds_server_transaction_id
                 .clone(),
             acct_number: card_details.card_number.clone(),
-            notification_url: "https://webhook.site/8d03e3ea-a7d8-48f5-a200-476bca75a55c"
-                .to_string(),
+            notification_url: item
+                .router_data
+                .request
+                .return_url
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             three_dscomp_ind: "Y".to_string(),
             three_dsrequestor_url: "https::/google.com".to_string(),
             acquirer_bin: item
@@ -406,70 +411,52 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .router_data
                 .request
                 .browser_details
-                .java_script_enabled
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                .java_script_enabled,
             browser_accept_header: item
                 .router_data
                 .request
                 .browser_details
                 .accept_header
-                .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                .clone(),
             browser_ip: item
                 .router_data
                 .request
                 .browser_details
                 .ip_address
                 .map(|ip| ip.to_string()),
-            browser_java_enabled: item
-                .router_data
-                .request
-                .browser_details
-                .java_enabled
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-            browser_language: item
-                .router_data
-                .request
-                .browser_details
-                .language
-                .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            browser_java_enabled: item.router_data.request.browser_details.java_enabled,
+            browser_language: item.router_data.request.browser_details.language.clone(),
             browser_color_depth: item
                 .router_data
                 .request
                 .browser_details
                 .color_depth
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .map(|a| a.to_string()),
             browser_screen_height: item
                 .router_data
                 .request
                 .browser_details
                 .screen_height
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .map(|a| a.to_string()),
             browser_screen_width: item
                 .router_data
                 .request
                 .browser_details
                 .screen_width
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .map(|a| a.to_string()),
             browser_tz: item
                 .router_data
                 .request
                 .browser_details
                 .time_zone
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .map(|a| a.to_string()),
             browser_user_agent: item
                 .router_data
                 .request
                 .browser_details
                 .user_agent
                 .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+                .map(|a| a.to_string()),
             mcc: "5411".to_string(),
             merchant_country_code: "840".to_string(),
             merchant_name: "Dummy Merchant".to_string(),
@@ -486,6 +473,51 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             purchase_exponent: "2".to_string(), //TODO
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
                 .to_string(),
+            sdk_app_id: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_app_id),
+            sdk_enc_data: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_enc_data),
+            sdk_ephem_pub_key: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_ephem_pub_key),
+            sdk_reference_number: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_reference_number),
+            sdk_trans_id: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_trans_id),
+            sdk_max_timeout: item
+                .router_data
+                .request
+                .sdk_information
+                .clone()
+                .map(|sdk_info| sdk_info.sdk_max_timeout),
+            device_render_options: if item.router_data.request.sdk_information.is_some() {
+                Some(DeviceRenderOptions {
+                    sdk_interface: "01".to_string(),
+                    sdk_ui_type: vec!["01".to_string()],
+                })
+            } else {
+                None
+            },
+            cardholder_name: card_details.card_holder_name,
         })
     }
 }
@@ -530,6 +562,8 @@ pub struct ThreedsecureioAuthenticationResponse {
     pub three_dsserver_trans_id: String,
     #[serde(rename = "transStatus")]
     pub trans_status: String,
+    #[serde(rename = "acsSignedContent")]
+    pub acs_signed_content: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -554,18 +588,23 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub bill_addr_state: String,
     // pub email: Email,
     pub three_dsrequestor_authentication_ind: String,
-    // pub cardholder_name: Secret<String>,
+    pub cardholder_name: Option<Secret<String>>,
     pub device_channel: String,
-    pub browser_javascript_enabled: bool,
-    pub browser_accept_header: String,
+    pub browser_javascript_enabled: Option<bool>,
+    pub browser_accept_header: Option<String>,
     pub browser_ip: Option<String>,
-    pub browser_java_enabled: bool,
-    pub browser_language: String,
-    pub browser_color_depth: String,
-    pub browser_screen_height: String,
-    pub browser_screen_width: String,
-    pub browser_tz: String,
-    pub browser_user_agent: String,
+    pub browser_java_enabled: Option<bool>,
+    pub browser_language: Option<String>,
+    pub browser_color_depth: Option<String>,
+    pub browser_screen_height: Option<String>,
+    pub browser_screen_width: Option<String>,
+    pub browser_tz: Option<String>,
+    pub browser_user_agent: Option<String>,
+    pub sdk_app_id: Option<String>,
+    pub sdk_enc_data: Option<String>,
+    pub sdk_ephem_pub_key: Option<SDKEphemPubKey>,
+    pub sdk_reference_number: Option<String>,
+    pub sdk_trans_id: Option<String>,
     pub mcc: String,
     pub merchant_country_code: String,
     pub merchant_name: String,
@@ -577,6 +616,15 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub purchase_exponent: String,
     pub purchase_date: String,
     pub trans_type: String,
+    pub sdk_max_timeout: Option<String>,
+    pub device_render_options: Option<DeviceRenderOptions>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRenderOptions {
+    pub sdk_interface: String,
+    pub sdk_ui_type: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -584,6 +632,20 @@ pub struct ThreedsecureioAuthenticationRequest {
 pub struct ThreedsecureioPreAuthenticationRequest {
     acct_number: String,
     ds: Option<DirectoryServer>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreedsecureioPostAuthenticationRequest {
+    pub three_ds_server_trans_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreedsecureioPostAuthenticationResponse {
+    pub authentication_value: Option<String>,
+    pub trans_status: String,
+    pub eci: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

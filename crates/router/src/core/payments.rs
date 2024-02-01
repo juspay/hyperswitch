@@ -980,41 +980,106 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
-        let payment_sync_req = api::PaymentsRetrieveRequest {
-            resource_id: req.resource_id,
-            merchant_id: req.merchant_id,
-            param: req.param,
-            force_sync: req.force_sync,
-            connector: req.connector,
-            merchant_connector_details: req.creds_identifier.map(|creds_id| {
-                api::MerchantConnectorDetailsWrap {
-                    creds_identifier: creds_id,
-                    encoded_data: None,
-                }
-            }),
-            client_secret: None,
-            expand_attempts: None,
-            expand_captures: None,
+        let payment_attempt = match req.resource_id.clone() {
+            api_models::payments::PaymentIdType::PaymentIntentId(payment_id) => {
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        &payment_id,
+                        &merchant_account.merchant_id,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                state
+                    .store
+                    .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                        &payment_id,
+                        &merchant_account.merchant_id,
+                        &payment_intent.active_attempt.get_id(),
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+            }
+            _ => {
+                super::webhooks::get_payment_attempt_from_object_reference_id(
+                    &state,
+                    api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentIntentId(
+                            req.resource_id.to_string(),
+                        ),
+                    ),
+                    &merchant_account,
+                )
+                .await?
+            }
         };
-        Box::pin(payments_core::<
-            api::PSync,
-            api::PaymentsResponse,
-            _,
-            _,
-            _,
-            Ctx,
-        >(
-            state.clone(),
-            merchant_account,
-            merchant_key_store,
-            PaymentStatus,
-            payment_sync_req,
-            services::api::AuthFlow::Merchant,
-            connector_action,
-            None,
-            HeaderPayload::default(),
-        ))
-        .await
+        if payment_attempt.external_3ds_authentication_requested == Some(true) {
+            let payment_id = payment_attempt.payment_id;
+            let request = api::PaymentsRequest {
+                payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                    payment_id,
+                )),
+                payment_token: payment_attempt.payment_token,
+                ..Default::default()
+            };
+            Box::pin(payments_core::<
+                api::Authorize,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                merchant_account.to_owned(),
+                merchant_key_store,
+                PaymentConfirm,
+                request,
+                services::api::AuthFlow::Merchant,
+                CallConnectorAction::Trigger,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await
+        } else {
+            let payment_sync_req = api::PaymentsRetrieveRequest {
+                resource_id: req.resource_id,
+                merchant_id: req.merchant_id,
+                param: req.param,
+                force_sync: req.force_sync,
+                connector: req.connector,
+                merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                    api::MerchantConnectorDetailsWrap {
+                        creds_identifier: creds_id,
+                        encoded_data: None,
+                    }
+                }),
+                client_secret: None,
+                expand_attempts: None,
+                expand_captures: None,
+            };
+            Box::pin(payments_core::<
+                api::PSync,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state.clone(),
+                merchant_account,
+                merchant_key_store,
+                PaymentStatus,
+                payment_sync_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::default(),
+            ))
+            .await
+        }
     }
     fn generate_response(
         &self,
@@ -3083,6 +3148,7 @@ pub async fn payment_external_authentication(
             merchant_id.to_string(),
             payment_attempt
                 .authentication_id
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?,
         )
         .await
@@ -3092,7 +3158,7 @@ pub async fn payment_external_authentication(
         .parse_value("authentication data")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let hyperswitch_token = if let Some(token) = payment_attempt.payment_token {
+    let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state
             .store
             .get_redis_conn()
@@ -3103,6 +3169,7 @@ pub async fn payment_external_authentication(
             token,
             payment_attempt
                 .payment_method
+                .clone()
                 .unwrap_or(storage_enums::PaymentMethod::Card),
         );
         let token_data_string = redis_conn
@@ -3205,6 +3272,17 @@ pub async fn payment_external_authentication(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "browser_info",
         })?;
+    let return_url = Some(helpers::create_redirect_url(
+        &state.conf.server.base_url,
+        &payment_attempt.clone(),
+        &"threedsecureio".to_string(),
+        None,
+    ));
+    let device_channel = if req.sdk_information.is_some() {
+        "01".to_string()
+    } else {
+        "02".to_string()
+    };
     let authentication_response = authentication_core::perform_authentication(
         &state,
         "threedsecureio".to_string(),
@@ -3232,8 +3310,10 @@ pub async fn payment_external_authentication(
         amount,
         Some(currency),
         authentication::MessageCategory::Payment,
-        "02".to_string(),
+        device_channel,
         authentication_data,
+        return_url,
+        req.sdk_information,
     )
     .await?;
     Ok(services::ApplicationResponse::Json(
@@ -3241,6 +3321,10 @@ pub async fn payment_external_authentication(
             trans_status: authentication_response.trans_status,
             acs_url: authentication_response.acs_url,
             challenge_request: authentication_response.challenge_request,
+            acs_reference_number: authentication_response.acs_reference_number,
+            acs_trans_id: authentication_response.acs_trans_id,
+            three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
+            acs_signed_content: authentication_response.acs_signed_content,
         },
     ))
 }

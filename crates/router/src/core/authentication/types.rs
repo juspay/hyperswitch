@@ -22,6 +22,7 @@ pub struct AuthenticationData {
     pub authn_flow_type: Option<AuthNFlowType>,
     pub three_ds_method_data: ThreeDsMethodData,
     pub message_version: String,
+    pub eci: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
