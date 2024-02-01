@@ -1,11 +1,6 @@
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type")]
-pub enum QueryType {
-    Payment { payment_id: String },
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorEventsRequest {
-    #[serde(flatten)]
-    pub query_param: QueryType,
+    pub payment_id: String,
+    pub refund_id: Option<String>,
+    pub dispute_id: Option<String>,
 }
