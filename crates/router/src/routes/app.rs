@@ -977,40 +977,11 @@ impl User {
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
-                web::resource("/user/invite_multiple").route(web::post().to(invite_multiple_user)),
-            )
-            .service(
                 web::resource("/data")
                     .route(web::get().to(get_multiple_dashboard_metadata))
                     .route(web::post().to(set_dashboard_metadata)),
-            )
-            .service(web::resource("/user/delete").route(web::delete().to(delete_user_role)));
+            );
 
-        // User management
-        route = route.service(
-            web::scope("/user")
-                .service(web::resource("/list").route(web::get().to(get_user_details)))
-                .service(web::resource("/invite").route(web::post().to(invite_user)))
-                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
-                .service(web::resource("/update_role").route(web::post().to(update_user_role))),
-        );
-
-        // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(web::resource("").route(web::get().to(get_role_from_token)))
-                .service(web::resource("/list").route(web::get().to(list_all_roles)))
-                .service(web::resource("/{role_id}").route(web::get().to(get_role))),
-        );
-
-        #[cfg(feature = "dummy_connector")]
-        {
-            route = route.service(
-                web::resource("/sample_data")
-                    .route(web::post().to(generate_sample_data))
-                    .route(web::delete().to(delete_sample_data)),
-            )
-        }
         #[cfg(feature = "email")]
         {
             route = route
@@ -1031,11 +1002,42 @@ impl User {
                 .service(
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
-                );
+                )
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)));
         }
         #[cfg(not(feature = "email"))]
         {
             route = route.service(web::resource("/signup").route(web::post().to(user_signup)))
+        }
+
+        // User management
+        route = route.service(
+            web::scope("/user")
+                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("/invite").route(web::post().to(invite_user)))
+                .service(
+                    web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
+                )
+                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(web::resource("/update_role").route(web::post().to(update_user_role)))
+                .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
+        );
+
+        // Role information
+        route = route.service(
+            web::scope("/role")
+                .service(web::resource("").route(web::get().to(get_role_from_token)))
+                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(web::resource("/{role_id}").route(web::get().to(get_role))),
+        );
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
         }
         route
     }
