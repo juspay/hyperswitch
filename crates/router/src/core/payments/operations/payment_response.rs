@@ -595,6 +595,18 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
 
+                    let auth_update = match (
+                        authentication_data.is_some(),
+                        payment_data.payment_attempt.authentication_type,
+                    ) {
+                        (true, Some(common_enums::AuthenticationType::NoThreeDs))
+                        | (true, None) => Some(common_enums::AuthenticationType::ThreeDs),
+                        (false, Some(common_enums::AuthenticationType::ThreeDs))
+                        | (false, None) => Some(common_enums::AuthenticationType::NoThreeDs),
+                        (false, Some(common_enums::AuthenticationType::NoThreeDs))
+                        | (true, Some(common_enums::AuthenticationType::ThreeDs)) => None,
+                    };
+
                     // incase of success, update error code and error message
                     let error_status = if router_data.status == enums::AttemptStatus::Charged {
                         Some(None)
@@ -626,7 +638,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 multiple_capture_data.get_latest_capture().clone(),
                                 capture_update,
                             )];
-                            (Some((multiple_capture_data, capture_update_list)), None)
+                            (
+                                Some((multiple_capture_data, capture_update_list)),
+                                auth_update.map(|auth_type| {
+                                    storage::PaymentAttemptUpdate::AuthenticationTypeUpdate {
+                                        authentication_type: auth_type,
+                                        updated_by: storage_scheme.to_string(),
+                                    }
+                                }),
+                            )
                         }
                         None => (
                             None,
@@ -634,7 +654,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 status: updated_attempt_status,
                                 connector: None,
                                 connector_transaction_id: connector_transaction_id.clone(),
-                                authentication_type: None,
+                                authentication_type: auth_update,
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
