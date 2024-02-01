@@ -2599,6 +2599,10 @@ where
                 .attach_printable("Failed execution of straight through routing")?;
 
         logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (from request) with list of connectors: ");
+        tracing::Span::current().record(
+            "Straight_through_routing_connectors",
+            format!("{:?}", connectors),
+        );
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2660,6 +2664,10 @@ where
                 .attach_printable("Failed execution of straight through routing")?;
 
         logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (fallback to DB) with list of connectors: ");
+        tracing::Span::current().record(
+            "Straight_through_routing_connectors_fallback",
+            format!("{:?}", connectors),
+        );
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(

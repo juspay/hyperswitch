@@ -30,6 +30,7 @@ use rand::{
     distributions::{self, Distribution},
     SeedableRng,
 };
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 
 #[cfg(not(feature = "business_profile_routing"))]
@@ -675,6 +676,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     .await
 }
 
+#[instrument(skip_all, fields(selected_connectors, final_selected_connectors))]
 pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -703,6 +705,10 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         .map(|item| item.connector)
         .collect::<Vec<_>>();
     logger::debug!(final_selected_connectors_before_fallback=?selected_connectors, "List of final selected connectors before fallback");
+    tracing::Span::current().record(
+        "selected_connectors_before_fallback",
+        format!("{:?}", selected_connectors),
+    );
 
     let fallback_selection = perform_fallback_routing(
         state,
@@ -732,6 +738,10 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         .collect::<Vec<_>>();
 
     logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing after fallback");
+    tracing::Span::current().record(
+        "selected_connectors_after_fallback",
+        format!("{:?}", final_selected_connectors),
+    );
 
     Ok(final_selection)
 }
