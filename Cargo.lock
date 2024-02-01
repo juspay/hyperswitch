@@ -5157,7 +5157,6 @@ dependencies = [
  "async-bb8-diesel",
  "async-trait",
  "awc",
- "aws-config",
  "base64 0.21.5",
  "bb8",
  "bigdecimal",
