@@ -383,6 +383,7 @@ bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment 
 bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
 
 
 # Required fields info used while listing the payment_method_data
