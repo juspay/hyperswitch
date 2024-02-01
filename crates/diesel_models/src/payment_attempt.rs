@@ -533,7 +533,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 browser_info,
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -544,7 +544,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 amount_capturable,
                 updated_by,
-                merchant_connector_id: Some(merchant_connector_id),
+                merchant_connector_id: merchant_connector_id
+                    .map(|merchant_connector_id| Some(merchant_connector_id)),
                 surcharge_amount,
                 tax_amount,
                 ..Default::default()
@@ -606,7 +607,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
             } => Self {
                 status: Some(status),
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -638,7 +639,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 connector_transaction_id,
             } => Self {
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 status: Some(status),
                 error_message,
                 error_code,
@@ -667,13 +668,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
             } => Self {
                 payment_token,
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
                 tax_amount,
                 updated_by,
-                merchant_connector_id: Some(merchant_connector_id),
+                merchant_connector_id: merchant_connector_id
+                    .map(|merchant_connector_id| Some(merchant_connector_id)),
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -688,7 +690,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
             } => Self {
                 status: Some(status),
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 connector_transaction_id,
                 payment_method_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -748,7 +750,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authentication_data,
                 encoded_data,
                 connector_transaction_id,
-                connector: Some(connector),
+                connector: connector.map(|connector| Some(connector)),
                 updated_by,
                 ..Default::default()
             },
