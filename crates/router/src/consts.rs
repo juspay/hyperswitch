@@ -91,3 +91,6 @@ pub const MAX_SESSION_EXPIRY: u32 = 7890000;
 pub const MIN_SESSION_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+
+// URL for checking the outgoing call
+pub const OUTGOING_CALL_URL: &str = "https://www.google.com";

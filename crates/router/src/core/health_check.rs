@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
-    consts::LOCKER_HEALTH_CALL_PATH,
+    consts,
     core::errors::{self, CustomResult},
     routes::app,
     services::api as services,
@@ -15,6 +15,7 @@ pub trait HealthCheckInterface {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError>;
     async fn health_check_redis(&self) -> CustomResult<(), errors::HealthCheckRedisError>;
     async fn health_check_locker(&self) -> CustomResult<(), errors::HealthCheckLockerError>;
+    async fn health_check_outgoing(&self) -> CustomResult<(), errors::HealthCheckOutGoing>;
     #[cfg(feature = "olap")]
     async fn health_check_analytics(&self) -> CustomResult<(), errors::HealthCheckDBError>;
 }
@@ -61,7 +62,7 @@ impl HealthCheckInterface for app::AppState {
         let locker = &self.conf.locker;
         if !locker.mock_locker {
             let mut url = locker.host_rs.to_owned();
-            url.push_str(LOCKER_HEALTH_CALL_PATH);
+            url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
             services::call_connector_api(self, request)
                 .await
@@ -107,5 +108,18 @@ impl HealthCheckInterface for app::AppState {
                     .change_context(errors::HealthCheckDBError::ClickhouseAnalyticsError)
             }
         }
+    }
+
+    async fn health_check_outgoing(&self) -> CustomResult<(), errors::HealthCheckOutGoing> {
+        let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
+        services::call_connector_api(self, request)
+            .await
+            .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
+                message: err.to_string(),
+            })?
+            .ok();
+
+        logger::debug!("Outgoing request successful");
+        Ok(())
     }
 }

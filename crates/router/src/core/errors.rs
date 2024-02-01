@@ -187,6 +187,12 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum HealthCheckOutGoing {
+    #[error("Outgoing call failed with error: {message}")]
+    OutGoingFailed{ message: String}
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
