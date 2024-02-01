@@ -117,8 +117,11 @@ impl HealthCheckInterface for app::AppState {
             .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
                 message: err.to_string(),
             })?
-            .map_err(|_| errors::HealthCheckOutGoing::OutGoingFailed {
-                message: "Got a non 200 status while making outgoing request".to_string(),
+            .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
+                message: format!(
+                    "Got a non 200 status while making outgoing request. Error {:?}",
+                    err.response
+                ),
             })?;
 
         logger::debug!("Outgoing request successful");
