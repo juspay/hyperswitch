@@ -13,6 +13,7 @@ impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}
 pub struct SchedulerHealthCheckResponse {
     pub database: bool,
     pub redis: bool,
+    pub outgoing_request: bool,
 }
 
 impl common_utils::events::ApiEventMetric for SchedulerHealthCheckResponse {}
