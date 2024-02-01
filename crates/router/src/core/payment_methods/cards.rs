@@ -2068,9 +2068,9 @@ pub async fn filter_payment_methods(
                             format!("unable to parse connector name {connector:?}")
                         })?;
                     let filter7 = payment_attempt
-                        .and_then(|attempt| {
-                            attempt.mandate_details.as_ref().map(|mandate_details| {
-                                let (mandate_type_present, update_mandate_id_present) =
+                        .and_then(|attempt| attempt.mandate_details.as_ref())
+                        .map(|mandate_details| {
+                            let (mandate_type_present, update_mandate_id_present) =
                                 match mandate_details {
                                     data_models::mandates::MandateTypeDetails::MandateType(_) => {
                                         (true, false)
@@ -2083,20 +2083,16 @@ pub async fn filter_payment_methods(
                                     ),
                                 };
 
-                                if attempt.mandate_details.is_some()
-                                    || mandate_type_present
-                                    || update_mandate_id_present
-                                {
-                                    filter_pm_based_on_supported_payments_for_mandate(
-                                        supported_payment_methods_for_mandate,
-                                        &payment_method,
-                                        &payment_method_object.payment_method_type,
-                                        connector_variant,
-                                    )
-                                } else {
-                                    false
-                                }
-                            })
+                            if mandate_type_present || update_mandate_id_present {
+                                filter_pm_based_on_supported_payments_for_mandate(
+                                    supported_payment_methods_for_mandate,
+                                    &payment_method,
+                                    &payment_method_object.payment_method_type,
+                                    connector_variant,
+                                )
+                            } else {
+                                true
+                            }
                         })
                         .unwrap_or(true);
 
