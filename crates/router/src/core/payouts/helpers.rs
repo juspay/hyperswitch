@@ -213,7 +213,7 @@ pub async fn save_payout_data_to_locker(
                     api_enums::PaymentMethodType::Debit,
                 )
             }
-            api_models::payouts::PayoutMethodData::Bank(bank) => {
+            _ => {
                 let key = key_store.key.get_inner().peek();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
@@ -241,49 +241,25 @@ pub async fn save_payout_data_to_locker(
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
                 });
-                (
-                    payload,
-                    None,
-                    Some(bank.to_owned()),
-                    None,
-                    api_enums::PaymentMethodType::foreign_from(bank.to_owned()),
-                )
-            }
-            api_models::payouts::PayoutMethodData::Wallet(wallet) => {
-                let key = key_store.key.get_inner().peek();
-                let enc_data = async {
-                    serde_json::to_value(payout_method_data.to_owned())
-                        .into_report()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to encode payout method data")
-                        .ok()
-                        .map(|v| {
-                            let secret: Secret<String> = Secret::new(v.to_string());
-                            secret
-                        })
-                        .async_lift(|inner| domain_types::encrypt_optional(inner, key))
-                        .await
+                match payout_method_data {
+                    api_models::payouts::PayoutMethodData::Bank(bank) => (
+                        payload,
+                        None,
+                        Some(bank.to_owned()),
+                        None,
+                        api_enums::PaymentMethodType::foreign_from(bank.to_owned()),
+                    ),
+                    api_models::payouts::PayoutMethodData::Wallet(wallet) => (
+                        payload,
+                        None,
+                        None,
+                        Some(wallet.to_owned()),
+                        api_enums::PaymentMethodType::foreign_from(wallet.to_owned()),
+                    ),
+                    api_models::payouts::PayoutMethodData::Card(_) => {
+                        Err(errors::ApiErrorResponse::InternalServerError)?
+                    }
                 }
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encrypt payout method data")?
-                .map(Encryption::from)
-                .map(|e| e.into_inner())
-                .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
-                    Ok(hex::encode(e.peek()))
-                })?;
-                let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
-                    merchant_id: &merchant_account.merchant_id,
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
-                    enc_data,
-                });
-                (
-                    payload,
-                    None,
-                    None,
-                    Some(wallet.to_owned()),
-                    api_enums::PaymentMethodType::foreign_from(wallet.to_owned()),
-                )
             }
         };
     // Store payout method in locker
