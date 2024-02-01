@@ -1,11 +1,16 @@
+use api_models::user::dashboard_metadata::ProdIntent;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{configs, consts};
+use crate::{configs, consts, routes::AppState};
 #[cfg(feature = "olap")]
-use crate::{core::errors::UserErrors, services::jwt, types::domain};
+use crate::{
+    core::errors::{UserErrors, UserResult},
+    services::jwt,
+    types::domain,
+};
 
 pub enum EmailBody {
     Verify {
@@ -22,6 +27,13 @@ pub enum EmailBody {
     InviteUser {
         link: String,
         user_name: String,
+    },
+    BizEmailProd {
+        user_name: String,
+        poc_email: String,
+        legal_business_name: String,
+        business_location: String,
+        business_website: String,
     },
     ReconActivation {
         user_name: String,
@@ -66,6 +78,22 @@ pub mod html {
             EmailBody::ReconActivation { user_name } => {
                 format!(
                     include_str!("assets/recon_activation.html"),
+                    username = user_name,
+                )
+            }
+            EmailBody::BizEmailProd {
+                user_name,
+                poc_email,
+                legal_business_name,
+                business_location,
+                business_website,
+            } => {
+                format!(
+                    include_str!("assets/bizemailprod.html"),
+                    poc_email = poc_email,
+                    legal_business_name = legal_business_name,
+                    business_location = business_location,
+                    business_website = business_website,
                     username = user_name,
                 )
             }
@@ -265,6 +293,56 @@ impl EmailData for ReconActivation {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::ReconActivation {
             user_name: self.user_name.clone().get_secret().expose(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+
+pub struct BizEmailProd {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: Secret<String>,
+    pub poc_email: Secret<String>,
+    pub legal_business_name: String,
+    pub business_location: String,
+    pub business_website: String,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub subject: &'static str,
+}
+
+impl BizEmailProd {
+    pub fn new(state: &AppState, data: ProdIntent) -> UserResult<Self> {
+        Ok(Self {
+            recipient_email: (domain::UserEmail::new(
+                consts::user::BUSINESS_EMAIL.to_string().into(),
+            ))?,
+            settings: state.conf.clone(),
+            subject: "New Prod Intent",
+            user_name: data.poc_name.unwrap_or_default().into(),
+            poc_email: data.poc_email.unwrap_or_default().into(),
+            legal_business_name: data.legal_business_name.unwrap_or_default(),
+            business_location: data
+                .business_location
+                .unwrap_or(common_enums::CountryAlpha2::AD)
+                .to_string(),
+            business_website: data.business_website.unwrap_or_default(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl EmailData for BizEmailProd {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::BizEmailProd {
+            user_name: self.user_name.clone().expose(),
+            poc_email: self.poc_email.clone().expose(),
+            legal_business_name: self.legal_business_name.clone(),
+            business_location: self.business_location.clone(),
+            business_website: self.business_website.clone(),
         });
 
         Ok(EmailContents {
