@@ -1803,6 +1803,7 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
+    let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
@@ -1866,6 +1867,7 @@ pub async fn list_payment_methods(
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
+            currency,
         },
     ))
 }
