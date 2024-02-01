@@ -126,14 +126,19 @@ impl ConnectorCommon for Stancer {
             message,
             error_type,
         } = response;
+        let payment_id = message["id"].to_string();
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: error_type,
             message: message.to_string(),
-            reason: None,
+            reason: Some(message.to_string()),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: if payment_id.starts_with("paym_") {
+                Some(payment_id)
+            } else {
+                None
+            },
         })
     }
 }
@@ -198,7 +203,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/checkout"))
+        Ok(format!("{}v1/checkout", self.base_url(connectors)))
     }
 
     async fn execute_pretasks(
@@ -316,9 +321,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/checkout/{}",
             self.base_url(_connectors),
-            "v1/checkout",
             req.request.get_connector_transaction_id()?
         ))
     }
@@ -383,9 +387,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/checkout/{}",
             self.base_url(connectors),
-            "v1/checkout",
             req.request.connector_transaction_id
         ))
     }
@@ -472,9 +475,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(_connectors), "v1/refunds"))
+        Ok(format!("{}v1/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -554,9 +557,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/refunds/{}",
             self.base_url(connectors),
-            "v1/refunds",
             req.request.get_connector_refund_id()?
         ))
     }
@@ -572,9 +574,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -586,7 +585,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: Refund = res
             .response
-            .parse_struct("stancer Refund")
+            .parse_struct("stancer RefundSync")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
