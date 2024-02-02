@@ -12,13 +12,14 @@ use router_env::env;
 use router_env::logger;
 
 use super::errors::{UserErrors, UserResponse, UserResult};
-use crate::services::authorization::predefined_permissions;
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::AppState,
-    services::{authentication as auth, ApplicationResponse},
+    services::{
+        authentication as auth, authorization::predefined_permissions, ApplicationResponse,
+    },
     types::domain,
     utils,
 };
