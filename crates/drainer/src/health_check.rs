@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use actix_web::{web, HttpResponse, Scope};
+use actix_web::{web, Scope};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::CustomResult;
 use diesel_models::{Config, ConfigNew};
@@ -9,7 +9,8 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     connection::{pg_connection, redis_connection},
-    services::Store,
+    errors::HealthCheckError,
+    services::{self, Store},
     settings::Settings,
 };
 
@@ -24,7 +25,7 @@ impl Health {
             .app_data(web::Data::new(conf))
             .app_data(web::Data::new(store))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::get().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
@@ -39,53 +40,60 @@ pub async fn deep_health_check(
     conf: web::Data<Settings>,
     store: web::Data<Arc<Store>>,
 ) -> impl actix_web::Responder {
-    let mut status_code = 200;
+    match deep_health_check_func(conf, store).await {
+        Ok(response) => services::http_response_json(
+            serde_json::to_string(&response)
+                .map_err(|err| {
+                    logger::error!(serialization_error=?err);
+                })
+                .unwrap_or_default(),
+        ),
+
+        Err(err) => services::log_and_return_error_response(err),
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn deep_health_check_func(
+    conf: web::Data<Settings>,
+    store: web::Data<Arc<Store>>,
+) -> Result<DrainerHealthCheckResponse, error_stack::Report<HealthCheckError>> {
     logger::info!("Deep health check was called");
 
     logger::debug!("Database health check begin");
 
-    let db_status = match store.health_check_db().await {
-        Ok(_) => "Health is good".to_string(),
-        Err(err) => {
-            status_code = 500;
-            err.to_string()
-        }
-    };
+    let db_status = store.health_check_db().await.map(|_| true).map_err(|err| {
+        error_stack::report!(HealthCheckError::DbError {
+            message: err.to_string()
+        })
+    })?;
+
     logger::debug!("Database health check end");
 
     logger::debug!("Redis health check begin");
 
-    let redis_status = match store.health_check_redis(&conf).await {
-        Ok(_) => "Health is good".to_string(),
-        Err(err) => {
-            status_code = 500;
-            err.to_string()
-        }
-    };
+    let redis_status = store
+        .health_check_redis(&conf.into_inner())
+        .await
+        .map(|_| true)
+        .map_err(|err| {
+            error_stack::report!(HealthCheckError::RedisError {
+                message: err.to_string()
+            })
+        })?;
 
     logger::debug!("Redis health check end");
 
-    let response = serde_json::to_string(&DrainerHealthCheckResponse {
+    Ok(DrainerHealthCheckResponse {
         database: db_status,
         redis: redis_status,
     })
-    .unwrap_or_default();
-
-    if status_code == 200 {
-        HttpResponse::Ok()
-            .content_type(mime::APPLICATION_JSON)
-            .body(response)
-    } else {
-        HttpResponse::InternalServerError()
-            .content_type(mime::APPLICATION_JSON)
-            .body(response)
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DrainerHealthCheckResponse {
-    pub database: String,
-    pub redis: String,
+    pub database: bool,
+    pub redis: bool,
 }
 
 #[async_trait::async_trait]

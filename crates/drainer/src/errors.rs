@@ -19,6 +19,14 @@ pub enum DrainerError {
     IoError(std::io::Error),
 }
 
+#[derive(Debug, Error, Clone, serde::Serialize)]
+pub enum HealthCheckError {
+    #[error("Database health check is failiing with error: {message}")]
+    DbError { message: String },
+    #[error("Redis health check is failiing with error: {message}")]
+    RedisError { message: String },
+}
+
 impl From<std::io::Error> for DrainerError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError(err)
@@ -36,5 +44,15 @@ impl From<config::ConfigError> for DrainerError {
 impl From<error_stack::Report<redis::errors::RedisError>> for DrainerError {
     fn from(err: error_stack::Report<redis::errors::RedisError>) -> Self {
         Self::RedisError(err)
+    }
+}
+
+impl actix_web::ResponseError for HealthCheckError {
+    fn status_code(&self) -> reqwest::StatusCode {
+        use reqwest::StatusCode;
+
+        match self {
+            Self::DbError { .. } | Self::RedisError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+        }
     }
 }

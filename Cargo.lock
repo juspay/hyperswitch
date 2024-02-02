@@ -2346,6 +2346,7 @@ dependencies = [
  "mime",
  "once_cell",
  "redis_interface",
+ "reqwest",
  "router_env",
  "serde",
  "serde_json",

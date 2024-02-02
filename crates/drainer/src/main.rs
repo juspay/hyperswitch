@@ -31,7 +31,10 @@ async fn main() -> DrainerResult<()> {
         .await
         .expect("Failed to create the server");
 
-    tokio::spawn(web_server);
+    tokio::spawn(async move {
+        let _ = web_server.await;
+        logger::error!("The health check probe stopped working!");
+    });
 
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
