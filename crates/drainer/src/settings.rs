@@ -30,6 +30,7 @@ pub struct CmdLineConf {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Settings {
+    pub server: Server,
     pub master_database: Database,
     pub redis: redis::RedisSettings,
     pub log: Log,
@@ -62,6 +63,24 @@ pub struct DrainerSettings {
     pub loop_interval: u32,     // in milliseconds
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Server {
+    pub port: u16,
+    pub workers: usize,
+    pub host: String,
+}
+
+impl Server {
+    pub fn validate(&self) -> Result<(), errors::DrainerError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "server host must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl Default for Database {
     fn default() -> Self {
         Self {
@@ -84,6 +103,16 @@ impl Default for DrainerSettings {
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
             loop_interval: 100,      // in milliseconds
+        }
+    }
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            workers: 1,
         }
     }
 }
@@ -169,6 +198,7 @@ impl Settings {
     }
 
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
+        self.server.validate()?;
         self.master_database.validate()?;
         self.redis.validate().map_err(|error| {
             println!("{error}");
