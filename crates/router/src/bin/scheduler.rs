@@ -187,11 +187,23 @@ pub async fn deep_health_check_func(
             })
         })?;
 
+    let outgoing_req_check = state
+        .health_check_outgoing()
+        .await
+        .map(|_| true)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Outgoing Request",
+                message: err.to_string()
+            })
+        })?;
+
     logger::debug!("Redis health check end");
 
     let response = SchedulerHealthCheckResponse {
         database: db_status,
         redis: redis_status,
+        outgoing_request: outgoing_req_check,
     };
 
     Ok(response)
