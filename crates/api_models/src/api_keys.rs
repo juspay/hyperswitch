@@ -177,6 +177,9 @@ pub enum ApiKeyExpiration {
 }
 
 impl From<ApiKeyExpiration> for Option<PrimitiveDateTime> {
+        /// Converts an ApiKeyExpiration enum into an Option<Self> where Self is the type of the expiration.
+    /// If the ApiKeyExpiration is ApiKeyExpiration::Never, it returns None.
+    /// If the ApiKeyExpiration is ApiKeyExpiration::DateTime, it returns Some with the date_time value.
     fn from(expiration: ApiKeyExpiration) -> Self {
         match expiration {
             ApiKeyExpiration::Never => None,
@@ -186,6 +189,8 @@ impl From<ApiKeyExpiration> for Option<PrimitiveDateTime> {
 }
 
 impl From<Option<PrimitiveDateTime>> for ApiKeyExpiration {
+        /// Converts an Option<PrimitiveDateTime> into Self. If the Option is Some, it returns the corresponding Self::DateTime variant,
+    /// otherwise it returns Self::Never.
     fn from(date_time: Option<PrimitiveDateTime>) -> Self {
         date_time.map_or(Self::Never, Self::DateTime)
     }
@@ -197,6 +202,7 @@ impl From<Option<PrimitiveDateTime>> for ApiKeyExpiration {
 mod never {
     const NEVER: &str = "never";
 
+        /// Serializes the value "NEVER" using the provided serializer.
     pub fn serialize<S>(serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -204,6 +210,7 @@ mod never {
         serializer.serialize_str(NEVER)
     }
 
+        /// Deserialize method for deserializing a string into a Result<(), D::Error>
     pub fn deserialize<'de, D>(deserializer: D) -> Result<(), D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -231,6 +238,7 @@ mod never {
 }
 
 impl<'a> ToSchema<'a> for ApiKeyExpiration {
+        /// Returns a tuple containing a string identifying the schema as "ApiKeyExpiration" and a reference to a openapi schema. The schema is defined using OneOfBuilder to represent two possible object structures: one with a string schema type and enum values of "never", and the other with a string schema type and a known date-time format.
     fn schema() -> (
         &'a str,
         utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
@@ -261,6 +269,7 @@ mod api_key_expiration_tests {
     use super::*;
 
     #[test]
+        /// Tests the serialization of the ApiKeyExpiration enum using serde_json. 
     fn test_serialization() {
         assert_eq!(
             serde_json::to_string(&ApiKeyExpiration::Never).unwrap(),
@@ -279,6 +288,7 @@ mod api_key_expiration_tests {
     }
 
     #[test]
+        /// This method is used for testing deserialization of the ApiKeyExpiration enum from JSON strings.
     fn test_deserialization() {
         assert_eq!(
             serde_json::from_str::<ApiKeyExpiration>(r#""never""#).unwrap(),
@@ -294,6 +304,9 @@ mod api_key_expiration_tests {
     }
 
     #[test]
+        /// This method tests the deserialization of a null value into a custom struct type `ApiKeyExpiration`
+    /// and an `Option` of the same struct type. It asserts that deserializing "null" into `ApiKeyExpiration`
+    /// results in an error, and that deserializing "null" into `Option<ApiKeyExpiration>` results in a `None` value.
     fn test_null() {
         let result = serde_json::from_str::<ApiKeyExpiration>("null");
         assert!(result.is_err());

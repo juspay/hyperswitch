@@ -11,6 +11,15 @@ use crate::{
 
 impl RefundNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a Refund into the database using the provided database connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled database connection
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the inserted `Refund` if successful, or an error if the insertion fails.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +27,14 @@ impl RefundNew {
 
 impl Refund {
     #[instrument(skip(conn))]
+        /// Updates the current refund with the provided data in the database.
+    /// 
+    /// # Arguments
+    /// * `conn` - The database connection
+    /// * `refund` - The refund update data
+    /// 
+    /// # Returns
+    /// The updated refund if successful, otherwise returns an error.
     pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -43,6 +60,17 @@ impl Refund {
 
     // This is required to be changed for KV.
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given `merchant_id` and `refund_id`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// * `merchant_id` - A string slice representing the merchant ID
+    /// * `refund_id` - A string slice representing the refund ID
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the result of the operation
     pub async fn find_by_merchant_id_refund_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -58,6 +86,8 @@ impl Refund {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the provided merchant ID, connector refund ID, and connector name,
+    /// and returns a result wrapped in a StorageResult enum.
     pub async fn find_by_merchant_id_connector_refund_id_connector(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -75,6 +105,7 @@ impl Refund {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by internal reference ID and merchant ID in the database.
     pub async fn find_by_internal_reference_id_merchant_id(
         conn: &PgPooledConn,
         internal_reference_id: &str,
@@ -90,6 +121,7 @@ impl Refund {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a list of items by the given merchant ID and connector transaction ID
     pub async fn find_by_merchant_id_connector_transaction_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -113,6 +145,7 @@ impl Refund {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a list of items by payment ID and merchant ID in the database.
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,

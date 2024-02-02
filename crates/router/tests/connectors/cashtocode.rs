@@ -10,6 +10,8 @@ use crate::{
 struct CashtocodeTest;
 impl ConnectorActions for CashtocodeTest {}
 impl utils::Connector for CashtocodeTest {
+        /// Returns connector data for the Cashtocode API connector.
+    ///
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Cashtocode;
         types::api::ConnectorData {
@@ -20,6 +22,8 @@ impl utils::Connector for CashtocodeTest {
         }
     }
 
+
+        /// Retrieves the authentication token for the connector. It creates a new `ConnectorAuthentication` instance and extracts the `cashtocode` field from it. If the `cashtocode` field is missing, it will panic with the message "Missing connector authentication configuration". The extracted value is then converted to the appropriate `ConnectorAuthType` using the `to_connector_auth_type` function from the `utils` module.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -29,6 +33,7 @@ impl utils::Connector for CashtocodeTest {
         )
     }
 
+        /// Returns the name "cashtocode".
     fn get_name(&self) -> String {
         "cashtocode".to_string()
     }
@@ -37,6 +42,7 @@ impl utils::Connector for CashtocodeTest {
 static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 
 impl CashtocodeTest {
+        /// Generates the payment authorization data based on the provided payment method type and payment method data.
     fn get_payment_authorize_data(
         payment_method_type: Option<enums::PaymentMethodType>,
         payment_method_data: types::api::PaymentMethodData,
@@ -73,6 +79,7 @@ impl CashtocodeTest {
         })
     }
 
+    /// Retrieves the payment information, including the billing address and return URL.
     fn get_payment_info() -> Option<utils::PaymentInfo> {
         Some(utils::PaymentInfo {
             address: Some(types::PaymentAddress {
@@ -93,6 +100,7 @@ impl CashtocodeTest {
 
 //fetch payurl for payment create
 #[actix_web::test]
+/// Asynchronously fetches the pay URL using the classic payment method.
 async fn should_fetch_pay_url_classic() {
     let authorize_response = CONNECTOR
         .make_payment(
@@ -111,6 +119,7 @@ async fn should_fetch_pay_url_classic() {
 }
 
 #[actix_web::test]
+/// Asynchronously fetches the pay URL for an eVoucher payment method. 
 async fn should_fetch_pay_url_evoucher() {
     let authorize_response = CONNECTOR
         .make_payment(

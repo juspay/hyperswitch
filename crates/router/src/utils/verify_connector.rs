@@ -3,6 +3,18 @@ use error_stack::{IntoReport, ResultExt};
 
 use crate::{core::errors, types::api};
 
+/// Generates a new Card object using the provided card details such as card number, expiration year, expiration month, and CVV.
+/// 
+/// # Arguments
+/// 
+/// * `card_number` - A String containing the card number.
+/// * `card_exp_year` - A String containing the card expiration year.
+/// * `card_exp_month` - A String containing the card expiration month.
+/// * `card_cvv` - A String containing the card CVV.
+/// 
+/// # Returns
+/// 
+/// A Result containing the generated Card object, or an error if the card details could not be parsed.
 pub fn generate_card_from_details(
     card_number: String,
     card_exp_year: String,
@@ -28,6 +40,7 @@ pub fn generate_card_from_details(
     })
 }
 
+/// Retrieves test card details based on the given connector name.
 pub fn get_test_card_details(connector_name: Connector) -> errors::RouterResult<Option<api::Card>> {
     match connector_name {
         Connector::Stripe => Some(generate_card_from_details(

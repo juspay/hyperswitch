@@ -35,6 +35,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for CompleteAuthorize
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves the trackers for a given payment, using the specified input parameters and state. This method performs various validations and database lookups to gather the required information about the payment and its related entities, such as payment attempts, addresses, and metadata. It also constructs a response containing the retrieved data, including customer details, payment data, and business profile information. The response is then returned as a result using the `RouterResult` type.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -281,6 +282,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     for CompleteAuthorize
 {
     #[instrument(skip_all)]
+        /// Retrieves or creates customer details based on the provided payment data and customer request, using the specified database and merchant key store.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -306,6 +308,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer information. Returns a tuple containing a boxed operation and an optional payment method data.
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -329,6 +332,22 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Adds a task to the process tracker for handling payment attempts. 
+    /// 
+    /// The method takes in the current app state, payment attempt, a flag indicating whether to requeue the task, and an optional schedule time. It then adds the task to the process tracker and returns a CustomResult indicating success or an error response.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `self` - The reference to the current instance of the struct.
+    /// * `_state` - The reference to the current app state.
+    /// * `_payment_attempt` - The reference to the payment attempt being added to the process tracker.
+    /// * `_requeue` - A boolean flag indicating whether to requeue the task if necessary.
+    /// * `_schedule_time` - An optional schedule time for the task.
+    /// 
+    /// # Returns
+    /// 
+    /// A CustomResult indicating success or an error response.
+    /// 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a AppState,
@@ -339,6 +358,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Ok(())
     }
 
+        /// Asynchronously retrieves a connector choice for making a payment based on the provided merchant account, application state, payment request, payment intent, and merchant key store. If no specific connector is provided, the method uses a routing algorithm to determine the appropriate connector choice. Returns a custom result containing the chosen connector or an API error response.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -358,6 +378,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for CompleteAuthorize
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates trackers and returns a result containing a boxed operation and payment data.
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
@@ -383,6 +404,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     for CompleteAuthorize
 {
     #[instrument(skip_all)]
+        /// Validates a payments request by checking for the presence of required fields, validating the merchant ID,
+    /// validating the payment method fields, and validating the mandate type. Returns a tuple containing a boxed operation
+    /// and a validation result.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,

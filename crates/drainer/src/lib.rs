@@ -21,6 +21,7 @@ use crate::{
     connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,
 };
 
+/// Asynchronously starts the drainer with the given store and drainer settings. It sets up a handler for the drainer, creates a message-passing channel, gets allowed signals, spawns a signal handler, sets up error handlers, and then shuts down the handler when the drainer is finished. 
 pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::DrainerResult<()> {
     let drainer_handler = handler::Handler::from_conf(conf, store);
 

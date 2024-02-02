@@ -21,6 +21,8 @@ pub struct ApiError {
 }
 
 impl ApiError {
+        /// Creates a new instance of Error with the specified sub_code, error_identifier,
+    /// error_message, and optional extra information.
     pub fn new(
         sub_code: &'static str,
         error_identifier: u16,
@@ -52,6 +54,7 @@ struct ErrorResponse<'a> {
 }
 
 impl<'a> From<&'a ApiErrorResponse> for ErrorResponse<'a> {
+        /// Constructs a new instance of Self from the provided ApiErrorResponse.
     fn from(value: &'a ApiErrorResponse) -> Self {
         let error_info = value.get_internal_error();
         let error_type = value.error_type();
@@ -97,6 +100,7 @@ pub enum ApiErrorResponse {
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
+        /// Formats the error response as a JSON string and writes it to the given formatter.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let error_response: ErrorResponse<'_> = self.into();
         write!(
@@ -109,6 +113,7 @@ impl ::core::fmt::Display for ApiErrorResponse {
 }
 
 impl ApiErrorResponse {
+        /// This method returns the internal error associated with the ApiError enum variant.
     pub(crate) fn get_internal_error(&self) -> &ApiError {
         match self {
             Self::Unauthorized(i)
@@ -126,6 +131,7 @@ impl ApiErrorResponse {
         }
     }
 
+        /// Returns a mutable reference to the internal ApiError enum variant, allowing modification of the error details.
     pub fn get_internal_error_mut(&mut self) -> &mut ApiError {
         match self {
             Self::Unauthorized(i)
@@ -143,6 +149,7 @@ impl ApiErrorResponse {
         }
     }
 
+        /// Returns the error type as a static string based on the variant of the enum `self`.
     pub(crate) fn error_type(&self) -> &'static str {
         match self {
             Self::Unauthorized(_)

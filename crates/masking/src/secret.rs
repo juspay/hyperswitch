@@ -88,6 +88,7 @@ impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
 where
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Returns a reference to the inner secret value without consuming the SecretValue.
     fn peek(&self) -> &SecretValue {
         &self.inner_secret
     }
@@ -97,6 +98,7 @@ impl<SecretValue, MaskingStrategy> From<SecretValue> for Secret<SecretValue, Mas
 where
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Constructs a new instance of Self using the provided SecretValue.
     fn from(secret: SecretValue) -> Self {
         Self::new(secret)
     }
@@ -107,6 +109,7 @@ where
     SecretValue: Clone,
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Returns a new instance of the current type, with a cloned inner_secret and a new instance of masking_strategy.
     fn clone(&self) -> Self {
         Self {
             inner_secret: self.inner_secret.clone(),
@@ -121,6 +124,7 @@ where
     SecretValue: PartialEq,
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Compares the top elements of two stacks and returns true if they are equal, otherwise false.
     fn eq(&self, other: &Self) -> bool {
         self.peek().eq(other.peek())
     }
@@ -138,9 +142,10 @@ impl<SecretValue, MaskingStrategy> fmt::Debug for Secret<SecretValue, MaskingStr
 where
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Formats the inner secret using the specified masking strategy and writes the result to the provided formatter.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        MaskingStrategy::fmt(&self.inner_secret, f)
-    }
+            MaskingStrategy::fmt(&self.inner_secret, f)
+        }
 }
 
 impl<SecretValue, MaskingStrategy> Default for Secret<SecretValue, MaskingStrategy>
@@ -148,7 +153,8 @@ where
     SecretValue: Default,
     MaskingStrategy: Strategy<SecretValue>,
 {
+        /// Creates a new instance of the struct with default values.
     fn default() -> Self {
-        SecretValue::default().into()
-    }
+            SecretValue::default().into()
+        }
 }

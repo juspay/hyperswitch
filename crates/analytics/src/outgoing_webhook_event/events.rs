@@ -9,6 +9,7 @@ use crate::{
 };
 pub trait OutgoingWebhookLogsFilterAnalytics: LoadRow<OutgoingWebhookLogsResult> {}
 
+/// Retrieves outgoing webhook event logs based on the provided merchant ID and query parameters using the specified data source and filter analytics.
 pub async fn get_outgoing_webhook_event<T>(
     merchant_id: &String,
     query_param: OutgoingWebhookLogsRequest,

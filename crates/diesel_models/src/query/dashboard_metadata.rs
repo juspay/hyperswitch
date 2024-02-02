@@ -14,12 +14,15 @@ use crate::{
 
 impl DashboardMetadataNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a DashboardMetadata instance into the database using the provided PgPooledConn connection
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl DashboardMetadata {
+        /// Updates the dashboard metadata for a specific user, merchant, and organization in the database.
+    /// If a user_id is provided, it updates the record for that specific user. If user_id is None, it updates the record where user_id is null.
     pub async fn update(
         conn: &PgPooledConn,
         user_id: Option<String>,
@@ -60,6 +63,20 @@ impl DashboardMetadata {
         }
     }
 
+        /// Asynchronously finds user-scoped dashboard metadata based on the provided user ID, merchant ID, organization ID, and data types. 
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - The database connection
+    /// * `user_id` - The ID of the user
+    /// * `merchant_id` - The ID of the merchant
+    /// * `org_id` - The ID of the organization
+    /// * `data_types` - A vector of dashboard metadata types
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing a vector of the found dashboard metadata
+    ///
     pub async fn find_user_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         user_id: String,
@@ -83,6 +100,7 @@ impl DashboardMetadata {
         .await
     }
 
+        /// Asynchronously finds the metadata for the merchant scoped dashboard. It takes the database connection, merchant ID, organization ID, and a vector of data types as input parameters. It then constructs a predicate based on the input parameters and uses the generic_filter function to filter the results based on the predicate. Finally, it returns a StorageResult containing the filtered metadata.
     pub async fn find_merchant_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         merchant_id: String,
@@ -105,6 +123,17 @@ impl DashboardMetadata {
         .await
     }
 
+        /// Deletes user scoped dashboard metadata by merchant id from the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled Postgres connection.
+    /// * `user_id` - A string representing the user id.
+    /// * `merchant_id` - A string representing the merchant id.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` indicating whether the deletion was successful.
     pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
         conn: &PgPooledConn,
         user_id: String,

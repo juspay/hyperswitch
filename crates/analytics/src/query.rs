@@ -64,6 +64,16 @@ where
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
 {
+        /// Sets the filter clause for the QueryBuilder using the provided start time and end time if available.
+    ///
+    /// # Arguments
+    ///
+    /// * `builder` - The QueryBuilder to which the filter clause will be added
+    ///
+    /// # Returns
+    ///
+    /// * `QueryResult<()>` - Represents the result of setting the filter clause
+    ///
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         builder.add_custom_filter_clause("created_at", self.start_time, FilterTypes::Gte)?;
         if let Some(end) = self.end_time {
@@ -74,6 +84,7 @@ where
 }
 
 impl GroupByClause<super::SqlxClient> for Granularity {
+        /// Sets the group by clause for a SQL query based on the granularity level of the time series data.
     fn set_group_by_clause(
         &self,
         builder: &mut QueryBuilder<super::SqlxClient>,
@@ -103,6 +114,7 @@ impl GroupByClause<super::SqlxClient> for Granularity {
 }
 
 impl GroupByClause<super::ClickhouseClient> for Granularity {
+        /// Sets the group by clause for the given query builder based on the interval specified by the enum variant.
     fn set_group_by_clause(
         &self,
         builder: &mut QueryBuilder<super::ClickhouseClient>,
@@ -135,6 +147,7 @@ impl SeriesBucket for Granularity {
 
     type GranularityLevel = TimeGranularityLevel;
 
+        /// Returns the lowest common granularity level based on the current TimeGranularityLevel.
     fn get_lowest_common_granularity_level(&self) -> Self::GranularityLevel {
         match self {
             Self::OneMin => TimeGranularityLevel::Minute,
@@ -145,6 +158,7 @@ impl SeriesBucket for Granularity {
         }
     }
 
+        /// This method returns the size of the bucket in minutes or hours, depending on the enum variant.
     fn get_bucket_size(&self) -> u8 {
         match self {
             Self::OneMin => 60,
@@ -156,6 +170,7 @@ impl SeriesBucket for Granularity {
         }
     }
 
+        /// Clips the given time value to the start of the time bucket based on the granularity level and bucket size.
     fn clip_to_start(
         &self,
         value: Self::SeriesType,
@@ -183,6 +198,7 @@ impl SeriesBucket for Granularity {
         Ok(value.replace_time(clipped_time))
     }
 
+        /// Clips the given time value to the end of the current bucket based on the lowest common granularity level and bucket size.
     fn clip_to_end(
         &self,
         value: Self::SeriesType,
@@ -287,6 +303,7 @@ pub enum Order {
 }
 
 impl ToString for Order {
+        /// Converts the enum variant into a string representation.
     fn to_string(&self) -> String {
         String::from(match self {
             Self::Ascending => "asc",
@@ -396,6 +413,7 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
+/// Converts filter types to SQL string representation based on the given left operand, filter type, and right operand.
 pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
@@ -415,6 +433,7 @@ where
     T: AnalyticsDataSource,
     AnalyticsCollection: ToSql<T>,
 {
+        /// Creates a new instance of the AnalyticsQuery struct with the provided table.
     pub fn new(table: AnalyticsCollection) -> Self {
         Self {
             columns: Default::default(),
@@ -430,6 +449,7 @@ where
         }
     }
 
+        /// Adds a new column to the select query. The column is serialized using the `ToSql` trait implementation for type `T` and attached to the list of columns for the query. If serialization fails, a `QueryBuildingError` with the context "Error serializing select column" is returned.
     pub fn add_select_column(&mut self, column: impl ToSql<T>) -> QueryResult<()> {
         self.columns.push(
             column
@@ -440,6 +460,7 @@ where
         Ok(())
     }
 
+        /// Transforms a slice of values into a comma-separated string of SQL values using the `ToSql` trait implementation for the specified type `T`.
     pub fn transform_to_sql_values(&mut self, values: &[impl ToSql<T>]) -> QueryResult<String> {
         let res = values
             .iter()
@@ -451,6 +472,7 @@ where
         Ok(res)
     }
 
+        /// Adds a top N clause to the query by specifying the columns to partition by, the count of rows to return, the column to order by, and the order direction.
     pub fn add_top_n_clause(
         &mut self,
         columns: &[impl ToSql<T>],
@@ -483,10 +505,12 @@ where
         Ok(())
     }
 
+        /// Sets the distinct flag to true, indicating that the object should be treated as distinct.
     pub fn set_distinct(&mut self) {
         self.distinct = true
     }
 
+        /// Adds a filter clause to the query with the specified key and value using the Equal filter type.
     pub fn add_filter_clause(
         &mut self,
         key: impl ToSql<T>,
@@ -495,6 +519,9 @@ where
         self.add_custom_filter_clause(key, value, FilterTypes::Equal)
     }
 
+        /// Adds a boolean filter clause to the query. 
+    /// 
+    /// This method takes in a key and a value, and adds a filter clause to the query with the given key and value, specifying that the value should be equal to the provided boolean value.
     pub fn add_bool_filter_clause(
         &mut self,
         key: impl ToSql<T>,
@@ -503,6 +530,15 @@ where
         self.add_custom_filter_clause(key, value, FilterTypes::EqualBool)
     }
 
+        /// Adds a custom filter clause to the query builder.
+    ///
+    /// # Arguments
+    /// * `lhs` - The left-hand side of the filter clause.
+    /// * `rhs` - The right-hand side of the filter clause.
+    /// * `comparison` - The type of comparison to perform (e.g., equal, not equal, greater than, etc.).
+    ///
+    /// # Returns
+    /// This method returns a `QueryResult` indicating the success of adding the custom filter clause.
     pub fn add_custom_filter_clause(
         &mut self,
         lhs: impl ToSql<T>,
@@ -521,6 +557,9 @@ where
         Ok(())
     }
 
+        /// Adds a custom filter clause to the query for a range of values within a specified key. 
+    /// This method takes a key and a list of values, trims whitespaces from the values to prevent SQL injection, 
+    /// serializes the values, and then adds them as an IN clause to the query.
     pub fn add_filter_in_range_clause(
         &mut self,
         key: impl ToSql<T>,
@@ -542,6 +581,7 @@ where
         self.add_custom_filter_clause(key, list, FilterTypes::In)
     }
 
+        /// Adds a group by clause to the current SQL query. The group by clause is used to group the result set by the specified column.
     pub fn add_group_by_clause(&mut self, column: impl ToSql<T>) -> QueryResult<()> {
         self.group_by.push(
             column
@@ -552,6 +592,7 @@ where
         Ok(())
     }
 
+        /// Adds a time granularity in minutes to the query by modifying the select column to group data based on the specified granularity.
     pub fn add_granularity_in_mins(&mut self, granularity: &Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
@@ -567,6 +608,9 @@ where
         Ok(())
     }
 
+        /// Returns the filter clause as a string by iterating through the filters,
+    /// mapping each filter to its SQL representation, collecting the results
+    /// into a vector of strings and joining them with "AND" as the delimiter.
     fn get_filter_clause(&self) -> String {
         self.filters
             .iter()
@@ -575,18 +619,32 @@ where
             .join(" AND ")
     }
 
+        /// Returns a string representing the SELECT clause of a SQL query based on the columns in the current instance.
     fn get_select_clause(&self) -> String {
         self.columns.join(", ")
     }
 
+        /// Returns a string representing the group by clause for a SQL query.
     fn get_group_by_clause(&self) -> String {
         self.group_by.join(", ")
     }
 
+        /// Returns the outer select clause as a comma-separated string.
     fn get_outer_select_clause(&self) -> String {
         self.outer_select.join(", ")
     }
 
+        /// Adds a HAVING clause to the query, which filters the results of an aggregate function.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `aggregate` - The aggregate function to filter on.
+    /// * `filter_type` - The type of filter to apply (e.g. equal, not equal, greater than, etc.).
+    /// * `value` - The value to compare the aggregate function result to.
+    /// 
+    /// # Returns
+    /// 
+    /// This method returns a `QueryResult<()>` indicating success or an error.
     pub fn add_having_clause<R>(
         &mut self,
         aggregate: Aggregate<R>,
@@ -613,6 +671,15 @@ where
         Ok(())
     }
 
+        /// Adds a new column to the outer select statement of the query.
+    ///
+    /// # Arguments
+    ///
+    /// * `column` - The column to add to the outer select statement.
+    ///
+    /// # Returns
+    ///
+    /// This method returns a `QueryResult` indicating success or failure.
     pub fn add_outer_select_column(&mut self, column: impl ToSql<T>) -> QueryResult<()> {
         self.outer_select.push(
             column
@@ -623,6 +690,7 @@ where
         Ok(())
     }
 
+        /// Returns the SQL clause for filtering based on the specified filter type.
     pub fn get_filter_type_clause(&self) -> Option<String> {
         self.having.as_ref().map(|vec| {
             vec.iter()
@@ -632,6 +700,8 @@ where
         })
     }
 
+        /// Builds a SQL query based on the current state of the QueryBuilder.
+    /// Returns a QueryResult<String> containing the constructed SQL query.
     pub fn build_query(&mut self) -> QueryResult<String>
     where
         Aggregate<&'static str>: ToSql<T>,
@@ -706,6 +776,22 @@ where
         Ok(query)
     }
 
+        /// Executes a query using the provided analytics data source and returns the results.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `store` - The analytics data source to execute the query against.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<CustomResult<Vec<R>, QueryExecutionError>, QueryBuildingError>` - A custom result type containing the query results or an error, with the possibility of a query building error.
+    /// 
+    /// # Generic Parameters
+    /// 
+    /// * `R` - The type of data to be returned by the query.
+    /// * `P` - The type of analytics data source to execute the query against.
+    /// 
+    /// The method first builds the query and then attempts to execute it using the provided analytics data source. Any errors encountered during the query building process are returned as a `QueryBuildingError`, while any errors encountered during the query execution process are returned as a `QueryExecutionError`. The results of the query are wrapped in a custom result type and returned to the caller.
     pub async fn execute_query<R, P: AnalyticsDataSource>(
         &mut self,
         store: &P,

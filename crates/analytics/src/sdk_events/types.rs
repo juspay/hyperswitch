@@ -11,6 +11,7 @@ where
     T: AnalyticsDataSource,
     AnalyticsCollection: ToSql<T>,
 {
+        /// Sets filter clauses for the given query builder based on the non-empty fields of the current object.
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         if !self.payment_method.is_empty() {
             builder

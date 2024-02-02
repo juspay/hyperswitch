@@ -16,18 +16,22 @@ pub struct RedisValue {
 impl std::ops::Deref for RedisValue {
     type Target = FredRedisValue;
 
+        /// This method returns a reference to the inner data of the current instance, which is the value of the dereferenced type.
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
 impl RedisValue {
+        /// Creates a new instance of Self with the given `FredRedisValue` as the inner value.
     pub fn new(value: FredRedisValue) -> Self {
         Self { inner: value }
     }
+        /// Consumes the current wrapper and returns the inner `FredRedisValue`.
     pub fn into_inner(self) -> FredRedisValue {
         self.inner
     }
+        /// Creates a new instance of Self (FredRedisValue) from the given string value.
     pub fn from_string(value: String) -> Self {
         Self {
             inner: FredRedisValue::String(value.into()),
@@ -81,6 +85,7 @@ impl RedisSettings {
 }
 
 impl Default for RedisSettings {
+        /// This method returns a new instance of the RedisClient with default configuration values.
     fn default() -> Self {
         Self {
             host: "127.0.0.1".to_string(),
@@ -116,6 +121,7 @@ pub enum RedisEntryId {
 }
 
 impl From<RedisEntryId> for fred::types::XID {
+        /// Converts a RedisEntryId enum variant into a corresponding Self enum variant.
     fn from(id: RedisEntryId) -> Self {
         match id {
             RedisEntryId::UserSpecifiedID {
@@ -132,6 +138,7 @@ impl From<RedisEntryId> for fred::types::XID {
 }
 
 impl From<&RedisEntryId> for fred::types::XID {
+        /// Converts a RedisEntryId into a corresponding enum variant of Self.
     fn from(id: &RedisEntryId) -> Self {
         match id {
             RedisEntryId::UserSpecifiedID {
@@ -154,6 +161,7 @@ pub enum SetnxReply {
 }
 
 impl fred::types::FromRedis for SetnxReply {
+        /// Converts a RedisValue into a Result containing a Self enum or a RedisError.
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             // Returns String ( "OK" ) in case of success
@@ -176,6 +184,7 @@ pub enum HsetnxReply {
 }
 
 impl fred::types::FromRedis for HsetnxReply {
+        /// Converts a RedisValue into a Result containing a KeySet or KeyNotSet enum variant, or a RedisError if the value is unexpected.
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
@@ -195,6 +204,7 @@ pub enum MsetnxReply {
 }
 
 impl fred::types::FromRedis for MsetnxReply {
+        /// Converts a RedisValue into a Result containing an enum variant representing the result of a MSETNX command.
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             fred::types::RedisValue::Integer(1) => Ok(Self::KeysSet),
@@ -214,6 +224,15 @@ pub enum StreamCapKind {
 }
 
 impl From<StreamCapKind> for fred::types::XCapKind {
+        /// Creates a new instance of StreamCapKind based on the provided item.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `item` - The StreamCapKind enum value to create a new instance from.
+    /// 
+    /// # Returns
+    /// 
+    /// The corresponding instance of StreamCapKind based on the provided item.
     fn from(item: StreamCapKind) -> Self {
         match item {
             StreamCapKind::MaxLen => Self::MaxLen,
@@ -229,6 +248,7 @@ pub enum StreamCapTrim {
 }
 
 impl From<StreamCapTrim> for fred::types::XCapTrim {
+        /// Converts a value of type StreamCapTrim into a value of the same type.
     fn from(item: StreamCapTrim) -> Self {
         match item {
             StreamCapTrim::Exact => Self::Exact,
@@ -244,6 +264,7 @@ pub enum DelReply {
 }
 
 impl fred::types::FromRedis for DelReply {
+        /// Converts a RedisValue into a Result<Self, RedisError>, where Self is an enum representing the result of a deletion operation.
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             fred::types::RedisValue::Integer(1) => Ok(Self::KeyDeleted),

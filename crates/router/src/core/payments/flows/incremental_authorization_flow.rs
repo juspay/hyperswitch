@@ -19,6 +19,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::IncrementalAuthorization>
 {
+        /// Asynchronously constructs router data for payments incremental authorization, using the provided state, connector ID, merchant account, key store, customer, and merchant connector account. This method returns a RouterResult containing the constructed payments incremental authorization router data.
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -52,6 +53,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         types::PaymentsResponseData,
     >
 {
+        /// This method is responsible for deciding the flows of the payment process. It takes in various parameters including the application state, connector data, customer information, connector action, merchant account, connector request, and merchant key store. It then obtains the connector integration, executes the connector processing step, and returns the resulting payment response. 
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -82,6 +84,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         Ok(resp)
     }
 
+        /// Asynchronously adds an access token for the given merchant account using the provided app state, connector data, and self reference. It returns a RouterResult containing the result of adding the access token.
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -90,6 +93,18 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
+
+        /// Asynchronously builds a specific connector request based on the provided connector data and call connector action.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state.
+    /// * `connector` - The connector data.
+    /// * `call_connector_action` - The action to be performed on the connector.
+    /// 
+    /// # Returns
+    /// 
+    /// A `RouterResult` containing a tuple with an optional `services::Request` and a boolean. The boolean indicates whether the operation was successful.
 
     async fn build_flow_specific_connector_request(
         &mut self,

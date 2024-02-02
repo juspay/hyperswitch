@@ -16,6 +16,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
+/// This method is used to create a setup intent for a payment. It takes in the application state, query string configuration, HTTP request, and form payload, and then deserializes the payload into a Stripe setup intent request. It then creates a payment request from the setup intent, sets the flow to PaymentsCreate, and wraps the compatibility API to handle the setup intent creation. The method returns a response with the setup intent response or an error code if the creation fails.
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -79,6 +80,16 @@ pub async fn setup_intents_create(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+/// Retrieves a setup intent from Stripe using the provided client secret and payment intent ID. 
+/// 
+/// # Arguments
+/// * `state` - The web application state
+/// * `req` - The HTTP request
+/// * `path` - The path parameter containing the payment intent ID
+/// * `query_payload` - The query parameter containing the client secret
+/// 
+/// # Returns
+/// The HTTP response containing the retrieved setup intent data
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -139,6 +150,13 @@ pub async fn setup_intents_retrieve(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
+/// This method handles the update of a setup intent for a payment. It takes in the application state,
+/// query string configuration, HTTP request, form payload, and the path. It deserializes the form payload
+/// into a Stripe setup intent request and creates a payment request from it. It then checks the client
+/// secret and gets the authentication details from the request headers. After that, it calls the payments
+/// core method to update the payment using the provided data. Finally, it returns the result as a
+/// `types::StripeSetupIntentResponse` or an error of type `errors::StripeErrorCode` wrapped in a
+/// compatibility API response.
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -212,6 +230,7 @@ pub async fn setup_intents_update(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
+/// This method is used to confirm a setup intent for a payment. It takes in the application state, query string configuration, HTTP request, form payload, and the path as parameters. It deserializes the form payload into a Stripe setup intent request, creates a payment request from the deserialized payload, sets the payment ID and confirmation status, checks the client secret and gets the authentication type and flow, and then calls the payments_core method to confirm the payment. It returns a Stripe setup intent response or an error response based on the result of the payment confirmation process.
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,

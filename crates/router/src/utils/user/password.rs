@@ -11,6 +11,7 @@ use masking::{ExposeInterface, Secret};
 
 use crate::core::errors::UserErrors;
 
+/// Generates a password hash using the Argon2 algorithm with a randomly generated salt.
 pub fn generate_password_hash(
     password: Secret<String>,
 ) -> CustomResult<Secret<String>, UserErrors> {
@@ -24,6 +25,7 @@ pub fn generate_password_hash(
     Ok(Secret::new(password_hash.to_string()))
 }
 
+/// This method takes a candidate password and a hash of the correct password, and verifies if the candidate password is correct by comparing it with the hash using Argon2 algorithm. It returns a CustomResult with a boolean indicating whether the password is correct or not, along with any UserErrors encountered during the verification process.
 pub fn is_correct_password(
     candidate: Secret<String>,
     password: Secret<String>,

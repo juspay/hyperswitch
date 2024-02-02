@@ -15,6 +15,7 @@ pub struct TryGetEnumMeta {
 }
 
 impl Parse for TryGetEnumMeta {
+        /// Parses the input parse stream to construct an instance of Self.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let error_type = input.parse()?;
         _ = input.parse::<syn::Token![::]>()?;
@@ -33,12 +34,14 @@ trait TryGetDeriveInputExt {
 }
 
 impl TryGetDeriveInputExt for syn::DeriveInput {
+        /// This method retrieves the metadata for the current item by calling the `get_metadata_inner` function from the `helpers` module with the tag "error" and the attributes of the current item. It returns a `Result` containing a vector of `TryGetEnumMeta` items, representing the metadata obtained from the attributes.
     fn get_metadata(&self) -> syn::Result<Vec<TryGetEnumMeta>> {
         super::helpers::get_metadata_inner("error", &self.attrs)
     }
 }
 
 impl ToTokens for TryGetEnumMeta {
+        /// This method converts the current struct into a proc_macro2::TokenStream.
     fn to_tokens(&self, _: &mut proc_macro2::TokenStream) {}
 }
 

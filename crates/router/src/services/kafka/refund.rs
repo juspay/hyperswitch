@@ -30,6 +30,7 @@ pub struct KafkaRefund<'a> {
 }
 
 impl<'a> KafkaRefund<'a> {
+        /// Constructs a new RefundData from a given Refund.
     pub fn from_storage(refund: &'a Refund) -> Self {
         Self {
             internal_reference_id: &refund.internal_reference_id,
@@ -59,6 +60,8 @@ impl<'a> KafkaRefund<'a> {
 }
 
 impl<'a> super::KafkaMessage for KafkaRefund<'a> {
+        /// Returns a string composed of the merchant ID, payment ID, attempt ID, and refund ID
+    /// separated by underscores.
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",

@@ -4,6 +4,7 @@ use syn::{parse::Parse, Data, DeriveInput, ItemEnum};
 
 use crate::macros::helpers;
 
+/// This method generates the implementation for the `ToSql` and `FromSql` traits for a given enum type to enable serialization and deserialization to and from a PostgreSQL database using Diesel. It takes a `DeriveInput` AST as input and returns a `TokenStream` result containing the generated implementation code.
 pub(crate) fn diesel_enum_text_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
@@ -41,6 +42,7 @@ pub(crate) fn diesel_enum_text_derive_inner(ast: &DeriveInput) -> syn::Result<To
     })
 }
 
+/// This method takes a DeriveInput AST and generates the necessary code to implement the Diesel traits for a custom enum type. It creates a new struct to represent the enum in the database, derives necessary traits, and implements ToSql and FromSql traits for the enum type.
 pub(crate) fn diesel_enum_db_enum_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
@@ -112,6 +114,7 @@ pub enum DieselEnumMeta {
 }
 
 impl Parse for StorageType {
+        /// Parses the input ParseStream and returns a Result containing the parsed value.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let text = input.parse::<syn::LitStr>()?;
         let value = text.value();
@@ -129,6 +132,7 @@ impl Parse for StorageType {
 }
 
 impl DieselEnumMeta {
+        /// Returns the storage type of the enum variant.
     pub fn get_storage_type(&self) -> &StorageType {
         match self {
             Self::StorageTypeEnum { value, .. } => value,
@@ -137,6 +141,7 @@ impl DieselEnumMeta {
 }
 
 impl Parse for DieselEnumMeta {
+        /// Parses the input and returns a result containing the parsed data or an error.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(diesel_keyword::storage_type) {
@@ -151,6 +156,7 @@ impl Parse for DieselEnumMeta {
 }
 
 impl ToTokens for DieselEnumMeta {
+        /// Converts the enum variant to a sequence of tokens and appends them to the given TokenStream.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::StorageTypeEnum { keyword, .. } => keyword.to_tokens(tokens),
@@ -164,11 +170,17 @@ trait DieselDeriveInputExt {
 }
 
 impl DieselDeriveInputExt for DeriveInput {
+        /// This method retrieves metadata for the given storage type from the attributes of the current enum.
+    /// It returns a Result containing a vector of DieselEnumMeta, which represents the metadata for the enum's storage type.
     fn get_metadata(&self) -> syn::Result<Vec<DieselEnumMeta>> {
         helpers::get_metadata_inner("storage_type", &self.attrs)
     }
 }
 
+/// This method takes a `DeriveInput` and extracts the storage type metadata from it. 
+/// It then matches the storage type with the corresponding enum derive inner method and 
+/// calls that method to generate the token stream. This method is used to derive 
+/// implementations for custom enum types in Diesel ORM.
 pub(crate) fn diesel_enum_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let storage_type = ast.get_metadata()?;
 

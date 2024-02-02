@@ -99,6 +99,7 @@ pub struct DirKey {
 }
 
 impl DirKey {
+        /// Creates a new instance of DirKey with the specified kind and optional value.
     pub fn new(kind: DirKeyKind, value: Option<String>) -> Self {
         Self { kind, value }
     }
@@ -319,16 +320,19 @@ where
     Self: 'static,
 {
     const ALLOWED: &'static [DirKeyKind];
+        /// Returns a reference to the static array of allowed DirKeyKind values.
     fn get_allowed_keys() -> &'static [DirKeyKind] {
         Self::ALLOWED
     }
 
+        /// Checks if the given directory key is allowed based on a predefined list of allowed keys.
     fn is_key_allowed(key: &DirKeyKind) -> bool {
         Self::ALLOWED.contains(key)
     }
 }
 
 impl DirKeyKind {
+        /// This method returns the data type for the given payment method enum variant.
     pub fn get_type(&self) -> types::DataType {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
@@ -553,6 +557,7 @@ pub enum DirValue {
 }
 
 impl DirValue {
+        /// This method returns a DirKey based on the variant of the enum. It matches the enum variant and sets the DirKeyKind and data accordingly. It then creates a new DirKey with the matched values and returns it.
     pub fn get_key(&self) -> DirKey {
         let (kind, data) = match self {
             Self::PaymentMethod(_) => (DirKeyKind::PaymentMethod, None),
@@ -584,9 +589,10 @@ impl DirValue {
             Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
         };
-
+    
         DirKey::new(kind, data)
     }
+        /// Returns the metadata value associated with the enum variant, if it is `MetaData`.
     pub fn get_metadata_val(&self) -> Option<types::MetadataValue> {
         match self {
             Self::MetaData(val) => Some(val.clone()),
@@ -620,6 +626,7 @@ impl DirValue {
         }
     }
 
+        /// Returns the string value if the enum is of type CardBin, otherwise None.
     pub fn get_str_val(&self) -> Option<types::StrValue> {
         match self {
             Self::CardBin(val) => Some(val.clone()),
@@ -627,6 +634,7 @@ impl DirValue {
         }
     }
 
+        /// Returns the numerical value associated with the enum variant, if it is a PaymentAmount. If the variant is not PaymentAmount, None is returned.
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
@@ -634,6 +642,7 @@ impl DirValue {
         }
     }
 
+        /// Compare two values of the same enum type for equality.
     pub fn check_equality(v1: &Self, v2: &Self) -> bool {
         match (v1, v2) {
             (Self::PaymentMethod(pm1), Self::PaymentMethod(pm2)) => pm1 == pm2,
@@ -711,6 +720,10 @@ mod test {
     use super::*;
 
     #[test]
+        /// This method tests the consistency of directory key naming by iterating through each DirKeyKind,
+    /// serializing it to JSON, comparing the display string to the JSON string, and storing the key names
+    /// in a hashmap. It then creates a set of directory values, serializes them to JSON, and compares
+    /// the key names with the values in the hashmap to ensure consistency.
     fn test_consistent_dir_key_naming() {
         let mut key_names: FxHashMap<DirKeyKind, String> = FxHashMap::default();
 
@@ -769,6 +782,7 @@ mod test {
 
     #[cfg(feature = "ast_parser")]
     #[test]
+        /// This method tests if the allowed directory keys are correctly parsed and processed.
     fn test_allowed_dir_keys() {
         use crate::types::DummyOutput;
 
@@ -787,6 +801,9 @@ mod test {
     }
     #[cfg(feature = "ast_parser")]
     #[test]
+        /// This method tests if the keys in the given program are not allowed. It defines a program string, parses it
+    /// into an abstract syntax tree (AST) using the `parser::program` method, and then attempts to lower the program
+    /// using the `lower_program` method. It asserts that the result is an error, indicating that the keys are not allowed.
     fn test_not_allowed_dir_keys() {
         use crate::types::DummyOutput;
 

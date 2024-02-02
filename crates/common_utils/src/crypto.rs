@@ -54,6 +54,7 @@ impl NonceSequence {
 }
 
 impl ring::aead::NonceSequence for NonceSequence {
+        /// Advances the sequence number and returns a new unique nonce for use in AEAD encryption.
     fn advance(&mut self) -> Result<ring::aead::Nonce, ring::error::Unspecified> {
         let mut nonce = [0_u8; ring::aead::NONCE_LEN];
         nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
@@ -114,6 +115,16 @@ pub trait DecodeMessage {
 pub struct NoAlgorithm;
 
 impl SignMessage for NoAlgorithm {
+        /// Signs a message using the provided secret key and message.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_secret` - A slice of unsigned bytes representing the secret key.
+    /// * `_msg` - A slice of unsigned bytes representing the message to be signed.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of unsigned bytes representing the signed message, or a `CryptoError` if signing fails.
     fn sign_message(
         &self,
         _secret: &[u8],
@@ -124,6 +135,18 @@ impl SignMessage for NoAlgorithm {
 }
 
 impl VerifySignature for NoAlgorithm {
+        /// Verifies the signature of a message using the provided secret key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_secret` - A slice of bytes representing the secret key used for signing the message.
+    /// * `_signature` - A slice of bytes representing the signature to be verified.
+    /// * `_msg` - A slice of bytes representing the message that was signed.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<bool, errors::CryptoError>` - A custom result indicating whether the signature is valid or not, along with any potential crypto errors.
+    /// 
     fn verify_signature(
         &self,
         _secret: &[u8],
@@ -135,6 +158,10 @@ impl VerifySignature for NoAlgorithm {
 }
 
 impl EncodeMessage for NoAlgorithm {
+        /// Encodes a message using a secret key.
+    ///
+    /// This method takes a secret key and a message, and encodes the message using the secret key.
+    /// Returns a `CustomResult` containing the encoded message if successful, or a `CryptoError` if an error occurs.
     fn encode_message(
         &self,
         _secret: &[u8],
@@ -145,6 +172,17 @@ impl EncodeMessage for NoAlgorithm {
 }
 
 impl DecodeMessage for NoAlgorithm {
+        /// Decodes a message using the provided secret and encryption strategy.
+    ///
+    /// # Arguments
+    ///
+    /// * `secret` - A reference to a slice of bytes representing the secret used for decoding.
+    /// * `msg` - A Secret containing a vector of bytes and an EncryptionStrategy.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing a vector of decoded bytes or a CryptoError if decoding fails.
+    ///
     fn decode_message(
         &self,
         _secret: &[u8],
@@ -159,6 +197,7 @@ impl DecodeMessage for NoAlgorithm {
 pub struct HmacSha1;
 
 impl SignMessage for HmacSha1 {
+        /// Signs a message using the provided secret key and returns the signature.
     fn sign_message(
         &self,
         secret: &[u8],
@@ -170,6 +209,7 @@ impl SignMessage for HmacSha1 {
 }
 
 impl VerifySignature for HmacSha1 {
+        /// Verifies the signature of a message using the provided secret key and signature.
     fn verify_signature(
         &self,
         secret: &[u8],
@@ -187,6 +227,17 @@ impl VerifySignature for HmacSha1 {
 pub struct HmacSha256;
 
 impl SignMessage for HmacSha256 {
+        /// Signs a message using a secret key and returns the signed message as a vector of bytes.
+    /// 
+    /// # Arguments
+    ///
+    /// * `secret` - A reference to a slice of u8 representing the secret key
+    /// * `msg` - A reference to a slice of u8 representing the message to be signed
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the signed message as a Vec<u8> if successful, or a CryptoError if an error occurs during signing.
+    ///
     fn sign_message(
         &self,
         secret: &[u8],
@@ -198,6 +249,18 @@ impl SignMessage for HmacSha256 {
 }
 
 impl VerifySignature for HmacSha256 {
+        /// Verifies the signature of a message using a secret key and HMAC-SHA256 algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `secret` - A reference to a byte slice representing the secret key
+    /// * `signature` - A reference to a byte slice representing the signature to be verified
+    /// * `msg` - A reference to a byte slice representing the message
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` with a boolean indicating whether the signature is verified or not, along with a possible `CryptoError`
+    ///
     fn verify_signature(
         &self,
         secret: &[u8],
@@ -208,6 +271,7 @@ impl VerifySignature for HmacSha256 {
 
         Ok(hmac::verify(&key, msg, signature).is_ok())
     }
+
 }
 
 /// Represents the HMAC-SHA-512 algorithm
@@ -215,6 +279,17 @@ impl VerifySignature for HmacSha256 {
 pub struct HmacSha512;
 
 impl SignMessage for HmacSha512 {
+        /// Signs a message using the provided secret key and returns the resulting signature.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `secret` - A reference to a slice of bytes representing the secret key.
+    /// * `msg` - A reference to a slice of bytes representing the message to be signed.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of bytes representing the signature if the signing was successful,
+    /// otherwise an `errors::CryptoError` is returned.
     fn sign_message(
         &self,
         secret: &[u8],
@@ -226,6 +301,7 @@ impl SignMessage for HmacSha512 {
 }
 
 impl VerifySignature for HmacSha512 {
+        /// Verifies the signature of a message using a secret key and HMAC-SHA512 algorithm.
     fn verify_signature(
         &self,
         secret: &[u8],
@@ -243,6 +319,16 @@ impl VerifySignature for HmacSha512 {
 pub struct GcmAes256;
 
 impl EncodeMessage for GcmAes256 {
+        /// Encodes a message using AES-256-GCM encryption with the provided secret key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `secret` - The secret key used for encryption
+    /// * `msg` - The message to be encoded
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the encoded message as a vector of bytes, or a `CryptoError` if the encoding fails.
     fn encode_message(
         &self,
         secret: &[u8],
@@ -268,6 +354,7 @@ impl EncodeMessage for GcmAes256 {
 }
 
 impl DecodeMessage for GcmAes256 {
+        /// Decodes the encrypted message using the provided secret key and encryption strategy, returning the decrypted message.
     fn decode_message(
         &self,
         secret: &[u8],
@@ -316,12 +403,22 @@ pub trait GenerateDigest {
 }
 
 impl GenerateDigest for Sha512 {
+        /// Generates a SHA512 digest for the given message.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `message` - A reference to a slice of u8 representing the message for which the digest should be generated.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a `Vec` of u8 representing the SHA512 digest of the input message, or a `CryptoError` if an error occurs during the digest generation.
     fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let digest = ring::digest::digest(&ring::digest::SHA512, message);
         Ok(digest.as_ref().to_vec())
     }
 }
 impl VerifySignature for Sha512 {
+        /// Verifies the signature of a message using a secret key and returns a boolean indicating whether the signature is valid or not.
     fn verify_signature(
         &self,
         _secret: &[u8],
@@ -345,6 +442,7 @@ impl VerifySignature for Sha512 {
 pub struct Md5;
 
 impl GenerateDigest for Md5 {
+        /// Generates an MD5 digest for the given message and returns it as a vector of bytes.
     fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let digest = md5::compute(message);
         Ok(digest.as_ref().to_vec())
@@ -366,6 +464,7 @@ impl VerifySignature for Md5 {
 }
 
 impl GenerateDigest for Sha256 {
+        /// Generates a SHA-256 digest for the given message and returns it as a vector of bytes.
     fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let digest = ring::digest::digest(&ring::digest::SHA256, message);
         Ok(digest.as_ref().to_vec())
@@ -373,6 +472,7 @@ impl GenerateDigest for Sha256 {
 }
 
 impl VerifySignature for Sha256 {
+    /// Verifies the signature of a message using a secret key and returns a boolean indicating whether the signature is valid or not.
     fn verify_signature(
         &self,
         _secret: &[u8],
@@ -390,6 +490,7 @@ impl VerifySignature for Sha256 {
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]
+/// Generates a cryptographically secure random string of the specified length using the rand crate.
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
     use rand::distributions::DistString;
 
@@ -399,6 +500,7 @@ pub fn generate_cryptographically_secure_random_string(length: usize) -> String 
 /// Generate an array of random bytes using a cryptographically secure pseudo-random number
 /// generator (CSPRNG). Typically used for generating keys.
 #[inline]
+/// Generates an array of cryptographically secure random bytes of length N using the OsRng source from the rand crate.
 pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; N] {
     use rand::RngCore;
 
@@ -436,6 +538,7 @@ impl<T: Clone> Encryptable<T> {
     /// Get the inner data while consuming self
     ///
     #[inline]
+        /// Consumes the current value and returns the inner value.
     pub fn into_inner(self) -> T {
         self.inner
     }
@@ -444,6 +547,8 @@ impl<T: Clone> Encryptable<T> {
     /// Get the reference to inner value
     ///
     #[inline]
+        /// Retrieves a reference to the inner value of the `GetInner` struct.
+    /// 
     pub fn get_inner(&self) -> &T {
         &self.inner
     }
@@ -452,6 +557,7 @@ impl<T: Clone> Encryptable<T> {
     /// Get the inner encrypted data while consuming self
     ///
     #[inline]
+        /// Converts the current value into an encrypted form using the specified encryption strategy.
     pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStratergy> {
         self.encrypted
     }
@@ -459,6 +565,7 @@ impl<T: Clone> Encryptable<T> {
 
 impl<T: Clone> Deref for Encryptable<Secret<T>> {
     type Target = Secret<T>;
+        /// Returns a reference to the inner value that this smart pointer points to.
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -468,6 +575,7 @@ impl<T: Clone> masking::Serialize for Encryptable<T>
 where
     T: masking::Serialize,
 {
+        /// This method serializes the inner data using the provided serializer and returns the result.
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -480,6 +588,7 @@ impl<T: Clone> PartialEq for Encryptable<T>
 where
     T: PartialEq,
 {
+        /// Compares the inner value of two instances and returns true if they are equal, otherwise returns false.
     fn eq(&self, other: &Self) -> bool {
         self.inner.eq(&other.inner)
     }
@@ -505,6 +614,7 @@ mod crypto_tests {
     use crate::crypto::GenerateDigest;
 
     #[test]
+        /// This method tests the HMAC-SHA256 signature generation for a given message, using a provided secret key.
     fn test_hmac_sha256_sign_message() {
         let message = r#"{"type":"payment_intent"}"#.as_bytes();
         let secret = "hmac_secret_1234".as_bytes();
@@ -520,6 +630,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Verifies the HMAC-SHA256 signature using the provided secret key, signature, and data.
     fn test_hmac_sha256_verify_signature() {
         let right_signature =
             hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823e")
@@ -544,6 +655,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Verifies the signature using the SHA256 algorithm.
     fn test_sha256_verify_signature() {
         let right_signature =
             hex::decode("123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddba")
@@ -568,6 +680,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Signs a message using HMAC-SHA512 algorithm and compares the result with a pre-computed signature.
     fn test_hmac_sha512_sign_message() {
         let message = r#"{"type":"payment_intent"}"#.as_bytes();
         let secret = "hmac_secret_1234".as_bytes();
@@ -582,6 +695,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Verifies the HMAC-SHA512 signature using the provided secret key, signature, and data.
     fn test_hmac_sha512_verify_signature() {
         let right_signature = hex::decode("38b0bc1ea66b14793e39cd58e93d37b799a507442d0dd8d37443fa95dec58e57da6db4742636fea31201c48e57a66e73a308a2e5a5c6bb831e4e39fe2227c00f")
             .expect("signature decoding");
@@ -605,6 +719,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Encodes a message using GCM-AES-256 algorithm and then decodes the encoded message to ensure it can be successfully decoded.
     fn test_gcm_aes_256_encode_message() {
         let message = r#"{"type":"PAYMENT"}"#.as_bytes();
         let secret =
@@ -625,6 +740,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// Decodes a message using AES GCM with a 256-bit key.
     fn test_gcm_aes_256_decode_message() {
         // Inputs taken from AES GCM test vectors provided by NIST
         // https://github.com/briansmith/ring/blob/95948b3977013aed16db92ae32e6b8384496a740/tests/aead_aes_256_gcm_tests.txt#L447-L452
@@ -661,6 +777,8 @@ mod crypto_tests {
     }
 
     #[test]
+        /// This method tests the MD5 digest generation functionality by creating a message from the input string "abcdefghijklmnopqrstuvwxyz",
+    /// converting it to bytes, generating a digest using the Md5 struct's generate_digest method, and then comparing the result to the expected MD5 hash "c3fcd3d76192e4007dfb496cca67e13b".
     fn test_md5_digest() {
         let message = "abcdefghijklmnopqrstuvwxyz".as_bytes();
         assert_eq!(
@@ -673,6 +791,7 @@ mod crypto_tests {
     }
 
     #[test]
+        /// This method tests the verification of MD5 signature using the `verify_signature` method of the `Md5` struct. It first decodes the expected and wrong signatures from hexadecimal format, then initializes the `secret` and `data` variables as byte arrays. It then calls the `verify_signature` method with the `secret`, expected signature, and data, and checks if the verification result is as expected using assertions.
     fn test_md5_verify_signature() {
         let right_signature =
             hex::decode("c3fcd3d76192e4007dfb496cca67e13b").expect("signature decoding");

@@ -40,6 +40,8 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
+    /// Inserts a new payment attempt into the database using the provided payment attempt data
+    /// and storage scheme. Returns a result containing the inserted payment attempt or a storage error.
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -58,6 +60,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    /// Updates a payment attempt with a specified attempt ID using the provided payment attempt update and merchant storage scheme.
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -75,6 +78,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Asynchronously finds a payment attempt by the given connector transaction ID, payment ID, and merchant ID using the specified storage scheme.
+    /// Returns a `CustomResult` containing the found `PaymentAttempt` or a `StorageError` in case of an error.
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -97,6 +102,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Asynchronously finds the last successful payment attempt by the given payment ID and merchant ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_id` - The ID of the payment to search for
+    /// * `merchant_id` - The ID of the merchant associated with the payment
+    /// * `_storage_scheme` - The storage scheme to use for retrieving the payment attempt
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the found `PaymentAttempt` or a `StorageError` if the operation fails.
+    ///
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -118,6 +135,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    /// Asynchronously finds the last successful or partially captured payment attempt by the given payment ID and merchant ID, using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_id` - A string slice representing the payment ID
+    /// * `merchant_id` - A string slice representing the merchant ID
+    /// * `_storage_scheme` - The storage scheme to be used for the merchant
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the found `PaymentAttempt` or a `StorageError` if an error occurs during the database operation.
+    ///
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -138,6 +167,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Asynchronously finds a payment attempt by the given merchant ID and connector transaction ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID
+    /// * `connector_txn_id` - A reference to a string representing the connector transaction ID
+    /// * `_storage_scheme` - The storage scheme to be used for the merchant
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing either the found `PaymentAttempt` or a `StorageError`
+    ///
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -159,6 +200,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    /// Asynchronously finds a payment attempt by the given payment ID, merchant ID, and attempt ID using the specified merchant storage scheme.
+    /// Returns a `CustomResult` containing a `PaymentAttempt` or a `StorageError` from the `errors` module.
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
@@ -182,6 +225,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Retrieves payment filters based on the provided PaymentIntent and merchant ID.
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
@@ -219,6 +263,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             )
     }
 
+    /// Asynchronously finds a payment attempt by its preprocessing ID and merchant ID, using the specified storage scheme. Returns a custom result containing the payment attempt if found, or a storage error if not.
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -240,6 +285,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Asynchronously finds payment attempts by merchant ID and payment ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `payment_id` - A reference to a string representing the payment ID.
+    /// * `_storage_scheme` - The storage scheme to be used for retrieving payment attempts.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a vector of `PaymentAttempt` objects, or a `StorageError` if an error occurs.
+    ///
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -260,6 +317,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             })
     }
 
+    /// Asynchronously finds a payment attempt by its attempt ID and merchant ID using the specified storage scheme.
+    /// Returns a custom result containing a PaymentAttempt or a StorageError if an error occurs during the process.
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -277,6 +336,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    /// Asynchronously retrieves the total count of filtered payment attempts based on the provided criteria.
+    ///
+    /// # Arguments
+    /// * `merchant_id` - The ID of the merchant for which the payment attempts should be filtered.
+    /// * `active_attempt_ids` - A list of active attempt IDs.
+    /// * `connector` - An optional list of connectors.
+    /// * `payment_method` - An optional list of payment methods.
+    /// * `payment_method_type` - An optional list of payment method types.
+    /// * `authentication_type` - An optional list of authentication types.
+    /// * `_storage_scheme` - The storage scheme used by the merchant.
+    ///
+    /// # Returns
+    /// A Result containing the total count of filtered payment attempts if successful, or a StorageError if an error occurs.
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
@@ -320,6 +392,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
+    /// Inserts a new payment attempt into the database based on the specified storage scheme. If the storage scheme is PostgresOnly, the payment attempt is inserted into the Postgres database. If the storage scheme is RedisKv, the payment attempt is inserted into the Redis key-value store along with a reverse lookup entry. Returns the created payment attempt if successful.
+    /// Inserts a payment attempt into the appropriate data storage based on the provided storage scheme.
+    /// Returns the inserted PaymentAttempt if successful, otherwise returns a StorageError.
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -442,7 +517,33 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously updates a payment attempt with the given attempt ID based on the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `this` - The original PaymentAttempt to be updated
+    /// * `payment_attempt` - The PaymentAttemptUpdate containing the changes to be applied
+    /// * `storage_scheme` - The storage scheme to be used for updating the payment attempt
+    ///
+    /// # Returns
+    ///
+    /// Returns a Result containing the updated PaymentAttempt if the update is successful, or a StorageError if an error occurs.
+    ///
     #[instrument(skip_all)]
+        /// Updates a payment attempt with the given attempt ID based on the specified storage scheme.
+    /// If the storage scheme is PostgresOnly, the payment attempt is updated in the Postgres database using the router store.
+    /// If the storage scheme is RedisKv, the payment attempt is updated in the Redis key-value store, including adding and updating reverse lookups for connector transaction ID and preprocessing ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `this` - The payment attempt to be updated
+    /// * `payment_attempt` - The updated payment attempt data
+    /// * `storage_scheme` - The storage scheme to be used for updating the payment attempt
+    /// 
+    /// # Returns
+    /// 
+    /// The updated payment attempt if the update is successful, otherwise returns a StorageError.
+    ///
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -556,6 +657,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// This method finds a payment attempt based on the given connector transaction ID, payment ID, and merchant ID using the specified storage scheme. It returns a Result containing the found PaymentAttempt or a StorageError.
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -603,6 +705,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds the last successful payment attempt by payment ID and merchant ID using the specified storage scheme. If the storage scheme is PostgresOnly, it makes a database call to retrieve the payment attempt. If the storage scheme is RedisKv, it constructs a key and pattern, then performs a scan operation on the Redis key-value store to find the last successful payment attempt. If the attempt is found in Redis, it is returned; otherwise, a database call is made to retrieve the attempt.
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -651,6 +754,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds the last successful or partially captured payment attempt by payment ID and merchant ID. The method takes the payment ID, merchant ID, and the storage scheme as input parameters and returns a Result containing the PaymentAttempt or a StorageError. Depending on the storage scheme, the method makes a database or Redis key-value store call to retrieve the payment attempt. If the storage scheme is PostgresOnly, it directly calls the database to retrieve the payment attempt. If the storage scheme is RedisKv, it constructs a key and pattern, then asynchronously scans the Redis key-value store to find the payment attempts. It then filters the payment attempts based on their status and returns the last successful or partially captured attempt. If the attempt is not found in the Redis store, it falls back to the database call to retrieve the attempt.
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -702,6 +806,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds a payment attempt by merchant ID and connector transaction ID based on the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - The ID of the merchant
+    /// * `connector_txn_id` - The connector transaction ID
+    /// * `storage_scheme` - The storage scheme to be used (PostgresOnly or RedisKv)
+    ///
+    /// # Returns
+    ///
+    /// `Result` containing a `PaymentAttempt` if successful, otherwise a `StorageError`
+    ///
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -759,6 +875,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    /// Asynchronously finds a payment attempt by its payment ID, merchant ID, and attempt ID based on the specified storage scheme.
+    /// Returns a `Result` containing a `PaymentAttempt` if successful, or a `StorageError` if an error occurs.
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
@@ -802,6 +920,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds a payment attempt by the given attempt ID and merchant ID using the specified storage scheme.
+    ///
+    /// # Arguments
+    /// * `attempt_id` - The ID of the payment attempt to find
+    /// * `merchant_id` - The ID of the merchant associated with the payment attempt
+    /// * `storage_scheme` - The storage scheme to use for the lookup
+    ///
+    /// # Returns
+    /// The result of the payment attempt lookup, wrapped in a `Result` with the error type `errors::StorageError`
+    ///
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -858,6 +986,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds a payment attempt by preprocessing ID and merchant ID using the specified storage scheme.
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -914,6 +1043,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously finds payment attempts by merchant ID and payment ID based on the specified storage scheme.
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -953,6 +1083,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously retrieves the filters for payments based on the provided PaymentIntent, merchant ID, and storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `pi` - A reference to an array of PaymentIntent objects
+    /// * `merchant_id` - A reference to the merchant ID
+    /// * `storage_scheme` - The storage scheme used by the merchant
+    ///
+    /// # Returns
+    ///
+    /// Returns a Result containing the PaymentListFilters if successful, or a StorageError if an error occurs.
+    ///
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
@@ -964,6 +1106,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
+    /// Retrieves the total count of filtered payment attempts based on the provided parameters.
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
@@ -991,6 +1134,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 impl DataModelExt for MandateAmountData {
     type StorageModel = DieselMandateAmountData;
 
+    /// Converts the current object into its corresponding storage model representation
     fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateAmountData {
             amount: self.amount,
@@ -1001,6 +1145,7 @@ impl DataModelExt for MandateAmountData {
         }
     }
 
+    /// Converts a storage model to the current model, extracting and assigning its properties.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             amount: storage_model.amount,
@@ -1013,6 +1158,7 @@ impl DataModelExt for MandateAmountData {
 }
 impl DataModelExt for MandateDetails {
     type StorageModel = DieselMandateDetails;
+    /// Converts a MandateDetails struct to its corresponding storage model representation
     fn to_storage_model(self) -> Self::StorageModel {
         DieselMandateDetails {
             update_mandate_id: self.update_mandate_id,
@@ -1021,6 +1167,15 @@ impl DataModelExt for MandateDetails {
                 .map(|mand_type| mand_type.to_storage_model()),
         }
     }
+    /// Creates a new instance of `Self` from the provided `storage_model`.
+    ///
+    /// # Arguments
+    ///
+    /// * `storage_model` - The storage model to create the instance from.
+    ///
+    /// # Returns
+    ///
+    /// The new instance of `Self` created from the `storage_model`.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             update_mandate_id: storage_model.update_mandate_id,
@@ -1033,6 +1188,7 @@ impl DataModelExt for MandateDetails {
 impl DataModelExt for MandateTypeDetails {
     type StorageModel = DieselMandateTypeOrDetails;
 
+    /// Converts the enum variant into its corresponding storage model variant.
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::MandateType(mandate_type) => {
@@ -1044,6 +1200,7 @@ impl DataModelExt for MandateTypeDetails {
         }
     }
 
+    /// Converts the given storage model into the corresponding enum variant of the current type.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselMandateTypeOrDetails::MandateType(data) => {
@@ -1059,6 +1216,7 @@ impl DataModelExt for MandateTypeDetails {
 impl DataModelExt for MandateDataType {
     type StorageModel = DieselMandateType;
 
+    /// Converts the current instance of DieselMandateType enum to its corresponding StorageModel enum.
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::SingleUse(data) => DieselMandateType::SingleUse(data.to_storage_model()),
@@ -1069,6 +1227,13 @@ impl DataModelExt for MandateDataType {
         }
     }
 
+    /// Converts the given `storage_model` into the corresponding `Self` enum variant.
+    /// If the `storage_model` is a `DieselMandateType::SingleUse`, it creates a `Self::SingleUse` variant
+    /// with the data converted from the storage model.
+    /// If the `storage_model` is a `DieselMandateType::MultiUse` with some data, it creates a `Self::MultiUse`
+    /// variant with the data converted from the storage model.
+    /// If the `storage_model` is a `DieselMandateType::MultiUse` with no data, it creates a `Self::MultiUse` variant
+    /// with no data.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselMandateType::SingleUse(data) => {
@@ -1085,6 +1250,7 @@ impl DataModelExt for MandateDataType {
 impl DataModelExt for PaymentAttempt {
     type StorageModel = DieselPaymentAttempt;
 
+    /// Converts the current payment attempt object into a storage model for Diesel.
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttempt {
             id: self.id,
@@ -1138,6 +1304,7 @@ impl DataModelExt for PaymentAttempt {
         }
     }
 
+        /// Creates a new instance of the current struct from the provided storage model by mapping its fields.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: storage_model.get_or_calculate_net_amount(),
@@ -1197,6 +1364,7 @@ impl DataModelExt for PaymentAttempt {
 impl DataModelExt for PaymentAttemptNew {
     type StorageModel = DieselPaymentAttemptNew;
 
+    /// Converts a PaymentAttempt struct to its corresponding StorageModel struct
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
             net_amount: Some(self.net_amount),
@@ -1248,6 +1416,9 @@ impl DataModelExt for PaymentAttemptNew {
         }
     }
 
+        /// Transforms the given storage model into the current struct by mapping its fields
+    /// to the corresponding fields in the current struct, and performing any necessary
+    /// calculations or transformations.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
             net_amount: storage_model.get_or_calculate_net_amount(),
@@ -1305,6 +1476,7 @@ impl DataModelExt for PaymentAttemptNew {
 impl DataModelExt for PaymentAttemptUpdate {
     type StorageModel = DieselPaymentAttemptUpdate;
 
+    /// Converts the enum variant into its corresponding StorageModel enum variant.
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
             Self::Update {
@@ -1573,6 +1745,7 @@ impl DataModelExt for PaymentAttemptUpdate {
         }
     }
 
+        /// Converts a `StorageModel` into the corresponding `Self` enum variant.
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselPaymentAttemptUpdate::Update {
@@ -1843,6 +2016,7 @@ impl DataModelExt for PaymentAttemptUpdate {
 }
 
 #[inline]
+/// Adds a new connector transaction ID to the reverse lookup in the key-value store. This method takes the key-value store, the key to update, the merchant ID, the updated attempt ID, the connector transaction ID, and the storage scheme as input parameters. It creates a new reverse lookup entry with the provided information and inserts it into the key-value store using the specified storage scheme. Returns a CustomResult containing the updated ReverseLookup or an errors::StorageError if the operation fails.
 async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,
@@ -1865,6 +2039,21 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 }
 
 #[inline]
+/// Adds a preprocessing id to the reverse lookup for a given key and merchant id in the KVRouterStore.
+///
+/// # Arguments
+///
+/// * `store` - A reference to the KVRouterStore where the reverse lookup will be added.
+/// * `key` - A reference to the key for the reverse lookup.
+/// * `merchant_id` - A reference to the merchant id for the reverse lookup.
+/// * `updated_attempt_attempt_id` - A reference to the updated attempt id for the reverse lookup.
+/// * `preprocessing_id` - A reference to the preprocessing id that will be added to the reverse lookup.
+/// * `storage_scheme` - The storage scheme for the reverse lookup.
+///
+/// # Returns
+///
+/// A CustomResult containing the ReverseLookup if successful, or a StorageError if an error occurs.
+///
 async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,

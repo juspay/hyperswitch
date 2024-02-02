@@ -13,6 +13,16 @@ use crate::{
 
 impl PaymentIntentNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a PaymentIntent into the database using the provided PostgreSQL pooled connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a `PgPooledConn` which represents a pooled connection to a PostgreSQL database.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the inserted `PaymentIntent` if the insertion is successful, otherwise an error.
+    /// 
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
     }
@@ -20,6 +30,8 @@ impl PaymentIntentNew {
 
 impl PaymentIntent {
     #[instrument(skip(conn))]
+        /// Asynchronously updates a payment intent in the database using the provided connection and payment intent update. 
+    /// Returns a StorageResult containing the updated payment intent if successful, or an error if the update fails.
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -45,6 +57,7 @@ impl PaymentIntent {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by payment ID and merchant ID in the database.
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -60,6 +73,18 @@ impl PaymentIntent {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds an optional record by the given payment ID and merchant ID in the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled database connection
+    /// * `payment_id` - A reference to a string containing the payment ID
+    /// * `merchant_id` - A reference to a string containing the merchant ID
+    /// 
+    /// # Returns
+    /// 
+    /// An asynchronous `StorageResult` containing an optional value of `Self`, where `Self` is the type implementing the method.
+    /// 
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,

@@ -11,6 +11,8 @@ use crate::{
 struct OpennodeTest;
 impl ConnectorActions for OpennodeTest {}
 impl utils::Connector for OpennodeTest {
+        /// Returns the connector data for the Opennode connector.
+    ///
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Opennode;
         types::api::ConnectorData {
@@ -20,7 +22,7 @@ impl utils::Connector for OpennodeTest {
             merchant_connector_id: None,
         }
     }
-
+        /// This method retrieves the authentication token for the connector. It creates a new instance of ConnectorAuthentication, accesses the opennode field, and converts it into the ConnectorAuthType using the to_connector_auth_type method from the utils module. If the opennode field is missing, it will panic with the message "Missing connector authentication configuration".
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -30,6 +32,7 @@ impl utils::Connector for OpennodeTest {
         )
     }
 
+        /// This method returns the name "opennode" as a String.
     fn get_name(&self) -> String {
         "opennode".to_string()
     }
@@ -37,6 +40,8 @@ impl utils::Connector for OpennodeTest {
 
 static CONNECTOR: OpennodeTest = OpennodeTest {};
 
+/// Retrieves the default payment information, including the billing address, phone details, and return URL.
+/// If the payment information is available, it returns Some(PaymentInfo), otherwise returns None.
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(PaymentAddress {
@@ -63,6 +68,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     })
 }
 
+/// Retrieves the details of the payment method, including the amount, currency, payment method data, confirmation status, URLs, and other relevant information.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
@@ -77,7 +83,6 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         mandate_id: None,
         off_session: None,
         setup_mandate_details: None,
-        // capture_method: Some(capture_method),
         browser_info: None,
         order_details: None,
         order_category: None,
@@ -101,6 +106,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 
 // Creates a payment using the manual capture flow
 #[actix_web::test]
+/// Asynchronously authorizes a payment using the CONNECTOR, and asserts that the response status is AuthenticationPending. It then unwraps the response and checks if it contains redirection data, asserting that it is present.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -119,6 +125,7 @@ async fn should_only_authorize_payment() {
 
 // Synchronizes a successful transaction.
 #[actix_web::test]
+/// Asynchronously checks if an authorized payment should be synced. It calls the `psync_retry_till_status_matches` method from the `CONNECTOR` with the provided parameters and awaits the response. It then asserts that the response status is `Charged`.
 async fn should_sync_authorized_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -138,6 +145,7 @@ async fn should_sync_authorized_payment() {
 
 // Synchronizes a unresolved(underpaid) transaction.
 #[actix_web::test]
+/// Asynchronously checks if an unresolved payment should be synced. It calls the psync_retry_till_status_matches method of the CONNECTOR object with the AttemptStatus::Authorized enum as the expected status, a PaymentsSyncData object with the connector_transaction_id set as "4cf63e6b-5135-49cb-997f-6e0b30fecebc", and the default payment info. It then awaits the response and asserts that the status is unresolved.
 async fn should_sync_unresolved_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -157,6 +165,7 @@ async fn should_sync_unresolved_payment() {
 
 // Synchronizes a expired transaction.
 #[actix_web::test]
+/// Asynchronously checks if an expired payment should be synced by sending a request to the connector and waiting for a response. If the response status matches "Authorized", the method will retry syncing the payment data until it succeeds. If the response status is "Failure", the method will assert that the response status is indeed "Failure".
 async fn should_sync_expired_payment() {
     let response = CONNECTOR
         .psync_retry_till_status_matches(

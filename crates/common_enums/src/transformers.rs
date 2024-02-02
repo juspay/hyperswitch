@@ -5,12 +5,24 @@ use serde::{Deserialize, Serialize};
 use crate::enums::{Country, CountryAlpha2, CountryAlpha3, PaymentMethod, PaymentMethodType};
 
 impl Display for NumericCountryCodeParseError {
+        /// Formats the value using the given formatter.
+    /// 
+    /// This method writes the string "Invalid Country Code" to the given formatter.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `f` - A mutable reference to a formatter
+    /// 
+    /// # Returns
+    /// 
+    /// A Result indicating whether the operation was successful
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Invalid Country Code")
     }
 }
 
 impl CountryAlpha2 {
+        /// Converts a country alpha-2 code to its corresponding alpha-3 code.
     pub const fn from_alpha2_to_alpha3(code: Self) -> CountryAlpha3 {
         match code {
             Self::AF => CountryAlpha3::AFG,
@@ -266,6 +278,7 @@ impl CountryAlpha2 {
     }
 }
 impl Country {
+        /// Returns the country corresponding to the given CountryAlpha2 code.
     pub const fn from_alpha2(code: CountryAlpha2) -> Self {
         match code {
             CountryAlpha2::AF => Self::Afghanistan,
@@ -519,6 +532,7 @@ impl Country {
             CountryAlpha2::ZW => Self::Zimbabwe,
         }
     }
+        /// Converts a Country enum variant to its corresponding CountryAlpha2 code.
     pub const fn to_alpha2(&self) -> CountryAlpha2 {
         match self {
             Self::Afghanistan => CountryAlpha2::AF,
@@ -772,6 +786,7 @@ impl Country {
             Self::Zimbabwe => CountryAlpha2::ZW,
         }
     }
+        /// Converts a given CountryAlpha3 code to the corresponding Country enum variant.
     pub const fn from_alpha3(code: CountryAlpha3) -> Self {
         match code {
             CountryAlpha3::AFG => Self::Afghanistan,
@@ -1278,6 +1293,8 @@ impl Country {
             Self::Zimbabwe => CountryAlpha3::ZWE,
         }
     }
+
+    /// Converts a numeric country code to the corresponding CountryCode enum variant.
     pub const fn from_numeric(code: u32) -> Result<Self, NumericCountryCodeParseError> {
         match code {
             4 => Ok(Self::Afghanistan),
@@ -1532,6 +1549,7 @@ impl Country {
             _ => Err(NumericCountryCodeParseError),
         }
     }
+        /// Converts the enum variant to its corresponding numeric value.
     pub const fn to_numeric(&self) -> u32 {
         match self {
             Self::Afghanistan => 4,
@@ -1788,6 +1806,7 @@ impl Country {
 }
 
 impl From<PaymentMethodType> for PaymentMethod {
+        /// Converts a PaymentMethodType enum value to the corresponding PaymentType enum value.
     fn from(value: PaymentMethodType) -> Self {
         match value {
             PaymentMethodType::Ach => Self::BankDebit,
@@ -1890,6 +1909,7 @@ mod custom_serde {
 
         use super::*;
 
+                /// Serialize the given country code to its corresponding alpha-2 code and write the result to the provided serializer.
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1902,11 +1922,13 @@ mod custom_serde {
         impl<'de> Visitor<'de> for FieldVisitor {
             type Value = CountryAlpha2;
 
+                        /// This method writes the CountryAlpha2 as a string to the given formatter.
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
                 formatter.write_str("CountryAlpha2 as a string")
             }
         }
 
+                /// Deserialize a Country from a given deserializer.
         pub fn deserialize<'a, D>(deserializer: D) -> Result<Country, D::Error>
         where
             D: serde::Deserializer<'a>,
@@ -1922,6 +1944,7 @@ mod custom_serde {
 
         use super::*;
 
+                /// Serializes the given Country code to its alpha-3 representation using the provided serializer.
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1934,11 +1957,13 @@ mod custom_serde {
         impl<'de> Visitor<'de> for FieldVisitor {
             type Value = CountryAlpha3;
 
+                        /// This method takes a reference to a `Formatter` and writes the string "CountryAlpha3 as a string" to the formatter.
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
                 formatter.write_str("CountryAlpha3 as a string")
             }
         }
 
+                /// Deserialize a `Country` from the given deserializer.
         pub fn deserialize<'a, D>(deserializer: D) -> Result<Country, D::Error>
         where
             D: serde::Deserializer<'a>,
@@ -1954,6 +1979,16 @@ mod custom_serde {
 
         use super::*;
 
+                /// Serializes the given Country code to its numeric representation using the provided serializer.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `code` - The Country code to be serialized.
+        /// * `serializer` - The serializer to use for serialization.
+        /// 
+        /// # Returns
+        /// 
+        /// The serialized numeric representation of the Country code, wrapped in a Result.
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1966,11 +2001,13 @@ mod custom_serde {
         impl<'de> Visitor<'de> for FieldVisitor {
             type Value = u32;
 
+                        /// Writes the message "Numeric country code passed as an u32" to the provided formatter.
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
                 formatter.write_str("Numeric country code passed as an u32")
             }
         }
 
+                /// Deserializes a numeric value into a Country enum using the given deserializer.
         pub fn deserialize<'a, D>(deserializer: D) -> Result<Country, D::Error>
         where
             D: serde::Deserializer<'a>,
@@ -2024,6 +2061,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the serialization of Alpha2Request for different countries using serde_json.
     fn test_serialize_alpha2() {
         let x_request = Alpha2Request {
             country: Country::India,
@@ -2045,6 +2083,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the serialization of Alpha3Request objects by creating instances with different countries and checking if the serialized JSON strings match the expected values.
     fn test_serialize_alpha3() {
         let y_request = Alpha3Request {
             country: Country::India,
@@ -2066,6 +2105,7 @@ mod tests {
     }
 
     #[test]
+        /// Test the serialization of numeric values for different countries using the NumericRequest struct and serde_json library.
     fn test_serialize_numeric() {
         let y_request = NumericRequest {
             country: Country::India,
@@ -2087,6 +2127,7 @@ mod tests {
     }
 
     #[test]
+        /// Deserialize the HyperswitchRequestAlpha2 struct from JSON strings representing different country codes
     fn test_deserialize_alpha2() {
         let request_str = r#"{"country":"IN"}"#;
         let request = serde_json::from_str::<HyperswitchRequestAlpha2>(request_str).unwrap();
@@ -2102,6 +2143,8 @@ mod tests {
     }
 
     #[test]
+        /// Deserialize the HyperswitchRequestAlpha3 struct from a JSON string and assert that the country field
+    /// is correctly deserialized into the corresponding Country enum variant.
     fn test_deserialize_alpha3() {
         let request_str = r#"{"country":"IND"}"#;
         let request = serde_json::from_str::<HyperswitchRequestAlpha3>(request_str).unwrap();
@@ -2117,6 +2160,7 @@ mod tests {
     }
 
     #[test]
+        /// Test deserialization of numeric country codes into corresponding Country enum variants.
     fn test_deserialize_numeric() {
         let request_str = r#"{"country":356}"#;
         let request = serde_json::from_str::<HyperswitchRequestNumeric>(request_str).unwrap();
@@ -2138,9 +2182,8 @@ mod tests {
     }
 
     #[test]
+        /// Deserialize the country as alpha2 code and serialize the country as alpha3 code
     fn test_deserialize_and_serialize() {
-        // Deserialize the country as alpha2 code
-        // Serialize the country as alpha3 code
         let request_str = r#"{"country":"IN"}"#;
         let request = serde_json::from_str::<HyperswitchRequestAlpha2>(request_str).unwrap();
         let alpha3_request = Alpha3Request {
@@ -2151,6 +2194,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the serialization and deserialization of a HyperswitchRequestAlpha2 and Alpha3Request.
     fn test_serialize_and_deserialize() {
         let request_str = r#"{"country":"AX"}"#;
         let request = serde_json::from_str::<HyperswitchRequestAlpha2>(request_str).unwrap();
@@ -2165,6 +2209,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the deserialization of an invalid country code in a JSON request string. It creates a request string with an invalid country code, attempts to deserialize it into a HyperswitchRequestNumeric struct using serde_json, and asserts that the deserialization result is an error.
     fn test_deserialize_invalid_country_code() {
         let request_str = r#"{"country": 123456}"#;
         let result: Result<HyperswitchRequestNumeric, _> =

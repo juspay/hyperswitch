@@ -46,6 +46,16 @@ pub trait DashboardMetadataInterface {
 
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for Store {
+        /// Asynchronously inserts the provided metadata into the database and returns the inserted dashboard metadata.
+    ///
+    /// # Arguments
+    ///
+    /// * `metadata` - The dashboard metadata to insert into the database.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the inserted `DashboardMetadata`, or a `StorageError` if the insertion fails.
+    ///
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
@@ -58,6 +68,20 @@ impl DashboardMetadataInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates the metadata for a dashboard with the provided information.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The optional user ID associated with the metadata.
+    /// * `merchant_id` - The ID of the merchant associated with the metadata.
+    /// * `org_id` - The ID of the organization associated with the metadata.
+    /// * `data_key` - An enum representing the type of metadata being updated.
+    /// * `dashboard_metadata_update` - The updated metadata for the dashboard.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the updated `DashboardMetadata` if successful, otherwise returns a `StorageError`.
+    ///
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -80,6 +104,19 @@ impl DashboardMetadataInterface for Store {
         .into_report()
     }
 
+        /// Asynchronously finds the dashboard metadata for a specific user within the scope of a merchant and organization, based on the provided data keys.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `user_id` - The ID of the user for whom to find the dashboard metadata.
+    /// * `merchant_id` - The ID of the merchant within which the user's dashboard metadata should be scoped.
+    /// * `org_id` - The ID of the organization within which the user's dashboard metadata should be scoped.
+    /// * `data_keys` - A vector of enums representing the specific data keys to search for within the user's dashboard metadata.
+    /// 
+    /// # Returns
+    /// 
+    /// A result containing a vector of `storage::DashboardMetadata` if successful, or a `errors::StorageError` if an error occurred during the operation.
+    /// 
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -100,6 +137,18 @@ impl DashboardMetadataInterface for Store {
         .into_report()
     }
 
+        /// Asynchronously finds the dashboard metadata for a specific merchant and organization with the given data keys.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - The ID of the merchant for which to find the dashboard metadata.
+    /// * `org_id` - The ID of the organization for which to find the dashboard metadata.
+    /// * `data_keys` - A vector of enums representing the dashboard metadata keys to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `DashboardMetadata` or a `StorageError` if an error occurs.
+    /// 
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -117,6 +166,8 @@ impl DashboardMetadataInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+        /// Asynchronously deletes the dashboard metadata associated with a user and a merchant
+    /// by their respective IDs.
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
@@ -136,6 +187,7 @@ impl DashboardMetadataInterface for Store {
 
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for MockDb {
+        /// Asynchronously inserts a new dashboard metadata into the storage. If the metadata being inserted already exists, it returns a `DuplicateValue` error. Otherwise, it adds the new metadata to the dashboard metadata collection and returns the inserted metadata.
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
@@ -172,6 +224,7 @@ impl DashboardMetadataInterface for MockDb {
         Ok(metadata_new)
     }
 
+        /// Asynchronously updates the metadata for a dashboard based on the provided user ID, merchant ID, organization ID, data key, and dashboard metadata update. It searches for the metadata to update based on the provided criteria and then updates the data key, data value, last modified by, and last modified at fields with the values from the dashboard metadata update. Returns a result containing the updated dashboard metadata or a storage error if the update failed.
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -207,6 +260,9 @@ impl DashboardMetadataInterface for MockDb {
         Ok(dashboard_metadata_to_update.clone())
     }
 
+        /// Asynchronously finds the dashboard metadata scoped to a specific user, merchant, and organization
+    /// based on the provided data keys. Returns a vector of storage::DashboardMetadata if found,
+    /// otherwise returns a StorageError.
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -240,6 +296,18 @@ impl DashboardMetadataInterface for MockDb {
         Ok(query_result)
     }
 
+        /// Asynchronously finds the dashboard metadata scoped to a specific merchant and organization with the given data keys. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A string reference representing the ID of the merchant.
+    /// * `org_id` - A string reference representing the ID of the organization.
+    /// * `data_keys` - A vector of DashboardMetadata enums containing the keys for the data to be retrieved.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `DashboardMetadata` or a `StorageError` if the metadata is not found.
+    /// 
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -267,6 +335,18 @@ impl DashboardMetadataInterface for MockDb {
         }
         Ok(query_result)
     }
+        /// Asynchronously deletes the dashboard metadata associated with a specific user and merchant ID from the storage.
+    /// Returns a boolean indicating the success of the operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - A string reference representing the user ID.
+    /// * `merchant_id` - A string reference representing the merchant ID.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a boolean indicating the success of the operation or a `StorageError` if the operation fails.
+    ///
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,

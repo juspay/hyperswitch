@@ -27,6 +27,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads metrics based on the specified dimensions, publishable key, filters, granularity, time range, and connection pool. The method constructs a query to select the specified dimensions and aggregate the count of SDK events based on the provided filters, granularity, and time range. It then executes the query using the provided connection pool, processes the results, and returns a vector of tuples containing the bucket identifier and metric row for each result.
     async fn load_metrics(
         &self,
         dimensions: &[SdkEventDimensions],

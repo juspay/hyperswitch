@@ -79,6 +79,7 @@ pub struct FraudCheckUpdateInternal {
 }
 
 impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
+        /// Converts a FraudCheckUpdate enum into a struct of the same type.
     fn from(fraud_check_update: FraudCheckUpdate) -> Self {
         match fraud_check_update {
             FraudCheckUpdate::ResponseUpdate {

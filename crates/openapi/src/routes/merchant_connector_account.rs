@@ -58,7 +58,10 @@
     operation_id = "Create a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_create() {}
+/// Asynchronously creates a payment connector. This method is responsible for establishing a connection to the payment system and setting up the necessary configurations and authentication. 
+pub async fn payment_connector_create() {
+    // implementation goes here
+}
 
 /// Merchant Connector - Retrieve
 ///
@@ -79,6 +82,7 @@ pub async fn payment_connector_create() {}
     operation_id = "Retrieve a Merchant Connector",
     security(("admin_api_key" = []))
 )]
+/// Asynchronously retrieves the payment connector information.
 pub async fn payment_connector_retrieve() {}
 
 /// Merchant Connector - List
@@ -99,7 +103,10 @@ pub async fn payment_connector_retrieve() {}
     operation_id = "List all Merchant Connectors",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_list() {}
+/// Asynchronously retrieves a list of payment connectors.
+pub async fn payment_connector_list() {
+    // method implementation goes here
+}
 
 /// Merchant Connector - Update
 ///
@@ -146,6 +153,7 @@ pub async fn payment_connector_list() {}
    operation_id = "Update a Merchant Connector",
    security(("admin_api_key" = []))
 )]
+/// Asynchronously updates the payment connector with the latest information.
 pub async fn payment_connector_update() {}
 
 /// Merchant Connector - Delete
@@ -167,4 +175,5 @@ pub async fn payment_connector_update() {}
     operation_id = "Delete a Merchant Connector",
     security(("admin_api_key" = []))
 )]
+/// Asynchronously deletes a payment connector from the system.
 pub async fn payment_connector_delete() {}

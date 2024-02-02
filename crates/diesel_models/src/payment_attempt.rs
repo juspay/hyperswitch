@@ -67,6 +67,7 @@ pub struct PaymentAttempt {
 }
 
 impl PaymentAttempt {
+        /// Returns the net amount if it is present, otherwise calculates and returns the net amount by adding the amount, surcharge amount, and tax amount.
     pub fn get_or_calculate_net_amount(&self) -> i64 {
         self.net_amount.unwrap_or(
             self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0),
@@ -146,11 +147,13 @@ impl PaymentAttemptNew {
         self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
 
+        /// Retrieves the net amount if it is available, otherwise calculates it using the `calculate_net_amount` method.
     pub fn get_or_calculate_net_amount(&self) -> i64 {
         self.net_amount
             .unwrap_or_else(|| self.calculate_net_amount())
     }
 
+        /// Populates the derived fields of the PaymentAttempt struct, such as the net amount.
     pub fn populate_derived_fields(self) -> Self {
         let mut payment_attempt_new = self;
         payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
@@ -346,6 +349,7 @@ pub struct PaymentAttemptUpdateInternal {
 }
 
 impl PaymentAttemptUpdateInternal {
+        /// Populates the derived fields of a PaymentAttempt with values from another PaymentAttempt and returns the updated instance.
     pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
         let mut update_internal = self;
         update_internal.net_amount = Some(
@@ -364,6 +368,7 @@ impl PaymentAttemptUpdateInternal {
 }
 
 impl PaymentAttemptUpdate {
+        /// Applies the changeset from the provided PaymentAttempt to the current PaymentAttempt, returning a new PaymentAttempt with the updated fields.
     pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
         let PaymentAttemptUpdateInternal {
             amount,
@@ -450,6 +455,7 @@ impl PaymentAttemptUpdate {
 }
 
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
+        /// Converts a PaymentAttemptUpdate enum into a corresponding instance of the current type.
     fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
         match payment_attempt_update {
             PaymentAttemptUpdate::Update {

@@ -30,6 +30,7 @@ impl<T> OptionExt<T> for Option<T>
 where
     T: std::fmt::Debug,
 {
+        /// Checks if the specified field is present in the current context and returns an error if it is not. 
     fn check_value_present(&self, field_name: &'static str) -> RouterResult<()> {
         when(self.is_none(), || {
             Err(
@@ -41,6 +42,7 @@ where
 
     // This will allow the error message that was generated in this function to point to the call site
     #[track_caller]
+        /// Returns the value if it exists, otherwise returns an error with a message indicating the missing required field.
     fn get_required_value(self, field_name: &'static str) -> RouterResult<T> {
         match self {
             Some(v) => Ok(v),
@@ -51,6 +53,8 @@ where
         }
     }
 
+        /// Parses the value associated with the given enum name and returns a CustomResult containing
+    /// the parsed enum value or a ParsingError if the parsing fails.
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
         T: AsRef<str>,
@@ -67,6 +71,7 @@ where
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }
 
+        /// Parse the value of a given type from the current context, returning a CustomResult
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
         T: ValueExt,
@@ -78,6 +83,7 @@ where
         value.parse_value(type_name)
     }
 
+        /// Updates the value of the current object with the provided value if it is Some, otherwise does nothing.
     fn update_value(&mut self, value: Self) {
         if let Some(a) = value {
             *self = Some(a)
@@ -114,6 +120,9 @@ impl<T, F> ValidateCall<T, F> for Option<&T>
 where
     F: Fn(&T) -> CustomResult<(), errors::ValidationError>,
 {
+        /// Validates an optional value using the provided validation function.
+    /// If the optional value is Some, the validation function is applied to the value.
+    /// If the optional value is None, the method returns Ok(()).
     fn validate_opt(self, func: F) -> CustomResult<(), errors::ValidationError> {
         match self {
             Some(val) => func(val),

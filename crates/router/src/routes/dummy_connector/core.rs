@@ -9,6 +9,7 @@ use crate::{
     utils::OptionExt,
 };
 
+/// Asynchronously processes a payment request using the provided state and payment request, and returns a response containing the payment data.
 pub async fn payment(
     state: AppState,
     req: types::DummyConnectorPaymentRequest,
@@ -40,6 +41,7 @@ pub async fn payment(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+/// This method retrieves payment data from the dummy connector service, with an asynchronous functionality. It uses the provided application state and request to retrieve payment data, and then returns a response containing the payment data.
 pub async fn payment_data(
     state: AppState,
     req: types::DummyConnectorPaymentRetrieveRequest,
@@ -54,6 +56,7 @@ pub async fn payment_data(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+/// Asynchronously authorizes a payment using the provided state and request data. It retrieves payment data by attempt id from the state, and then checks if the payment data exists. If it does, it generates a return URL, gets the authorize page content using the payment data, return URL, and dummy connector configuration, and then returns the authorize page content as a file data response. If the payment data does not exist, it returns an expired page content as a file data response.
 pub async fn payment_authorize(
     state: AppState,
     req: types::DummyConnectorPaymentConfirmRequest,
@@ -82,6 +85,7 @@ pub async fn payment_authorize(
     }
 }
 
+/// Asynchronously completes a payment process, updates the payment status in Redis, and returns a redirection response.
 pub async fn payment_complete(
     state: AppState,
     req: types::DummyConnectorPaymentCompleteRequest,
@@ -144,6 +148,7 @@ pub async fn payment_complete(
     ))
 }
 
+/// Asynchronously refunds a payment by waiting for a specified duration, then deducts the refund amount from the payment data, stores the updated payment data in Redis, generates a refund ID, creates a refund response with the refund details, and stores the refund data in Redis. Returns a JSON response with the refund data.
 pub async fn refund_payment(
     state: AppState,
     req: types::DummyConnectorRefundRequest,
@@ -196,6 +201,8 @@ pub async fn refund_payment(
     Ok(api::ApplicationResponse::Json(refund_data))
 }
 
+/// This method is responsible for retrieving refund data from a Redis database, based on the given refund ID.
+/// It first sleeps for a specified duration and tolerance, then retrieves the Redis connection from the application state, and finally fetches and deserializes the refund data based on the refund ID. If the refund data is found, it returns a JSON response containing the refund data.
 pub async fn refund_data(
     state: AppState,
     req: types::DummyConnectorRefundRetrieveRequest,

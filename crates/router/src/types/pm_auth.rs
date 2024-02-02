@@ -15,6 +15,7 @@ use crate::core::{
 };
 
 impl PaymentAuthConnectorDataExt for PaymentAuthConnectorData {
+        /// Retrieves a payment method connector by its name and returns a custom result containing the connector and any potential API error response.
     fn get_connector_by_name(name: &str) -> errors::CustomResult<Self, ApiErrorResponse> {
         let connector_name = pm_auth_types::PaymentMethodAuthConnectors::from_str(name)
             .into_report()
@@ -28,6 +29,7 @@ impl PaymentAuthConnectorDataExt for PaymentAuthConnectorData {
             connector_name,
         })
     }
+    /// Converts a payment method authentication connector name to a corresponding BoxedPaymentAuthConnector
     fn convert_connector(
         connector_name: pm_auth_types::PaymentMethodAuthConnectors,
     ) -> errors::CustomResult<BoxedPaymentAuthConnector, ApiErrorResponse> {

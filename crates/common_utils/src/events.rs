@@ -2,6 +2,11 @@ use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
 pub trait ApiEventMetric {
+        /// Retrieves the API event type associated with the current instance, if any.
+    ///
+    /// # Returns
+    /// 
+    /// An `Option` containing the API event type, or `None` if there is no associated event type.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
     }
@@ -59,6 +64,7 @@ impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
 
 impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
+        /// Returns the API event type of the result, if it is successful. If the result is an error, returns None.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self {
             Ok(q) => q.get_api_event_type(),
@@ -69,6 +75,7 @@ impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
 
 // TODO: Ideally all these types should be replaced by newtype responses
 impl<T> ApiEventMetric for Vec<T> {
+        /// Retrieves the type of API event associated with the current object, if applicable.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }
@@ -95,6 +102,7 @@ impl_misc_api_event_type!(
 );
 
 impl<T: ApiEventMetric> ApiEventMetric for &T {
+        /// Returns the API event type associated with the implementation of the generic type T, or None if there is no associated event type.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         T::get_api_event_type(self)
     }

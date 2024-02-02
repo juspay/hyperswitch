@@ -23,6 +23,7 @@ pub struct MerchantKeyStore {
 impl super::behaviour::Conversion for MerchantKeyStore {
     type DstType = diesel_models::merchant_key_store::MerchantKeyStore;
     type NewDstType = diesel_models::merchant_key_store::MerchantKeyStoreNew;
+        /// Asynchronously converts the current instance of a struct into a custom result containing the destination type or a validation error.
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::merchant_key_store::MerchantKeyStore {
             key: self.key.into(),
@@ -31,6 +32,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         })
     }
 
+        /// Asynchronously converts the provided item back to its original type by decrypting the key using the given secret key. Returns a `CustomResult` containing the original type or a `ValidationError` if decryption fails.
     async fn convert_back(
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
@@ -49,6 +51,8 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         })
     }
 
+        /// Asynchronously constructs a new `MerchantKeyStoreNew` instance from the current state of the struct. 
+    /// Returns a `CustomResult` containing the newly constructed `MerchantKeyStoreNew` instance or a `ValidationError`.
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::merchant_key_store::MerchantKeyStoreNew {
             merchant_id: self.merchant_id,

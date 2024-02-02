@@ -19,6 +19,7 @@ pub enum CtxValueKind<'a> {
 }
 
 impl<'a> CtxValueKind<'a> {
+        /// Returns an optional reference to the DirValue enum if the enum variant is Assertion.
     pub fn get_assertion(&self) -> Option<&dir::DirValue> {
         if let Self::Assertion(val) = self {
             Some(val)
@@ -27,6 +28,10 @@ impl<'a> CtxValueKind<'a> {
         }
     }
 
+        /// Retrieves the negation value of the current object, if it exists.
+    /// 
+    /// Returns Some(vals) if the current object is a Negation variant, containing a reference to the DirValue slice
+    /// Returns None if the current object is not a Negation variant
     pub fn get_negation(&self) -> Option<&[dir::DirValue]> {
         if let Self::Negation(vals) = self {
             Some(vals)
@@ -35,6 +40,7 @@ impl<'a> CtxValueKind<'a> {
         }
     }
 
+        /// Returns the key associated with the enum variant.
     pub fn get_key(&self) -> Option<dir::DirKey> {
         match self {
             Self::Assertion(val) => Some(val.get_key()),
@@ -51,6 +57,7 @@ pub struct ContextValue<'a> {
 
 impl<'a> ContextValue<'a> {
     #[inline]
+        /// Creates a new instance of Self with the provided dir::DirValue and Metadata.
     pub fn assertion(value: &'a dir::DirValue, metadata: &'a Metadata) -> Self {
         Self {
             value: CtxValueKind::Assertion(value),
@@ -59,6 +66,7 @@ impl<'a> ContextValue<'a> {
     }
 
     #[inline]
+        /// Creates a new instance of Self with the given values and metadata, where the value is a negation of the provided DirValue array. 
     pub fn negation(values: &'a [dir::DirValue], metadata: &'a Metadata) -> Self {
         Self {
             value: CtxValueKind::Negation(values),
@@ -81,6 +89,7 @@ pub struct AnalysisError {
     pub metadata: Metadata,
 }
 impl fmt::Display for AnalysisError {
+        /// Formats the error type using the given formatter.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.error_type.fmt(f)
     }

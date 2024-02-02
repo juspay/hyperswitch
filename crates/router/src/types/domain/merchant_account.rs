@@ -83,6 +83,7 @@ pub enum MerchantAccountUpdate {
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
+        /// Converts a `MerchantAccountUpdate` enum into the current struct, setting the fields based on the variant of the enum.
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
@@ -153,6 +154,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
 impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
+        /// Asynchronously converts the current object into a `CustomResult` containing the destination type or a `ValidationError`.
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::merchant_account::MerchantAccount {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
@@ -187,6 +189,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         })
     }
 
+        /// Asynchronously converts the given item back into the original type after decrypting certain fields using the provided key.
     async fn convert_back(
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
@@ -237,6 +240,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         })
     }
 
+        /// Constructs a new instance of MerchantAccountNew by mapping the fields of the current instance of Self. The current timestamp is used for the created_at and modified_at fields.
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::merchant_account::MerchantAccountNew {
@@ -270,6 +274,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 }
 
 impl MerchantAccount {
+        /// This method retrieves the compatible connector for the merchant account, if available.
     pub fn get_compatible_connector(&self) -> Option<api_models::enums::Connector> {
         let metadata: Option<api_models::admin::MerchantAccountMetadata> =
             self.metadata.as_ref().and_then(|meta| {

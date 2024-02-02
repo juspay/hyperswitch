@@ -75,6 +75,12 @@ pub enum WebhookResponseTracker {
 }
 
 impl WebhookResponseTracker {
+        /// Returns the payment ID associated with the payment, refund, or dispute, if present.
+    /// 
+    /// # Returns
+    /// 
+    /// - `Some(String)`: If the payment, refund, or dispute has a payment ID associated with it, returns the payment ID as a `String`.
+    /// - `None`: If the object is of type `NoEffect` or `Mandate`, or if the payment, refund, or dispute does not have a payment ID associated with it, returns `None`.
     pub fn get_payment_id(&self) -> Option<String> {
         match self {
             Self::Payment { payment_id, .. }
@@ -86,6 +92,7 @@ impl WebhookResponseTracker {
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
+        /// Converts an IncomingWebhookEvent into an enum variant of Self
     fn from(evt: IncomingWebhookEvent) -> Self {
         match evt {
             IncomingWebhookEvent::PaymentIntentFailure

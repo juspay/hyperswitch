@@ -29,6 +29,10 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 }
 
 #[instrument(skip_all)]
+/// Asynchronously starts the consumer process that handles workflow operations. The method
+/// periodically checks for incoming messages from the provided channel and processes the
+/// workflows based on the state and settings. It also handles graceful shutdown by waiting for
+/// active tasks to complete before terminating the consumer.
 pub async fn start_consumer<T: SchedulerAppState + 'static>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
@@ -116,6 +120,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
 }
 
 #[instrument(skip_all)]
+/// Asynchronously performs consumer operations for the given scheduler application state, settings, and workflow selector. This method creates a consumer group if it does not already exist, fetches consumer tasks for the specified stream and group, and then starts workflows for the fetched tasks. It also updates metrics and adds histogram metrics for the pickup time of each task.
 pub async fn consumer_operations<T: SchedulerAppState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
@@ -162,6 +167,7 @@ pub async fn consumer_operations<T: SchedulerAppState + 'static>(
 }
 
 #[instrument(skip(db, redis_conn))]
+/// Asynchronously fetches consumer tasks from the database and updates their status to 'ProcessStarted'. 
 pub async fn fetch_consumer_tasks(
     db: &dyn ProcessTrackerInterface,
     redis_conn: &RedisConnectionPool,
@@ -204,6 +210,7 @@ pub async fn fetch_consumer_tasks(
 
 // Accept flow_options if required
 #[instrument(skip(state), fields(workflow_id))]
+/// Asynchronously starts a workflow with the given state, process tracker, pickup time, and workflow selector. It records the workflow ID in the current span, logs the process name, triggers the workflow using the provided workflow selector, and adds a metric for the processed task. Returns a Result indicating success or an error of type ProcessTrackerError.
 pub async fn start_workflow<T>(
     state: T,
     process: storage::ProcessTracker,
@@ -223,6 +230,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// Handles errors for the consumer by logging the error, updating the process status in the scheduler, and returning a custom result.
 pub async fn consumer_error_handler(
     state: &(dyn SchedulerInterface + 'static),
     process: storage::ProcessTracker,
@@ -243,6 +251,17 @@ pub async fn consumer_error_handler(
     Ok(())
 }
 
+/// Asynchronously creates a new task by inserting the provided process tracker entry into the database using the given ProcessTrackerInterface.
+///
+/// # Arguments
+///
+/// * `db` - A reference to the ProcessTrackerInterface trait object for interacting with the database.
+/// * `process_tracker_entry` - A storage::ProcessTrackerNew struct containing the details of the task to be created.
+///
+/// # Returns
+///
+/// * `CustomResult<(), storage_impl::errors::StorageError>` - A custom result indicating the success or failure of the operation, along with any associated storage error.
+///
 pub async fn create_task(
     db: &dyn ProcessTrackerInterface,
     process_tracker_entry: storage::ProcessTrackerNew,

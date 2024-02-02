@@ -15,7 +15,10 @@
     operation_id = "Retrieve a Mandate",
     security(("api_key" = []))
 )]
-pub async fn get_mandate() {}
+/// Asynchronously fetches the mandate from the server.
+pub async fn get_mandate() {
+    // implementation details
+}
 
 /// Mandates - Revoke Mandate
 ///
@@ -34,7 +37,10 @@ pub async fn get_mandate() {}
     operation_id = "Revoke a Mandate",
     security(("api_key" = []))
 )]
-pub async fn revoke_mandate() {}
+/// Asynchronously revokes a mandate.
+pub async fn revoke_mandate() {
+    // implementation details
+}
 
 /// Mandates - List Mandates
 #[utoipa::path(
@@ -58,4 +64,7 @@ pub async fn revoke_mandate() {}
     operation_id = "List Mandates",
     security(("api_key" = []))
 )]
-pub async fn retrieve_mandates_list() {}
+/// Asynchronously retrieves a list of mandates.
+pub async fn retrieve_mandates_list() {
+    // method implementation goes here
+}

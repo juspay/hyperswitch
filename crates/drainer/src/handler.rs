@@ -20,6 +20,7 @@ pub struct Handler {
 impl std::ops::Deref for Handler {
     type Target = HandlerInner;
 
+        /// This method returns a reference to the inner data contained within the current instance.
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -35,6 +36,16 @@ pub struct HandlerInner {
 }
 
 impl Handler {
+        /// Constructs a new instance of `Self` using the provided `DrainerSettings` and `Store`
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conf` - The drainer settings to initialize with
+    /// * `store` - The store to use
+    /// 
+    /// # Returns
+    /// 
+    /// A new instance of `Self` initialized with the provided settings and store
     pub fn from_conf(conf: DrainerSettings, store: Arc<Store>) -> Self {
         let shutdown_interval = Duration::from_millis(conf.shutdown_interval.into());
         let loop_interval = Duration::from_millis(conf.loop_interval.into());
@@ -57,10 +68,12 @@ impl Handler {
         }
     }
 
+        /// Sets the running state to false, indicating that the method is being closed.
     pub fn close(&self) {
         self.running.store(false, atomic::Ordering::SeqCst);
     }
 
+        /// Asynchronously spawns a drainer to process data from available streams until the drainer is stopped.
     pub async fn spawn(&self) -> errors::DrainerResult<()> {
         let mut stream_index: u8 = 0;
         let jobs_picked = Arc::new(atomic::AtomicU8::new(0));
@@ -87,6 +100,8 @@ impl Handler {
         Ok(())
     }
 
+        /// Asynchronously shuts down the listener by waiting for a shutdown signal from the provided receiver. 
+    /// It then waits for all active tasks to complete, terminates the drainer, and records the cleanup time.
     pub(crate) async fn shutdown_listener(&self, mut rx: mpsc::Receiver<()>) {
         while let Some(_c) = rx.recv().await {
             logger::info!("Awaiting shutdown!");
@@ -110,6 +125,7 @@ impl Handler {
         )
     }
 
+        /// Spawns error handlers to monitor and handle errors related to the Redis connection.
     pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
         let (redis_error_tx, redis_error_rx) = oneshot::channel();
 
@@ -125,6 +141,7 @@ impl Handler {
     }
 }
 
+/// Asynchronously listens for errors from a Redis server through a oneshot::Receiver and sends a shutdown signal through a mpsc::Sender if an error is received.
 pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: mpsc::Sender<()>) {
     match rx.await {
         Ok(_) => {
@@ -140,6 +157,7 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
 }
 
 #[router_env::instrument(skip_all)]
+/// Handles the draining process for a specific stream by incrementing the active task count, initiating the drainer process, and then updating the stream availability flag once the drainer process is complete. If an error occurs during the drainer process or updating the stream availability flag, it is logged and returned as a `DrainerResult`.
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
@@ -174,6 +192,7 @@ async fn drainer_handler(
 }
 
 #[instrument(skip_all, fields(global_id, request_id, session_id))]
+/// Asynchronously reads and processes entries from a given stream in the store, while handling various error cases and performing necessary operations such as trimming the stream and recording metrics. Returns a DrainerResult indicating success or failure.
 async fn drainer(
     store: Arc<Store>,
     max_read_count: u64,

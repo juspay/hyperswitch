@@ -15,6 +15,11 @@ pub(super) trait HeaderExt {
 }
 
 impl HeaderExt for Headers {
+        /// Constructs a reqwest HeaderMap from the key-value pairs in the current hashmap.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the constructed HeaderMap or an ApiClientError if the construction fails.
     fn construct_header_map(
         self,
     ) -> CustomResult<reqwest::header::HeaderMap, errors::ApiClientError> {
@@ -43,6 +48,7 @@ pub(super) trait RequestBuilderExt {
 
 impl RequestBuilderExt for reqwest::RequestBuilder {
     #[instrument(skip_all)]
+        /// Adds the provided headers to the request and returns the modified request.
     fn add_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
         self = self.headers(headers);
         self

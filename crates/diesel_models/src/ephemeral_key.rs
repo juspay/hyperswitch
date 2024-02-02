@@ -16,6 +16,7 @@ pub struct EphemeralKey {
 }
 
 impl common_utils::events::ApiEventMetric for EphemeralKey {
+        /// Returns the API event type as an Option, where Some returns the type `ApiEventsType::Miscellaneous`.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

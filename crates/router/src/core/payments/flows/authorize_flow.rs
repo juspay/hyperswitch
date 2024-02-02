@@ -24,6 +24,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::Authorize>
 {
+        /// Asynchronously constructs router data for payment authorization using the given state, connector ID, merchant account, key store, customer, and merchant connector account. Returns a RouterResult containing the constructed router data for payment authorization.
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -56,6 +57,7 @@ impl
 }
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+        /// Asynchronously decides the flows for payment processing based on various conditions including the payment method, authentication type, and mandate details.
     async fn decide_flows<'a>(
         mut self,
         state: &AppState,
@@ -149,6 +151,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         }
     }
 
+        /// Asynchronously adds an access token to a merchant account using the provided state, connector data, and merchant account. Returns a RouterResult containing the result of adding the access token.
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -158,6 +161,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+        /// Asynchronously adds a payment method token using the provided connector data and tokenization action.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The state of the application
+    /// * `connector` - The connector data for the payment method
+    /// * `tokenization_action` - The tokenization action to be performed
+    /// 
+    /// # Returns
+    /// 
+    /// An optional string representing the result of adding the payment method token
+    /// 
     async fn add_payment_method_token<'a>(
         &mut self,
         state: &AppState,
@@ -175,6 +190,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+        /// This method performs preprocessing steps by authorizing the current state, the current object, and the given connector data. It then awaits the authorization result and returns the modified state.
     async fn preprocessing_steps<'a>(
         self,
         state: &AppState,
@@ -183,6 +199,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
+        /// Asynchronously creates a connector customer using the provided `AppState` and `ConnectorData`.
+    /// Returns a `RouterResult` containing an optional `String` representing the created customer.
     async fn create_connector_customer<'a>(
         &self,
         state: &AppState,
@@ -197,6 +215,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+        /// Asynchronously builds a specific connector request for the flow, based on the provided state, connector data, and the call connector action. 
+    /// This method executes pre-tasks for the connector integration, adds metrics for execution of pre-tasks, and logs the completion of pre-tasks. 
+    /// It then decides the authentication type, builds the request using the connector integration, and returns the result along with a boolean indicating whether the request was successfully built or not. 
+    /// If the call connector action is not trigger, it returns None and true.
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,
@@ -251,6 +273,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 }
 
 impl types::PaymentsAuthorizeRouterData {
+        /// Determines the authentication type based on the current auth_type and request.enrolled_for_3ds.
     fn decide_authentication_type(&mut self) {
         if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
@@ -271,27 +294,34 @@ impl types::PaymentsAuthorizeRouterData {
 }
 
 impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
+        /// Retrieves the amount stored in the object.
     fn get_amount(&self) -> i64 {
         self.amount
     }
+        /// This method returns an optional reference to the MandateIds associated with the current object.
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
+        /// This method returns a cloned instance of the payment method data associated with the current object.
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
+        /// Returns the setup future usage of the current instance, if it exists.
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
-        self.setup_future_usage
-    }
+            self.setup_future_usage
+        }
+        /// This method retrieves the setup mandate details, if available.
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
+        /// Sets the mandate ID for the payment.
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
 }
 
+/// Asynchronously authorizes preprocessing steps for payments based on the given parameters. If the confirm flag is true, the method retrieves the connector integration and executes the preprocessing step, updating the metrics accordingly. It then converts the response data into the appropriate router data type and returns it. If the confirm flag is false, it simply returns the input router data. 
 pub async fn authorize_preprocessing_steps<F: Clone>(
     state: &AppState,
     router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -368,6 +398,8 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Tries to create a new instance of the current struct from the provided RouterData.
+    /// If successful, returns the new instance with the specified fields populated with the data from the RouterData.
     fn try_from(
         data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -385,6 +417,15 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
 impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create an instance of the current struct from the provided `PaymentsAuthorizeData`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `data` - The `PaymentsAuthorizeData` used to create the instance.
+    /// 
+    /// # Returns
+    /// 
+    /// If successful, returns `Ok` with the newly created instance. If an error occurs, returns `Err` with the specific error.
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
@@ -398,6 +439,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
 impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a new instance of the current struct from the provided PaymentsAuthorizeData.
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
@@ -422,6 +464,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
 impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a new instance of the struct from the provided CompleteAuthorizeData.
     fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,

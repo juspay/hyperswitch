@@ -89,6 +89,7 @@ pub enum PaymentRoutingInfoSerde {
 }
 
 impl From<PaymentRoutingInfoSerde> for PaymentRoutingInfo {
+        /// Converts a PaymentRoutingInfoSerde enum into a PaymentRoutingInfo struct.
     fn from(value: PaymentRoutingInfoSerde) -> Self {
         match value {
             PaymentRoutingInfoSerde::OnlyAlgorithm(algo) => Self {
@@ -104,6 +105,7 @@ impl From<PaymentRoutingInfoSerde> for PaymentRoutingInfo {
 }
 
 impl From<PaymentRoutingInfo> for PaymentRoutingInfoSerde {
+        /// Converts a PaymentRoutingInfo struct into a Self enum variant. 
     fn from(value: PaymentRoutingInfo) -> Self {
         Self::WithDetails(Box::new(PaymentRoutingInfoInner {
             algorithm: value.algorithm,

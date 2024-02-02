@@ -11,6 +11,13 @@ use crate::{
 
 impl ApiKeyNew {
     #[instrument(skip(conn))]
+        /// Inserts a new record into the database using the provided database connection.
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled database connection
+    /// 
+    /// # Returns
+    /// The inserted `ApiKey` record wrapped in a `StorageResult`
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ApiKey> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +25,10 @@ impl ApiKeyNew {
 
 impl ApiKey {
     #[instrument(skip(conn))]
+        /// Updates an API key identified by the merchant ID and key ID with the provided new data.
+    /// If the API key with the given key ID does not exist, an error is returned. If there are no
+    /// fields to update, the existing API key is returned. Otherwise, the API key is updated with
+    /// the new data and the updated API key is returned.
     pub async fn update_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: String,
@@ -58,6 +69,7 @@ impl ApiKey {
     }
 
     #[instrument(skip(conn))]
+        /// Revokes a key by its associated merchant ID and key ID from the database.
     pub async fn revoke_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -73,6 +85,9 @@ impl ApiKey {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds an optional record by the given merchant ID and key ID in the database. 
+    /// If a record matching the provided merchant ID and key ID is found, it returns Some(record), 
+    /// otherwise it returns None.
     pub async fn find_optional_by_merchant_id_key_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -88,6 +103,7 @@ impl ApiKey {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds an optional instance of a struct by the given hashed API key in the database.
     pub async fn find_optional_by_hashed_api_key(
         conn: &PgPooledConn,
         hashed_api_key: HashedApiKey,
@@ -100,6 +116,18 @@ impl ApiKey {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a list of items by their merchant ID in the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - The database connection
+    /// * `merchant_id` - The ID of the merchant
+    /// * `limit` - Optional limit for the number of items to retrieve
+    /// * `offset` - Optional offset for the items to retrieve
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing a vector of items found in the database
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,

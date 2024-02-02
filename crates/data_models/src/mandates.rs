@@ -77,6 +77,7 @@ pub struct OnlineMandate {
 }
 
 impl From<MandateType> for MandateDataType {
+    /// Converts a MandateType enum variant into its corresponding Self enum variant.
     fn from(mandate_type: MandateType) -> Self {
         match mandate_type {
             MandateType::SingleUse(mandate_amount_data) => {
@@ -90,6 +91,7 @@ impl From<MandateType> for MandateDataType {
 }
 
 impl From<ApiMandateAmountData> for MandateAmountData {
+        /// Converts an instance of `ApiMandateAmountData` into `Self`.
     fn from(value: ApiMandateAmountData) -> Self {
         Self {
             amount: value.amount,
@@ -102,6 +104,7 @@ impl From<ApiMandateAmountData> for MandateAmountData {
 }
 
 impl From<ApiMandateData> for MandateData {
+        /// Creates a new instance of Self from the provided ApiMandateData.
     fn from(value: ApiMandateData) -> Self {
         Self {
             customer_acceptance: value.customer_acceptance.map(|d| d.into()),
@@ -112,6 +115,7 @@ impl From<ApiMandateData> for MandateData {
 }
 
 impl From<ApiCustomerAcceptance> for CustomerAcceptance {
+        /// Converts an `ApiCustomerAcceptance` into an instance of `Self` by extracting and converting the acceptance type, accepted at timestamp, and online status from the provided value.
     fn from(value: ApiCustomerAcceptance) -> Self {
         Self {
             acceptance_type: value.acceptance_type.into(),
@@ -122,6 +126,7 @@ impl From<ApiCustomerAcceptance> for CustomerAcceptance {
 }
 
 impl From<ApiAcceptanceType> for AcceptanceType {
+        /// Converts an ApiAcceptanceType enum value into an instance of Self enum.
     fn from(value: ApiAcceptanceType) -> Self {
         match value {
             ApiAcceptanceType::Online => Self::Online,
@@ -131,6 +136,8 @@ impl From<ApiAcceptanceType> for AcceptanceType {
 }
 
 impl From<ApiOnlineMandate> for OnlineMandate {
+        /// Converts an instance of ApiOnlineMandate into a new instance of Self,
+    /// extracting the IP address and user agent from the provided value.
     fn from(value: ApiOnlineMandate) -> Self {
         Self {
             ip_address: value.ip_address,
@@ -140,16 +147,19 @@ impl From<ApiOnlineMandate> for OnlineMandate {
 }
 
 impl CustomerAcceptance {
+        /// Returns the IP address associated with the online data, if available.
     pub fn get_ip_address(&self) -> Option<String> {
         self.online
             .as_ref()
             .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
     }
 
+        /// Returns the user agent of the online data, if available.
     pub fn get_user_agent(&self) -> Option<String> {
         self.online.as_ref().map(|data| data.user_agent.clone())
     }
 
+        /// This method returns the accepted date and time, or the current date and time if it is not available.
     pub fn get_accepted_at(&self) -> PrimitiveDateTime {
         self.accepted_at
             .unwrap_or_else(common_utils::date_time::now)
@@ -157,6 +167,7 @@ impl CustomerAcceptance {
 }
 
 impl MandateAmountData {
+        /// This method takes a date format as input and attempts to format the end date of the object using the provided format. It returns a Result containing an Option of the formatted date as a string, or a ParsingError if there was an issue parsing the date.
     pub fn get_end_date(
         &self,
         format: date_time::DateFormat,
@@ -169,6 +180,7 @@ impl MandateAmountData {
             })
             .transpose()
     }
+    /// Returns the metadata associated with the object, if any.
     pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone()
     }

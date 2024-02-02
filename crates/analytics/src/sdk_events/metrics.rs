@@ -70,6 +70,9 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads the metrics based on the specified dimensions, publishable key, filters, granularity,
+    /// time range, and database pool. The method dynamically dispatches the load_metrics function based on the
+    /// enum variant and awaits the result.
     async fn load_metrics(
         &self,
         dimensions: &[SdkEventDimensions],

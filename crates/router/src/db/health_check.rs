@@ -17,6 +17,7 @@ pub trait HealthCheckDbInterface {
 
 #[async_trait::async_trait]
 impl HealthCheckDbInterface for Store {
+        /// Asynchronously checks the health of the database by performing read, write, and delete operations. Returns a CustomResult indicating success or a HealthCheckDBError if any of the operations fail.
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         let conn = connection::pg_connection_write(self)
             .await
@@ -62,6 +63,7 @@ impl HealthCheckDbInterface for Store {
 
 #[async_trait::async_trait]
 impl HealthCheckDbInterface for MockDb {
+        /// Asynchronously checks the health of the database and returns a CustomResult indicating success or a HealthCheckDBError if there is an issue.
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         Ok(())
     }

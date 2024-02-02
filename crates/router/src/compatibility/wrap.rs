@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
+/// This method is a wrapper for compatibility with the API. It takes various parameters such as flow, state, request, payload, func, api_authentication, and lock_action to perform a series of operations including recording request time metrics, handling different types of application responses, and logging and returning error responses. It returns an HTTP response based on the result of the operations.
 pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
     state: Arc<A>,

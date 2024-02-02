@@ -381,6 +381,7 @@ pub enum StripeErrorCode {
 }
 
 impl ::core::fmt::Display for StripeErrorCode {
+        /// Formats the error response as a JSON string and writes it to the provided formatter.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -402,6 +403,7 @@ pub enum StripeErrorType {
 }
 
 impl From<errors::ApiErrorResponse> for StripeErrorCode {
+        /// Converts an errors::ApiErrorResponse into a corresponding instance of the current enum type. This method matches the given error response to the appropriate variant of the current enum and returns an instance of the enum with the matched variant.
     fn from(value: errors::ApiErrorResponse) -> Self {
         match value {
             errors::ApiErrorResponse::Unauthorized
@@ -605,9 +607,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
 }
 
 impl actix_web::ResponseError for StripeErrorCode {
+        /// This method returns the corresponding HTTP status code for the error variant.
     fn status_code(&self) -> reqwest::StatusCode {
         use reqwest::StatusCode;
-
+    
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
@@ -684,6 +687,7 @@ impl actix_web::ResponseError for StripeErrorCode {
         }
     }
 
+        /// This method constructs an HTTP response with the status code and content type set, and the body containing the string representation of the current object.
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::http::header;
 
@@ -694,6 +698,7 @@ impl actix_web::ResponseError for StripeErrorCode {
 }
 
 impl From<serde_qs::Error> for StripeErrorCode {
+        /// Converts a serde_qs::Error into a custom enum variant.
     fn from(item: serde_qs::Error) -> Self {
         match item {
             serde_qs::Error::Custom(s) => Self::SerdeQsError {
@@ -731,6 +736,7 @@ impl From<serde_qs::Error> for StripeErrorCode {
 }
 
 impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+        /// Clones the current instance and converts it into a `StripeErrorCode`.
     fn switch(&self) -> StripeErrorCode {
         self.clone().into()
     }
@@ -739,6 +745,7 @@ impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
 impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
 
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
+        /// This method maps the current enum variant to the corresponding StripeErrorCode variant.
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;
         match self {

@@ -44,26 +44,31 @@ use crate::{
 pub type BoxedOperation<'a, F, T, Ctx> = Box<dyn Operation<F, T, Ctx> + Send + Sync + 'a>;
 
 pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::Debug {
+        /// This method attempts to retrieve a reference to an object that implements the ValidateRequest trait for the specified types F, T, and Ctx. If the object is found, it returns a RouterResult containing a reference to the object. If the object is not found, it returns an error with an internal server error response, along with a printable message indicating that the validate request interface was not found for the specified types.
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
     }
+        /// This method returns a reference to a `GetTracker` trait object that is both `Send` and `Sync`. It returns an `InternalServerError` ApiErrorResponse if the tracker interface is not found for the specified parameters.
     fn to_get_tracker(
         &self,
     ) -> RouterResult<&(dyn GetTracker<F, PaymentData<F>, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
+        /// This method attempts to convert the current object into a reference to a trait object representing a domain, and returns a `RouterResult` containing the result. If successful, it will return a reference to the domain. If not, it will return an `ApiErrorResponse::InternalServerError` error with a printable message indicating that the domain interface could not be found for the current object.
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, T, Ctx>> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
     }
+        /// This method returns an error result with an internal server error response if the update tracker interface is not found for the given context.
     fn to_update_tracker(
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<F, PaymentData<F>, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
+        /// Retrieves the post update tracker for the current instance.
     fn to_post_update_tracker(
         &self,
     ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)> {
@@ -138,6 +143,19 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         Option<api::PaymentMethodData>,
     )>;
 
+        /// Adds a task to the process tracker for handling payment attempts. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_db` - The reference to the application state.
+    /// * `_payment_attempt` - The reference to the payment attempt that needs to be added to the process tracker.
+    /// * `_requeue` - A boolean indicating whether to requeue the task or not.
+    /// * `_schedule_time` - An optional primitive date time for scheduling the task.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `CustomResult<(), errors::ApiErrorResponse>` indicating the result of the operation.
+    /// 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _db: &'a AppState,
@@ -157,6 +175,18 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
+        /// Asynchronously populates the payment data for a given merchant account.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state
+    /// * `payment_data` - Mutable reference to the payment data to be populated
+    /// * `merchant_account` - The merchant account for which the payment data is being populated
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` indicating the success or failure of the operation, with an optional `ApiErrorResponse` in case of failure.
+    ///
     async fn populate_payment_data<'a>(
         &'a self,
         _state: &AppState,
@@ -209,6 +239,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves existing customer details from the database based on the provided payment data, or creates new customer details if none are found. If a request for customer details is provided, it will be ignored. Returns a tuple containing a boxed operation and an optional customer object, or a storage error if the operation fails.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -235,6 +266,7 @@ where
         ))
     }
 
+        /// Asynchronously retrieves a connector choice based on the provided merchant account, application state, payment retrieval request, payment intent, and merchant key store.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -247,6 +279,7 @@ where
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer information.
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -279,6 +312,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// This method either retrieves customer details from the database or creates new customer details if they do not exist. It takes a storage interface, mutable payment data, an optional customer details request, and a merchant key store as input parameters. It returns a custom result containing a boxed operation and an optional customer, or a storage error if the operation fails.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -305,6 +339,7 @@ where
         ))
     }
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer. Returns a tuple containing a boxed operation and an optional payment method data.
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
@@ -319,6 +354,7 @@ where
         Ok((Box::new(self), None))
     }
 
+        /// Asynchronously retrieves a connector choice based on the given merchant account, application state, payments capture request, payment intent, and merchant key store. Returns a Result containing the selected connector choice or an API error response.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -341,6 +377,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// Asynchronously gets or creates customer details from the database using the provided payment data, request, and merchant key store. Returns a tuple containing a boxed operation and an optional customer.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -368,6 +405,8 @@ where
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data for a given state, payment data, storage scheme, merchant key store, and customer. 
+    /// Returns a tuple containing a boxed operation and an optional payment method data.
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
@@ -382,6 +421,7 @@ where
         Ok((Box::new(self), None))
     }
 
+        /// Asynchronously retrieves a connector choice based on the provided merchant account, application state, request, payment intent, and merchant key store.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -404,6 +444,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves or creates customer details from the database using the provided payment data, request, and merchant key store. Returns a custom result containing a boxed operation and an optional customer, or a storage error if the operation fails.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _db: &dyn StorageInterface,
@@ -421,6 +462,7 @@ where
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer. 
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
@@ -435,6 +477,20 @@ where
         Ok((Box::new(self), None))
     }
 
+        /// Asynchronously retrieves a connector choice for processing a payment rejection request
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_account` - The merchant account associated with the request
+    /// * `state` - The application state
+    /// * `_request` - The payment rejection request
+    /// * `_payment_intent` - The payment intent being rejected
+    /// * `_merchant_key_store` - The merchant key store
+    ///
+    /// # Returns
+    ///
+    /// A custom result containing the chosen connector or an API error response
+    ///
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,

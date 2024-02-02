@@ -102,6 +102,7 @@ pub struct CustomerDeleteResponse {
 }
 
 impl From<StripeAddressDetails> for payments::AddressDetails {
+        /// Creates a new instance of Self (presumably a StripeAddressDetails) from the given StripeAddressDetails. 
     fn from(address: StripeAddressDetails) -> Self {
         Self {
             city: address.city,
@@ -118,6 +119,12 @@ impl From<StripeAddressDetails> for payments::AddressDetails {
 }
 
 impl From<CreateCustomerRequest> for api::CustomerRequest {
+        /// Creates a new instance of a struct from the given CreateCustomerRequest. 
+    /// It generates a customer ID using the generate_customer_id method from the api_models::customers module,
+    /// and initializes the name, phone, email, description, metadata, and address fields with the values 
+    /// from the provided request. If the address field in the request is not None, it converts the value 
+    /// to the appropriate type and assigns it to the address field of the new instance. 
+    /// Finally, it initializes any remaining fields with their default values.
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
             customer_id: api_models::customers::generate_customer_id(),
@@ -133,20 +140,24 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
 }
 
 impl From<CustomerUpdateRequest> for api::CustomerRequest {
-    fn from(req: CustomerUpdateRequest) -> Self {
-        Self {
-            name: req.name,
-            phone: req.phone,
-            email: req.email,
-            description: req.description,
-            metadata: req.metadata,
-            address: req.address.map(|s| s.into()),
-            ..Default::default()
+        /// Converts a CustomerUpdateRequest into a new instance of Self by taking the values of the request and
+        /// assigning them to the corresponding fields of the new instance. It also maps the address field of the
+        /// request using the provided closure, and initializes any unspecified fields with their default values.
+        fn from(req: CustomerUpdateRequest) -> Self {
+            Self {
+                name: req.name,
+                phone: req.phone,
+                email: req.email,
+                description: req.description,
+                metadata: req.metadata,
+                address: req.address.map(|s| s.into()),
+                ..Default::default()
+            }
         }
-    }
 }
 
 impl From<api::CustomerResponse> for CreateCustomerResponse {
+        /// Converts a CustomerResponse object into a Customer object, handling any necessary conversions and error logging.
     fn from(cust: api::CustomerResponse) -> Self {
         let cust = cust.into_inner();
         Self {
@@ -174,6 +185,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
 }
 
 impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
+        /// Creates a new instance of Self by converting the provided api::CustomerDeleteResponse.
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {
             id: cust.customer_id,
@@ -206,6 +218,15 @@ pub struct CardDetails {
 }
 
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
+        /// Converts an API CustomerPaymentMethodsListResponse into a Self instance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `item` - The CustomerPaymentMethodsListResponse to convert
+    /// 
+    /// # Returns
+    /// 
+    /// A new instance of Self with the object set to "list" and the data populated with the converted customer payment methods.
     fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
         let data = customer_payment_methods
@@ -220,6 +241,7 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
 }
 
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
+        /// Converts a `CustomerPaymentMethod` into a `Self` instance, where `Self` is the type of the implementing struct. It initializes the `id` field with the `payment_token` from the input item, sets the `object` field to "payment_method", converts the `card` field using the `From` trait if it is present, and assigns the `created` field with the value from the input item.
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
         Self {
             id: item.payment_token,
@@ -231,6 +253,7 @@ impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
 }
 
 impl From<api_types::CardDetailFromLocker> for CardDetails {
+        /// Constructs a new instance of the struct by converting a `CardDetailFromLocker` into `Self`.
     fn from(item: api_types::CardDetailFromLocker) -> Self {
         Self {
             country: item.issuer_country,

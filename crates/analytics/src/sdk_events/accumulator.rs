@@ -38,6 +38,7 @@ pub trait SdkEventMetricAccumulator {
 impl SdkEventMetricAccumulator for CountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
+        /// Adds the metrics count from the given SdkEventMetricRow to the count of the current instance.
     fn add_metrics_bucket(&mut self, metrics: &SdkEventMetricRow) {
         self.count = match (self.count, metrics.count) {
             (None, None) => None,
@@ -46,6 +47,8 @@ impl SdkEventMetricAccumulator for CountAccumulator {
         }
     }
     #[inline]
+        /// Consumes the result of a count operation and attempts to convert it into a u64,
+    /// returning the result as a `MetricOutput`.
     fn collect(self) -> Self::MetricOutput {
         self.count.and_then(|i| u64::try_from(i).ok())
     }
@@ -54,6 +57,7 @@ impl SdkEventMetricAccumulator for CountAccumulator {
 impl SdkEventMetricAccumulator for AverageAccumulator {
     type MetricOutput = Option<f64>;
 
+        /// Add the metrics from the given SdkEventMetricRow to the accumulator, updating the total and count.
     fn add_metrics_bucket(&mut self, metrics: &SdkEventMetricRow) {
         let total = metrics
             .total
@@ -72,6 +76,7 @@ impl SdkEventMetricAccumulator for AverageAccumulator {
         }
     }
 
+        /// Calculates the average value of the collected metrics.
     fn collect(self) -> Self::MetricOutput {
         if self.count == 0 {
             None
@@ -83,6 +88,7 @@ impl SdkEventMetricAccumulator for AverageAccumulator {
 
 impl SdkEventMetricsAccumulator {
     #[allow(dead_code)]
+    /// Collects the individual metrics and returns a `SdkEventMetricsBucketValue` containing the aggregated values.
     pub fn collect(self) -> SdkEventMetricsBucketValue {
         SdkEventMetricsBucketValue {
             payment_attempts: self.payment_attempts.collect(),

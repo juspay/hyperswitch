@@ -198,6 +198,7 @@ pub async fn refunds_update(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
+/// This method handles the HTTP request to list refunds. It extracts the necessary data from the request, such as the application state, HTTP request, and payload containing the refund list request. It then calls the server_wrap function to handle the flow, state, authentication, and locking action for the refunds list. Finally, it awaits the result of the server_wrap function and returns the HTTP response.
 pub async fn refunds_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -235,6 +236,7 @@ pub async fn refunds_list(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
+/// This method is used to handle the filtering of a list of refunds based on a specified time range. It takes in the Appstate, HttpRequest, and a JSON payload containing the time range. It then wraps the processing of the refund list filtering using the api::server_wrap function, passing in the necessary parameters such as the flow type, state, request, payload, and authentication type. It then awaits the result and returns an HttpResponse.
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
     req: HttpRequest,

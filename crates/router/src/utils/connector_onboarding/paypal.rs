@@ -14,6 +14,11 @@ use crate::{
     utils::verify_connector as verify_connector_utils,
 };
 
+/// Asynchronously generates an access token for the specified state. 
+/// This method retrieves the connector data for the Paypal connector from the application state, 
+/// gets the connector authentication information, and then uses it to retrieve an access token 
+/// for the Paypal connector. If successful, it returns the access token; otherwise, it returns 
+/// an internal server error response.
 pub async fn generate_access_token(state: AppState) -> RouterResult<types::AccessToken> {
     let connector = enums::Connector::Paypal;
     let boxed_connector = types::api::ConnectorData::convert_connector(
@@ -41,6 +46,7 @@ pub async fn generate_access_token(state: AppState) -> RouterResult<types::Acces
     .attach_printable("Error occurred while retrieving access token")
 }
 
+/// This function takes a URL, a request body, and an access token, and returns a RouterResult containing a POST request to be sent to the specified URL. The request is constructed with the given URL, body, and access token, as well as default headers, authorization header with the access token, and a content type header set to "application/json".
 pub fn build_paypal_post_request<T>(
     url: String,
     body: T,
@@ -65,6 +71,8 @@ where
         .build())
 }
 
+/// Constructs a GET request for the given URL with the provided access token for authorization,
+/// and returns a RouterResult containing the constructed Request.
 pub fn build_paypal_get_request(url: String, access_token: String) -> RouterResult<Request> {
     Ok(RequestBuilder::new()
         .method(Method::Get)

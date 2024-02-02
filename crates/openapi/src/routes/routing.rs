@@ -17,7 +17,10 @@
    operation_id = "Create a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_create_config() {}
+/// Asynchronously creates a routing configuration.
+pub async fn routing_create_config() {
+    // implementation goes here
+}
 
 /// Routing - Activate config
 ///
@@ -38,7 +41,10 @@ pub async fn routing_create_config() {}
    operation_id = "Activate a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_link_config() {}
+/// Asynchronously retrieves the routing link configuration. This method is responsible for fetching the routing link configuration data, typically from a database or an external service, and returning it to the caller. 
+pub async fn routing_link_config() {
+    // method implementation here
+}
 
 /// Routing - Retrieve
 ///
@@ -60,7 +66,10 @@ pub async fn routing_link_config() {}
    operation_id = "Retrieve a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_retrieve_config() {}
+/// Asynchronously retrieves the configuration for routing.
+pub async fn routing_retrieve_config() {
+    // method implementation goes here
+}
 
 /// Routing - List
 ///
@@ -82,6 +91,7 @@ pub async fn routing_retrieve_config() {}
    operation_id = "List routing configs",
    security(("api_key" = []), ("jwt_key" = []))
 )]
+/// Asynchronously retrieves a list of routing configurations.
 pub async fn list_routing_configs() {}
 
 /// Routing - Deactivate
@@ -102,6 +112,7 @@ pub async fn list_routing_configs() {}
    operation_id = "Deactivate a routing config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
+/// Asynchronously handles the routing for unlinking a configuration. This method is responsible for processing the request to unlink a configuration and updating the appropriate data in the system.
 pub async fn routing_unlink_config() {}
 
 /// Routing - Update Default Config
@@ -121,7 +132,10 @@ pub async fn routing_unlink_config() {}
    operation_id = "Update default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_update_default_config() {}
+/// Asynchronously updates the default configuration for routing.
+pub async fn routing_update_default_config() {
+    // method implementation goes here
+}
 
 /// Routing - Retrieve Default Config
 ///
@@ -137,7 +151,10 @@ pub async fn routing_update_default_config() {}
    operation_id = "Retrieve default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_retrieve_default_config() {}
+/// Asynchronously retrieves the default configuration for routing.
+pub async fn routing_retrieve_default_config() {
+    // method implementation goes here
+}
 
 /// Routing - Retrieve Config
 ///
@@ -158,7 +175,10 @@ pub async fn routing_retrieve_default_config() {}
    operation_id = "Retrieve active config",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_retrieve_linked_config() {}
+/// Asynchronously retrieves the linked configuration for routing.
+pub async fn routing_retrieve_linked_config() {
+    // method implementation here
+}
 
 /// Routing - Retrieve Default For Profile
 ///
@@ -175,7 +195,10 @@ pub async fn routing_retrieve_linked_config() {}
    operation_id = "Retrieve default configs for all profiles",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_retrieve_default_config_for_profiles() {}
+/// Asynchronously retrieves the default configuration for profiles to determine the routing.
+pub async fn routing_retrieve_default_config_for_profiles() {
+    // method implementation here
+}
 
 /// Routing - Update Default For Profile
 ///
@@ -199,4 +222,7 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
    operation_id = "Update default configs for all profiles",
    security(("api_key" = []), ("jwt_key" = []))
 )]
-pub async fn routing_update_default_config_for_profile() {}
+/// Asynchronously updates the default configuration for a profile's routing.
+pub async fn routing_update_default_config_for_profile() {
+    // method implementation goes here
+}

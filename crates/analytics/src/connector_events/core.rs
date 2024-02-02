@@ -5,6 +5,7 @@ use error_stack::{IntoReport, ResultExt};
 use super::events::{get_connector_events, ConnectorEventsResult};
 use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
+/// This method is responsible for fetching connector events data based on the provided request and merchant ID using the specified AnalyticsProvider pool. 
 pub async fn connector_events_core(
     pool: &AnalyticsProvider,
     req: ConnectorEventsRequest,

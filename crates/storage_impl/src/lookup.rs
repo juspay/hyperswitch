@@ -33,6 +33,17 @@ pub trait ReverseLookupInterface {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
+    /// Asynchronously inserts a new reverse lookup entry into the database according to the specified storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `new` - The new reverse lookup entry to be inserted.
+    /// * `_storage_scheme` - The storage scheme used for the merchant.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the inserted `DieselReverseLookup` or a `StorageError` if an error occurs.
+    ///
     async fn insert_reverse_lookup(
         &self,
         new: DieselReverseLookupNew,
@@ -50,6 +61,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         })
     }
 
+    /// Asynchronously retrieves a lookup by its ID from the database using the specified storage scheme.
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,
@@ -67,6 +79,10 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
+    /// Inserts a new reverse lookup entry into the storage based on the given storage scheme.
+    /// If the storage scheme is PostgresOnly, the new entry is inserted into the router store.
+    /// If the storage scheme is RedisKv, the new entry is created and inserted into the Redis database.
+    /// Returns the newly created reverse lookup entry or an error if the operation fails.
     async fn insert_reverse_lookup(
         &self,
         new: DieselReverseLookupNew,
@@ -113,6 +129,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
         }
     }
 
+    /// Asynchronously retrieves a lookup by its ID from the specified storage scheme. If the storage scheme is PostgresOnly, the method makes a database call to get the lookup. If the storage scheme is RedisKv, the method first attempts to retrieve the lookup from Redis, and if not found, falls back to the database call.
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,

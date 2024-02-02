@@ -24,6 +24,8 @@ use crate::{
     },
 };
 
+/// Asynchronously handles the update merchant request by wrapping the call to recon_merchant_account_update
+/// within the server_wrap function, and returning the HttpResponse.
 pub async fn update_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -42,6 +44,7 @@ pub async fn update_merchant(
     .await
 }
 
+/// Handles a request for reconnaissance by wrapping the request in a server process and awaiting the response.
 pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
     let flow = Flow::ReconServiceRequest;
     Box::pin(api::server_wrap(
@@ -56,6 +59,11 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
     .await
 }
 
+/// Asynchronously handles a request to retrieve a reconnaissance token. This method
+/// takes the application state and the HTTP request as input, and returns an HTTP
+/// response. It creates a ReconTokenRequest flow, then uses a server wrap function
+/// to generate a reconnaissance token for the given user using the app state and
+/// request data. The generated token is then returned in the HTTP response.
 pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ReconTokenRequest;
     Box::pin(api::server_wrap(
@@ -70,6 +78,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
     .await
 }
 
+/// Asynchronously sends a reconciliation request for the given user's merchant account. It first retrieves the user's information from the database, including the associated merchant ID and key store. Then it composes and sends an email for a pro feature request related to reconciliation and settlement. If the email is successfully sent, it updates the merchant account's reconciliation status to "Requested" and returns the updated status. If the email fails to send, it returns a response with the reconciliation status as "NotRequested".
 pub async fn send_recon_request(
     state: AppState,
     user: UserFromToken,
@@ -150,6 +159,9 @@ pub async fn send_recon_request(
     }
 }
 
+/// Handles the update of a merchant account's recon status. Retrieves the merchant's key store
+/// and account from the database, updates the recon status, sends an email notification if the
+/// recon status is set to Active, and returns the updated merchant account response.
 pub async fn recon_merchant_account_update(
     state: AppState,
     req: recon_api::ReconUpdateMerchantRequest,
@@ -217,6 +229,7 @@ pub async fn recon_merchant_account_update(
     ))
 }
 
+/// This method is used to generate a recon token for a given user using the provided state and request. It first retrieves the user from the database based on the user ID in the request. It then generates a recon authentication token for the user using the state. Finally, it returns the recon token as a JSON response.
 pub async fn generate_recon_token(
     state: AppState,
     req: ReconUser,
@@ -242,6 +255,7 @@ pub async fn generate_recon_token(
     ))
 }
 
+/// Asynchronously generates a recon authentication token for the given user using the provided application state configuration.
 pub async fn get_recon_auth_token(
     user: UserFromStorage,
     state: AppState,

@@ -71,6 +71,8 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Loads metrics based on the specified dimensions, merchant ID, filters, granularity, time range, and database pool. 
+    /// Returns a result containing a vector of tuples, where each tuple consists of a payment metrics bucket identifier and a payment metric row.
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],

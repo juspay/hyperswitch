@@ -20,6 +20,7 @@ pub trait PubSubInterface {
 #[async_trait::async_trait]
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
+        /// Asynchronously subscribes to the specified channel and automatically re-subscribes to any channels or channel patterns used by the client. Returns a Result indicating success or a RedisError if there is an issue with the subscription process.
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
         // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
         self.subscriber.manage_subscriptions();
@@ -32,6 +33,17 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 
     #[inline]
+        /// Asynchronously publishes a message to a specified channel using the given key, and returns the number of subscribers who received the message.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel` - A reference to a string representing the channel to publish the message to.
+    /// * `key` - The cache key to be used for publishing the message.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the number of subscribers who received the message, or a `RedisError` if an error occurs during the publishing process.
+    ///
     async fn publish<'a>(
         &self,
         channel: &str,
@@ -45,6 +57,8 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 
     #[inline]
+        /// Asynchronously listens for messages on a Redis subscriber channel and invalidates cache keys based on the received messages. 
+    /// Returns a Result indicating success or an error of type `redis_errors::RedisError`.
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
         logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();

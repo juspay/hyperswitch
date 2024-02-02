@@ -13,6 +13,7 @@ use tokio::sync::oneshot;
 use uuid::Uuid;
 
 #[test]
+/// Retrieves a list of connectors, converts it to JSON, and then converts it back to a ConnectorsList object and prints it to the console.
 fn connector_list() {
     let connector_list = router::types::ConnectorsList {
         connectors: vec![String::from("stripe"), "adyen".to_string()],
@@ -31,6 +32,7 @@ fn connector_list() {
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
+/// Asynchronously creates a payment request and triggers the payment core process using the provided data. This method initializes the necessary state, retrieves merchant and key store information, constructs a payment request, and compares the expected response with the actual response, asserting that they are equal.
 async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
@@ -213,6 +215,7 @@ async fn payments_create_core() {
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
+/// This method creates a payment request using the Adyen payment gateway without redirecting the user to the payment page. It sets up the necessary data for the payment request, including customer and merchant IDs, payment ID, key store, merchant account, payment details, and expected response. It then calls the payments_core method to process the payment request and asserts that the actual response matches the expected response.
 async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");

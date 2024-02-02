@@ -37,6 +37,8 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+                /// Asynchronously inserts a new reverse lookup entry into the database based on the provided ReverseLookupNew struct and storage scheme. 
+        /// Returns a CustomResult containing the newly inserted ReverseLookup if successful, or a StorageError if an error occurs.
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -46,6 +48,17 @@ mod storage {
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
+                /// Asynchronously retrieves a reverse lookup by its ID using the specified storage scheme.
+        /// 
+        /// # Arguments
+        ///
+        /// * `id` - A reference to a string representing the ID of the reverse lookup.
+        /// * `_storage_scheme` - An enum representing the storage scheme to be used for the lookup.
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the retrieved `ReverseLookup` or a `StorageError` if an error occurs.
+        ///
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -80,6 +93,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
+                /// Asynchronously inserts a new reverse lookup entry into the database based on the provided storage scheme. If the storage scheme is PostgresOnly, it inserts the new entry into the Postgres database. If the storage scheme is RedisKv, it creates a new ReverseLookup object and inserts it into the Redis key-value store. Returns a CustomResult containing the inserted ReverseLookup on success, or a StorageError on failure.
         async fn insert_reverse_lookup(
             &self,
             new: ReverseLookupNew,
@@ -125,6 +139,7 @@ mod storage {
             }
         }
 
+                /// Asynchronously retrieves a lookup by its ID using the specified storage scheme. If the storage scheme is PostgresOnly, the method performs a database call to retrieve the lookup. If the storage scheme is RedisKv, the method first attempts to retrieve the lookup from a Redis key-value store, and if that fails, it falls back to a database call. Returns a Result containing the retrieved ReverseLookup or a StorageError if an error occurs during the retrieval process.
         async fn get_lookup_by_lookup_id(
             &self,
             id: &str,
@@ -164,19 +179,41 @@ mod storage {
 
 #[async_trait::async_trait]
 impl ReverseLookupInterface for MockDb {
-    async fn insert_reverse_lookup(
-        &self,
-        new: ReverseLookupNew,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let reverse_lookup_insert = ReverseLookup::from(new);
-        self.reverse_lookups
-            .lock()
-            .await
-            .push(reverse_lookup_insert.clone());
-        Ok(reverse_lookup_insert)
-    }
+        /// Inserts a new reverse lookup entry into the storage, based on the provided reverse lookup new data
+        ///
+        /// # Arguments
+        ///
+        /// * `new` - The new reverse lookup data to be inserted
+        /// * `_storage_scheme` - The storage scheme used for the merchant
+        ///
+        /// # Returns
+        ///
+        /// The inserted reverse lookup entry if successful, otherwise a StorageError is returned
+        ///
+        async fn insert_reverse_lookup(
+            &self,
+            new: ReverseLookupNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<ReverseLookup, errors::StorageError> {
+            let reverse_lookup_insert = ReverseLookup::from(new);
+            self.reverse_lookups
+                .lock()
+                .await
+                .push(reverse_lookup_insert.clone());
+            Ok(reverse_lookup_insert)
+        }
 
+        /// Asynchronously retrieves a reverse lookup by its lookup ID from the storage based on the specified merchant storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `lookup_id` - A string reference representing the lookup ID of the reverse lookup to retrieve.
+    /// * `_storage_scheme` - An enum value specifying the storage scheme used by the merchant.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the retrieved `ReverseLookup` if found, or a `StorageError` if the lookup is not found.
+    ///
     async fn get_lookup_by_lookup_id(
         &self,
         lookup_id: &str,

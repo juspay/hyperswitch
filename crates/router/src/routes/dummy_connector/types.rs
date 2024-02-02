@@ -42,6 +42,7 @@ pub enum DummyConnectors {
 }
 
 impl DummyConnectors {
+        /// This method returns the link to the image associated with the connector type, using the provided base URL.
     pub fn get_connector_image_link(self, base_url: &str) -> String {
         let image_name = match self {
             Self::PhonyPay => "PHONYPAY.svg",
@@ -75,6 +76,7 @@ pub struct DummyConnectorPaymentAttempt {
 }
 
 impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
+        /// Creates a new instance of Self using the provided DummyConnectorPaymentRequest.
     fn from(payment_request: DummyConnectorPaymentRequest) -> Self {
         let timestamp = common_utils::date_time::now();
         let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
@@ -89,6 +91,17 @@ impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
 }
 
 impl DummyConnectorPaymentAttempt {
+        /// Builds a DummyConnectorPaymentData object using the provided status, next action, and return URL.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `status` - The status of the payment data
+    /// * `next_action` - The next action to be taken for the payment data
+    /// * `return_url` - The return URL for the payment data
+    /// 
+    /// # Returns
+    /// 
+    /// A DummyConnectorPaymentData object with the provided status, next action, and return URL, as well as other data from the current object.
     pub fn build_payment_data(
         self,
         status: DummyConnectorStatus,
@@ -145,6 +158,7 @@ pub enum DummyConnectorPaymentMethodType {
 }
 
 impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
+        /// Converts a value of type DummyConnectorPaymentMethodData into an instance of Self.
     fn from(value: DummyConnectorPaymentMethodData) -> Self {
         match value {
             DummyConnectorPaymentMethodData::Card(_) => Self::Card,
@@ -155,6 +169,7 @@ impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
 }
 
 impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
+        /// This method returns the name associated with the enum variant.
     fn get_name(&self) -> &'static str {
         match self {
             Self::Card => "3D Secure",
@@ -163,6 +178,7 @@ impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
         }
     }
 
+        /// This method takes a base URL and returns the image link based on the variant of the enum.
     fn get_image_link(&self, base_url: &str) -> String {
         match self {
             Self::Card => format!("{}{}", base_url, "CARD.svg"),
@@ -197,6 +213,7 @@ pub enum DummyConnectorWallet {
 }
 
 impl GetPaymentMethodDetails for DummyConnectorWallet {
+        /// Returns the name of the payment method as a string slice.
     fn get_name(&self) -> &'static str {
         match self {
             Self::GooglePay => "Google Pay",
@@ -207,6 +224,7 @@ impl GetPaymentMethodDetails for DummyConnectorWallet {
             Self::AliPayHK => "Alipay HK",
         }
     }
+        /// Given a base URL, this method returns the complete image link for the specific payment method.
     fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
             Self::GooglePay => "GOOGLE_PAY.svg",
@@ -228,6 +246,7 @@ pub enum DummyConnectorPayLater {
 }
 
 impl GetPaymentMethodDetails for DummyConnectorPayLater {
+        /// Returns the name of the payment service.
     fn get_name(&self) -> &'static str {
         match self {
             Self::Klarna => "Klarna",
@@ -235,6 +254,7 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
             Self::AfterPayClearPay => "Afterpay Clearpay",
         }
     }
+        /// This method takes a base URL as a string and returns the complete image link by appending the image name based on the type of payment method.
     fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
             Self::Klarna => "KLARNA.svg",
@@ -262,6 +282,8 @@ pub struct DummyConnectorPaymentData {
 }
 
 impl DummyConnectorPaymentData {
+        /// Checks if the given refund amount is eligible for the refund process. 
+    /// Returns an error if the refund amount exceeds the eligible amount or if the payment status is not successful.
     pub fn is_eligible_for_refund(&self, refund_amount: i64) -> DummyConnectorResult<()> {
         if self.eligible_amount < refund_amount {
             return Err(
@@ -296,6 +318,7 @@ pub struct DummyConnectorPaymentResponse {
 }
 
 impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
+        /// Converts a DummyConnectorPaymentData struct into a PaymentData struct by mapping its fields.
     fn from(value: DummyConnectorPaymentData) -> Self {
         Self {
             status: value.status,
@@ -348,6 +371,20 @@ pub struct DummyConnectorRefundResponse {
 }
 
 impl DummyConnectorRefundResponse {
+        /// Creates a new instance of DummyConnector with the provided parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `status` - The status of the connector
+    /// * `id` - The unique identifier of the connector
+    /// * `currency` - The currency used for the connector
+    /// * `created` - The date and time when the connector was created
+    /// * `payment_amount` - The amount of payment made through the connector
+    /// * `refund_amount` - The amount of refund made through the connector
+    ///
+    /// # Returns
+    ///
+    /// A new instance of DummyConnector with the provided parameters.
     pub fn new(
         status: DummyConnectorStatus,
         id: String,

@@ -53,12 +53,18 @@ pub enum EventsHandler {
 }
 
 impl Default for EventsHandler {
+        /// Creates and returns a default instance of the current struct, initializing the logs with an empty EventLogger.
     fn default() -> Self {
         Self::Logs(event_logger::EventLogger {})
     }
 }
 
 impl EventsConfig {
+        /// Asynchronously retrieves the event handler based on the storage type.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `StorageResult` with the `EventsHandler` corresponding to the storage type.
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
         Ok(match self {
             Self::Kafka { kafka } => EventsHandler::Kafka(
@@ -70,6 +76,15 @@ impl EventsConfig {
         })
     }
 
+        /// Validate the configuration for the application.
+    ///
+    /// This method will validate the configuration for the application, based on the type of configuration.
+    /// If the configuration is of type Kafka, it will call the validate method on the Kafka configuration.
+    /// If the configuration is of type Logs, it will return Ok(()).
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), ApplicationError>` - Ok(()) if the validation is successful, ApplicationError if there is an error.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         match self {
             Self::Kafka { kafka } => kafka.validate(),
@@ -79,6 +94,7 @@ impl EventsConfig {
 }
 
 impl EventsHandler {
+        /// Logs the given event using the appropriate logging mechanism based on the type of `self`.
     pub fn log_event(&self, event: RawEvent) {
         match self {
             Self::Kafka(kafka) => kafka.log_event(event),

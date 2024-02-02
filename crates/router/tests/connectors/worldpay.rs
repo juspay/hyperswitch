@@ -17,6 +17,7 @@ struct Worldpay;
 impl LocalMock for Worldpay {}
 impl ConnectorActions for Worldpay {}
 impl utils::Connector for Worldpay {
+        /// This method returns a data structure representing the connector information for Worldpay.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Worldpay;
         types::api::ConnectorData {
@@ -27,6 +28,7 @@ impl utils::Connector for Worldpay {
         }
     }
 
+        /// Retrieves the authentication token for the connector. 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -36,6 +38,7 @@ impl utils::Connector for Worldpay {
         )
     }
 
+        /// This method returns the name "worldpay" as a String.
     fn get_name(&self) -> String {
         "worldpay".to_string()
     }
@@ -43,6 +46,7 @@ impl utils::Connector for Worldpay {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously starts a server, connects to Worldpay, and authorizes a card payment.
 async fn should_authorize_card_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
@@ -56,6 +60,7 @@ async fn should_authorize_card_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously authorizes a Google Pay payment using Worldpay as the payment gateway.
 async fn should_authorize_gpay_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
@@ -91,6 +96,7 @@ async fn should_authorize_gpay_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously authorizes an Apple Pay payment using Worldpay as the payment gateway.
 async fn should_authorize_applepay_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
@@ -123,6 +129,7 @@ async fn should_authorize_applepay_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously performs the necessary steps to capture an already authorized payment using the Worldpay connector. It starts the server with mock configuration, authorizes the payment, retrieves the transaction ID, and then captures the payment using the transaction ID. Finally, it asserts that the payment was successfully captured.
 async fn should_capture_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -143,6 +150,7 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously checks if payment should be synchronized. 
 async fn should_sync_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -163,6 +171,8 @@ async fn should_sync_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously attempts to void a payment that has already been authorized. 
+/// 
 async fn should_void_already_authorized_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -183,6 +193,7 @@ async fn should_void_already_authorized_payment() {
 
 #[actix_web::test]
 #[serial]
+/// This method tests whether capturing a payment with an invalid transaction ID results in the expected error message and code. It starts a mock server, authorizes a payment, attempts to capture the payment with an invalid transaction ID, and then asserts that the correct error message and code are received.
 async fn should_fail_capture_for_invalid_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -202,6 +213,10 @@ async fn should_fail_capture_for_invalid_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously performs the following steps:
+/// 1. Starts a Worldpay server with the provided mock configuration.
+/// 2. Makes a successful payment using the Worldpay connector.
+/// 3. Attempts to refund the previous payment, and asserts that the refund status is 'Success'.
 async fn should_refund_succeeded_payment() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -222,6 +237,9 @@ async fn should_refund_succeeded_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously checks if a refund should be synchronized with the Worldpay server. 
+/// It initializes a Worldpay connector, starts a mock server, and then makes a synchronous refund request 
+/// with a given transaction ID. It asserts that the refund status response is successful.
 async fn should_sync_refund() {
     let connector = Worldpay {};
     let _mock = connector.start_server(get_mock_config()).await;
@@ -235,6 +253,7 @@ async fn should_sync_refund() {
     );
 }
 
+/// This method returns a MockConfig object containing mock data for various HTTP requests related to payment authorizations, settlements, refunds, and events. The mock data includes links, response codes, response bodies, and request bodies for different scenarios.
 fn get_mock_config() -> MockConfig {
     let authorized = json!({
         "outcome": "authorized",

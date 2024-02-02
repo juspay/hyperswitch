@@ -10,6 +10,16 @@ use crate::{
     utils::OptionExt,
 };
 
+/// Asynchronously parses the evidence type from a given field and returns a result containing the parsed evidence type or an API error response.
+///
+/// # Arguments
+///
+/// * `field` - A mutable reference to the Field object from which the evidence type will be parsed.
+///
+/// # Returns
+///
+/// A custom result containing either the parsed evidence type as Some(disputes::EvidenceType) or an API error response as errors::ApiErrorResponse.
+///
 pub async fn parse_evidence_type(
     field: &mut Field,
 ) -> CustomResult<Option<disputes::EvidenceType>, errors::ApiErrorResponse> {
@@ -25,6 +35,7 @@ pub async fn parse_evidence_type(
     }
 }
 
+/// This method takes a multipart payload as input and parses it to extract the necessary parameters for attaching evidence to a dispute. It extracts the file, dispute_id, and evidence_type from the payload, validates the file size and type, and creates a file request. Finally, it returns an AttachEvidenceRequest object containing the evidence type and the create file request.
 pub async fn get_attach_evidence_request(
     mut payload: Multipart,
 ) -> CustomResult<disputes::AttachEvidenceRequest, errors::ApiErrorResponse> {

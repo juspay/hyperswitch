@@ -33,6 +33,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, Ctx> for PaymentStart
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves the trackers for a given payment, including payment intent, payment attempt, currency, amount, shipping and billing addresses, customer details, business profile, and payment data. Performs various validation and authentication checks before constructing and returning the response containing all the necessary information.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -183,6 +184,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, Ctx> for PaymentStart
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the trackers with the given payment data, customer information, storage scheme, updated customer details, merchant key store, suggestion, and header payload. Returns a router result containing a boxed operation and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
@@ -208,6 +210,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     for PaymentStart
 {
     #[instrument(skip_all)]
+        /// Validates the given PaymentsStartRequest against the provided MerchantAccount.
+    /// Returns a tuple containing a BoxedOperation and a ValidateResult.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
@@ -248,6 +252,7 @@ where
     for<'a> &'a Op: Operation<F, api::PaymentsStartRequest, Ctx>,
 {
     #[instrument(skip_all)]
+        /// This method either retrieves an existing customer's details from the database or creates a new customer if they don't already exist. It takes a reference to a StorageInterface trait object, a mutable reference to PaymentData, an optional CustomerDetails object, and a reference to a MerchantKeyStore object. It returns a CustomResult containing a BoxedOperation and an optional Customer, or a StorageError if an error occurs during storage operations. The method utilizes the create_customer_if_not_exist helper function to perform the appropriate action and awaits the result before returning it.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -273,6 +278,7 @@ where
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the given payment data, state, storage scheme, merchant key store, and customer. If the payment attempt connector is "bluesnap", it delegates to the helpers module to create the payment method data. Otherwise, it returns a tuple containing a boxed operation and None.
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -304,6 +310,20 @@ where
         }
     }
 
+        /// Retrieves a connector choice for processing a payment start request. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_merchant_account` - The merchant account associated with the payment.
+    /// * `state` - The application state.
+    /// * `_request` - The payment start request.
+    /// * `_payment_intent` - The payment intent.
+    /// * `_mechant_key_store` - The merchant key store.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the chosen connector or an `ApiErrorResponse` if an error occurs.
+    /// 
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,

@@ -12,6 +12,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 ///
 /// Panics if failed to create a redis pool
 #[allow(clippy::expect_used)]
+/// Establishes a new Redis connection pool using the provided Redis settings.
 pub async fn redis_connection(
     redis: &redis_interface::RedisSettings,
 ) -> redis_interface::RedisConnectionPool {
@@ -20,6 +21,7 @@ pub async fn redis_connection(
         .expect("Failed to create Redis Connection Pool")
 }
 
+/// Asynchronously retrieves a connection from the database pool based on the enabled features.
 pub async fn pg_connection_read<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
@@ -47,6 +49,7 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
         .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }
 
+/// Asynchronously writes to the PostgreSQL database using the provided database store.
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<

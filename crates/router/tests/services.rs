@@ -6,6 +6,14 @@ mod utils;
 
 #[tokio::test]
 #[should_panic]
+/// Asynchronously performs the following steps:
+/// 1. Calls `utils::setup()` to set up the utility functions.
+/// 2. Creates a oneshot channel `tx` using `tokio::sync::oneshot::channel()`.
+/// 3. Initializes the application state `state` using `routes::AppState::new()` with default settings, `tx`, and a mock API client.
+/// 4. Retrieves the Redis connection from the application state and sets `is_redis_available` to `false` using `atomic::Ordering::SeqCst`.
+/// 5. Retrieves the Redis connection from the application state again.
+/// 
+/// This method does not have explicit assertions, but it could potentially lead to a panic based on the `#[should_panic]` attribute.
 async fn get_redis_conn_failure() {
     // Arrange
     utils::setup().await;
@@ -30,6 +38,9 @@ async fn get_redis_conn_failure() {
 }
 
 #[tokio::test]
+/// Asynchronously sets up the necessary utilities, creates a new application state,
+/// and then attempts to retrieve a Redis connection from the application state.
+/// Finally, it asserts that the result is a successful connection.
 async fn get_redis_conn_success() {
     // Arrange
     Box::pin(utils::setup()).await;

@@ -37,6 +37,9 @@ pub trait RefundMetricAccumulator {
 impl RefundMetricAccumulator for CountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
+        /// Adds the count from the given RefundMetricRow to the count of the current instance.
+    /// If either count is None, the resulting count will also be None.
+    /// If both counts are Some, they will be added together to get the resulting count.
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         self.count = match (self.count, metrics.count) {
             (None, None) => None,
@@ -45,6 +48,7 @@ impl RefundMetricAccumulator for CountAccumulator {
         }
     }
     #[inline]
+        /// Collects the result of the count operation and converts it to u64, returning the result if successful.
     fn collect(self) -> Self::MetricOutput {
         self.count.and_then(|i| u64::try_from(i).ok())
     }
@@ -53,6 +57,7 @@ impl RefundMetricAccumulator for CountAccumulator {
 impl RefundMetricAccumulator for SumAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
+        /// Adds the metrics from a RefundMetricRow to the total metrics of the current object.
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         self.total = match (
             self.total,
@@ -67,6 +72,8 @@ impl RefundMetricAccumulator for SumAccumulator {
         }
     }
     #[inline]
+        /// This method takes the current value stored in the `total` field, converts it to a u64 if possible,
+    /// and returns the result as a `MetricOutput`. If the conversion fails, it returns `None`.
     fn collect(self) -> Self::MetricOutput {
         self.total.and_then(|i| u64::try_from(i).ok())
     }
@@ -75,6 +82,7 @@ impl RefundMetricAccumulator for SumAccumulator {
 impl RefundMetricAccumulator for SuccessRateAccumulator {
     type MetricOutput = Option<f64>;
 
+        /// Adds the metrics from the provided RefundMetricRow to the current state of the struct.
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         if let Some(ref refund_status) = metrics.refund_status {
             if refund_status.as_ref() == &storage_enums::RefundStatus::Success {
@@ -84,6 +92,7 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
         self.total += metrics.count.unwrap_or_default();
     }
 
+        /// This method calculates the success rate as a percentage based on the number of successful attempts and the total number of attempts. If the total number of attempts is less than or equal to 0, it returns None. Otherwise, it returns the success rate as Some(f64). 
     fn collect(self) -> Self::MetricOutput {
         if self.total <= 0 {
             None
@@ -97,6 +106,8 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
 }
 
 impl RefundMetricsAccumulator {
+        /// Collects the metrics for refund success rate, refund count, refund success count, and processed amount
+    /// and returns a RefundMetricsBucketValue containing the collected values.
     pub fn collect(self) -> RefundMetricsBucketValue {
         RefundMetricsBucketValue {
             refund_success_rate: self.refund_success_rate.collect(),

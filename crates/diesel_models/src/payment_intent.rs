@@ -233,6 +233,8 @@ pub struct PaymentIntentUpdateInternal {
 }
 
 impl PaymentIntentUpdate {
+        /// Applies the changeset from the current PaymentIntent to the provided PaymentIntent,
+    /// overriding any non-null values in the source PaymentIntent with the values from the current PaymentIntent.
     pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
         let PaymentIntentUpdateInternal {
             amount,
@@ -293,7 +295,6 @@ impl PaymentIntentUpdate {
             payment_confirm_source: payment_confirm_source.or(source.payment_confirm_source),
             updated_by,
             surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
-
             incremental_authorization_allowed: incremental_authorization_allowed
                 .or(source.incremental_authorization_allowed),
             authorization_count: authorization_count.or(source.authorization_count),
@@ -305,6 +306,8 @@ impl PaymentIntentUpdate {
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
+        /// Converts a `PaymentIntentUpdate` into a `Self` instance, where `Self` is the current struct. 
+    /// It matches the `PaymentIntentUpdate` variant and sets the corresponding fields in `Self` based on the variant's data.
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
             PaymentIntentUpdate::Update {

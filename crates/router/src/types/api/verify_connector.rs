@@ -20,6 +20,7 @@ pub struct VerifyConnectorData {
 }
 
 impl VerifyConnectorData {
+        /// Retrieves the payment authorization data for the current transaction.
     fn get_payment_authorize_data(&self) -> types::PaymentsAuthorizeData {
         types::PaymentsAuthorizeData {
             payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
@@ -53,6 +54,7 @@ impl VerifyConnectorData {
         }
     }
 
+        /// This method takes the request data and access token as input and returns a types::RouterData object with the specified fields initialized with default values.
     fn get_router_data<F, R1, R2>(
         &self,
         request_data: R1,
@@ -111,6 +113,8 @@ impl VerifyConnectorData {
 
 #[async_trait::async_trait]
 pub trait VerifyConnector {
+        /// Asynchronously verifies the payment by sending a request to the connector API using the provided connector data and the application state. 
+    /// Returns a RouterResponse indicating the success or failure of the verification process.
     async fn verify(
         state: &AppState,
         connector_data: VerifyConnectorData,
@@ -144,6 +148,18 @@ pub trait VerifyConnector {
         }
     }
 
+        /// Retrieves the access token for the given connector data and application state.
+    /// 
+    /// If a connector has the AccessToken Flow, it should override this implementation and return the actual access token.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_state` - The application state
+    /// * `_connector_data` - The connector data to verify
+    /// 
+    /// # Returns
+    /// 
+    /// A CustomResult containing either the access token or an ApiErrorResponse
     async fn get_access_token(
         _state: &AppState,
         _connector_data: VerifyConnectorData,
@@ -153,6 +169,7 @@ pub trait VerifyConnector {
         Ok(None)
     }
 
+        /// Asynchronously handles a payment error response by using the given connector to get the error response, changing its context to an internal server error, and then returning an invalid request data error with the error message or reason.
     async fn handle_payment_error_response<F, R1, R2>(
         connector: &(dyn types::api::Connector + Sync),
         error_response: types::Response,
@@ -169,6 +186,9 @@ pub trait VerifyConnector {
         .into_report()
     }
 
+        /// This asynchronous function handles the error response for an access token, using the provided connector. 
+    /// It expects a connector that implements the ConnectorIntegration trait with the specified type parameters.
+    /// It retrieves the error from the connector for the given error response, changes the context to an internal server error, and returns an error response for invalid request data with the error message.
     async fn handle_access_token_error_response<F, R1, R2>(
         connector: &(dyn types::api::Connector + Sync),
         error_response: types::Response,

@@ -90,6 +90,7 @@ pub struct ProcessTrackerUpdateInternal {
 }
 
 impl Default for ProcessTrackerUpdateInternal {
+        /// Creates a new instance of the struct with default values for all fields, except for `updated_at` which is set to the current date and time.
     fn default() -> Self {
         Self {
             name: Option::default(),
@@ -104,6 +105,7 @@ impl Default for ProcessTrackerUpdateInternal {
 }
 
 impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
+        /// Converts a ProcessTrackerUpdate enum into the current struct.
     fn from(process_tracker_update: ProcessTrackerUpdate) -> Self {
         match process_tracker_update {
             ProcessTrackerUpdate::Update {

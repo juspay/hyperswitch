@@ -16,6 +16,7 @@ use crate::{
 };
 pub trait RefundFilterAnalytics: LoadRow<RefundFilterRow> {}
 
+/// Asynchronously retrieves refund filters for a given dimension, merchant, and time range using the provided pool for database access.
 pub async fn get_refund_filter_for_dimension<T>(
     dimension: RefundDimensions,
     merchant: &String,

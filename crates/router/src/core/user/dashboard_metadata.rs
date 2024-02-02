@@ -16,6 +16,17 @@ use crate::{
     utils::user::dashboard_metadata as utils,
 };
 
+/// Asynchronously sets the metadata for a user based on the provided request and user token. 
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state
+/// * `user` - The user information obtained from the authentication token
+/// * `request` - The request containing the metadata to be set
+/// 
+/// # Returns
+/// 
+/// Returns a `UserResponse` indicating the success or failure of the operation.
 pub async fn set_metadata(
     state: AppState,
     user: UserFromToken,
@@ -29,6 +40,8 @@ pub async fn set_metadata(
     Ok(ApplicationResponse::StatusOk)
 }
 
+/// Retrieves multiple metadata entries based on the provided keys from the database,
+/// and returns a vector of responses containing the requested metadata.
 pub async fn get_multiple_metadata(
     state: AppState,
     user: UserFromToken,
@@ -54,6 +67,7 @@ pub async fn get_multiple_metadata(
     Ok(ApplicationResponse::Json(response))
 }
 
+/// Parses the given SetMetaDataRequest enum and returns the corresponding types::MetaData value.
 fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::MetaData> {
     match data_enum {
         api::SetMetaDataRequest::ProductionAgreement(req) => {
@@ -108,6 +122,7 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
     }
 }
 
+/// Parses the given API GetMetaDataRequest enum and returns the corresponding DBEnum value.
 fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
     match data_enum {
         api::GetMetaDataRequest::ProductionAgreement => DBEnum::ProductionAgreement,
@@ -134,6 +149,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
     }
 }
 
+/// Converts the provided data and data type into an appropriate response for the API.
 fn into_response(
     data: Option<&DashboardMetadata>,
     data_type: &DBEnum,
@@ -210,6 +226,7 @@ fn into_response(
     }
 }
 
+/// Inserts metadata into the database based on the type of metadata and performs necessary operations if update is required.
 async fn insert_metadata(
     state: &AppState,
     user: UserFromToken,
@@ -523,6 +540,7 @@ async fn insert_metadata(
     }
 }
 
+/// Asynchronously fetches metadata for the user's dashboard based on the provided metadata keys.
 async fn fetch_metadata(
     state: &AppState,
     user: &UserFromToken,
@@ -558,6 +576,7 @@ async fn fetch_metadata(
     Ok(dashboard_metadata)
 }
 
+/// This method backfills the metadata for a user based on the key type provided. It retrieves the key store for the user's merchant ID, then based on the key type (StripeConnected or PaypalConnected), it retrieves the corresponding connector account and inserts the metadata into the database. If the key type is not recognized, it returns None. The method returns a Result containing an Option of DashboardMetadata or an error if the operation fails.
 pub async fn backfill_metadata(
     state: &AppState,
     user: &UserFromToken,
@@ -657,6 +676,7 @@ pub async fn backfill_metadata(
     }
 }
 
+/// Retrieves a merchant connector account by the specified merchant ID, connector name, and key store. Returns a result containing an optional MerchantConnectorAccount. If successful, the method will retrieve the merchant connector account from the store and return it. If an error occurs during the retrieval process, an internal server error will be returned with a printable error message indicating a database error fetching DashboardMetaData.
 pub async fn get_merchant_connector_account_by_name(
     state: &AppState,
     merchant_id: &str,

@@ -9,6 +9,16 @@ use crate::{
     types::storage,
 };
 
+/// Asynchronously checks the existence of a domain and adds it to the database if it does not already exist for the specified merchant and merchant connector. 
+/// 
+/// # Arguments
+/// * `state` - The application state
+/// * `merchant_id` - The ID of the merchant
+/// * `merchant_connector_id` - The ID of the merchant connector
+/// * `domain_from_req` - The vector of domain strings from the request
+/// 
+/// # Returns
+/// A Result containing a vector of strings representing the already verified domains after the update, or an ApiErrorResponse if an error occurs.
 pub async fn check_existence_and_add_domain_to_db(
     state: &AppState,
     merchant_id: String,
@@ -78,6 +88,7 @@ pub async fn check_existence_and_add_domain_to_db(
     Ok(already_verified_domains.clone())
 }
 
+/// Logs the Apple Pay verification response if there is an error.
 pub fn log_applepay_verification_response_if_error(
     response: &Result<Result<types::Response, types::Response>, Report<errors::ApiClientError>>,
 ) {

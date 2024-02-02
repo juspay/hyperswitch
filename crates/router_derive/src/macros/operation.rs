@@ -32,6 +32,7 @@ pub enum Derives {
 }
 
 impl Derives {
+        /// Converts the current struct into an implementation of an operation trait, using the provided iterator of token streams and the given struct name.
     fn to_operation(
         self,
         fns: impl Iterator<Item = TokenStream> + Clone,
@@ -46,6 +47,7 @@ impl Derives {
         }
     }
 
+        /// Generates a token stream for implementing the Operation trait for a reference to a specified struct name, using the provided reference functions and request type.
     fn to_ref_operation(
         self,
         ref_fns: impl Iterator<Item = TokenStream> + Clone,
@@ -74,6 +76,7 @@ pub enum Conversion {
 }
 
 impl Conversion {
+        /// This method takes a Derives enum as input and returns the corresponding syn::Ident based on the value of the enum.
     fn get_req_type(ident: Derives) -> syn::Ident {
         match ident {
             Derives::Authorize => syn::Ident::new("PaymentsRequest", Span::call_site()),
@@ -106,6 +109,7 @@ impl Conversion {
         }
     }
 
+        /// Converts the current enum variant into a corresponding function based on the input identifier.
     fn to_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
         match self {
@@ -154,6 +158,8 @@ impl Conversion {
         }
     }
 
+        /// Converts the enum variant into a reference function based on the specified identifier.
+    /// Returns a TokenStream representing the converted reference function.
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
         match self {
@@ -228,6 +234,7 @@ pub struct OperationProperties {
     flows: Vec<Derives>,
 }
 
+/// Retrieves the properties of an operation based on the given operation enums.
 fn get_operation_properties(
     operation_enums: Vec<OperationsEnumMeta>,
 ) -> syn::Result<OperationProperties> {
@@ -263,6 +270,7 @@ fn get_operation_properties(
 }
 
 impl Parse for Derives {
+        /// Parses the input ParseStream and returns a result containing Self.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let text = input.parse::<syn::LitStr>()?;
         let value = text.value();
@@ -280,6 +288,7 @@ impl Parse for Derives {
 }
 
 impl Parse for Conversion {
+        /// Parses the input and returns a result with the parsed value. If the parsing fails, it returns a `syn::Error` with a custom error message.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let text = input.parse::<syn::LitStr>()?;
         let value = text.value();
@@ -296,6 +305,8 @@ impl Parse for Conversion {
     }
 }
 
+/// Parses a comma-separated list string into a vector of type T, where T implements the FromStr, IntoEnumIterator, and ToString traits. 
+/// The method uses the provided keyword to construct an error message in case of parsing failure. 
 fn parse_list_string<T>(list_string: String, keyword: &str) -> syn::Result<Vec<T>>
 where
     T: FromStr + IntoEnumIterator + ToString,
@@ -318,17 +329,22 @@ where
         .collect()
 }
 
+/// This method takes a `syn::parse::ParseStream` as input and attempts to parse a `syn::LitStr`. 
+/// If successful, it then calls the `parse_list_string` method with the value of the parsed `syn::LitStr` and the string "operation".
 fn get_conversions(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Conversion>> {
     let lit_str_list = input.parse::<syn::LitStr>()?;
     parse_list_string(lit_str_list.value(), "operation")
 }
 
+/// Parse the input and return a vector of Derives.
 fn get_derives(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<Derives>> {
     let lit_str_list = input.parse::<syn::LitStr>()?;
     parse_list_string(lit_str_list.value(), "flow")
 }
 
 impl Parse for OperationsEnumMeta {
+        /// Parses the input `ParseStream`, matches the lookahead with keywords
+    /// 'operations' or 'flow', and returns the corresponding result.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(operations_keyword::operations) {
@@ -353,12 +369,14 @@ trait OperationsDeriveInputExt {
 }
 
 impl OperationsDeriveInputExt for DeriveInput {
+        /// This method retrieves the metadata for the operations defined in the struct. It returns a Result containing a vector of OperationsEnumMeta, which represents the metadata for each operation. If the metadata cannot be retrieved, an error is returned.
     fn get_metadata(&self) -> syn::Result<Vec<OperationsEnumMeta>> {
         helpers::get_metadata_inner("operation", &self.attrs)
     }
 }
 
 impl ToTokens for OperationsEnumMeta {
+        /// Converts the enum variant to its corresponding tokens and appends them to the given TokenStream.
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Operations { keyword, .. } => keyword.to_tokens(tokens),
@@ -367,6 +385,9 @@ impl ToTokens for OperationsEnumMeta {
     }
 }
 
+/// This method takes a DeriveInput as input and generates trait implementations based on the metadata
+/// provided in the input. It then constructs a TokenStream containing the generated trait implementations
+/// and other necessary imports. The resulting TokenStream is then returned as a Result.
 pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::TokenStream> {
     let struct_name = &input.ident;
     let operations_meta = input.get_metadata()?;

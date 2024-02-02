@@ -79,6 +79,7 @@ pub mod pii {
     pub use masking::*;
 }
 
+/// Creates and configures an Actix web application with various routes based on the given `state` and `request_body_limit`.
 pub fn mk_app(
     state: AppState,
     request_body_limit: usize,
@@ -175,6 +176,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
+/// Starts an async server using the provided settings configuration.
 pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
@@ -199,6 +201,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
     Ok(server)
 }
 
+/// Asynchronously waits for a signal from the given oneshot receiver. If the signal is received successfully, it logs an error message indicating that the redis server has failed and then stops the server. If an error occurs while receiving the signal, it logs an error message indicating the channel receiver error.
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {
     match rx.await {
         Ok(_) => {
@@ -218,17 +221,22 @@ pub trait Stop {
 
 #[async_trait::async_trait]
 impl Stop for ServerHandle {
+        /// Asynchronously stops the server by calling the `stop` method with the `true` parameter and awaiting the result.
     async fn stop_server(&mut self) {
         let _ = self.stop(true).await;
     }
 }
 #[async_trait::async_trait]
 impl Stop for mpsc::Sender<()> {
+        /// Asynchronously stops the server by sending an empty message and awaiting the response.
     async fn stop_server(&mut self) {
         let _ = self.send(()).await.map_err(|err| logger::error!("{err}"));
     }
 }
 
+/// Returns a new actix_web::App with configurations for handling HTTP requests. 
+/// The method sets the limit for request body size, adds error handlers for NOT_FOUND and METHOD_NOT_ALLOWED status codes, 
+/// sets default response headers, adds request ID middleware, CORS middleware, logging middleware, and request details logging middleware.
 pub fn get_application_builder(
     request_body_limit: usize,
 ) -> actix_web::App<

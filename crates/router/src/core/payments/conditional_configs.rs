@@ -20,6 +20,8 @@ static CONF_CACHE: StaticCache<backend::VirInterpreterBackend<ConditionalConfigs
 pub type ConditionalConfigResult<O> = errors::CustomResult<O, ConfigError>;
 
 #[instrument(skip_all)]
+/// Asynchronously performs decision management using the specified routing algorithm reference, merchant ID, and payment data. 
+/// Returns a result containing conditional configurations.
 pub async fn perform_decision_management<F: Clone>(
     state: &routes::AppState,
     algorithm_ref: routing::RoutingAlgorithmRef,
@@ -51,6 +53,7 @@ pub async fn perform_decision_management<F: Clone>(
 }
 
 #[instrument(skip_all)]
+/// Ensures that the algorithm is cached and up to date, and refreshes the cache if necessary.
 pub async fn ensure_algorithm_cached(
     state: &routes::AppState,
     merchant_id: &str,
@@ -75,6 +78,7 @@ pub async fn ensure_algorithm_cached(
 }
 
 #[instrument(skip_all)]
+/// Asynchronously refreshes the routing cache by retrieving the configuration for the specified algorithm, parsing the DSL from the config, initializing the DSL interpreter backend, and saving it to the cache with the provided key and timestamp.
 pub async fn refresh_routing_cache(
     state: &routes::AppState,
     key: String,
@@ -105,6 +109,17 @@ pub async fn refresh_routing_cache(
     Ok(())
 }
 
+/// Executes a DSL (Domain Specific Language) with the provided backend input, and obtains the conditional configuration result using the provided interpreter.
+///
+/// # Arguments
+///
+/// * `backend_input` - The input for the DSL execution.
+/// * `interpreter` - The interpreter used to execute the DSL and obtain the conditional configuration.
+///
+/// # Returns
+///
+/// The result of executing the DSL and obtaining the conditional configuration, wrapped in a `ConditionalConfigResult` enum.
+///
 pub async fn execute_dsl_and_get_conditional_config(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConditionalConfigs>,

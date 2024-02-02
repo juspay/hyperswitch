@@ -24,6 +24,7 @@ pub struct User {
 
 impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Tries to create a new instance of the current type from a LinkTokenRouterData item.
     fn try_from(item: &types::LinkTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             client_name: item.request.client_name.clone(),
@@ -56,6 +57,7 @@ impl<F, T>
     for types::PaymentAuthRouterData<F, T, types::LinkTokenResponse>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to convert the provided ResponseRouterData into a Result containing an instance of Self.
     fn try_from(
         item: types::ResponseRouterData<F, PlaidLinkTokenResponse, T, types::LinkTokenResponse>,
     ) -> Result<Self, Self::Error> {
@@ -86,6 +88,8 @@ impl<F, T>
     > for types::PaymentAuthRouterData<F, T, types::ExchangeTokenResponse>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to convert the given `ResponseRouterData` into an instance of the current type.
+    /// If successful, returns `Ok` with a new instance containing the `access_token` from the `ExchangeTokenResponse` in the `item` parameter. Otherwise, returns `Err` with the appropriate error.
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -105,6 +109,16 @@ impl<F, T>
 
 impl TryFrom<&types::ExchangeTokenRouterData> for PlaidExchangeTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to create a new instance of the current type from the provided ExchangeTokenRouterData.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `item` - A reference to the ExchangeTokenRouterData from which to create the new instance.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result containing either the new instance of the current type, or an error if the creation fails.
+    /// 
     fn try_from(item: &types::ExchangeTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             public_token: item.request.public_token.clone(),
@@ -199,6 +213,16 @@ pub struct PlaidBankAccountCredentialsBacs {
 
 impl TryFrom<&types::BankDetailsRouterData> for PlaidBankAccountCredentialsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to create a new instance of Self from the given BankDetailsRouterData.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `item` - A reference to the BankDetailsRouterData from which to create a new instance of Self.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<Self, Self::Error>` - A Result containing the newly created instance of Self on success, or an error on failure.
+    /// 
     fn try_from(item: &types::BankDetailsRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             access_token: item.request.access_token.clone(),
@@ -222,6 +246,7 @@ impl<F, T>
     > for types::PaymentAuthRouterData<F, T, types::BankAccountCredentialsResponse>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to convert the given ResponseRouterData into a Result of Self or Self::Error. 
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -273,6 +298,15 @@ pub struct PlaidAuthType {
 
 impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
+        /// Attempts to create a new instance of the ConnectorAuthType struct from the given types::ConnectorAuthType enum.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `auth_type` - A reference to a types::ConnectorAuthType enum
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<Self, Self::Error>` - If the auth_type is of type BodyKey, returns Ok with a new instance of ConnectorAuthType populated with the client_id and secret. If the auth_type is not of type BodyKey, returns an error of type ConnectorError.
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { client_id, secret } => Ok(Self {

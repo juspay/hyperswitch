@@ -62,6 +62,7 @@ pub struct FileMetadataUpdateInternal {
 }
 
 impl From<FileMetadataUpdate> for FileMetadataUpdateInternal {
+        /// Creates a new instance of Self (presumably a MerchantAccountUpdate) from the given FileMetadataUpdate.
     fn from(merchant_account_update: FileMetadataUpdate) -> Self {
         match merchant_account_update {
             FileMetadataUpdate::Update {

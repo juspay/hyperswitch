@@ -26,6 +26,12 @@ use crate::{
     security(("admin_api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleCreate))]
+/// Asynchronously creates a GSM rule using the provided JSON payload. This method
+/// takes the application state, HTTP request, and JSON payload as input, and then
+/// passes them to the `api::server_wrap` function along with the necessary flow,
+/// authentication, and locking parameters to create the GSM rule using the
+/// `gsm::create_gsm_rule` function. The method returns a `Responder` which will be
+/// awaited to produce the final response.
 pub async fn create_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -64,6 +70,7 @@ pub async fn create_gsm_rule(
     security(("admin_api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
+/// Retrieves a GSM rule using the provided JSON payload and returns a responder.
 pub async fn get_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -101,6 +108,7 @@ pub async fn get_gsm_rule(
     security(("admin_api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleUpdate))]
+/// Asynchronously updates a GSM rule using the provided JSON payload and returns the updated rule.
 pub async fn update_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -139,6 +147,7 @@ pub async fn update_gsm_rule(
     security(("admin_api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleDelete))]
+/// Asynchronously handles the deletion of a GSM rule by wrapping the delete_gsm_rule function in a server_wrap call.
 pub async fn delete_gsm_rule(
     state: web::Data<AppState>,
     req: HttpRequest,

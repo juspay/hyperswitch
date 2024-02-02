@@ -19,12 +19,14 @@ pub enum DBOperation {
 }
 
 impl DBOperation {
+        /// This method returns a string indicating the type of operation being performed.
     pub fn operation<'a>(&self) -> &'a str {
         match self {
             Self::Insert { .. } => "insert",
             Self::Update { .. } => "update",
         }
     }
+        /// Returns the corresponding table name for the given insertable or updatable enum variant.
     pub fn table<'a>(&self) -> &'a str {
         match self {
             Self::Insert { insertable } => match insertable {
@@ -60,6 +62,7 @@ pub struct TypedSql {
 }
 
 impl DBOperation {
+        /// Executes the specified database operation using the provided connection and returns the result.
     pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
         Ok(match self {
             Self::Insert { insertable } => match insertable {
@@ -94,6 +97,7 @@ impl DBOperation {
 }
 
 impl TypedSql {
+        /// Converts the current instance of a struct into a vector of tuples representing field-value pairs, along with the given request ID and global ID. The method returns a StorageResult containing the vector of field-value pairs. The "typed_sql" field is populated with the JSON representation of the current instance, the "global_id" and "request_id" fields are populated with the provided global ID and request ID, and the "pushed_at" field is populated with the current timestamp in string format.
     pub fn to_field_value_pairs(
         &self,
         request_id: String,

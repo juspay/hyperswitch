@@ -13,6 +13,7 @@ use crate::{
 struct AdyenTest;
 impl ConnectorActions for AdyenTest {}
 impl utils::Connector for AdyenTest {
+        /// This method returns a ConnectorData object containing the Adyen connector information.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Adyen;
         types::api::ConnectorData {
@@ -24,6 +25,7 @@ impl utils::Connector for AdyenTest {
     }
 
     #[cfg(feature = "payouts")]
+        /// Retrieves the payout data for the connector. Returns an Option containing the payout connector data if available, otherwise None.
     fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
         use router::connector::Adyen;
         Some(types::api::PayoutConnectorData {
@@ -33,6 +35,7 @@ impl utils::Connector for AdyenTest {
         })
     }
 
+        /// Retrieves the authentication token for the connector.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -42,12 +45,14 @@ impl utils::Connector for AdyenTest {
         )
     }
 
+        /// This method returns the name "adyen" as a String.
     fn get_name(&self) -> String {
-        "adyen".to_string()
+            "adyen".to_string()
     }
 }
 
 impl AdyenTest {
+        /// Retrieves the payment information, including the billing address, for the user.
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
             address: Some(PaymentAddress {
@@ -70,6 +75,7 @@ impl AdyenTest {
     }
 
     #[cfg(feature = "payouts")]
+        /// Retrieves the payout information based on the specified payout type.
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
@@ -112,6 +118,7 @@ impl AdyenTest {
         })
     }
 
+        /// Constructs and returns payment authorization data based on the provided card information and capture method.
     fn get_payment_authorize_data(
         card_number: &str,
         card_exp_month: &str,
@@ -169,6 +176,7 @@ static CONNECTOR: AdyenTest = AdyenTest {};
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes a payment using the Adyen connector with test payment data and information. Expects the payment to be authorized and asserts that the response status is 'Authorized'.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(
@@ -188,6 +196,7 @@ async fn should_only_authorize_payment() {
 
 // Captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes and captures a payment using the Adyen connector.
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -208,6 +217,7 @@ async fn should_capture_authorized_payment() {
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously attempts to partially capture an authorized payment using Adyen's payment API.
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -231,6 +241,10 @@ async fn should_partially_capture_authorized_payment() {
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously authorizes and voids a payment using the Adyen connector. 
+/// The method generates payment authorization data, cancels the payment with a specified reason, 
+/// and retrieves payment information to void the payment. Finally, it asserts that the response 
+/// status is voided.
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -255,6 +269,7 @@ async fn should_void_authorized_payment() {
 
 // Refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously captures a payment and initiates a refund for a manually captured payment using Adyen API.
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
@@ -283,6 +298,7 @@ async fn should_refund_manually_captured_payment() {
 
 // Partially refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously captures a payment and performs a partial refund for a manually captured payment using the Adyen payment connector.
 async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
@@ -311,6 +327,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment using the Adyen connector. It retrieves the payment authorization data using the AdyenTest helper methods, then calls the make_payment method of the connector with the authorization data and payment information. It waits for the response and asserts that the status of the response is "Charged".
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
         .make_payment(
@@ -330,6 +347,7 @@ async fn should_make_payment() {
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a payment and initiates a refund for an auto-captured payment. 
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(
@@ -357,6 +375,7 @@ async fn should_refund_auto_captured_payment() {
 
 // Partially refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously makes a refund for a previously succeeded payment using the AdyenTest connector. The refund amount is set to 500 and the reason is specified as "CUSTOMER REQUEST". The refund status is then asserted to be Pending.
 async fn should_partially_refund_succeeded_payment() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(
@@ -384,6 +403,7 @@ async fn should_partially_refund_succeeded_payment() {
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+/// Asynchronously attempts to refund a previously successful payment multiple times, expecting the refund status to be pending each time.
 async fn should_refund_succeeded_payment_multiple_times() {
     let payment_info = AdyenTest::get_payment_info();
     //make a successful payment
@@ -426,6 +446,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 // Cards Negative scenerios
 // Creates a payment with incorrect card number.
 #[actix_web::test]
+/// Asynchronously makes a payment with an incorrect card number and asserts that the payment fails with a "Refused" message.
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
@@ -446,6 +467,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
 
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
+/// Asynchronously makes a payment with incorrect CVC and expects the payment to fail with the error message "CVC is not the right length".
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
@@ -469,6 +491,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
 
 // Creates a payment with incorrect expiry month.
 #[actix_web::test]
+/// Asynchronously makes a payment request with an invalid expiration month and ensures that the payment fails with the expected error message.
 async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
@@ -490,6 +513,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
 
 // Creates a payment with incorrect expiry year.
 #[actix_web::test]
+/// Asynchronously makes a payment using the CONNECTOR with an incorrect expiry year for the card, and verifies that the payment fails with an "Expired Card" error message.
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
@@ -510,6 +534,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
+/// Asynchronously attempts to capture a payment with an invalid payment reference, expecting the operation to fail with a specific error message.
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
         .capture_payment("123456789".to_string(), None, AdyenTest::get_payment_info())
@@ -526,6 +551,9 @@ async fn should_fail_capture_for_invalid_payment() {
 #[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates a SEPA payout by retrieving payout information based on the given payout type,
+/// and then using the retrieved information to create the payout. It then asserts that the response status
+/// is 'RequiresFulfillment'.
 async fn should_create_sepa_payout() {
     let payout_type = enums::PayoutType::Bank;
     let payout_info = AdyenTest::get_payout_info(payout_type);
@@ -543,6 +571,7 @@ async fn should_create_sepa_payout() {
 #[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates and fulfills a SEPA payout. It retrieves the payout information based on the specified payout type, then uses the Adyen connector to create and fulfill the payout. Finally, it asserts that the payout status is successful.
 async fn should_create_and_fulfill_sepa_payout() {
     let payout_type = enums::PayoutType::Bank;
     let payout_info = AdyenTest::get_payout_info(payout_type);
@@ -557,6 +586,8 @@ async fn should_create_and_fulfill_sepa_payout() {
 #[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously verifies the eligibility of a payout for a specific payout type.
+/// 
 async fn should_verify_payout_eligibility() {
     let payout_type = enums::PayoutType::Card;
     let payout_info = AdyenTest::get_payout_info(payout_type);
@@ -574,6 +605,7 @@ async fn should_verify_payout_eligibility() {
 #[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously fulfills a card payout by retrieving the payout information, sending a fulfill request to the connector, and asserting that the response status is a success.
 async fn should_fulfill_card_payout() {
     let payout_type = enums::PayoutType::Card;
     let payout_info: Option<PaymentInfo> = AdyenTest::get_payout_info(payout_type);
@@ -588,6 +620,7 @@ async fn should_fulfill_card_payout() {
 #[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
+/// Asynchronously creates a payout of the specified type, then cancels the created payout and expects a response with a status of "Cancelled".
 async fn should_create_and_cancel_created_payout() {
     let payout_type = enums::PayoutType::Bank;
     let payout_info = AdyenTest::get_payout_info(payout_type);

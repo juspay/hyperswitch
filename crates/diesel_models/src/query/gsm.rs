@@ -6,12 +6,35 @@ use crate::{
 };
 
 impl GatewayStatusMappingNew {
+        /// Asynchronously inserts the current instance of GatewayStatusMap into the database using the provided PostgreSQL pooled connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a PostgreSQL pooled connection
+    /// 
+    /// # Returns
+    /// 
+    /// The result of the insertion operation, wrapped in a `StorageResult` enum
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GatewayStatusMap> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl GatewayStatusMap {
+        /// Asynchronously finds a record in the database based on the provided parameters.
+    /// 
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled database connection
+    /// * `connector` - The connector value to search for
+    /// * `flow` - The flow value to search for
+    /// * `sub_flow` - The sub_flow value to search for
+    /// * `code` - The code value to search for
+    /// * `message` - The message value to search for
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the found record if successful, or an error if the operation fails.
     pub async fn find(
         conn: &PgPooledConn,
         connector: String,
@@ -32,6 +55,20 @@ impl GatewayStatusMap {
         .await
     }
 
+        /// Asynchronously retrieves the decision from the storage for the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// * `connector` - The connector for the decision
+    /// * `flow` - The flow for the decision
+    /// * `sub_flow` - The sub-flow for the decision
+    /// * `code` - The code for the decision
+    /// * `message` - The message for the decision
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the retrieved decision as a `String`
     pub async fn retrieve_decision(
         conn: &PgPooledConn,
         connector: String,
@@ -45,6 +82,21 @@ impl GatewayStatusMap {
             .map(|item| item.decision)
     }
 
+        /// Updates the gateway status mapping entry in the database with the provided parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - The database connection
+    /// * `connector` - The connector name
+    /// * `flow` - The flow name
+    /// * `sub_flow` - The sub flow name
+    /// * `code` - The status code
+    /// * `message` - The status message
+    /// * `gsm` - The updated gateway status mapping
+    ///
+    /// # Returns
+    ///
+    /// The updated gateway status mapping entry as a result, or a `DatabaseError::NotFound` if the entry is not found.
     pub async fn update(
         conn: &PgPooledConn,
         connector: String,
@@ -78,6 +130,18 @@ impl GatewayStatusMap {
         })
     }
 
+        /// Deletes a record from the database table based on the provided parameters. 
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled database connection
+    /// * `connector` - The connector value to match
+    /// * `flow` - The flow value to match
+    /// * `sub_flow` - The sub_flow value to match
+    /// * `code` - The code value to match
+    /// * `message` - The message value to match
+    /// 
+    /// # Returns
+    /// A `StorageResult` indicating whether the delete operation was successful
     pub async fn delete(
         conn: &PgPooledConn,
         connector: String,

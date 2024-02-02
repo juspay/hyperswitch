@@ -2,6 +2,12 @@ use common_utils::ext_traits::ConfigExt;
 use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
+        /// Validates the configuration values for the application.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), ApplicationError>` - A result indicating success if the configuration values are valid,
+    ///   or an error of type `ApplicationError` if any of the configuration values are invalid.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
@@ -46,6 +52,7 @@ impl super::settings::Secrets {
 }
 
 impl super::settings::Locker {
+        /// Validates the configuration values and returns a Result.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
@@ -67,6 +74,8 @@ impl super::settings::Locker {
 }
 
 impl super::settings::Server {
+        /// Validates the current state of the object and returns a Result indicating
+    /// whether the validation was successful or if an ApplicationError occurred.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -77,6 +86,8 @@ impl super::settings::Server {
 }
 
 impl super::settings::Database {
+        /// Validates the database configuration by checking if the host, dbname, username, and password are not empty or default values. 
+    /// If any of the values are empty or default, it returns an error with a specific message indicating which configuration value is invalid.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
@@ -107,6 +118,8 @@ impl super::settings::Database {
 }
 
 impl super::settings::SupportedConnectors {
+        /// Validates the configuration by checking if the list of connectors supporting wallets is not empty.
+    /// If the list is empty, it returns an Err with an ApplicationError containing a message indicating the invalid configuration value.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.wallets.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -118,6 +131,10 @@ impl super::settings::SupportedConnectors {
 
 #[cfg(feature = "kv_store")]
 impl super::settings::DrainerSettings {
+        /// Validates the configuration of the drainer stream name. 
+    /// Returns a Result with Ok(()) if the stream name is not empty, 
+    /// otherwise returns an Err with an ApplicationError indicating 
+    /// an invalid configuration value error.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -128,6 +145,9 @@ impl super::settings::DrainerSettings {
 }
 
 impl super::settings::ApiKeys {
+        /// Validates the configuration values related to API key hashing key, and returns a Result
+    /// indicating whether the validation was successful or an ApplicationError if the validation
+    /// failed.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
@@ -148,6 +168,8 @@ impl super::settings::ApiKeys {
 }
 
 impl super::settings::LockSettings {
+        /// Validates the configuration values for redis_lock_expiry_seconds, delay_between_retries_in_milliseconds, and lock_retries.
+    /// If any of the values are empty or 0, returns an ApplicationError indicating the invalid configuration value.
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 

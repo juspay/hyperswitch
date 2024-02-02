@@ -28,6 +28,7 @@ pub enum RefundValidationError {
 }
 
 #[instrument(skip_all)]
+/// Validates if a payment attempt was successful by checking its status. If the status is not 'Charged', it returns a 'RefundValidationError' indicating an unsuccessful payment attempt.
 pub fn validate_success_transaction(
     transaction: &storage::PaymentAttempt,
 ) -> CustomResult<(), RefundValidationError> {
@@ -39,6 +40,18 @@ pub fn validate_success_transaction(
 }
 
 #[instrument(skip_all)]
+/// Validates the refund amount against the total amount captured and the total amount already refunded.
+///
+/// # Arguments
+///
+/// * `amount_captured` - The total amount captured for the payment
+/// * `all_refunds` - A slice of all refunds associated with the payment
+/// * `refund_amount` - The amount to be refunded
+///
+/// # Returns
+///
+/// * `CustomResult<(), RefundValidationError>` - A result indicating success or a `RefundValidationError` if the refund amount is invalid
+///
 pub fn validate_refund_amount(
     amount_captured: i64,
     all_refunds: &[storage::Refund],
@@ -68,6 +81,17 @@ pub fn validate_refund_amount(
 }
 
 #[instrument(skip_all)]
+/// Validates the age of a payment order for refund eligibility.
+///
+/// # Arguments
+///
+/// * `created_at` - The creation date and time of the payment order.
+/// * `refund_max_age` - The maximum age in days for a payment order to be eligible for refund.
+///
+/// # Returns
+///
+/// * `CustomResult<(), RefundValidationError>` - A result indicating whether the payment order is eligible for refund or not.
+///
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,
     refund_max_age: i64,
@@ -81,6 +105,17 @@ pub fn validate_payment_order_age(
 }
 
 #[instrument(skip_all)]
+/// Validates that the number of refund attempts does not exceed the maximum allowed
+///
+/// # Arguments
+///
+/// * `all_refunds` - A reference to a slice of `storage::Refund` containing all refund attempts
+/// * `refund_max_attempts` - The maximum number of refund attempts allowed
+///
+/// # Returns
+///
+/// * `CustomResult<(), RefundValidationError>` - A custom result indicating success or a `RefundValidationError` if the maximum number of refund attempts is exceeded
+///
 pub fn validate_maximum_refund_against_payment_attempt(
     all_refunds: &[storage::Refund],
     refund_max_attempts: usize,
@@ -90,6 +125,16 @@ pub fn validate_maximum_refund_against_payment_attempt(
     })
 }
 
+/// Validates the refund list limit and returns a result.
+///
+/// # Arguments
+///
+/// * `limit` - an optional i64 value representing the limit of the refund list
+///
+/// # Returns
+///
+/// * `CustomResult<i64, errors::ApiErrorResponse>` - a result containing either the validated limit or an error response
+///
 pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
     match limit {
         Some(limit_val) => {
@@ -106,6 +151,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
     }
 }
 
+/// Validates whether a payment attempt is eligible for refunds based on the payment method and connector.
 pub fn validate_for_valid_refunds(
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,

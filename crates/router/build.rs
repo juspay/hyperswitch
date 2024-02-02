@@ -1,3 +1,4 @@
+/// Sets the thread stack size to 4 MiB for debug builds and generates cargo instructions using the router_env::vergen feature if enabled.
 fn main() {
     // Set thread stack size to 4 MiB for debug builds
     // Reference: https://doc.rust-lang.org/std/thread/#stack-size

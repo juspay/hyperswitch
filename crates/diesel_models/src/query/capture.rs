@@ -11,6 +11,15 @@ use crate::{
 
 impl CaptureNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a new record into the database using the provided PostgreSQL pooled connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a PostgreSQL pooled connection
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the newly inserted `Capture` if successful, or an error if the insertion fails.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Capture> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +27,7 @@ impl CaptureNew {
 
 impl Capture {
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given capture ID.
     pub async fn find_by_capture_id(conn: &PgPooledConn, capture_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -26,6 +36,8 @@ impl Capture {
         .await
     }
     #[instrument(skip(conn))]
+        /// Updates the current object with the given capture ID using the provided database connection and capture update data.
+    /// Returns a `StorageResult` containing the updated object on success, or an error on failure.
     pub async fn update_with_capture_id(
         self,
         conn: &PgPooledConn,
@@ -52,6 +64,7 @@ impl Capture {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds all records with a specific merchant ID, payment ID, and authorized attempt ID in the database.
     pub async fn find_all_by_merchant_id_payment_id_authorized_attempt_id(
         merchant_id: &str,
         payment_id: &str,

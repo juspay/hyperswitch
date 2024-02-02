@@ -67,6 +67,7 @@ pub enum ConnectorCallType {
 }
 
 impl FraudCheckConnectorData {
+        /// Retrieves a connector by its name and returns a CustomResult containing the connector and any potential errors.
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector_name = enums::FrmConnectors::from_str(name)
             .into_report()
@@ -81,6 +82,16 @@ impl FraudCheckConnectorData {
         })
     }
 
+        /// Converts the given connector name into a BoxedConnector and returns a CustomResult.
+    ///
+    /// # Arguments
+    ///
+    /// * `connector_name` - An enums::FrmConnectors value representing the connector name.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing a BoxedConnector if the connector name is valid, otherwise an errors::ApiErrorResponse.
+    ///
     fn convert_connector(
         connector_name: enums::FrmConnectors,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {

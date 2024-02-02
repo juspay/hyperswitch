@@ -21,6 +21,7 @@ use crate::{
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
+/// Returns a reqwest ClientBuilder with proxy configuration based on the provided Proxy and should_bypass_proxy flag.
 fn get_client_builder(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
@@ -60,6 +61,7 @@ fn get_client_builder(
     Ok(client_builder)
 }
 
+/// Returns a base `reqwest::Client` based on the provided proxy configuration and a flag indicating whether to bypass the proxy. If the `should_bypass_proxy` flag is true or if both the HTTP and HTTPS URLs in the `proxy_config` are `None`, the method returns a non-proxied client. Otherwise, it returns a proxied client based on the provided proxy configuration. The method also handles the construction of the client and handles any potential errors by attaching context and printable information to the error message.
 fn get_base_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
@@ -109,6 +111,7 @@ pub(super) fn create_client(
     }
 }
 
+/// This method takes a Locker reference and returns a Vec of strings containing URLs for proxy bypass. 
 pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
@@ -186,6 +189,7 @@ pub struct ProxyClient {
 }
 
 impl ProxyClient {
+        /// Constructs a new ApiClient with the provided proxy configuration and whitelisted URLs.
     pub fn new(
         proxy_config: Proxy,
         whitelisted_urls: Vec<String>,
@@ -227,6 +231,9 @@ impl ProxyClient {
         })
     }
 
+        /// Returns a reqwest client based on the provided base URL and optional client certificate and key.
+    /// If both client certificate and key are provided, it constructs a reqwest client with the provided certificate and key,
+    /// otherwise, it checks if the base URL is whitelisted and returns a non-proxy client or a proxy client accordingly.
     pub fn get_reqwest_client(
         &self,
         base_url: String,
@@ -271,21 +278,39 @@ pub struct RouterRequestBuilder {
 }
 
 impl RequestBuilder for RouterRequestBuilder {
+        /// Takes a mutable reference to self and a serde_json::Value object `body`. 
+    /// Updates the inner field of self by mapping over it, calling the json method of the inner 
+    /// with the `body` parameter. 
     fn json(&mut self, body: serde_json::Value) {
         self.inner = self.inner.take().map(|r| r.json(&body));
     }
+        /// Converts the given `serde_json::Value` into a url-encoded form and sets it as the body of the request.
     fn url_encoded_form(&mut self, body: serde_json::Value) {
         self.inner = self.inner.take().map(|r| r.form(&body));
     }
 
+        /// Sets a timeout for the inner value, if it exists.
+    ///
+    /// If the inner value exists, this method sets a timeout for it using the specified Duration. If the inner value is None, the method does nothing.
+    ///
+    /// # Arguments
+    /// * `timeout` - The Duration for the timeout
+    ///
     fn timeout(&mut self, timeout: Duration) {
         self.inner = self.inner.take().map(|r| r.timeout(timeout));
     }
 
+        /// Parses the request body as a multipart form and modifies the inner state with the parsed form data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `form` - The form data to be parsed from the request body.
+    /// 
     fn multipart(&mut self, form: Form) {
         self.inner = self.inner.take().map(|r| r.multipart(form));
     }
 
+        /// Adds a custom header to the request. If the value is sensitive, it will be masked before adding to the header.
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError> {
         let header_value = match value {
             Maskable::Masked(hvalue) => HeaderValue::from_str(hvalue.peek()).map(|mut h| {
@@ -301,6 +326,7 @@ impl RequestBuilder for RouterRequestBuilder {
         Ok(())
     }
 
+        /// Sends the HTTP request and returns a future containing the response or an error.
     fn send(
         self,
     ) -> CustomResult<
@@ -320,6 +346,7 @@ impl RequestBuilder for RouterRequestBuilder {
 #[allow(dead_code)]
 #[async_trait::async_trait]
 impl ApiClient for ProxyClient {
+        /// Makes a request to the specified URL using the given HTTP method. Returns a custom result containing a boxed trait object implementing RequestBuilder, or an ApiClientError if an error occurs.
     fn request(
         &self,
         method: Method,
@@ -328,6 +355,9 @@ impl ApiClient for ProxyClient {
         self.request_with_certificate(method, url, None, None)
     }
 
+        /// Makes a request using the provided HTTP method, URL, and optional client certificate and key.
+    /// If a client certificate and key are provided, they are used to construct the request client. 
+    /// Returns a Result containing a Boxed RequestBuilder or an ApiClientError if the client construction fails.
     fn request_with_certificate(
         &self,
         method: Method,
@@ -342,6 +372,20 @@ impl ApiClient for ProxyClient {
             inner: Some(client_builder.request(method, url)),
         }))
     }
+
+    /// Asynchronously sends a request using the provided state and request parameters. It also allows for setting a timeout in seconds and specifies whether to forward the request to Kafka.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state used for sending the request.
+    /// * `request` - The request to be sent.
+    /// * `option_timeout_secs` - An optional timeout in seconds for the request.
+    /// * `_forward_to_kafka` - A boolean indicating whether to forward the request to Kafka.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a reqwest::Response if the request is successful, or an ApiClientError if an error occurs.
+    ///
     async fn send_request(
         &self,
         state: &AppState,
@@ -352,17 +396,39 @@ impl ApiClient for ProxyClient {
         crate::services::send_request(state, request, option_timeout_secs).await
     }
 
+        /// Adds a request ID to the current instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_id` - The request ID to be added to the current instance.
+    ///
     fn add_request_id(&mut self, request_id: RequestId) {
         self.request_id
             .replace(request_id.as_hyphenated().to_string());
     }
 
+        /// Returns the request ID associated with the current instance, if available.
+    /// 
+    /// # Returns
+    /// 
+    /// - `Some(String)`: If a request ID is available, returns it as a `String`.
+    /// - `None`: If no request ID is available, returns `None`.
     fn get_request_id(&self) -> Option<String> {
         self.request_id.clone()
     }
 
+        /// Adds a merchant ID to the struct.
+    /// 
+    /// # Arguments
+    /// * `_merchant_id` - An optional string containing the merchant ID to be added.
     fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
 
+    /// Adds a flow name to the current object.
+    ///
+    /// # Arguments
+    ///
+    /// * `_flow_name` - A String representing the name of the flow to be added.
+    ///
     fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
@@ -374,6 +440,14 @@ pub struct MockApiClient;
 
 #[async_trait::async_trait]
 impl ApiClient for MockApiClient {
+        /// Makes a request to the specified URL using the given HTTP method.
+    /// 
+    /// # Arguments
+    /// * `method` - The HTTP method to use for the request.
+    /// * `url` - The URL to make the request to.
+    /// 
+    /// # Returns
+    /// A `Result` containing a `Box` of a trait object implementing `RequestBuilder` on success, or an `ApiClientError` on failure.
     fn request(
         &self,
         _method: Method,
@@ -383,6 +457,7 @@ impl ApiClient for MockApiClient {
         Err(ApiClientError::UnexpectedState.into())
     }
 
+        /// This method makes a request using a certificate for authentication, if provided. It takes the HTTP method, URL, certificate, and certificate key as parameters and returns a Result containing a RequestBuilder or an ApiClientError in case of an unexpected state.
     fn request_with_certificate(
         &self,
         _method: Method,
@@ -394,6 +469,17 @@ impl ApiClient for MockApiClient {
         Err(ApiClientError::UnexpectedState.into())
     }
 
+        /// Sends a request to the API server, with the option to set a timeout and forward the request to Kafka.
+    /// 
+    /// # Arguments
+    /// * `state` - The current application state
+    /// * `request` - The request to be sent
+    /// * `option_timeout_secs` - An optional timeout in seconds
+    /// * `forward_to_kafka` - A boolean indicating whether to forward the request to Kafka
+    /// 
+    /// # Returns
+    /// A Result containing the reqwest::Response if the request was successful, or an ApiClientError if an unexpected state occurred.
+    /// 
     async fn send_request(
         &self,
         _state: &AppState,
@@ -405,10 +491,20 @@ impl ApiClient for MockApiClient {
         Err(ApiClientError::UnexpectedState.into())
     }
 
+    /// Adds a request ID to the ApiClient.
+    ///
+    /// This method takes a request ID and adds it to the ApiClient.
+    ///
+    /// # Arguments
+    ///
+    /// * `_request_id` - The request ID to be added to the ApiClient
+    ///
     fn add_request_id(&mut self, _request_id: RequestId) {
         // [#2066]: Add Mock implementation for ApiClient
     }
 
+        /// Retrieves the request ID associated with the ApiClient.
+    /// Returns an Option containing the request ID if one exists, otherwise returns None.
     fn get_request_id(&self) -> Option<String> {
         // [#2066]: Add Mock implementation for ApiClient
         None

@@ -40,6 +40,15 @@ pub struct ReturnArgs {
 // Just by the name of the connector, this function generates the name of the collection dir
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
 #[inline]
+/// Constructs a path for a postman collection directory using the provided `name`.
+/// 
+/// # Arguments
+/// * `name` - The name of the directory, which should implement the `AsRef<str>` trait.
+/// 
+/// # Returns
+/// 
+/// A `String` containing the constructed path for the postman collection directory.
+/// 
 fn get_path(name: impl AsRef<str>) -> String {
     format!("postman/collection-dir/{}", name.as_ref())
 }
@@ -66,6 +75,7 @@ where
     Ok(())
 }
 
+/// Generates a command for running Postman collections using Newman runner. The method parses command line arguments, extracts necessary details such as connector name, base URL, and admin API key, and constructs the newman command with environment variables. Depending on the connector authentication type, it adds relevant environment variables to the command. Additionally, it checks for and adds additional environment variables if present. It also includes flags for running specific folders, verbosity, and modification of headers. Returns the constructed newman command along with a flag indicating if the collection file was modified and the collection path.
 pub fn generate_newman_command() -> ReturnArgs {
     let args = Args::parse();
 

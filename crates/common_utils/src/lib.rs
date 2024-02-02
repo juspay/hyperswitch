@@ -66,6 +66,16 @@ pub mod date_time {
 
     /// Calculate execution time for a async block in milliseconds
     #[cfg(feature = "async_ext")]
+        /// Asynchronously measures the time taken for a given asynchronous operation to complete
+    ///
+    /// # Arguments
+    ///
+    /// * `block` - A closure representing the asynchronous operation to be timed
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the result of the asynchronous operation and the time taken in milliseconds
+    ///
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(
         block: F,
     ) -> (T, f64) {
@@ -94,6 +104,7 @@ pub mod date_time {
     }
 
     impl From<DateFormat> for &[FormatItem<'_>] {
+                /// This method takes a DateFormat enum and returns a format description string based on the input format.
         fn from(format: DateFormat) -> Self {
             match format {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
@@ -120,6 +131,7 @@ pub mod date_time {
     }
 
     impl<T: TimeStrategy> From<PrimitiveDateTime> for DateTime<T> {
+                /// Creates a new instance of Self from a given PrimitiveDateTime.
         fn from(value: PrimitiveDateTime) -> Self {
             Self {
                 inner: PhantomData,
@@ -135,6 +147,17 @@ pub mod date_time {
     }
 
     impl<T: TimeStrategy> Serialize for DateTime<T> {
+                /// Serializes the object using the provided serializer.
+        /// 
+        /// This method takes a reference to the object and a serializer, and attempts to serialize the object using the provided serializer. It returns a Result containing the serialized output if successful, or an error if serialization fails.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `serializer` - The serializer to use for serialization.
+        /// 
+        /// # Returns
+        /// 
+        /// A Result containing the serialized output if successful, or an error if serialization fails.
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -144,12 +167,22 @@ pub mod date_time {
     }
 
     impl<T: TimeStrategy> std::fmt::Display for DateTime<T> {
+                /// Formats the value using the provided formatter.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `f` - A mutable reference to a formatter that will be used to format the value.
+        /// 
+        /// # Returns
+        /// 
+        /// * `Result` - A result indicating whether the formatting was successful or not.
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             T::fmt(&self.value, f)
         }
     }
 
     impl TimeStrategy for DDMMYYYY {
+                /// Formats the input PrimitiveDateTime into a custom date format and writes it to the provided Formatter.
         fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let year = input.year();
             #[allow(clippy::as_conversions)]
@@ -161,6 +194,7 @@ pub mod date_time {
     }
 
     impl TimeStrategy for YYYYMMDD {
+                /// Formats the input PrimitiveDateTime as "YYYYMMDD" and writes it to the provided formatter.
         fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let year = input.year();
             #[allow(clippy::as_conversions)]
@@ -172,6 +206,7 @@ pub mod date_time {
     }
 
     impl TimeStrategy for YYYYMMDDHHmmss {
+                /// Formats the input PrimitiveDateTime into a string in the format "YYYYMMDDHHMMSS"
         fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let year = input.year();
             #[allow(clippy::as_conversions)]
@@ -188,12 +223,25 @@ pub mod date_time {
 
 /// Generate a nanoid with the given prefix and length
 #[inline]
+/// Generates a random ID of a specified length with a given prefix using the nanoid crate.
+///
+/// # Arguments
+///
+/// * `length` - The length of the generated ID.
+/// * `prefix` - The prefix to be added to the generated ID.
+///
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
+/// Generates a unique ID with a default length using the provided prefix.
+///
+/// # Arguments
+///
+/// * `prefix` - A string slice that represents the prefix for the generated ID.
+///
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))

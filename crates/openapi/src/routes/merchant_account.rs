@@ -39,7 +39,10 @@
     operation_id = "Create a Merchant Account",
     security(("admin_api_key" = []))
 )]
-pub async fn merchant_account_create() {}
+/// Asynchronously creates a new merchant account.
+pub async fn merchant_account_create() {
+    // method implementation goes here
+}
 
 /// Merchant Account - Retrieve
 ///
@@ -56,7 +59,10 @@ pub async fn merchant_account_create() {}
     operation_id = "Retrieve a Merchant Account",
     security(("admin_api_key" = []))
 )]
-pub async fn retrieve_merchant_account() {}
+/// Asynchronously retrieves the merchant account details.
+pub async fn retrieve_merchant_account() {
+    // method implementation goes here
+}
 
 /// Merchant Account - Update
 ///
@@ -105,7 +111,10 @@ pub async fn retrieve_merchant_account() {}
     operation_id = "Update a Merchant Account",
     security(("admin_api_key" = []))
 )]
-pub async fn update_merchant_account() {}
+/// Asynchronously updates the merchant account information.
+pub async fn update_merchant_account() {
+    // method implementation
+}
 
 /// Merchant Account - Delete
 ///
@@ -122,4 +131,5 @@ pub async fn update_merchant_account() {}
     operation_id = "Delete a Merchant Account",
     security(("admin_api_key" = []))
 )]
+/// Asynchronously deletes a merchant account.
 pub async fn delete_merchant_account() {}

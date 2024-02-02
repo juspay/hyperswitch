@@ -29,6 +29,7 @@ pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
+        /// Executes a workflow for processing payments. It retrieves tracking data, merchant information, and payment status, and performs various operations based on the payment status, such as finishing process, retrying, updating payment status, triggering webhooks, and handling failed payments.
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
@@ -200,6 +201,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         Ok(())
     }
 
+     /// Asynchronous method for handling errors in the process tracker. It takes in the application state, process tracker, and a process tracker error as input parameters. It calls the consumer_error_handler function from the consumer module to handle the error and returns a CustomResult containing either a unit or a ProcessTrackerError.
     async fn error_handler<'a>(
         &'a self,
         state: &'a AppState,
@@ -291,6 +293,7 @@ mod tests {
     use super::*;
 
     #[test]
+        /// This method is used to test the `get_schedule_time` function from the `scheduler_utils` module. It retrieves the schedule time delta and the first retry time delta using the default `ConnectorPTMapping`. It then compares these values with the default values obtained from the `ConnectorPTMapping` and asserts their equality.
     fn test_get_default_schedule_time() {
         let schedule_time_delta =
             scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0)

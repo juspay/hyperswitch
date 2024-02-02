@@ -28,6 +28,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// Constructs the payment router data by processing the payment data and other necessary information
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
@@ -200,6 +201,9 @@ where
     Op: Debug,
 {
     #[allow(clippy::too_many_arguments)]
+        /// Generates a router response based on the provided request, payment data, customer, authentication flow,
+    /// server, operation, connector request reference ID configuration, connector HTTP status code, external latency,
+    /// and latency header enablement. It also handles multiple capture data by expanding captures if necessary.
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
@@ -253,6 +257,7 @@ where
     Op: Debug,
 {
     #[allow(clippy::too_many_arguments)]
+        /// Generates a router response containing payment-related data based on the provided request, payment data, customer information, authentication flow, server information, operation, connector request reference ID configuration, connector HTTP status code, external latency, and latency header enablement. The response is in the form of a JSON object with additional headers.
     fn generate_response(
         _req: Option<Req>,
         payment_data: PaymentData<F>,
@@ -287,6 +292,7 @@ where
     Op: Debug,
 {
     #[allow(clippy::too_many_arguments)]
+        /// Generates a response based on the provided request and payment data, and returns a RouterResponse.
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
@@ -341,6 +347,7 @@ where
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
+/// Converts payment request and data into a payments response, including various payment details and next actions.
 pub fn payments_to_payments_response<R, Op, F: Clone>(
     payment_request: Option<R>,
     payment_data: PaymentData<F>,
@@ -798,6 +805,7 @@ where
     output
 }
 
+/// Determines if the next action for a third-party SDK session is required based on the provided payment attempt and operation.
 pub fn third_party_sdk_session_next_action<Op>(
     payment_attempt: &storage::PaymentAttempt,
     operation: &Op,
@@ -828,6 +836,15 @@ where
     }
 }
 
+/// Checks the next steps for a QR code payment attempt and returns the QR code information if available.
+///
+/// # Arguments
+///
+/// * `payment_attempt` - The payment attempt for which to check the next steps
+///
+/// # Returns
+///
+/// If the QR code information is available for the payment attempt, it returns `Some(QrCodeInformation)`, otherwise it returns `None`.
 pub fn qr_code_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::QrCodeInformation>> {
@@ -839,6 +856,7 @@ pub fn qr_code_next_steps_check(
     Ok(qr_code_instructions)
 }
 
+/// Checks the next steps for the wait screen and returns the wait screen instructions if available.
 pub fn wait_screen_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
@@ -854,6 +872,8 @@ pub fn wait_screen_next_steps_check(
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+        /// Constructs a new instance of Self from a tuple of PaymentIntent and PaymentAttempt,
+    /// populating the fields with the corresponding values from the tuple elements.
     fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let pi = item.0;
         let pa = item.1;
@@ -887,6 +907,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 }
 
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
+        /// Transforms an `ephemeral_key::EphemeralKey` into `Self` by extracting and assigning its attributes.
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
             customer_id: from.customer_id,
@@ -897,6 +918,10 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
     }
 }
 
+/// Checks the next steps for a bank transfer payment attempt. If the payment method is bank transfer
+/// and the payment method type is not Pix, it attempts to parse the connector metadata for the
+/// "NextStepsRequirements" value and returns it as BankTransferNextStepsData. Returns None if the
+/// payment method is not bank transfer or if the payment method type is Pix.
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
@@ -927,6 +952,7 @@ pub fn bank_transfer_next_steps_check(
     Ok(bank_transfer_next_step)
 }
 
+/// Checks if the payment method is a voucher and retrieves the next steps data from the connector metadata.
 pub fn voucher_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
@@ -949,6 +975,7 @@ pub fn voucher_next_steps_check(
     Ok(voucher_next_step)
 }
 
+/// Change the order details to a new type, including the order amount, and return it as a vector of OrderDetailsWithAmount.
 pub fn change_order_details_to_new_type(
     order_amount: i64,
     order_details: api_models::payments::OrderDetails,
@@ -967,6 +994,7 @@ pub fn change_order_details_to_new_type(
 }
 
 impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::payments::NextActionData {
+        /// Converts a QrCodeInformation enum from the api_models::payments module into the current struct type.
     fn foreign_from(qr_info: api_models::payments::QrCodeInformation) -> Self {
         match qr_info {
             api_models::payments::QrCodeInformation::QrCodeUrl {
@@ -1012,6 +1040,8 @@ where
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Converts the given PaymentAdditionalData into an instance of the current struct, performing various data transformations and validations in the process.
+    /// Returns a Result with the converted instance if successful, or an error if any invalid or missing data is encountered.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
@@ -1141,6 +1171,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
+        /// Attempts to convert `additional_data` into an instance of `Self`, which represents a payment with the given additional data. Returns a `Result` containing either the successfully created instance of `Self`, or an error of type `Self::Error`.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         Ok(Self {
@@ -1169,6 +1200,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Tries to create an instance of Self from the provided PaymentAdditionalData. It extracts payment data and connector information from the additional data and constructs a new instance of Self using the extracted information.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
@@ -1209,6 +1241,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
 }
 
 impl api::ConnectorTransactionId for Helcim {
+        /// Retrieves the connector transaction ID for a given payment attempt. If the payment attempt does not have a connector transaction ID, it attempts to retrieve it from the connector metadata. If the connector metadata does not contain a transaction ID, it returns an error response indicating that the resource ID was not found.
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1224,6 +1257,7 @@ impl api::ConnectorTransactionId for Helcim {
 }
 
 impl api::ConnectorTransactionId for Nexinets {
+        /// Retrieves the transaction ID associated with the given payment attempt from the connector's metadata. If the transaction ID is found, it is returned as `Some(String)`, otherwise `None` is returned. If an error occurs during the retrieval process, an `ApiErrorResponse` is returned.
     fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
@@ -1236,6 +1270,8 @@ impl api::ConnectorTransactionId for Nexinets {
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create an instance of Self from the given PaymentAdditionalData.
+    /// Returns a Result containing the instance of Self if successful, or an error if the conversion fails.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
@@ -1286,6 +1322,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Converts the given `PaymentAdditionalData` into an instance of `Self`, or returns an error if the conversion fails. 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
@@ -1321,6 +1358,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to convert the provided `PaymentAdditionalData` into an instance of `Self`.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `additional_data` - The `PaymentAdditionalData` to convert
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` containing the converted instance of `Self` if successful, or an error if conversion fails
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         Ok(Self {
@@ -1345,6 +1391,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Tries to convert the given PaymentAdditionalData into an instance of Self, a Payment struct, and returns a Result.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data.clone();
 
@@ -1387,6 +1434,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a new instance of `Self` from the provided `PaymentAdditionalData`.
+    /// If successful, returns a `Result` containing the new instance, otherwise returns an error.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let router_base_url = &additional_data.router_base_url;
@@ -1450,6 +1499,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to convert a `CaptureSyncResponse` into an instance of the current type, returning a `Result` with either the converted instance or an error.
     fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
         match capture_sync_response {
             types::CaptureSyncResponse::Success {
@@ -1490,6 +1540,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a Payment from the provided PaymentAdditionalData.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let router_base_url = &additional_data.router_base_url;
@@ -1546,6 +1597,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Attempts to create a PaymentAdditionalData object from the given data, returning a Result with either the created object or an error.
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let payment_method_data = payment_data.payment_method_data;
@@ -1623,6 +1675,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
 }
 
 impl ForeignFrom<payments::FraudCheck> for FrmMessage {
+        /// Creates a new instance of Self by converting a FraudCheck object into the current type.
     fn foreign_from(fraud_check: payments::FraudCheck) -> Self {
         Self {
             frm_name: fraud_check.frm_name,

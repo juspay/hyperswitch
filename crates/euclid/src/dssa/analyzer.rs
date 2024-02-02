@@ -97,6 +97,10 @@ pub fn analyze_exhaustive_negations(
     Ok(())
 }
 
+/// Analyzes the negated assertions by comparing keywise assertions and negations
+/// and checking for intersection between them. If an intersection is found, 
+/// it generates an analysis error with the corresponding assertion and negation 
+/// metadata.
 fn analyze_negated_assertions(
     keywise_assertions: &FxHashMap<dir::DirKey, FxHashSet<&dir::DirValue>>,
     assertion_metadata: &FxHashMap<&dir::DirValue, &Metadata>,
@@ -136,6 +140,7 @@ fn analyze_negated_assertions(
     Ok(())
 }
 
+/// Perform condition analyses on the provided conjunctive context, extracting and organizing assertion and negation metadata for further analysis. 
 fn perform_condition_analyses(
     context: &types::ConjunctiveContext<'_>,
 ) -> Result<(), types::AnalysisError> {
@@ -201,6 +206,20 @@ fn perform_condition_analyses(
     Ok(())
 }
 
+/// Perform context analyses using the given conjunctive context and knowledge graph.
+/// This method first performs condition analyses on the context, then initializes a memoization
+/// instance. It then performs context analysis on the knowledge graph using the context and memoization
+/// and maps any encountered errors to an AnalysisError. 
+///
+/// # Arguments
+///
+/// * `context` - A reference to a ConjunctiveContext
+/// * `knowledge_graph` - A reference to a KnowledgeGraph
+///
+/// # Returns
+///
+/// A Result indicating success or an AnalysisError if an error occurs during the analysis.
+///
 fn perform_context_analyses(
     context: &types::ConjunctiveContext<'_>,
     knowledge_graph: &graph::KnowledgeGraph<'_>,
@@ -216,6 +235,7 @@ fn perform_context_analyses(
     Ok(())
 }
 
+/// Analyzes the given program using a state machine and knowledge graph to produce a valued program.
 pub fn analyze<O: EuclidAnalysable + EuclidDirFilter>(
     program: ast::Program<O>,
     knowledge_graph: Option<&graph::KnowledgeGraph<'_>>,
@@ -246,6 +266,9 @@ mod tests {
     use crate::{dirval, types::DummyOutput};
 
     #[test]
+        /// This method tests the detection of conflicting assertions in a program. It parses a program string,
+    /// analyzes it, and then checks if the analysis result contains an error of type ConflictingAssertions.
+    /// If it does, it verifies the error details including the key, values, and specific conditions.
     fn test_conflicting_assertion_detection() {
         let program_str = r#"
             default: ["stripe", "adyen"]
@@ -287,6 +310,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the detection of exhaustive negation in a given program.
     fn test_exhaustive_negation_detection() {
         let program_str = r#"
             default: ["stripe"]
@@ -330,6 +354,10 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the detection of negated assertions in a given program. It parses a program
+    /// string, analyzes it, and checks if the analysis result contains a negated assertion error. If
+    /// the error is found, it verifies the specific value causing the error. If no error is found, it
+    /// fails the test.
     fn test_negated_assertions_detection() {
         let program_str = r#"
             default: ["stripe"]
@@ -367,6 +395,7 @@ mod tests {
     }
 
     #[test]
+        /// Performs a negation graph analysis by creating a knowledge graph, parsing a program, analyzing the program with the knowledge graph, and then asserting expected results based on the analysis.
     fn test_negation_graph_analysis() {
         let graph = knowledge! {crate
             CaptureMethod(Automatic) ->> PaymentMethod(Card);

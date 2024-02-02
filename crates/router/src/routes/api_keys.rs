@@ -28,6 +28,7 @@ use crate::{
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
+/// Handles the creation of an API key for a specific merchant. This method takes in the necessary data and JSON payload, performs the required authentication, and then calls the `create_api_key` function to create the API key. Depending on the features enabled (e.g., "kms" or "hashicorp-vault"), it may also interact with external services such as Key Management Service or HashiCorp Vault to securely create and manage the API key.
 pub async fn api_key_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -96,6 +97,7 @@ pub async fn api_key_create(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
+/// Handles the retrieval of an API key for a specific merchant. 
 pub async fn api_key_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -142,6 +144,7 @@ pub async fn api_key_retrieve(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
+/// Handles the API request to update an API key. It extracts the necessary information from the request, such as the merchant ID, key ID, and the JSON payload containing the updated API key information. It then calls the `api::server_wrap` function to wrap the API key update flow, authenticate the request, and perform the actual update operation using the `api_keys::update_api_key` function. Finally, it awaits the result of the wrapped operation and returns the response.
 pub async fn api_key_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -192,6 +195,7 @@ pub async fn api_key_update(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
+/// Revokes an API key for a specific merchant.
 pub async fn api_key_revoke(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -237,6 +241,7 @@ pub async fn api_key_revoke(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
+/// Handles the API request to list API keys for a specific merchant. 
 pub async fn api_key_list(
     state: web::Data<AppState>,
     req: HttpRequest,

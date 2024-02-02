@@ -160,6 +160,7 @@ pub enum PayoutMethodData {
 }
 
 impl Default for PayoutMethodData {
+        /// Returns a new instance of the struct with the default values initialized.
     fn default() -> Self {
         Self::Card(Card::default())
     }

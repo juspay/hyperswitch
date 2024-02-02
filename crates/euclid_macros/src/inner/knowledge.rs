@@ -25,6 +25,7 @@ enum Comparison {
 }
 
 impl ToString for Comparison {
+        /// Converts the enum variant to a string representation.
     fn to_string(&self) -> String {
         match self {
             Self::LessThan => "< ".to_string(),
@@ -37,6 +38,7 @@ impl ToString for Comparison {
 }
 
 impl Parse for Comparison {
+        /// Parses the input and returns a `Result` containing the corresponding `Self` enum variant.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         if input.peek(Token![>]) {
             input.parse::<Token![>]>()?;
@@ -64,6 +66,7 @@ enum ValueType {
 }
 
 impl ValueType {
+        /// Returns a string representation of the given key based on the enum variant.
     fn to_string(&self, key: &str) -> String {
         match self {
             Self::Any => format!("{key}(any)"),
@@ -76,6 +79,9 @@ impl ValueType {
 }
 
 impl Parse for ValueType {
+        /// This method takes a ParseStream as input and attempts to parse it into a Result<Self>.
+    /// It checks the lookahead of the input stream and parses it accordingly, returning the parsed
+    /// result or an error if the lookahead does not match any expected pattern.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(syn::Ident) {
@@ -105,12 +111,14 @@ struct Atom {
 }
 
 impl ToString for Atom {
+        /// Converts the value and key of the current instance into a single string representation.
     fn to_string(&self) -> String {
         self.value.to_string(&self.key)
     }
 }
 
 impl Parse for Atom {
+        /// Parses the input ParseStream and returns a Result containing an instance of Self.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let maybe_any: syn::Ident = input.parse()?;
         if maybe_any == "any" {
@@ -138,6 +146,7 @@ enum Strength {
 }
 
 impl Parse for Strength {
+        /// Parses the input and returns the result based on the parsed value
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(strength::Strong) {
@@ -171,6 +180,8 @@ enum AtomType {
     },
 }
 
+/// Parses the inner part of an atom type from the given input stream, using the provided key and relation.
+/// Returns a Result containing the parsed AtomType.
 fn parse_atom_type_inner(
     input: syn::parse::ParseStream<'_>,
     key: syn::Ident,
@@ -220,6 +231,7 @@ fn parse_atom_type_inner(
 }
 
 impl Parse for AtomType {
+        /// This method takes a ParseStream input and parses it to return a Result<Self>.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let key: syn::Ident = input.parse()?;
         let content;
@@ -242,6 +254,7 @@ impl Parse for AtomType {
     }
 }
 
+/// Parses the right-hand side atom of a syntax tree, extracting the key and value type.
 fn parse_rhs_atom(input: syn::parse::ParseStream<'_>) -> syn::Result<Atom> {
     let key: syn::Ident = input.parse()?;
     let content;
@@ -276,6 +289,7 @@ struct Rule {
 }
 
 impl Parse for Rule {
+        /// Parse the input ParseStream to construct a new instance of the current struct.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let first_atom: AtomType = input.parse()?;
         let mut lhs: Vec<AtomType> = vec![first_atom];
@@ -303,6 +317,7 @@ enum Scope {
 }
 
 impl Parse for Scope {
+        /// Parses the input stream and returns a result of the specified type.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(Token![crate]) {
@@ -318,6 +333,7 @@ impl Parse for Scope {
 }
 
 impl ToString for Scope {
+        /// Converts the enum variant to a string representation.
     fn to_string(&self) -> String {
         match self {
             Self::Crate => "crate".to_string(),
@@ -333,6 +349,7 @@ struct Program {
 }
 
 impl Parse for Program {
+        /// Parses the input ParseStream and returns a Result containing Self.
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         let scope: Scope = input.parse()?;
         let mut rules: Vec<Rc<Rule>> = Vec::new();
@@ -355,6 +372,7 @@ struct GenContext {
 }
 
 impl GenContext {
+        /// Creates a new instance of the current struct, initializing the internal data structures and setting the initial index values.
     fn new() -> Self {
         Self {
             next_idx: 1,
@@ -366,6 +384,7 @@ impl GenContext {
         }
     }
 
+        /// Registers a new node with the given atom and returns its index. If the atom is already registered, returns the index of the existing atom.
     fn register_node(&mut self, atom: Rc<Atom>) -> usize {
         if let Some(idx) = self.atom2idx.get(&atom) {
             *idx
@@ -380,6 +399,9 @@ impl GenContext {
         }
     }
 
+        /// Registers an edge between two nodes in the graph.
+    /// If the edge is successfully registered, it returns Ok(()).
+    /// If a duplicate edge is detected, it returns Err("Duplicate edge detected").
     fn register_edge(&mut self, from: usize, to: usize) -> Result<(), String> {
         let node_children = self.edges.entry(from).or_default();
         if node_children.contains(&to) {
@@ -391,6 +413,18 @@ impl GenContext {
         }
     }
 
+        /// Registers a new rule in the graph database.
+    /// 
+    /// This method takes a reference to a Rule and registers it in the graph database by adding nodes and edges based on the rule's left-hand side (lhs) and right-hand side (rhs).
+    /// It first registers the right-hand side node and then registers nodes for each value in the left-hand side, creating edges from each left-hand side node to the right-hand side node.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `rule` - A reference to a Rule that will be registered in the graph database.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), String>` - A result indicating success if the rule was registered successfully, or an error message if the registration failed.
     fn register_rule(&mut self, rule: &Rule) -> Result<(), String> {
         let to_idx = self.register_node(Rc::clone(&rule.rhs));
 
@@ -404,6 +438,8 @@ impl GenContext {
         Ok(())
     }
 
+        /// Performs a depth-first search (DFS) to find cycles in a graph starting from the given node.
+    /// Returns a Result containing either the cycle order if a cycle is found, or None if no cycle is found.
     fn cycle_dfs(
         &self,
         node_id: usize,
@@ -445,6 +481,7 @@ impl GenContext {
         }
     }
 
+        /// Detects cycles in a graph and returns a Result indicating success or an error message.
     fn detect_graph_cycles(&self) -> Result<(), String> {
         let start_nodes = self.edges.keys().copied().collect::<Vec<usize>>();
 
@@ -482,12 +519,15 @@ impl GenContext {
         Ok(())
     }
 
+        /// Increments the next node index and returns a tuple containing a new identifier based on the incremented index and the original index.
     fn next_node_ident(&mut self) -> (proc_macro2::Ident, usize) {
         let this_idx = self.next_node_idx;
         self.next_node_idx += 1;
         (format_ident!("_node_{this_idx}"), this_idx)
     }
 
+        /// Compiles the given Atom into a proc_macro2::Ident and adds it to the TokenStream.
+    /// If the Atom has already been compiled, the existing Ident is returned.
     fn compile_atom(
         &mut self,
         atom: &Rc<Atom>,
@@ -550,6 +590,7 @@ impl GenContext {
         }
     }
 
+        /// Compiles the given atom type into a graph node and returns the identifier of the node along with its relation.
     fn compile_atom_type(
         &mut self,
         atom_type: &AtomType,
@@ -592,6 +633,8 @@ impl GenContext {
         }
     }
 
+        /// Compiles a rule into graph nodes and edges based on the specified rule, and adds the resulting
+    /// nodes and edges to the given token stream. Returns a Result indicating success or an error message.
     fn compile_rule(&mut self, rule: &Rule, tokens: &mut TokenStream) -> Result<(), String> {
         let rhs_ident = self.compile_atom(&rule.rhs, tokens)?;
         let mut node_details: Vec<(proc_macro2::Ident, Relation)> =
@@ -632,6 +675,7 @@ impl GenContext {
         Ok(())
     }
 
+        /// Compiles a given program into a token stream, using the rules and scope provided.
     fn compile(&mut self, program: Program) -> Result<TokenStream, String> {
         let mut tokens = TokenStream::new();
         for rule in &program.rules {
@@ -663,6 +707,7 @@ impl GenContext {
     }
 }
 
+/// Parses a token stream into a program, registers rules, detects graph cycles, and compiles the program using a new gen context.
 pub(crate) fn knowledge_inner(ts: TokenStream) -> syn::Result<TokenStream> {
     let program = syn::parse::<Program>(ts.into())?;
     let mut gen_context = GenContext::new();

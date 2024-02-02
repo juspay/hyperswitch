@@ -15,6 +15,21 @@ use crate::{
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
+        /// Asynchronously constructs router data for payments cancellation by calling the `construct_payment_router_data` method with the provided parameters and awaits for the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - A reference to the application state.
+    /// * `connector_id` - The ID of the connector.
+    /// * `merchant_account` - A reference to the merchant account.
+    /// * `key_store` - A reference to the merchant key store.
+    /// * `customer` - An optional reference to the customer.
+    /// * `merchant_connector_account` - The merchant connector account type.
+    ///
+    /// # Returns
+    ///
+    /// The router result containing the constructed payments cancellation router data.
+    ///
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -44,6 +59,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
 impl Feature<api::Void, types::PaymentsCancelData>
     for types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
+        /// This method is responsible for deciding the flows of the payment system. It updates the payment cancel count metric, gets the connector integration, and executes the connector processing step. It then awaits the result and returns a payment failed response.
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -83,6 +99,18 @@ impl Feature<api::Void, types::PaymentsCancelData>
         Ok(resp)
     }
 
+        /// Asynchronously adds an access token to the given merchant account using the provided connector data and application state.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state containing necessary data and configurations.
+    /// * `connector` - The connector data used to authenticate and authorize the request.
+    /// * `merchant_account` - The merchant account to which the access token will be added.
+    /// 
+    /// # Returns
+    /// 
+    /// A `RouterResult` containing the result of adding the access token to the merchant account.
+    /// 
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
@@ -92,6 +120,9 @@ impl Feature<api::Void, types::PaymentsCancelData>
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
 
+
+        /// Asynchronously builds a specific connector request based on the provided state, connector data, and call connector action. 
+    /// Returns a tuple containing the optional request and a boolean indicating whether the request was successfully built.
     async fn build_flow_specific_connector_request(
         &mut self,
         state: &AppState,

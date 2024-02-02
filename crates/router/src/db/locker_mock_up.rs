@@ -27,6 +27,16 @@ pub trait LockerMockUpInterface {
 
 #[async_trait::async_trait]
 impl LockerMockUpInterface for Store {
+        /// Asynchronously finds a locker by the given card ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `card_id` - A string slice representing the card ID to search for.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` that contains a `LockerMockUp` if the locker with the specified card ID is found, or a `StorageError` if an error occurs.
+    ///
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
@@ -38,6 +48,8 @@ impl LockerMockUpInterface for Store {
             .into_report()
     }
 
+        /// Inserts a new LockerMockUp entry into the storage using an asynchronous connection to the database. 
+    /// Returns a CustomResult containing the inserted LockerMockUp entry or a StorageError if an error occurs.
     async fn insert_locker_mock_up(
         &self,
         new: storage::LockerMockUpNew,
@@ -46,6 +58,16 @@ impl LockerMockUpInterface for Store {
         new.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+        /// Asynchronously deletes a locker mock-up by its associated card ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `card_id` - A string slice representing the ID of the card associated with the locker mock-up to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `LockerMockUp` if the deletion is successful, otherwise an `errors::StorageError`.
+    ///
     async fn delete_locker_mock_up(
         &self,
         card_id: &str,
@@ -60,6 +82,17 @@ impl LockerMockUpInterface for Store {
 
 #[async_trait::async_trait]
 impl LockerMockUpInterface for MockDb {
+        /// Asynchronously finds a locker by card id in the storage. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `card_id` - A reference to a string representing the card id to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `CustomResult` with the found `LockerMockUp` if the card id is found,
+    /// otherwise returns a `StorageError` if the card id is not found or if there is a mock database error.
+    /// 
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
@@ -73,6 +106,7 @@ impl LockerMockUpInterface for MockDb {
             .ok_or(errors::StorageError::MockDbError.into())
     }
 
+        /// Inserts a new locker mock-up into the storage, ensuring that the card_id is unique. If the card_id already exists in the storage, it returns a StorageError. Otherwise, it creates a new LockerMockUp instance and adds it to the storage, returning the newly created LockerMockUp.
     async fn insert_locker_mock_up(
         &self,
         new: storage::LockerMockUpNew,
@@ -111,6 +145,16 @@ impl LockerMockUpInterface for MockDb {
         Ok(created_locker)
     }
 
+        /// Deletes a locker mock-up with the specified card ID from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `card_id` - A string slice that represents the card ID of the locker mock-up to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the deleted `LockerMockUp` if the operation is successful, otherwise an `errors::StorageError`.
+    ///
     async fn delete_locker_mock_up(
         &self,
         card_id: &str,
@@ -142,6 +186,7 @@ mod tests {
             customer_id: String,
         }
 
+                /// Creates a new LockerMockUpNew struct using the provided LockerMockUpIds.
         fn create_locker_mock_up_new(locker_ids: LockerMockUpIds) -> storage::LockerMockUpNew {
             storage::LockerMockUpNew {
                 card_id: locker_ids.card_id,
@@ -162,6 +207,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Asynchronously finds a locker by card ID using the mock database.
         async fn find_locker_by_card_id() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -193,6 +239,7 @@ mod tests {
         }
 
         #[tokio::test]
+                /// Inserts a mock locker into the mock database, retrieves it, and asserts that it has been successfully inserted.
         async fn insert_locker_mock_up() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -223,6 +270,7 @@ mod tests {
         }
 
         #[tokio::test]
+        /// Asynchronously deletes a mock locker from the mock database. This method creates a new mock database and inserts a new mock locker with specified details. It then deletes the mock locker with the specified card ID and asserts that it has been successfully deleted from the database.
         async fn delete_locker_mock_up() {
             #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())

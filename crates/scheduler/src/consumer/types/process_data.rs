@@ -19,6 +19,7 @@ pub struct ConnectorPTMapping {
 }
 
 impl Default for ConnectorPTMapping {
+        /// Creates a new instance of the struct with default values for its fields.
     fn default() -> Self {
         Self {
             custom_merchant_mapping: HashMap::new(),
@@ -41,6 +42,7 @@ pub struct PaymentMethodsPTMapping {
 }
 
 impl Default for PaymentMethodsPTMapping {
+        /// Returns a new instance of Self with default values for custom_pm_mapping, default_mapping, and max_retries_count.
     fn default() -> Self {
         Self {
             custom_pm_mapping: HashMap::new(),

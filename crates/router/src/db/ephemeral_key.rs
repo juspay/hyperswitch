@@ -39,6 +39,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {
+                /// Asynchronously creates a new ephemeral key with the given EphemeralKeyNew and validity, and returns a CustomResult with the created EphemeralKey on success or a StorageError on failure. The method generates a secret key and an id key based on the new EphemeralKeyNew, calculates the expiration time, and then serializes and sets the key-value pairs in the Redis storage. If the keys already exist, it returns a StorageError for duplicate value. Otherwise, it sets the expiration for the keys in the Redis storage and returns the created EphemeralKey. If any error occurs during the process, it returns a StorageError with the appropriate context.
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
@@ -92,6 +93,20 @@ mod storage {
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
+        /// Asynchronously retrieves an ephemeral key from the storage by its unique identifier.
+        ///
+        /// # Arguments
+        ///
+        /// * `key` - A string slice representing the unique identifier of the ephemeral key
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing either the retrieved `EphemeralKey` or a `StorageError`
+        ///
+        /// # Errors
+        ///
+        /// An error of type `StorageError` is returned if the operation fails
+        ///
         async fn get_ephemeral_key(
             &self,
             key: &str,
@@ -103,6 +118,7 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::KVError)
         }
+                /// Asynchronously deletes an ephemeral key from the storage by its ID and secret, then returns the deleted key.
         async fn delete_ephemeral_key(
             &self,
             id: &str,
@@ -127,26 +143,38 @@ mod storage {
 
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for MockDb {
+    /// Asynchronously creates a new ephemeral key with the given EphemeralKeyNew and validity, and returns a CustomResult containing the created EphemeralKey or a StorageError if an error occurs.
     async fn create_ephemeral_key(
-        &self,
-        ek: EphemeralKeyNew,
-        validity: i64,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
-        let created_at = common_utils::date_time::now();
-        let expires = created_at.saturating_add(validity.hours());
-
-        let ephemeral_key = EphemeralKey {
-            id: ek.id,
-            merchant_id: ek.merchant_id,
-            customer_id: ek.customer_id,
-            created_at: created_at.assume_utc().unix_timestamp(),
-            expires: expires.assume_utc().unix_timestamp(),
-            secret: ek.secret,
-        };
-        ephemeral_keys.push(ephemeral_key.clone());
-        Ok(ephemeral_key)
-    }
+            &self,
+            ek: EphemeralKeyNew,
+            validity: i64,
+        ) -> CustomResult<EphemeralKey, errors::StorageError> {
+            let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+            let created_at = common_utils::date_time::now();
+            let expires = created_at.saturating_add(validity.hours());
+    
+            let ephemeral_key = EphemeralKey {
+                id: ek.id,
+                merchant_id: ek.merchant_id,
+                customer_id: ek.customer_id,
+                created_at: created_at.assume_utc().unix_timestamp(),
+                expires: expires.assume_utc().unix_timestamp(),
+                secret: ek.secret,
+            };
+            ephemeral_keys.push(ephemeral_key.clone());
+            Ok(ephemeral_key)
+        }
+    /// Asynchronously gets an ephemeral key from the storage based on the provided key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key` - A reference to a string representing the key of the ephemeral key to retrieve.
+    /// 
+    /// # Returns
+    /// 
+    /// * If a matching ephemeral key is found, it returns a `CustomResult` containing the ephemeral key.
+    /// * If no matching ephemeral key is found, it returns a `CustomResult` containing a `StorageError` indicating that the ephemeral key was not found.
+    /// 
     async fn get_ephemeral_key(
         &self,
         key: &str,
@@ -164,18 +192,19 @@ impl EphemeralKeyInterface for MockDb {
             ),
         }
     }
-    async fn delete_ephemeral_key(
-        &self,
-        id: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
-        if let Some(pos) = ephemeral_keys.iter().position(|x| (*x.id).eq(id)) {
-            let ek = ephemeral_keys.remove(pos);
-            Ok(ek)
-        } else {
-            return Err(
-                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
-            );
+        /// Asynchronously deletes an ephemeral key from the storage by its ID.
+        async fn delete_ephemeral_key(
+            &self,
+            id: &str,
+        ) -> CustomResult<EphemeralKey, errors::StorageError> {
+            let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+            if let Some(pos) = ephemeral_keys.iter().position(|x| (*x.id).eq(id)) {
+                let ek = ephemeral_keys.remove(pos);
+                Ok(ek)
+            } else {
+                return Err(
+                    errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
+                );
+            }
         }
-    }
 }

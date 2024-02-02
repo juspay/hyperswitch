@@ -73,6 +73,7 @@ pub trait PaymentDistributionAccumulator {
 impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
     type DistributionOutput = Option<Vec<ErrorResult>>;
 
+        /// Adds a new payment distribution bucket to the error vector.
     fn add_distribution_bucket(&mut self, distribution: &PaymentDistributionRow) {
         self.error_vec.push(ErrorDistributionRow {
             count: distribution.count.unwrap_or_default(),
@@ -85,6 +86,7 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
         })
     }
 
+    /// Method to collect error results and calculate percentage
     fn collect(mut self) -> Self::DistributionOutput {
         if self.error_vec.is_empty() {
             None
@@ -110,6 +112,7 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
 impl PaymentMetricAccumulator for SuccessRateAccumulator {
     type MetricOutput = Option<f64>;
 
+        /// Adds the metrics from a PaymentMetricRow to the existing bucket metrics.
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         if let Some(ref status) = metrics.status {
             if status.as_ref() == &storage_enums::AttemptStatus::Charged {
@@ -119,6 +122,7 @@ impl PaymentMetricAccumulator for SuccessRateAccumulator {
         self.total += metrics.count.unwrap_or_default();
     }
 
+        /// Calculates the success rate as a percentage based on the number of successful attempts and the total number of attempts.
     fn collect(self) -> Self::MetricOutput {
         if self.total <= 0 {
             None
@@ -134,6 +138,7 @@ impl PaymentMetricAccumulator for SuccessRateAccumulator {
 impl PaymentMetricAccumulator for CountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
+        /// Adds the count from the given PaymentMetricRow to the count of the current instance
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         self.count = match (self.count, metrics.count) {
             (None, None) => None,
@@ -142,6 +147,7 @@ impl PaymentMetricAccumulator for CountAccumulator {
         }
     }
     #[inline]
+        /// This method collects the result of the count and then attempts to convert it into a u64, returning an Option<u64>.
     fn collect(self) -> Self::MetricOutput {
         self.count.and_then(|i| u64::try_from(i).ok())
     }
@@ -150,6 +156,7 @@ impl PaymentMetricAccumulator for CountAccumulator {
 impl PaymentMetricAccumulator for SumAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
+        /// Adds the metric values from the given `PaymentMetricRow` to the existing total metric values in the struct.
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         self.total = match (
             self.total,
@@ -164,6 +171,7 @@ impl PaymentMetricAccumulator for SumAccumulator {
         }
     }
     #[inline]
+        /// Converts the `total` field into a `u64` and returns it as the `MetricOutput` type.
     fn collect(self) -> Self::MetricOutput {
         u64::try_from(self.total.unwrap_or(0)).ok()
     }
@@ -172,6 +180,8 @@ impl PaymentMetricAccumulator for SumAccumulator {
 impl PaymentMetricAccumulator for AverageAccumulator {
     type MetricOutput = Option<f64>;
 
+        /// Adds the total and count metrics from the provided PaymentMetricRow to the total and count
+    /// metrics of the current instance.
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         let total = metrics
             .total
@@ -190,6 +200,7 @@ impl PaymentMetricAccumulator for AverageAccumulator {
         }
     }
 
+        /// Calculates and returns the average of the collected values. If no values have been collected, returns None.
     fn collect(self) -> Self::MetricOutput {
         if self.count == 0 {
             None
@@ -200,6 +211,7 @@ impl PaymentMetricAccumulator for AverageAccumulator {
 }
 
 impl PaymentMetricsAccumulator {
+        /// Collects the payment metrics bucket values and returns a new `PaymentMetricsBucketValue` containing the collected values
     pub fn collect(self) -> PaymentMetricsBucketValue {
         PaymentMetricsBucketValue {
             payment_success_rate: self.payment_success_rate.collect(),

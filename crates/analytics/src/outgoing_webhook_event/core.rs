@@ -5,6 +5,17 @@ use error_stack::{IntoReport, ResultExt};
 use super::events::{get_outgoing_webhook_event, OutgoingWebhookLogsResult};
 use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
+/// Executes a query to retrieve outgoing webhook event logs from the analytics provider based on the given request and merchant ID.
+/// 
+/// # Arguments
+/// 
+/// * `pool` - The analytics provider pool to execute the query on.
+/// * `req` - The request containing filters and pagination options for the outgoing webhook event logs.
+/// * `merchant_id` - The ID of the merchant for which the outgoing webhook event logs are being retrieved.
+/// 
+/// # Returns
+/// 
+/// A `Vec` of `OutgoingWebhookLogsResult` wrapped in a `Result` representing the result of the query execution.
 pub async fn outgoing_webhook_events_core(
     pool: &AnalyticsProvider,
     req: OutgoingWebhookLogsRequest,

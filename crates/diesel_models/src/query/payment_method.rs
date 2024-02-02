@@ -11,6 +11,15 @@ use crate::{
 
 impl PaymentMethodNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a PaymentMethod into the database using the provided database connection pool.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a `PgPooledConn` database connection
+    /// 
+    /// # Returns
+    /// 
+    /// An asynchronous `StorageResult` containing the inserted `PaymentMethod` if successful, or an error if the insertion fails.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +27,16 @@ impl PaymentMethodNew {
 
 impl PaymentMethod {
     #[instrument(skip(conn))]
+        /// Deletes a row from the database based on the provided payment method ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - The database connection
+    /// * `payment_method_id` - The ID of the payment method to be used as a filter for deletion
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the result of the deletion operation
     pub async fn delete_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: String,
@@ -30,6 +49,17 @@ impl PaymentMethod {
     }
 
     #[instrument(skip(conn))]
+        /// Deletes a record from the database based on the provided merchant ID and payment method ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A connection to the database
+    /// * `merchant_id` - The ID of the merchant
+    /// * `payment_method_id` - The ID of the payment method
+    ///
+    /// # Returns
+    ///
+    /// A result indicating success or failure of the delete operation
     pub async fn delete_by_merchant_id_payment_method_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -45,6 +75,17 @@ impl PaymentMethod {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database based on the given payment method ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// * `payment_method_id` - A reference to the payment method ID to search by
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the found record, if any
+    ///
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,
@@ -57,6 +98,17 @@ impl PaymentMethod {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously queries the database to find all records with a specific merchant ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// * `merchant_id` - The merchant ID to filter records by
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing a vector of records that match the specified merchant ID
+    ///
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -77,6 +129,7 @@ impl PaymentMethod {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds records by customer_id and merchant_id in the database.
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -99,6 +152,7 @@ impl PaymentMethod {
         .await
     }
 
+        /// Asynchronously updates the current object with the given payment method ID using the provided database connection.
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,

@@ -25,6 +25,14 @@ pub trait KmsDecrypt {
 #[async_trait::async_trait]
 impl KmsDecrypt for &KmsValue {
     type Output = String;
+        /// Asynchronously decrypts the value using the provided KmsClient.
+    ///
+    /// # Arguments
+    /// * `kms_client` - A reference to the KmsClient used to decrypt the value
+    ///
+    /// # Returns
+    /// A custom result containing the decrypted value or a KmsError if decryption fails.
+    ///
     async fn decrypt_inner(self, kms_client: &KmsClient) -> CustomResult<Self::Output, KmsError> {
         kms_client
             .decrypt(self.0.peek())

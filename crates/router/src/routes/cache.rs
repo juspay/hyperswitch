@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// Invalidates a cache entry using the provided key. This method utilizes the provided AppState, HttpRequest, and key to wrap the cache invalidation process in a server request, using the admin API authentication and not applying any locking action.
 pub async fn invalidate(
     state: web::Data<AppState>,
     req: HttpRequest,

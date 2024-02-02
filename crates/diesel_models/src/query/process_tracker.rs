@@ -14,6 +14,15 @@ use crate::{
 
 impl ProcessTrackerNew {
     #[instrument(skip(conn))]
+        /// Inserts a new process into the database using the provided database connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the inserted `ProcessTracker` if successful, or an error if the insertion fails.
     pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
         generics::generic_insert(conn, self).await
     }
@@ -21,6 +30,7 @@ impl ProcessTrackerNew {
 
 impl ProcessTracker {
     #[instrument(skip(conn))]
+        /// Asynchronously updates the process tracker with the provided data using the given database connection. If an error occurs during the update, the method handles the error and returns the updated process tracker if no fields were updated, or returns the error if there was a database error.
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -42,6 +52,17 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously updates the process status for a list of task IDs in the database using the given process tracker update. It returns the number of rows affected by the update operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled PostgreSQL connection
+    /// * `task_ids` - A vector of task IDs for which the process status needs to be updated
+    /// * `task_update` - The process tracker update containing the new status and other information
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the number of rows affected by the update operation
     pub async fn update_process_status_by_ids(
         conn: &PgPooledConn,
         task_ids: Vec<String>,
@@ -56,6 +77,7 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a process by its ID in the database and returns it as an option.
     pub async fn find_process_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -65,6 +87,8 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
+        /// Queries the database to find processes within a specified time range and with a specific status,
+    /// and returns them as a vector. An optional limit can be set to restrict the number of results.
     pub async fn find_processes_by_time_status(
         conn: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
@@ -90,6 +114,7 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds and returns a vector of processes to clean based on the given time limits, runner, and limit. 
     pub async fn find_processes_to_clean(
         conn: &PgPooledConn,
         time_lower_limit: PrimitiveDateTime,
@@ -119,6 +144,7 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously reinitializes limbo processes in the database by updating their status to 'Processing' and setting a new schedule time. The method takes a pooled PostgreSQL connection, a vector of process IDs, and a schedule time as input and returns a result containing the number of rows affected by the update operation.
     pub async fn reinitialize_limbo_processes(
         conn: &PgPooledConn,
         ids: Vec<String>,

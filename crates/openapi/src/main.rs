@@ -1,6 +1,7 @@
 mod openapi;
 mod routes;
 
+/// Writes the OpenAPI specification to a file in JSON format and prints a success message.
 fn main() {
     let file_path = "openapi/openapi_spec.json";
     #[allow(clippy::expect_used)]

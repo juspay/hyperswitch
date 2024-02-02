@@ -17,6 +17,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// This method starts a producer with the given state and scheduler settings. It uses a random interval to run the producer flow and handles any errors that occur within the flow. It also listens for shutdown signals and terminates the producer accordingly.
 pub async fn start_producer<T>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
@@ -92,6 +93,10 @@ where
 }
 
 #[instrument(skip_all)]
+/// Asynchronously runs the producer flow for the scheduler application, using the provided state and settings.
+/// This method acquires a lock on the scheduler's database, fetches producer tasks, divides and appends the tasks
+/// to the scheduler, and releases the lock. It returns a CustomResult indicating success or a ProcessTrackerError
+/// in case of an error.
 pub async fn run_producer_flow<T>(
     state: &T,
     settings: &SchedulerSettings,
@@ -121,6 +126,16 @@ where
 }
 
 #[instrument(skip_all)]
+/// Asynchronously fetches producer tasks from the database based on the provided scheduler settings.
+/// 
+/// # Arguments
+/// 
+/// * `db` - A reference to a trait object implementing the `SchedulerInterface` trait.
+/// * `conf` - A reference to the `SchedulerSettings` struct containing configuration settings.
+/// 
+/// # Returns
+/// 
+/// A `CustomResult` containing a vector of `ProcessTracker` instances, or a `ProcessTrackerError` in case of failure.
 pub async fn fetch_producer_tasks(
     db: &dyn SchedulerInterface,
     conf: &SchedulerSettings,

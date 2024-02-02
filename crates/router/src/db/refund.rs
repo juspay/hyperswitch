@@ -105,6 +105,16 @@ mod storage {
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+                /// Asynchronously finds a refund by the given internal reference ID and merchant ID using the specified storage scheme.
+        /// 
+        /// # Arguments
+        /// * `internal_reference_id` - A string slice representing the internal reference ID of the refund to find.
+        /// * `merchant_id` - A string slice representing the merchant ID associated with the refund.
+        /// * `_storage_scheme` - An enum value representing the storage scheme to use for the operation.
+        /// 
+        /// # Returns
+        /// A `CustomResult` containing the found `storage_types::Refund` if successful, or a `errors::StorageError` if an error occurs.
+        ///
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -122,6 +132,17 @@ mod storage {
             .into_report()
         }
 
+                /// Asynchronously inserts a new refund into the storage using the specified merchant storage scheme.
+        ///
+        /// # Arguments
+        ///
+        /// * `new` - The new refund to insert into the storage.
+        /// * `_storage_scheme` - The storage scheme to use for the merchant.
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the inserted refund if successful, or a `StorageError` if an error occurs.
+        ///
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -131,6 +152,7 @@ mod storage {
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
+                /// Asynchronously finds a refund by the merchant ID and connector transaction ID using the specified storage scheme.
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -148,6 +170,18 @@ mod storage {
             .into_report()
         }
 
+                /// Asynchronously updates a refund in the database based on the provided refund update. 
+        ///
+        /// # Arguments
+        ///
+        /// * `this` - The original refund to be updated.
+        /// * `refund` - The refund update containing the new information to be applied.
+        /// * `_storage_scheme` - The storage scheme used for the merchant.
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the updated refund or a `StorageError` if the update fails.
+        ///
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -161,6 +195,18 @@ mod storage {
                 .into_report()
         }
 
+                /// Asynchronously finds a refund by the given merchant ID and refund ID using the specified storage scheme.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `merchant_id` - A reference to a string representing the merchant ID.
+        /// * `refund_id` - A reference to a string representing the refund ID.
+        /// * `_storage_scheme` - An enum representing the storage scheme to be used for the refund.
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing the `storage_types::Refund` if found, otherwise an `errors::StorageError`.
+        /// 
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -174,6 +220,19 @@ mod storage {
                 .into_report()
         }
 
+                /// Asynchronously finds a refund by the given merchant ID, connector refund ID, and connector, using the specified merchant storage scheme. 
+        ///
+        /// # Arguments
+        ///
+        /// * `merchant_id` - A string reference representing the merchant ID
+        /// * `connector_refund_id` - A string reference representing the connector refund ID
+        /// * `connector` - A string reference representing the connector
+        /// * `_storage_scheme` - An enum representing the storage scheme used by the merchant
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the found refund or a `StorageError` if an error occurs during the operation
+        ///
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -193,6 +252,18 @@ mod storage {
             .into_report()
         }
 
+                /// Asynchronously finds a refund by payment ID and merchant ID using the specified storage scheme.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `payment_id` - A reference to a string representing the payment ID.
+        /// * `merchant_id` - A reference to a string representing the merchant ID.
+        /// * `_storage_scheme` - An enum value representing the storage scheme used by the merchant.
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing a vector of `storage_types::Refund` or a `StorageError` in case of failure.
+        /// 
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -205,8 +276,8 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
-
         #[cfg(feature = "olap")]
+                /// Asynchronously filters refunds based on the given constraints and returns a vector of refunds. It takes the merchant ID, refund details, storage scheme, limit, and offset as input parameters. It then establishes a read connection to the database, filters the refunds based on the provided constraints using the `filter_by_constraints` method from the `RefundDbExt` trait, and returns the result as a vector of refunds. If an error occurs during the process, it is converted into a `StorageError` and returned as a `CustomResult`.
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &str,
@@ -229,6 +300,18 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+                /// Filters refunds by meta constraints for a specific merchant and returns the metadata of the refunded list.
+        ///
+        /// # Arguments
+        ///
+        /// * `merchant_id` - A string reference representing the merchant's ID.
+        /// * `refund_details` - A reference to a `TimeRange` object containing the details of the refund.
+        /// * `_storage_scheme` - An enum representing the storage scheme used by the merchant.
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the metadata of the refunded list or a `StorageError` in case of failure.
+        ///
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -246,6 +329,18 @@ mod storage {
             .into_report()
         }
         #[cfg(feature = "olap")]
+                /// Asynchronously retrieves the total count of refunds for a given merchant and refund details using the specified storage scheme.
+        ///
+        /// # Arguments
+        ///
+        /// * `merchant_id` - A reference to the merchant ID for which the refunds count is to be retrieved.
+        /// * `refund_details` - A reference to the refund details (such as filters and pagination) used to query the refunds count.
+        /// * `_storage_scheme` - The storage scheme used for retrieving the refunds count.
+        ///
+        /// # Returns
+        ///
+        /// A custom result containing the total count of refunds as an `i64` or a `StorageError` if the operation fails.
+        ///
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &str,
@@ -283,6 +378,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+                /// Asynchronously finds a refund by its internal reference ID and merchant ID, based on the specified storage scheme. If the storage scheme is PostgresOnly, the method performs a database call to retrieve the refund. If the storage scheme is RedisKv, the method first attempts to retrieve the refund from a Redis key-value store, falling back to a database call if the refund is not found in the Redis store.
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -328,6 +424,19 @@ mod storage {
             }
         }
 
+                /// This method is used to insert a new refund into the storage based on the specified storage scheme. 
+        /// If the storage scheme is PostgresOnly, it inserts the refund into a PostgreSQL database. 
+        /// If the storage scheme is RedisKv, it creates a new refund entry and associated reverse lookups in a Redis key-value store. 
+        /// 
+        /// # Arguments
+        /// 
+        /// * `new` - The new refund data to be inserted
+        /// * `storage_scheme` - The storage scheme to be used for inserting the refund
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing the inserted `storage_types::Refund` if successful, or a `errors::StorageError` if an error occurs during the insertion process.
+        /// 
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -452,6 +561,7 @@ mod storage {
             }
         }
 
+                /// This method finds a refund by the specified merchant ID and connector transaction ID, based on the given storage scheme. If the scheme is PostgresOnly, it will make a database call to retrieve the refund. If the scheme is RedisKv, it will first attempt to retrieve the refund from a Redis key-value store, and if not found, it will fall back to making a database call. The method returns a vector of refunds or a storage error.
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -501,6 +611,7 @@ mod storage {
             }
         }
 
+                /// Asynchronously updates a refund based on the specified storage scheme. If the storage scheme is set to PostgresOnly, the method updates the refund in the Postgres database. If the storage scheme is set to RedisKv, the method updates the refund in the Redis key-value store. The method returns a CustomResult containing the updated refund or a StorageError if the operation fails.
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -553,6 +664,18 @@ mod storage {
             }
         }
 
+                /// Asynchronously finds a refund by the specified merchant ID and refund ID, based on the provided storage scheme.
+        /// 
+        /// # Arguments
+        /// 
+        /// * `merchant_id` - A reference to a string representing the merchant ID
+        /// * `refund_id` - A reference to a string representing the refund ID
+        /// * `storage_scheme` - An enum value representing the storage scheme to be used
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing a `Refund` if successful, otherwise a `StorageError`
+        /// 
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -594,6 +717,19 @@ mod storage {
             }
         }
 
+                /// Asynchronously finds a refund by merchant ID, connector refund ID, and connector, based on the specified storage scheme.
+        ///
+        /// # Arguments
+        ///
+        /// * `merchant_id` - The ID of the merchant
+        /// * `connector_refund_id` - The ID of the connector refund
+        /// * `connector` - The connector
+        /// * `storage_scheme` - The storage scheme to be used
+        ///
+        /// # Returns
+        ///
+        /// A `CustomResult` containing the found refund or a `StorageError` if an error occurs.
+        ///
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -642,6 +778,8 @@ mod storage {
             }
         }
 
+                /// Asynchronously finds a refund by payment ID and merchant ID based on the specified storage scheme.
+        /// Returns a vector of refunds or a storage error.
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -703,6 +841,18 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+                /// Asynchronously filters refunds by the given meta constraints for a specific merchant and time range using the specified storage scheme. 
+        /// 
+        /// # Arguments
+        /// 
+        /// * `merchant_id` - A string reference representing the merchant ID.
+        /// * `refund_details` - A reference to a `TimeRange` object containing the details of the refund time range.
+        /// * `_storage_scheme` - An enum value representing the storage scheme to be used.
+        /// 
+        /// # Returns
+        /// 
+        /// A `CustomResult` containing the metadata of the filtered refunds, or a `StorageError` if an error occurs during the storage operation.
+        /// 
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -738,6 +888,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl RefundInterface for MockDb {
+        /// Asynchronously finds a refund by its internal reference ID and merchant ID.
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
         internal_reference_id: &str,
@@ -757,6 +908,17 @@ impl RefundInterface for MockDb {
             })
     }
 
+        /// Inserts a new refund into the refunds collection and returns the inserted refund.
+    ///
+    /// # Arguments
+    ///
+    /// * `new` - The new refund to be inserted.
+    /// * `_storage_scheme` - The storage scheme to be used for the merchant.
+    ///
+    /// # Returns
+    ///
+    /// The inserted refund if successful, otherwise a `StorageError`.
+    ///
     async fn insert_refund(
         &self,
         new: storage_types::RefundNew,
@@ -801,6 +963,18 @@ impl RefundInterface for MockDb {
         refunds.push(refund.clone());
         Ok(refund)
     }
+        /// Asynchronously finds refunds by the merchant ID and connector transaction ID using the provided merchant storage scheme.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `connector_transaction_id` - A reference to a string representing the connector transaction ID.
+    /// * `_storage_scheme` - An enum representing the merchant storage scheme.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `Refund` items or a `StorageError`.
+    /// 
     async fn find_refund_by_merchant_id_connector_transaction_id(
         &self,
         merchant_id: &str,
@@ -819,6 +993,18 @@ impl RefundInterface for MockDb {
             .collect::<Vec<_>>())
     }
 
+        /// Asynchronously updates a refund in the storage based on the provided refund ID and refund update information.
+    ///
+    /// # Arguments
+    ///
+    /// * `this` - The original refund to be updated.
+    /// * `refund` - The refund update information.
+    /// * `_storage_scheme` - The storage scheme being used.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the updated refund if successful, otherwise a `StorageError` indicating the failure reason.
+    ///
     async fn update_refund(
         &self,
         this: storage_types::Refund,
@@ -841,6 +1027,8 @@ impl RefundInterface for MockDb {
             })
     }
 
+        /// Asynchronously finds a refund by the given merchant ID and refund ID using the specified storage scheme.
+    /// Returns a Result containing a Refund if found, or a StorageError if not found.
     async fn find_refund_by_merchant_id_refund_id(
         &self,
         merchant_id: &str,
@@ -858,6 +1046,7 @@ impl RefundInterface for MockDb {
             })
     }
 
+        /// Asynchronously finds a refund by the merchant ID, connector refund ID, and connector. It locks the refunds and then iterates through them to find the refund matching the provided criteria. If found, it returns the refund; otherwise, it returns a `StorageError` indicating that the refund was not found in the database. 
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &str,
@@ -880,6 +1069,18 @@ impl RefundInterface for MockDb {
             })
     }
 
+        /// Asynchronously finds a refund by payment ID and merchant ID in the merchant's storage scheme.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `payment_id` - A reference to a string representing the payment ID.
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `_storage_scheme` - An enum representing the storage scheme used by the merchant.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `Refund` objects if successful, otherwise a `StorageError`.
+    /// 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -896,6 +1097,7 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+        /// Asynchronously filters a list of refunds based on various constraints such as merchant ID, refund details, storage scheme, limit, and offset.
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &str,
@@ -975,6 +1177,7 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+        /// Filters a list of refunds based on the provided time range and returns the metadata of the filtered refunds, including unique connectors, currencies, and refund statuses.
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &str,
@@ -1022,6 +1225,18 @@ impl RefundInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+    /// Asynchronously retrieves the total count of refunds based on the provided parameters.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - The ID of the merchant for which refunds are being retrieved.
+    /// * `refund_details` - The details of the refunds to filter on.
+    /// * `_storage_scheme` - The storage scheme used for the refunds.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `CustomResult` containing the total count of refunds or a `StorageError` if an error occurs.
+    /// 
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &str,

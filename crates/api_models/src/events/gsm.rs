@@ -3,6 +3,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::gsm;
 
 impl ApiEventMetric for gsm::GsmCreateRequest {
+        /// Retrieves the API event type, if available.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Gsm)
     }

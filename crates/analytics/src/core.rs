@@ -2,6 +2,7 @@ use api_models::analytics::GetInfoResponse;
 
 use crate::{types::AnalyticsDomain, utils};
 
+/// Asynchronously retrieves information for a given analytics domain.
 pub async fn get_domain_info(
     domain: AnalyticsDomain,
 ) -> crate::errors::AnalyticsResult<GetInfoResponse> {

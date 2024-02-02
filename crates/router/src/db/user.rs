@@ -52,6 +52,20 @@ pub trait UserInterface {
 
 #[async_trait::async_trait]
 impl UserInterface for Store {
+        /// Asynchronously inserts a new user into the database using the provided user data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `user_data` - The user data to be inserted into the database.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the inserted `storage::User` if successful, or a `errors::StorageError` if an error occurs.
+    /// 
+    /// # Errors
+    /// 
+    /// This method returns a `errors::StorageError` if there is an issue with inserting the user data into the database.
+    /// 
     async fn insert_user(
         &self,
         user_data: storage::UserNew,
@@ -64,6 +78,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds a user by their email in the storage. Returns a Result containing either the found User or a StorageError.
     async fn find_user_by_email(
         &self,
         user_email: &str,
@@ -75,6 +90,16 @@ impl UserInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds a user by their ID in the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - A reference to the user's ID as a string
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing the found `storage::User` if successful, or an `errors::StorageError` if an error occurs.
+    ///
     async fn find_user_by_id(
         &self,
         user_id: &str,
@@ -86,6 +111,9 @@ impl UserInterface for Store {
             .into_report()
     }
 
+
+        /// Asynchronously updates a user in the database using the provided user ID and user update information.
+    /// Returns a result containing either the updated user or a storage error.
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -98,6 +126,8 @@ impl UserInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates a user with the specified email using the provided user update data.
+    /// Returns a custom result containing the updated user if successful, or a storage error if the update fails.
     async fn update_user_by_email(
         &self,
         user_email: &str,
@@ -110,6 +140,7 @@ impl UserInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously deletes a user from the storage by user ID. It first establishes a write connection to the database, then calls the `delete_by_user_id` method of the User model from the storage module to delete the user with the given user ID. If successful, it returns true, otherwise it returns a StorageError.
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -121,6 +152,11 @@ impl UserInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds and returns a vector of tuples containing User and UserRole instances
+    /// associated with the given merchant_id. This method first establishes a connection to the
+    /// PostgreSQL database, then calls the `find_joined_users_and_roles_by_merchant_id` method
+    /// from the `storage::User` module to retrieve the required data. Any encountered errors are
+    /// converted into a `CustomResult` with a `StorageError` variant and reported back.
     async fn find_users_and_roles_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -135,6 +171,7 @@ impl UserInterface for Store {
 
 #[async_trait::async_trait]
 impl UserInterface for MockDb {
+        /// Asynchronously inserts a new user into the storage. It first checks if the user's email or user_id already exists in the storage, and if so, returns a DuplicateValue error. If not, it creates a new User object using the provided user_data and adds it to the storage. Returns the newly inserted user on success.
     async fn insert_user(
         &self,
         user_data: storage::UserNew,
@@ -169,6 +206,7 @@ impl UserInterface for MockDb {
         Ok(user)
     }
 
+        /// Asynchronously finds a user by their email in the storage. Returns a Result containing either the found user or a StorageError.
     async fn find_user_by_email(
         &self,
         user_email: &str,
@@ -190,6 +228,7 @@ impl UserInterface for MockDb {
             )
     }
 
+        /// Asynchronously finds a user by their user ID in the storage. Returns a Result containing either the found user or a StorageError.
     async fn find_user_by_id(
         &self,
         user_id: &str,
@@ -207,6 +246,8 @@ impl UserInterface for MockDb {
             )
     }
 
+        /// Asynchronously updates a user in the storage by user ID. 
+    /// Returns a result containing the updated user if successful, or a StorageError if the user is not found.
     async fn update_user_by_user_id(
         &self,
         user_id: &str,
@@ -247,6 +288,9 @@ impl UserInterface for MockDb {
             )
     }
 
+        /// Asynchronously updates a user in the storage by their email address.
+    /// If the user is found, their information is updated based on the provided UserUpdate enum.
+    /// Returns a Result containing the updated user if successful, or a StorageError if the user is not found.
     async fn update_user_by_email(
         &self,
         user_email: &str,
@@ -291,6 +335,7 @@ impl UserInterface for MockDb {
             )
     }
 
+        /// Asynchronously deletes a user from the storage by user ID.
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -306,6 +351,7 @@ impl UserInterface for MockDb {
         Ok(true)
     }
 
+        /// Asynchronously finds users and their associated roles by the given merchant ID.
     async fn find_users_and_roles_by_merchant_id(
         &self,
         _merchant_id: &str,

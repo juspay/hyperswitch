@@ -9,6 +9,7 @@ use crate::{
     AppState,
 };
 
+/// Handles the fulfillment of a Flow Request Manager (FRM) fulfillment request. 
 pub async fn frm_fulfillment(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -30,6 +31,11 @@ pub async fn frm_fulfillment(
 }
 
 impl ApiEventMetric for FraudCheckResponseData {
+        /// Retrieves the API event type associated with the current instance.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns an `Option` containing the API event type, or `None` if the event type is not available.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::FraudCheck)
     }

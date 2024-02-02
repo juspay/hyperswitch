@@ -6,10 +6,13 @@ use crate::{selenium::*, tester};
 struct BluesnapSeleniumTest;
 
 impl SeleniumTest for BluesnapSeleniumTest {
+        /// Returns the name of the connector, which in this case is "bluesnap".
     fn get_connector_name(&self) -> String {
         "bluesnap".to_string()
     }
 }
+
+/// Asynchronously makes a 3DS payment using the provided WebDriver. This method triggers a series of events to simulate the 3DS payment process, including redirection, clicking on elements, entering a code, and asserting the presence of certain elements. If the payment is successfully made, it returns Ok(()), otherwise it returns a WebDriverError.
 
 async fn should_make_3ds_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = BluesnapSeleniumTest {};
@@ -39,6 +42,7 @@ async fn should_make_3ds_payment(driver: WebDriver) -> Result<(), WebDriverError
     Ok(())
 }
 
+/// This method makes a Google Pay payment using the provided WebDriver. It retrieves the public key from the automation configurations, constructs the payment URL using the key and other parameters, and then makes the payment using the provided WebDriver and the constructed URL. If the payment is successful, it returns Ok(()), otherwise it returns a WebDriverError.
 async fn should_make_gpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = BluesnapSeleniumTest {};
     let pub_key = conn
@@ -57,12 +61,14 @@ async fn should_make_gpay_payment(driver: WebDriver) -> Result<(), WebDriverErro
 
 #[test]
 #[serial]
+/// This method is a test for the should_make_3ds_payment function. It uses the tester! macro to run the test and confirm that the should_make_3ds_payment function is working as expected.
 fn should_make_3ds_payment_test() {
     tester!(should_make_3ds_payment);
 }
 
 #[test]
 #[serial]
+/// This method is a test for the should_make_gpay_payment function. It utilizes the tester! macro to run the test case for making a payment using Google Pay.
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }

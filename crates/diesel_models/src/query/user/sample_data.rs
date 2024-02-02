@@ -14,6 +14,7 @@ use crate::{
     StorageResult,
 };
 
+/// Inserts a batch of new payment intents into the database and returns a vector of the inserted payment intents.
 pub async fn insert_payment_intents(
     conn: &PgPooledConn,
     batch: Vec<PaymentIntentNew>,
@@ -29,6 +30,16 @@ pub async fn insert_payment_intents(
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment intents")
 }
+/// Asynchronously inserts a batch of payment attempts into the database using the provided connection.
+/// 
+/// # Arguments
+/// 
+/// * `conn` - A reference to a pooled database connection
+/// * `batch` - A vector of PaymentAttemptBatchNew structs containing the payment attempts to be inserted
+/// 
+/// # Returns
+/// 
+/// A Result containing a vector of PaymentAttempt structs if the insertion is successful, or a StorageError if an error occurs
 pub async fn insert_payment_attempts(
     conn: &PgPooledConn,
     batch: Vec<PaymentAttemptBatchNew>,
@@ -45,6 +56,16 @@ pub async fn insert_payment_attempts(
         .attach_printable("Error while inserting payment attempts")
 }
 
+/// Asynchronously inserts a batch of refunds into the database using the provided connection.
+/// 
+/// # Arguments
+/// 
+/// * `conn` - A reference to a pooled PostgreSQL connection.
+/// * `batch` - A vector of `RefundNew` instances to be inserted into the database.
+/// 
+/// # Returns
+/// 
+/// A `StorageResult` containing a vector of `Refund` instances if successful, otherwise an error.
 pub async fn insert_refunds(
     conn: &PgPooledConn,
     batch: Vec<RefundNew>,
@@ -61,6 +82,17 @@ pub async fn insert_refunds(
         .attach_printable("Error while inserting refunds")
 }
 
+/// Deletes payment intents for a specific merchant from the database.
+///
+/// # Arguments
+///
+/// * `conn` - The database connection
+/// * `merchant_id` - The ID of the merchant whose payment intents are to be deleted
+///
+/// # Returns
+///
+/// A `StorageResult` containing a vector of `PaymentIntent` if successful, an error otherwise
+///
 pub async fn delete_payment_intents(
     conn: &PgPooledConn,
     merchant_id: &str,
@@ -87,6 +119,7 @@ pub async fn delete_payment_intents(
             _ => Ok(result),
         })
 }
+/// Deletes payment attempts for a specific merchant from the database based on the provided merchant_id.
 pub async fn delete_payment_attempts(
     conn: &PgPooledConn,
     merchant_id: &str,
@@ -114,6 +147,8 @@ pub async fn delete_payment_attempts(
         })
 }
 
+/// Deletes refunds from the database that match the given merchant ID and have a payment ID starting with "test_".
+/// Returns a vector of the deleted refund records.
 pub async fn delete_refunds(conn: &PgPooledConn, merchant_id: &str) -> StorageResult<Vec<Refund>> {
     let query = diesel::delete(<Refund>::table())
         .filter(refund_dsl::merchant_id.eq(merchant_id.to_owned()))

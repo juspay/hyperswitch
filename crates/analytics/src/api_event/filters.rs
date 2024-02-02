@@ -10,6 +10,7 @@ use crate::{
 
 pub trait ApiEventFilterAnalytics: LoadRow<ApiEventFilter> {}
 
+/// Asynchronously retrieves a list of API event filters for a specific dimension, merchant, and time range from the given data source pool.
 pub async fn get_api_event_filter_for_dimension<T>(
     dimension: ApiEventDimensions,
     merchant_id: &String,

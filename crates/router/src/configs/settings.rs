@@ -443,6 +443,7 @@ pub struct Database {
 
 #[cfg(not(feature = "kms"))]
 impl From<Database> for storage_impl::config::Database {
+        /// Creates a new instance of Self (DatabaseConfig) by taking the values from the provided Database struct.
     fn from(val: Database) -> Self {
         Self {
             username: val.username,
@@ -635,10 +636,18 @@ pub struct ConnectorRequestReferenceIdConfig {
 }
 
 impl Settings {
+        /// Creates a new instance of ApplicationResult.
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
     }
 
+        /// Takes an optional `PathBuf` as a parameter and returns an `ApplicationResult` with a new instance of
+    /// the current `Self` type. This method retrieves configuration values using the following priority
+    /// order: defaults from the implementation of the `Default` trait, values from a config file (whose
+    /// location depends on the value of the `RUN_ENV` environment variable), and environment variables
+    /// prefixed with `ROUTER` and separated by double underscores. Values from the config file override
+    /// defaults from the `Default` trait, and values set using environment variables override both the
+    /// defaults and values from the config file.
     pub fn with_config_path(config_path: Option<PathBuf>) -> ApplicationResult<Self> {
         // Configuration values are picked up in the following priority order (1 being least
         // priority):
@@ -679,6 +688,10 @@ impl Settings {
         })
     }
 
+        /// Validates the configuration of the application by checking the validity of various
+    /// components such as the server, databases, Redis, log settings, secrets, connectors, scheduler,
+    /// drainer, API keys, KMS, file storage, lock settings, and events. Returns an ApplicationResult
+    /// indicating success or an error if any configuration value is found to be invalid.
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.validate()?;
@@ -741,6 +754,7 @@ pub struct LockSettings {
 }
 
 impl<'de> Deserialize<'de> for LockSettings {
+        /// Deserialize the given data into a struct, calculating additional fields based on the deserialized values.
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
@@ -777,6 +791,8 @@ pub struct PayPalOnboarding {
     pub enabled: bool,
 }
 
+/// Deserialize a comma-separated string into a HashSet of the specified type T.
+/// If any value fails to deserialize, an error containing the failed values is returned.
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,
@@ -815,6 +831,25 @@ where
     }
 }
 
+/// Deserialize a HashSet from the given deserializer.
+/// 
+/// # Arguments
+/// 
+/// * `deserializer` - The deserializer used to deserialize the HashSet.
+/// 
+/// # Returns
+/// 
+/// A Result containing a HashSet of type T if the deserialization is successful, or a D::Error if an error occurs.
+/// 
+/// # Generic
+/// 
+/// * 'a - Lifetime parameter
+/// * D - Type that implements serde::Deserializer
+/// * T - Type that implements Eq, std::str::FromStr, and std::hash::Hash
+/// 
+/// # Panics
+/// 
+/// Panics if the deserialization process fails.
 fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
 where
     D: serde::Deserializer<'a>,
@@ -826,6 +861,11 @@ where
     deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }
 
+/// Deserialize an optional HashSet from the given deserializer.
+/// 
+/// This method takes a deserializer as input and attempts to deserialize an optional HashSet. 
+/// It expects the input to be an optional string, and then attempts to deserialize the inner string into a HashSet.
+/// If the inner string is empty, it returns None. Otherwise, it returns Some with the deserialized HashSet.
 fn deserialize_optional_hashset<'a, D, T>(deserializer: D) -> Result<Option<HashSet<T>>, D::Error>
 where
     D: serde::Deserializer<'a>,
@@ -858,6 +898,7 @@ mod hashset_deserialization_test {
     use super::deserialize_hashset;
 
     #[test]
+        /// This method tests the deserialization of a HashSet of PaymentMethod enums from a string representation.
     fn test_payment_method_hashset_deserializer() {
         use diesel_models::enums::PaymentMethod;
 
@@ -870,6 +911,7 @@ mod hashset_deserialization_test {
     }
 
     #[test]
+        /// Deserialize a string into a HashSet of PaymentMethod enums, allowing spaces between the enum values.
     fn test_payment_method_hashset_deserializer_with_spaces() {
         use diesel_models::enums::PaymentMethod;
 
@@ -887,6 +929,7 @@ mod hashset_deserialization_test {
     }
 
     #[test]
+        /// This method is used to test the deserialization of a HashSet of PaymentMethod enums from a string input. It creates a string deserializer from the input "wallet, card, unknown", then attempts to deserialize it into a HashSet of PaymentMethod enums. It then asserts that the result is an error, indicating that there was a problem with the deserialization process.
     fn test_payment_method_hashset_deserializer_error() {
         use diesel_models::enums::PaymentMethod;
 

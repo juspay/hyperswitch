@@ -25,6 +25,7 @@ pub struct ConnectorEvent {
 
 impl ConnectorEvent {
     #[allow(clippy::too_many_arguments)]
+        /// Creates a new instance of the struct with the provided parameters.
     pub fn new(
         connector_name: String,
         flow: &str,
@@ -68,6 +69,7 @@ impl ConnectorEvent {
 impl TryFrom<ConnectorEvent> for RawEvent {
     type Error = serde_json::Error;
 
+        /// Attempts to convert a ConnectorEvent into a Result<Self, Self::Error>.
     fn try_from(value: ConnectorEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             event_type: EventType::ConnectorApiLogs,

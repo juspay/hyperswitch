@@ -33,6 +33,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentApprove
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves trackers for a payment, returning a result containing the response with the operation, customer details, payment data, and business profile, or an error if the payment is not found or has an invalid status. 
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -184,6 +185,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentApprove
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the trackers for a payment transaction in the database based on the provided payment data, customer information, storage scheme, updated customer information, merchant key store, suggested FormSuggestion, and header payload. Returns a tuple containing the updated operation and the modified payment data.
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
@@ -223,6 +225,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentApprove
 {
     #[instrument(skip_all)]
+        /// Validates the given PaymentsCaptureRequest using the provided MerchantAccount and returns a tuple containing a BoxedOperation and a ValidateResult.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,

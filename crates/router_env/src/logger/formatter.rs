@@ -106,6 +106,7 @@ pub enum RecordType {
 }
 
 impl fmt::Display for RecordType {
+        /// Formats the enum variant into a string representation and writes it to the given formatter.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
             Self::EnterSpan => "START",
@@ -288,6 +289,7 @@ where
 
     /// Serialize entries of span.
     #[cfg(feature = "log_active_span_json")]
+        /// Serialize the given span into a JSON-encoded byte vector and return the result.
     fn span_serialize<S>(
         &self,
         span: &SpanRef<'_, S>,
@@ -403,6 +405,7 @@ where
     S: Subscriber + for<'a> LookupSpan<'a>,
     W: for<'a> MakeWriter<'a> + 'static,
 {
+        /// Handles an event by serializing it using the provided span and context, and then flushing the serialized result.
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Event could have no span.
         let span = ctx.lookup_current();
@@ -414,6 +417,7 @@ where
     }
 
     #[cfg(feature = "log_active_span_json")]
+        /// This method is called when entering a span and takes in the span's ID and context. It retrieves the span using the provided context and then attempts to serialize it using the RecordType::EnterSpan. If successful, it then flushes the serialized data.
     fn on_enter(&self, id: &tracing::Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
@@ -422,6 +426,7 @@ where
     }
 
     #[cfg(feature = "log_active_span_json")]
+        /// This method is called when a span is closed. It takes the id of the closing span and the context in which it was closed. It retrieves the span using the provided id and serializes it as an exit span record. The serialized data is then flushed. 
     fn on_close(&self, id: tracing::Id, ctx: Context<'_, S>) {
         let span = ctx.span(&id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {

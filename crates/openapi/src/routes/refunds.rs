@@ -44,6 +44,7 @@
     operation_id = "Create a Refund",
     security(("api_key" = []))
 )]
+/// Asynchronously creates a refund for a transaction.
 pub async fn refunds_create() {}
 
 /// Refunds - Retrieve
@@ -63,7 +64,10 @@ pub async fn refunds_create() {}
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-pub async fn refunds_retrieve() {}
+/// Asynchronously retrieves a list of refunds.
+pub async fn refunds_retrieve() {
+    // implementation details
+}
 
 /// Refunds - Retrieve (POST)
 ///
@@ -79,6 +83,7 @@ pub async fn refunds_retrieve() {}
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves refunds with a specified body.
 pub async fn refunds_retrieve_with_body() {}
 
 /// Refunds - Update
@@ -110,7 +115,10 @@ pub async fn refunds_retrieve_with_body() {}
     operation_id = "Update a Refund",
     security(("api_key" = []))
 )]
-pub async fn refunds_update() {}
+/// Asynchronously updates the refunds in the system.
+pub async fn refunds_update() {
+    // method implementation goes here
+}
 
 /// Refunds - List
 ///
@@ -126,7 +134,10 @@ pub async fn refunds_update() {}
     operation_id = "List all Refunds",
     security(("api_key" = []))
 )]
-pub fn refunds_list() {}
+/// Retrieves a list of refunds for the current user.
+pub fn refunds_list() {
+    // method implementation
+}
 
 /// Refunds - Filter
 ///
@@ -142,4 +153,5 @@ pub fn refunds_list() {}
     operation_id = "List all filters for Refunds",
     security(("api_key" = []))
 )]
+/// Asynchronously retrieves a list of refunds that meet certain criteria.
 pub async fn refunds_filter_list() {}

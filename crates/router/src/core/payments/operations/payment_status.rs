@@ -34,9 +34,11 @@ pub struct PaymentStatus;
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> Operation<F, api::PaymentsRequest, Ctx>
     for PaymentStatus
 {
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>> {
-        Ok(self)
-    }
+        /// Converts the current object into a reference to a trait object implementing the Domain trait for the specified types.
+        fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>> {
+            Ok(self)
+        }
+        /// Returns a reference to the update tracker trait object, which is used to track updates related to payments. The trait object is required to be both Send and Sync to be used in a multi-threaded environment.
     fn to_update_tracker(
         &self,
     ) -> RouterResult<
@@ -48,16 +50,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> Operation<F, api::PaymentsRequ
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> Operation<F, api::PaymentsRequest, Ctx>
     for &PaymentStatus
 {
+        /// Converts the current object to a reference of the trait Domain with the specified associated types. 
+    /// 
+    /// # Returns
+    /// 
+    /// * `RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>>` - A result containing a reference to the trait Domain with the specified associated types, wrapped in an Ok variant.
+    ///
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>> {
-        Ok(*self)
-    }
+            Ok(*self)
+        }
+        /// Returns a reference to the UpdateTracker trait object, which is a trait object for tracking updates of payment data for a given PaymentsRequest and context. The trait object is expected to be both Send and Sync.
     fn to_update_tracker(
-        &self,
-    ) -> RouterResult<
-        &(dyn UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> + Send + Sync),
-    > {
-        Ok(*self)
-    }
+            &self,
+        ) -> RouterResult<
+            &(dyn UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> + Send + Sync),
+        > {
+            Ok(*self)
+        }
 }
 
 #[async_trait]
@@ -65,53 +74,68 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     for PaymentStatus
 {
     #[instrument(skip_all)]
+        /// This method either retrieves existing customer details from the database or creates a new customer if they do not exist. It uses the provided `db` to interact with the storage, `payment_data` to process payment information, `request` to optionally provide customer details, and `key_store` to access merchant key information. It returns a tuple containing a boxed operation for payments request and an optional customer, wrapped in a `CustomResult`. If an error occurs during storage interaction, it returns a `StorageError`.
     async fn get_or_create_customer_details<'a>(
-        &'a self,
-        db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        helpers::create_customer_if_not_exist(
-            Box::new(self),
-            db,
-            payment_data,
-            request,
-            &key_store.merchant_id,
-            key_store,
-        )
-        .await
-    }
+            &'a self,
+            db: &dyn StorageInterface,
+            payment_data: &mut PaymentData<F>,
+            request: Option<CustomerDetails>,
+            key_store: &domain::MerchantKeyStore,
+        ) -> CustomResult<
+            (
+                BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
+                Option<domain::Customer>,
+            ),
+            errors::StorageError,
+        > {
+            helpers::create_customer_if_not_exist(
+                Box::new(self),
+                db,
+                payment_data,
+                request,
+                &key_store.merchant_id,
+                key_store,
+            )
+            .await
+        }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the provided state, payment data, storage scheme, merchant key store, and customer information.
     async fn make_pm_data<'a>(
-        &'a self,
-        state: &'a AppState,
-        payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        merchant_key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
-        Option<api::PaymentMethodData>,
-    )> {
-        helpers::make_pm_data(
-            Box::new(self),
-            state,
-            payment_data,
-            merchant_key_store,
-            customer,
-        )
-        .await
-    }
+            &'a self,
+            state: &'a AppState,
+            payment_data: &mut PaymentData<F>,
+            _storage_scheme: enums::MerchantStorageScheme,
+            merchant_key_store: &domain::MerchantKeyStore,
+            customer: &Option<domain::Customer>,
+        ) -> RouterResult<(
+            BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
+            Option<api::PaymentMethodData>,
+        )> {
+            helpers::make_pm_data(
+                Box::new(self),
+                state,
+                payment_data,
+                merchant_key_store,
+                customer,
+            )
+            .await
+        }
 
     #[instrument(skip_all)]
+        /// Asynchronously adds a task to the process tracker to handle a payment attempt. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The state of the application
+    /// * `payment_attempt` - The payment attempt that needs to be added to the process tracker
+    /// * `requeue` - A boolean flag indicating whether the task should be requeued
+    /// * `schedule_time` - An optional schedule time for the task
+    /// 
+    /// # Returns
+    /// 
+    /// A custom result indicating success or an API error response
+    /// 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         state: &'a AppState,
@@ -122,6 +146,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
+        /// Asynchronously retrieves a connector choice based on the provided merchant account, application state, payment request, payment intent, and merchant key store. Returns a custom result containing the chosen connector or an API error response.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -138,6 +163,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentStatus
 {
+        /// Asynchronously updates trackers with the given payment data and other relevant information.
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
@@ -163,6 +189,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
 {
+        /// Asynchronously updates the trackers and returns a tuple containing a boxed operation and payment data.
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b AppState,
@@ -189,6 +216,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves trackers for a payment using the provided parameters, including the payment ID, payment request, merchant account, key store, and authentication information. 
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -214,6 +242,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     }
 }
 
+/// This method retrieves and processes various data related to a payment attempt, such as payment intent, currency, amount, addresses, attempts, captures, refunds, authorizations, disputes, fraud response, and business profile. It then constructs a response containing this data and returns it.
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -438,6 +467,10 @@ async fn get_tracker_for_sync<
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
 {
+        /// Validates the PaymentsRetrieveRequest using the provided MerchantAccount. 
+    /// If the merchant_id in the request does not match the merchant_id in the MerchantAccount, 
+    /// it returns an error. Otherwise, it returns a tuple containing the BoxedOperation and 
+    /// ValidateResult. 
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
@@ -467,6 +500,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 }
 
 #[inline]
+/// Retrieves the payment intent and payment attempt associated with the given payment_id and merchant_id from the database.
 pub async fn get_payment_intent_payment_attempt(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,

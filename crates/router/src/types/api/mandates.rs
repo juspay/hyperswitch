@@ -33,6 +33,11 @@ pub(crate) trait MandateResponseExt: Sized {
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
+        /// Retrieves a mandate from the database and constructs a new instance of the struct
+    /// containing the mandate details along with the associated payment method details. 
+    /// If the payment method is a card, it decrypts the payment method data if the locker
+    /// is disabled, and constructs the card details. Returns a result with the constructed
+    /// mandate instance or an error if the payment method or card details retrieval fails.
     async fn from_db_mandate(
         state: &AppState,
         key_store: domain::MerchantKeyStore,
@@ -98,6 +103,7 @@ impl MandateResponseExt for MandateResponse {
 }
 
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
+        /// Converts the given `CardDetailFromLocker` into `MandateCardDetails` by mapping its fields to the corresponding fields in `MandateCardDetails`.
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
             last4_digits: card_details_from_locker.last4_digits,

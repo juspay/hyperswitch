@@ -20,6 +20,16 @@ pub trait CardsInfoInterface {
 #[async_trait::async_trait]
 impl CardsInfoInterface for Store {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves card information based on the provided card issuer identification number (IIN).
+    /// 
+    /// # Arguments
+    /// 
+    /// * `card_iin` - A string reference representing the card issuer identification number (IIN) to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing either `Some(CardInfo)` if the card information is found, or `None` if no matching card information is found. Returns a `StorageError` if an error occurs during the retrieval process.
+    /// 
     async fn get_card_info(
         &self,
         card_iin: &str,
@@ -35,6 +45,8 @@ impl CardsInfoInterface for Store {
 #[async_trait::async_trait]
 impl CardsInfoInterface for MockDb {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves the card information for the given card IIN (Issuer Identification Number).
+    /// Returns a result containing either the CardInfo associated with the card IIN, or a StorageError if there was an issue with the storage.
     async fn get_card_info(
         &self,
         card_iin: &str,

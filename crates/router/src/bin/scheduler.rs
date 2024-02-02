@@ -29,6 +29,8 @@ use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 #[tokio::main]
+/// Asynchronous main method for the process tracker application. It parses command line arguments, constructs application configuration, sets up a proxy client, initializes a state for the application, spawns a receiver for error handling, sets up scheduler flow, starts the scheduler, and finally shuts down the scheduler. Returns a `CustomResult` containing `()` on success and `ProcessTrackerError` on failure.
+
 async fn main() -> CustomResult<(), ProcessTrackerError> {
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
@@ -211,6 +213,7 @@ pub struct WorkflowRunner;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
+        /// Asynchronously triggers a workflow based on the provided process tracker. The method identifies the type of workflow to execute based on the runner associated with the process tracker, then executes the identified workflow, handling success and error scenarios accordingly. If the workflow execution is successful, the method calls the success handler. If an error occurs during the workflow execution, the method calls the error handler and logs an error. Finally, the method finishes by returning a Result indicating the success or failure of the entire process.
     async fn trigger_workflow<'a>(
         &'a self,
         state: &'a routes::AppState,
@@ -257,6 +260,20 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
     }
 }
 
+
+
+/// Asynchronously starts the scheduler process tracker with the given state, scheduler flow, and channel.
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state.
+/// * `scheduler_flow` - The scheduler flow to be used.
+/// * `channel` - A tuple containing a sender and receiver for communication.
+/// 
+/// # Returns
+/// 
+/// * `CustomResult<(), ProcessTrackerError>` - A custom result indicating success or a specific process tracker error.
+/// 
 async fn start_scheduler(
     state: &routes::AppState,
     scheduler_flow: scheduler::SchedulerFlow,
@@ -285,6 +302,8 @@ mod workflow_tests {
     use super::PTRunner;
 
     #[test]
+        /// This method tests the conversion of a string to an enum value by attempting to parse a string 
+    /// representation of an enum variant and comparing it with the expected enum variant.
     fn test_enum_to_string() {
         let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
         let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();

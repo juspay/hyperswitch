@@ -14,6 +14,7 @@ use crate::{
 };
 
 impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
+        /// Converts a RoutingProfileMetadata value into Self, initializing the fields with values from the given value.
     fn foreign_from(value: RoutingProfileMetadata) -> Self {
         Self {
             id: value.algorithm_id,
@@ -30,6 +31,7 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
 }
 
 impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
+        /// Converts a value of type RoutingAlgorithm into a new instance of Self.
     fn foreign_from(value: RoutingAlgorithm) -> Self {
         Self {
             id: value.algorithm_id,
@@ -47,6 +49,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
 impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
     type Error = error_stack::Report<errors::ParsingError>;
 
+        /// Tries to convert a RoutingAlgorithm into the current type, returning a Result.
     fn foreign_try_from(value: RoutingAlgorithm) -> Result<Self, Self::Error> {
         Ok(Self {
             id: value.algorithm_id,
@@ -64,6 +67,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
 }
 
 impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
+        /// Converts a value from storage_enums::RoutingAlgorithmKind into a RoutingAlgorithmKind.
     fn foreign_from(value: storage_enums::RoutingAlgorithmKind) -> Self {
         match value {
             storage_enums::RoutingAlgorithmKind::Single => Self::Single,
@@ -75,6 +79,7 @@ impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
 }
 
 impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
+        /// Converts a RoutingAlgorithmKind value to the corresponding Self value.
     fn foreign_from(value: RoutingAlgorithmKind) -> Self {
         match value {
             RoutingAlgorithmKind::Single => Self::Single,

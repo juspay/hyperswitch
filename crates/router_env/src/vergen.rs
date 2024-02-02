@@ -8,6 +8,7 @@
 /// Panics if `vergen` fails to generate `cargo` build instructions.
 #[cfg(feature = "vergen")]
 #[allow(clippy::expect_used)]
+/// Generates cargo build instructions using vergen to add environment variables related to cargo build settings.
 pub fn generate_cargo_instructions() {
     use std::io::Write;
 
@@ -34,4 +35,7 @@ pub fn generate_cargo_instructions() {
 }
 
 #[cfg(not(feature = "vergen"))]
-pub fn generate_cargo_instructions() {}
+/// This method generates cargo instructions for building and running the project. It may include commands for compiling the code, managing dependencies, and executing the project. 
+pub fn generate_cargo_instructions() {
+    // method implementation goes here
+}

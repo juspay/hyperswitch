@@ -28,6 +28,7 @@ use crate::{
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CreateFile))]
+/// Asynchronously handles the creation of files by parsing the multipart request payload, extracting the create file request, and then wrapping the file creation logic in a server wrap. This method requires the Appstate, HttpRequest, and Multipart as input parameters and returns an HttpResponse.
 pub async fn files_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -72,6 +73,11 @@ pub async fn files_create(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::DeleteFile))]
+/// Handler for deleting files. This method takes in the state of the application, the HTTP request,
+/// and the file path to be deleted. It then creates a flow for deleting a file, obtains the file ID,
+/// and calls the server_wrap method to handle the deletion of the file. The method also performs
+/// authentication using API key and JWT authentication with the permission to write files. Finally,
+/// it awaits the result of the deletion operation and returns the HTTP response.
 pub async fn files_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -114,6 +120,7 @@ pub async fn files_delete(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RetrieveFile))]
+/// Asynchronously retrieves a file using the given file path and request information, and returns an HTTP response.
 pub async fn files_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,

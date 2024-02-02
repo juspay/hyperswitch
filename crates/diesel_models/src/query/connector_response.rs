@@ -15,6 +15,8 @@ use crate::{
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
+        /// Inserts a new payment attempt into the database and updates the connector response for the payment attempt. 
+    /// Returns a StorageResult containing a ConnectorResponse.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
         let payment_attempt_update = PaymentAttemptUpdate::ConnectorResponse {
             authentication_data: self.authentication_data.clone(),
@@ -52,6 +54,7 @@ impl ConnectorResponseNew {
 
 impl ConnectorResponse {
     #[instrument(skip(conn))]
+        /// Updates the payment attempt with the provided connector response in the database. This method takes a connection to the database, a ConnectorResponseUpdate, and returns a StorageResult containing the updated payment attempt. It matches the connector response type and constructs a PaymentAttemptUpdate based on the response. It then updates the payment attempt and the connector response in the database using generic_update_with_unique_predicate_get_result function. If an error occurs during the update process, it logs the error and returns it. If no fields are updated for the connector response, it returns the original payment attempt.
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -132,6 +135,7 @@ impl ConnectorResponse {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by payment ID, merchant ID, and attempt ID.
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &str,

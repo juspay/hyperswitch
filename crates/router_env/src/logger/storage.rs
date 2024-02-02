@@ -32,6 +32,7 @@ impl<'a> Storage<'a> {
 
 /// Default constructor.
 impl Default for Storage<'_> {
+        /// Creates a new instance of the struct with the default values.
     fn default() -> Self {
         Self {
             values: HashMap::new(),

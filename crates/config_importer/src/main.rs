@@ -13,6 +13,7 @@ type EnvironmentVariableMap = std::collections::HashMap<String, String>;
 #[cfg(feature = "preserve_order")]
 type EnvironmentVariableMap = indexmap::IndexMap<String, String>;
 
+/// This method is the entry point of the program. It reads input from a TOML file, parses the contents, processes them into a `HashMap` of environment variable name and value pairs, and then writes the environment variables to either a specified output file or to stdout in the specified format (in this case, Kubernetes JSON format).
 fn main() -> anyhow::Result<()> {
     let args = <cli::Args as clap::Parser>::parse();
 
@@ -58,6 +59,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Processes a toml value and returns a vector of key-value pairs where the keys are prefixed with the given prefix.
 fn process_toml_value(
     prefix: impl std::fmt::Display + Clone,
     key: impl std::fmt::Display + Clone,

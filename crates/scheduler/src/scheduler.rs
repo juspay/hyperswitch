@@ -33,6 +33,7 @@ pub trait AsSchedulerInterface {
 }
 
 impl<T: SchedulerInterface> AsSchedulerInterface for T {
+        /// This method returns a reference to the trait object `SchedulerInterface` by borrowing `self`.
     fn as_scheduler(&self) -> &dyn SchedulerInterface {
         self
     }
@@ -55,6 +56,7 @@ pub trait SchedulerAppState: Send + Sync + Clone {
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 
+/// This method is used to start the process tracker for a given scheduler flow. It takes in the scheduler's state, the scheduler flow type, scheduler settings, a channel for communication, and a runner for task processing. Depending on the scheduler flow type, it either starts a producer, consumer, or logs an error message for an unimplemented flow. The method returns a result indicating success or an error related to the process tracker operation.
 pub async fn start_process_tracker<T: SchedulerAppState + 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,

@@ -10,10 +10,23 @@ use serde::de;
 use crate::{metrics, store::kv::TypedSql, KVRouterStore};
 
 pub trait KvStorePartition {
+        /// This method takes a PartitionKey and the number of partitions as input, and returns the partition number
+    /// based on the CRC32 hash of the input key and the modulo operation with the number of partitions.
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
         crc32fast::hash(key.to_string().as_bytes()) % u32::from(num_partitions)
     }
 
+        /// Generates a shard key based on the given PartitionKey and number of partitions.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The PartitionKey used to generate the shard key
+    /// * `num_partitions` - The number of partitions to distribute the keys across
+    ///
+    /// # Returns
+    ///
+    /// A String representing the shard key in the format "shard_{partition_number}"
+    ///
     fn shard_key(key: PartitionKey<'_>, num_partitions: u8) -> String {
         format!("shard_{}", Self::partition_number(key, num_partitions))
     }
@@ -31,6 +44,7 @@ pub enum PartitionKey<'a> {
 }
 
 impl<'a> std::fmt::Display for PartitionKey<'a> {
+        /// Formats the PartitionKey enum variant into a string based on its value.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             PartitionKey::MerchantIdPaymentId {
@@ -75,6 +89,7 @@ impl<T> std::fmt::Display for KvOperation<'_, T>
 where
     T: serde::Serialize + Debug,
 {
+        /// Formats the KvOperation enum variant into a string representation.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KvOperation::Hset(_, _) => f.write_str("Hset"),
@@ -87,6 +102,7 @@ where
     }
 }
 
+/// This method serves as a wrapper for interacting with a key-value store. It takes in a key-value store, a key-value operation, and a key, and then performs the specified operation on the key-value store. The method supports various key-value operations such as setting and getting hash fields, scanning for keys, and setting keys if they do not already exist. It also handles error reporting and logging for each operation.
 pub async fn kv_wrapper<'a, T, D, S>(
     store: &KVRouterStore<D>,
     op: KvOperation<'a, S>,

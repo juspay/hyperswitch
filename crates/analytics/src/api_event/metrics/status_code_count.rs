@@ -25,6 +25,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads and retrieves metrics data based on the specified dimensions, merchant ID, filters, granularity, time range, and database connection pool.
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],

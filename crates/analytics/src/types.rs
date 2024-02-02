@@ -42,6 +42,7 @@ pub enum TableEngine {
 pub struct DBEnumWrapper<T: FromStr + Display>(pub T);
 
 impl<T: FromStr + Display> AsRef<T> for DBEnumWrapper<T> {
+        /// Returns a reference to the inner value of type T.
     fn as_ref(&self) -> &T {
         &self.0
     }
@@ -53,6 +54,7 @@ where
 {
     type Err = Report<ParsingError>;
 
+        /// Parses a string and returns a Result containing the parsed value or an error.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         T::from_str(s)
             .map_err(|_er| report!(ParsingError::EnumParseFailure(std::any::type_name::<T>())))
@@ -76,6 +78,7 @@ where
     where
         Self: LoadRow<T>;
 
+        /// Retrieves the table engine for the given AnalyticsCollection.
     fn get_table_engine(_table: AnalyticsCollection) -> TableEngine {
         TableEngine::BasicTree
     }
@@ -113,6 +116,7 @@ pub enum QueryExecutionError {
 pub type MetricsResult<T> = CustomResult<T, MetricsError>;
 
 impl ErrorSwitch<MetricsError> for QueryBuildingError {
+        /// This method returns a MetricsError, specifically a QueryBuildingError, indicating that there was an error in building the query for metrics.
     fn switch(&self) -> MetricsError {
         MetricsError::QueryBuildingError
     }
@@ -132,12 +136,14 @@ pub enum FiltersError {
 }
 
 impl ErrorSwitch<FiltersError> for QueryBuildingError {
+        /// This method returns a FiltersError with the variant QueryBuildingError
     fn switch(&self) -> FiltersError {
         FiltersError::QueryBuildingError
     }
 }
 
 impl ErrorSwitch<AnalyticsError> for FiltersError {
+        /// This method performs a switch operation on the enum variant of self and returns an AnalyticsError based on the matched variant.
     fn switch(&self) -> AnalyticsError {
         match self {
             Self::QueryBuildingError | Self::QueryExecutionFailure => AnalyticsError::UnknownError,

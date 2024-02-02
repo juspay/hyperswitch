@@ -44,12 +44,22 @@ pub struct RedisClient {
 
 impl std::ops::Deref for RedisClient {
     type Target = fred::prelude::RedisClient;
+        /// This method returns a reference to the inner value of the smart pointer.
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
 impl RedisClient {
+        /// Creates a new instance of the RedisConnectionManager with the provided configuration settings.
+    /// 
+    /// # Arguments
+    /// - `config` - The Redis configuration settings.
+    /// - `reconnect_policy` - The policy for reconnecting to the Redis server.
+    /// - `perf` - The performance configuration settings.
+    /// 
+    /// # Returns
+    /// A `CustomResult` containing the newly created `RedisConnectionManager` if successful, or a `RedisError` if an error occurs.
     pub async fn new(
         config: fred::types::RedisConfig,
         reconnect_policy: fred::types::ReconnectPolicy,
@@ -72,6 +82,8 @@ pub struct SubscriberClient {
 }
 
 impl SubscriberClient {
+        /// Creates a new instance of the SubscriberService with the provided Redis configuration, reconnect policy, and performance configuration. 
+    /// This method initializes a new SubscriberClient with the given configuration and connects to the Redis server. It then waits for the client to connect and returns a CustomResult containing the initialized SubscriberService on success, or a RedisError on failure.
     pub async fn new(
         config: fred::types::RedisConfig,
         reconnect_policy: fred::types::ReconnectPolicy,
@@ -175,6 +187,7 @@ impl RedisConnectionPool {
         })
     }
 
+        /// Asynchronously monitors and handles errors from the Redis clients in the pool. If a Redis protocol or connection error occurs, it logs the error and checks if the Redis pool is in a disconnected state. If it is disconnected, it sends a shutdown signal through the provided `tx` sender and updates the availability status of the Redis pool. This method utilizes the provided `tx` sender to communicate the shutdown signal if the pool is disconnected, and it uses the `logger` to log any encountered errors.
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
         use futures::StreamExt;
         use tokio_stream::wrappers::BroadcastStream;
@@ -210,6 +223,7 @@ struct RedisConfig {
 }
 
 impl From<&RedisSettings> for RedisConfig {
+        /// Constructs a new instance of Self using the provided RedisSettings configuration.
     fn from(config: &RedisSettings) -> Self {
         Self {
             default_ttl: config.default_ttl,
@@ -224,6 +238,7 @@ mod test {
     use super::*;
 
     #[test]
+        /// This method tests the Redis error handling by creating a Redis error instance and checking if its string representation matches a predefined value.
     fn test_redis_error() {
         let x = errors::RedisError::ConsumerGroupClaimFailed.to_string();
 

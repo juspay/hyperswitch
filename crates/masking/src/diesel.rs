@@ -19,6 +19,7 @@ where
     I: Strategy<S>,
 {
     type Expression = Bound<T, Self>;
+        /// Converts the current type into its corresponding expression type.
     fn as_expression(self) -> Self::Expression {
         Bound::new(self)
     }
@@ -41,9 +42,10 @@ where
     S: ToSql<T, DB>,
     I: Strategy<S>,
 {
+        /// Converts the inner secret value to its SQL representation and writes it to the specified output.
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> serialize::Result {
-        ToSql::<T, DB>::to_sql(&self.inner_secret, out)
-    }
+            ToSql::<T, DB>::to_sql(&self.inner_secret, out)
+        }
 }
 
 impl<DB, S, T, I> FromSql<T, DB> for Secret<S, I>
@@ -52,6 +54,7 @@ where
     S: FromSql<T, DB>,
     I: Strategy<S>,
 {
+        /// This method converts a raw value from the database into a value of type `Self` using the `from_sql` method of the associated type `S`. It then maps the raw value to `Self` using the `into` method.
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         S::from_sql(bytes).map(|raw| raw.into())
     }
@@ -76,6 +79,7 @@ where
     Self: FromSql<ST, DB>,
 {
     type Row = Self;
+        /// Builds a new instance of Self using the provided `row` and returns a Result containing the new instance.
     fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(row)
     }

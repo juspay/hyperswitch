@@ -127,6 +127,8 @@ pub struct RefundUpdateInternal {
 }
 
 impl RefundUpdateInternal {
+        /// Creates a new refund by merging the fields of the current refund with the fields of the provided refund.
+    /// If a field is not present in the current refund, it is taken from the provided refund.
     pub fn create_refund(self, source: Refund) -> Refund {
         Refund {
             connector_refund_id: self.connector_refund_id,
@@ -144,6 +146,7 @@ impl RefundUpdateInternal {
 }
 
 impl From<RefundUpdate> for RefundUpdateInternal {
+        /// Creates a new instance of RefundUpdate from the given RefundUpdate enum value.
     fn from(refund_update: RefundUpdate) -> Self {
         match refund_update {
             RefundUpdate::Update {
@@ -201,6 +204,7 @@ impl From<RefundUpdate> for RefundUpdateInternal {
 }
 
 impl RefundUpdate {
+        /// Applies the changes from the given `Refund` object to the current `Refund` object and returns the result.
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let RefundUpdateInternal {
             connector_refund_id,
@@ -237,6 +241,7 @@ pub struct RefundCoreWorkflow {
 }
 
 impl common_utils::events::ApiEventMetric for Refund {
+        /// Returns the API event type associated with the current instance, if available.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Refund {
             payment_id: Some(self.payment_id.clone()),

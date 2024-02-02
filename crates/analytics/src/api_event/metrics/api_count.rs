@@ -25,6 +25,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads API event metrics based on the provided dimensions, merchant ID, filters, granularity, time range, and database pool. It constructs a query to retrieve the count of API events, start and end buckets, applies filters and granularity if specified, and executes the query to retrieve the metric rows. It then performs post-processing to create metric bucket identifiers and collects the processed metric rows into a result.
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],

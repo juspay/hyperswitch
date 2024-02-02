@@ -35,12 +35,23 @@ pub struct ConfigUpdateInternal {
 }
 
 impl ConfigUpdateInternal {
+        /// Creates a new configuration by copying the fields from the provided `source` configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source `Config` from which to copy the fields.
+    ///
+    /// # Returns
+    ///
+    /// A new `Config` with fields copied from the `source` configuration.
+    ///
     pub fn create_config(self, source: Config) -> Config {
         Config { ..source }
     }
 }
 
 impl From<ConfigUpdate> for ConfigUpdateInternal {
+        /// This method takes a ConfigUpdate enum and extracts the config value from it, then constructs a new instance of Self with the extracted config value. 
     fn from(config_update: ConfigUpdate) -> Self {
         match config_update {
             ConfigUpdate::Update { config } => Self { config },

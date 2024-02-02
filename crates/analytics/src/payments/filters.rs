@@ -14,6 +14,7 @@ use crate::{
 
 pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
 
+/// Asynchronously retrieves payment filters for a given dimension, merchant, and time range using the provided data source pool.
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
     merchant: &String,

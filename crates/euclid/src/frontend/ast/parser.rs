@@ -17,6 +17,7 @@ pub trait EuclidParsable: Sized {
 }
 
 impl EuclidParsable for DummyOutput {
+        /// Parse the input string and return a ParseResult containing a reference to a string and a Self object.
     fn parse_output(input: &str) -> ParseResult<&str, Self> {
         let string_w = sequence::delimited(
             skip_ws(complete::tag("\"")),
@@ -50,6 +51,7 @@ impl EuclidParsable for DummyOutput {
         )(input)
     }
 }
+/// This function takes a parser `inner` and returns a new parser that skips any leading whitespace before applying the `inner` parser. The input to the returned parser is a reference to a string slice, and the output is a `ParseResult` containing a reference to a string slice and a value of type `O`.
 pub fn skip_ws<'a, F: 'a, O>(inner: F) -> impl FnMut(&'a str) -> ParseResult<&str, O>
 where
     F: FnMut(&'a str) -> ParseResult<&str, O>,
@@ -57,6 +59,7 @@ where
     sequence::preceded(pchar::multispace0, inner)
 }
 
+/// This function takes a string input and attempts to parse it into an i64 integer. It uses the `take_while1` combinator to extract a string of ASCII digits, then attempts to parse that string into an i64. If successful, it returns the parsed i64 value, otherwise it returns an `InvalidNumber` error containing the original string.
 pub fn num_i64(input: &str) -> ParseResult<&str, i64> {
     error::context(
         "num_i32",
@@ -70,6 +73,8 @@ pub fn num_i64(input: &str) -> ParseResult<&str, i64> {
     )(input)
 }
 
+/// This method takes a string input and parses it to extract a string enclosed in double quotes. 
+/// It returns the parsed string as a `String` type.
 pub fn string_str(input: &str) -> ParseResult<&str, String> {
     error::context(
         "String",
@@ -84,6 +89,7 @@ pub fn string_str(input: &str) -> ParseResult<&str, String> {
     )(input)
 }
 
+/// This function parses an identifier from the input string, which consists of one or more ASCII alphabetic characters or underscores followed by zero or more ASCII alphanumeric characters or underscores. It returns the parsed identifier as a String.
 pub fn identifier(input: &str) -> ParseResult<&str, String> {
     error::context(
         "identifier",
@@ -96,6 +102,9 @@ pub fn identifier(input: &str) -> ParseResult<&str, String> {
         ),
     )(input)
 }
+/// Parses a string to extract a percentage value and returns it as a result. The input string
+/// should be in the format "<number>%" where <number> is a positive integer. If the input
+/// string is not in the correct format, an error is returned.
 pub fn percentage(input: &str) -> ParseResult<&str, u8> {
     error::context(
         "volume_split_percentage",
@@ -112,6 +121,13 @@ pub fn percentage(input: &str) -> ParseResult<&str, u8> {
     )(input)
 }
 
+/// Parses the input string to extract a number value and returns the result as an `ast::ValueType`.
+/// 
+/// # Arguments
+/// * `input` - A reference to the input string to be parsed
+/// 
+/// # Returns
+/// A `ParseResult` containing a reference to the remaining unparsed input string and the parsed `ast::ValueType`
 pub fn number_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     error::context(
         "number_value",
@@ -119,12 +135,23 @@ pub fn number_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     )(input)
 }
 
+/// Parses the input string into an AST (Abstract Syntax Tree) value of type `ast::ValueType::StrValue`.
+/// 
+/// # Arguments
+/// 
+/// * `input` - A reference to the input string to be parsed
+/// 
+/// # Returns
+/// 
+/// A `ParseResult` containing a reference to the parsed string value and the corresponding AST value type.
+/// 
 pub fn str_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     error::context(
         "str_value",
         combinator::map(string_str, ast::ValueType::StrValue),
     )(input)
 }
+/// Parses the input string and returns a string composed of valid enum value characters.
 pub fn enum_value_string(input: &str) -> ParseResult<&str, String> {
     combinator::map(
         sequence::pair(
@@ -135,6 +162,7 @@ pub fn enum_value_string(input: &str) -> ParseResult<&str, String> {
     )(input)
 }
 
+/// Parses the input string to extract the value of an enum variant and returns a ParseResult containing the extracted value and the remaining input.
 pub fn enum_variant_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     error::context(
         "enum_variant_value",
@@ -142,6 +170,8 @@ pub fn enum_variant_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     )(input)
 }
 
+/// Parses a string input to extract a sequence of comma-separated integer values enclosed in parentheses,
+/// and returns a Result containing the remaining input and an ast::ValueType::NumberArray if successful.
 pub fn number_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     let many_with_comma = multi::many0(sequence::preceded(
         skip_ws(complete::tag(",")),
@@ -167,6 +197,16 @@ pub fn number_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     )(input)
 }
 
+/// Parses an input string to extract an enum variant array value.
+///
+/// # Arguments
+///
+/// * `input` - A string slice to be parsed
+///
+/// # Returns
+///
+/// * If successful, returns a tuple containing the remaining input and the parsed enum variant array value
+/// * If unsuccessful, returns a parse error
 pub fn enum_variant_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     let many_with_comma = multi::many0(sequence::preceded(
         skip_ws(complete::tag(",")),
@@ -192,6 +232,7 @@ pub fn enum_variant_array_value(input: &str) -> ParseResult<&str, ast::ValueType
     )(input)
 }
 
+/// Parses the input string to extract a number comparison, returning the remaining input and the parsed NumberComparison.
 pub fn number_comparison(input: &str) -> ParseResult<&str, ast::NumberComparison> {
     let operator = combinator::map_res(
         branch::alt((
@@ -221,6 +262,7 @@ pub fn number_comparison(input: &str) -> ParseResult<&str, ast::NumberComparison
     )(input)
 }
 
+/// Parses a string input to create a number comparison array value, which consists of a sequence of number comparison values enclosed in parentheses and separated by commas.
 pub fn number_comparison_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
     let many_with_comma = multi::many0(sequence::preceded(
         skip_ws(complete::tag(",")),
@@ -246,6 +288,16 @@ pub fn number_comparison_array_value(input: &str) -> ParseResult<&str, ast::Valu
     )(input)
 }
 
+/// Parses the input string to determine the type of value and returns the parsed result as a `ast::ValueType`.
+///
+/// # Arguments
+///
+/// * `input` - A reference to the input string to be parsed
+///
+/// # Return
+///
+/// Returns a `ParseResult` containing a reference to the remaining input string and the parsed `ast::ValueType`.
+///
 pub fn value_type(input: &str) -> ParseResult<&str, ast::ValueType> {
     error::context(
         "value_type",
@@ -260,6 +312,8 @@ pub fn value_type(input: &str) -> ParseResult<&str, ast::ValueType> {
     )(input)
 }
 
+/// This method takes a string input and parses it to determine the comparison operator type.
+/// It returns a ParseResult with the parsed comparison operator type.
 pub fn comparison_type(input: &str) -> ParseResult<&str, ast::ComparisonType> {
     error::context(
         "comparison_operator",
@@ -285,6 +339,11 @@ pub fn comparison_type(input: &str) -> ParseResult<&str, ast::ComparisonType> {
     )(input)
 }
 
+/// This method takes a string input and attempts to parse it into a comparison
+/// expression. It looks for a sequence of an alphabetic string, a comparison type,
+/// and a value type, and constructs a Comparison struct from the parsed values.
+/// If successful, it returns a ParseResult containing the parsed Comparison and
+/// the remaining input. If the input cannot be parsed, it returns an error.
 pub fn comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
     error::context(
         "condition",
@@ -306,6 +365,7 @@ pub fn comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
     )(input)
 }
 
+/// Parses a comparison expression from the input string and returns the parsed comparison.
 pub fn arbitrary_comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
     error::context(
         "condition",
@@ -328,6 +388,7 @@ pub fn arbitrary_comparison(input: &str) -> ParseResult<&str, ast::Comparison> {
     )(input)
 }
 
+/// Parses the input string to create a vector of Comparison AST nodes.
 pub fn comparison_array(input: &str) -> ParseResult<&str, Vec<ast::Comparison>> {
     let many_with_ampersand = error::context(
         "many_with_amp",
@@ -352,6 +413,7 @@ pub fn comparison_array(input: &str) -> ParseResult<&str, Vec<ast::Comparison>> 
     )(input)
 }
 
+/// Parses an if statement from the input string and returns a ParseResult with the remaining input and the parsed if statement.
 pub fn if_statement(input: &str) -> ParseResult<&str, ast::IfStatement> {
     let nested_block = sequence::delimited(
         skip_ws(complete::tag("{")),
@@ -371,6 +433,7 @@ pub fn if_statement(input: &str) -> ParseResult<&str, ast::IfStatement> {
     )(input)
 }
 
+/// Parses a string input to extract an array of IfStatement objects representing rule conditions.
 pub fn rule_conditions_array(input: &str) -> ParseResult<&str, Vec<ast::IfStatement>> {
     error::context(
         "rules_array",
@@ -382,6 +445,7 @@ pub fn rule_conditions_array(input: &str) -> ParseResult<&str, Vec<ast::IfStatem
     )(input)
 }
 
+/// Parses the input string to create an AST representation of a rule, including the rule name, connector selection, and rule conditions array.
 pub fn rule<O: EuclidParsable>(input: &str) -> ParseResult<&str, ast::Rule<O>> {
     let rule_name = error::context(
         "rule_name",
@@ -412,10 +476,12 @@ pub fn rule<O: EuclidParsable>(input: &str) -> ParseResult<&str, ast::Rule<O>> {
     )(input)
 }
 
+/// Parses the input string using the EuclidParsable trait and returns the parsed output.
 pub fn output<O: EuclidParsable>(input: &str) -> ParseResult<&str, O> {
     O::parse_output(input)
 }
 
+/// Parses the input string to extract the default output.
 pub fn default_output<O: EuclidParsable + 'static>(input: &str) -> ParseResult<&str, O> {
     error::context(
         "default_output",
@@ -426,6 +492,7 @@ pub fn default_output<O: EuclidParsable + 'static>(input: &str) -> ParseResult<&
     )(input)
 }
 
+/// Parses the input string to construct an abstract syntax tree representing a program with the specified output type.
 pub fn program<O: EuclidParsable + 'static>(input: &str) -> ParseResult<&str, ast::Program<O>> {
     error::context(
         "program",

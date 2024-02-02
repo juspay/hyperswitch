@@ -235,6 +235,7 @@ pub struct PaymentIntentUpdateInternal {
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
+        /// Converts a PaymentIntentUpdate enum into the corresponding struct, initializing the fields based on the variant's data
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
             PaymentIntentUpdate::Update {
@@ -436,6 +437,7 @@ pub struct PaymentIntentListParams {
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
+        /// Converts a PaymentListConstraints struct into PaymentIntentListParams struct
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
             offset: 0,
@@ -457,6 +459,8 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 }
 
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
+        /// Converts a value of type api_models::payments::TimeRange into a PaymentIntentListParams
+    /// and constructs a new instance of Self with the converted parameters.
     fn from(value: api_models::payments::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
             offset: 0,
@@ -478,6 +482,9 @@ impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
 }
 
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
+        /// Converts a PaymentListFilterConstraints into a PaymentIntentListParams.
+    /// If the PaymentListFilterConstraints contains a payment_id, it returns a Single with the payment_intent_id.
+    /// If the PaymentListFilterConstraints does not contain a payment_id, it returns a List with the parameters populated from the PaymentListFilterConstraints.
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         if let Some(payment_intent_id) = value.payment_id {
             Self::Single { payment_intent_id }

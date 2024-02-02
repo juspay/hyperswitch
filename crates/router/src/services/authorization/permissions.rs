@@ -34,6 +34,7 @@ pub enum Permission {
 }
 
 impl Permission {
+        /// Returns a description of the permission based on the enum variant.
     pub fn get_permission_description(&self) -> &'static str {
         match self {
             Self::PaymentRead => "View all payments",

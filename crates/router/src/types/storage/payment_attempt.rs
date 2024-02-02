@@ -20,6 +20,7 @@ pub trait PaymentAttemptExt {
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
+        /// Creates a new capture with the provided capture amount and capture status. It generates a new capture sequence, retrieves the current date and time, and constructs a CaptureNew object with the relevant details such as payment ID, merchant ID, capture ID, status, amount, currency, connector, error message, tax amount, creation and modification timestamps, error code, error reason, authorized attempt ID, capture sequence, connector capture ID, and connector response reference ID. Returns a RouterResult containing the newly created CaptureNew object.
     fn make_new_capture(
         &self,
         capture_amount: i64,
@@ -54,10 +55,12 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_response_reference_id: None,
         })
     }
+    /// Returns a unique capture ID by combining the attempt ID with the next sequence number.
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
     }
+        /// Returns the surcharge details, if available, as an `Option` containing a `RequestSurchargeDetails` object.
     fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
         self.surcharge_amount.map(|surcharge_amount| {
             api_models::payments::RequestSurchargeDetails {
@@ -76,6 +79,7 @@ pub trait AttemptStatusExt {
 }
 
 impl AttemptStatusExt for enums::AttemptStatus {
+        /// Checks if the current intent status maps to the provided intent status.
     fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool {
         enums::IntentStatus::foreign_from(self) == intent_status
     }
@@ -98,6 +102,7 @@ mod tests {
 
     #[actix_rt::test]
     #[ignore]
+        /// Asynchronously inserts a payment attempt into the storage with the given payment_id, connector, and current time.
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;

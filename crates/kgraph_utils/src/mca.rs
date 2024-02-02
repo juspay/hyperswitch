@@ -13,6 +13,7 @@ use crate::{error::KgraphError, transformers::IntoDirValue};
 
 pub const DOMAIN_IDENTIFIER: &str = "payment_methods_enabled_for_merchantconnectoraccount";
 
+/// Compiles the request payment method types into a knowledge graph.
 fn compile_request_pm_types(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     pm_types: RequestPaymentMethodTypes,
@@ -206,6 +207,7 @@ fn compile_request_pm_types(
         .map_err(KgraphError::GraphConstructionError)
 }
 
+/// Compiles the payment method enabled status into a knowledge graph representation and returns the node ID of the compiled representation.
 fn compile_payment_method_enabled(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     enabled: admin_api::PaymentMethodsEnabled,
@@ -270,6 +272,7 @@ fn compile_payment_method_enabled(
     Ok(agg_id)
 }
 
+/// Compiles a knowledge graph representing a merchant connector, including its supported payment methods.
 fn compile_merchant_connector_graph(
     builder: &mut graph::KnowledgeGraphBuilder<'_>,
     mca: admin_api::MerchantConnectorResponse,
@@ -321,6 +324,7 @@ fn compile_merchant_connector_graph(
     Ok(())
 }
 
+/// Creates a knowledge graph representing the payment methods enabled for a list of MerchantConnector accounts.
 pub fn make_mca_graph<'a>(
     accts: Vec<admin_api::MerchantConnectorResponse>,
 ) -> Result<graph::KnowledgeGraph<'a>, KgraphError> {
@@ -348,6 +352,7 @@ mod tests {
 
     use super::*;
 
+        /// Builds a test knowledge graph data by creating a dummy Stripe account with enabled payment methods and associated configurations.
     fn build_test_data<'a>() -> graph::KnowledgeGraph<'a> {
         use api_models::{admin::*, payment_methods::*};
 
@@ -414,6 +419,7 @@ mod tests {
     }
 
     #[test]
+        /// This method is used to test the success case for credit card analysis in a graph. It builds test data, performs key value analysis with a set of directory values for a credit card payment using the Stripe connector, and checks if the result is successful.
     fn test_credit_card_success_case() {
         let graph = build_test_data();
 
@@ -434,6 +440,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the success case for debit card payment using the key value analysis on a graph. It builds test data, performs the analysis using specific directory values related to debit card payment with Stripe connector, and checks if the result is successful.
     fn test_debit_card_success_case() {
         let graph = build_test_data();
 
@@ -454,6 +461,8 @@ mod tests {
     }
 
     #[test]
+        /// Performs a test for single mismatch failure case by building test data graph, performing key value analysis,
+    /// and checking if the result is an error.
     fn test_single_mismatch_failure_case() {
         let graph = build_test_data();
 
@@ -474,6 +483,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the failure case when there is a mismatch in the amount during key value analysis. It builds test data, performs key value analysis on a specific set of directory values using the Stripe connector, and checks if the result is an error.
     fn test_amount_mismatch_failure_case() {
         let graph = build_test_data();
 
@@ -494,6 +504,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the failure case when incomplete data is used for key value analysis on a graph. It builds test data, performs key value analysis with incomplete data, and asserts that the result is an error.
     fn test_incomplete_data_failure_case() {
         let graph = build_test_data();
 
@@ -516,6 +527,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests the failure case when incomplete data is provided for key value analysis.
     fn test_incomplete_data_failure_case2() {
         let graph = build_test_data();
 
@@ -538,6 +550,7 @@ mod tests {
     }
 
     #[test]
+        /// This method tests a specific bug use case related to Apple Pay in a sandbox environment.
     fn test_sandbox_applepay_bug_usecase() {
         let value = serde_json::json!([
             {

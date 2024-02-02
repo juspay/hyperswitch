@@ -37,6 +37,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+        /// Asynchronous method to retrieve trackers for incremental authorization of a payment. 
+    /// It validates the payment status and amount, retrieves necessary payment and merchant details from the database, and constructs a response with the required payment data and business profile.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -170,6 +172,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the trackers for a payment transaction by creating a new authorization record, updating the authorization count in the payment intent, and handling incremental authorization details. Returns a tuple containing the updated payment data and a boxed operation.
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
@@ -253,7 +256,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 .attach_printable("missing incremental_authorization_details in payment_data")?,
         }
         Ok((Box::new(self), payment_data))
-    }
+        }
 }
 
 impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
@@ -261,6 +264,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+        /// Validates a payment incremental authorization request using the provided merchant account information.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
@@ -287,6 +291,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     Domain<F, PaymentsIncrementalAuthorizationRequest, Ctx> for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
+        /// Retrieves or creates customer details and returns a result containing a boxed operation and an optional customer.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _db: &dyn StorageInterface,
@@ -304,6 +309,20 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data based on the provided parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `_state` - The application state
+    /// * `_payment_data` - Mutable reference to the payment data
+    /// * `_storage_scheme` - The storage scheme used by the merchant
+    /// * `_merchant_key_store` - The key store for the merchant
+    /// * `_customer` - An optional reference to the customer
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing a boxed operation and an optional payment method data
+    ///
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a AppState,
@@ -318,6 +337,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve>
         Ok((Box::new(self), None))
     }
 
+        /// Asynchronously retrieves a connector choice based on the given merchant account, application state, request, payment intent, and merchant key store.
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,

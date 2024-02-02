@@ -11,6 +11,15 @@ use crate::{
 
 impl BusinessProfileNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a BusinessProfile into the database using the provided PgPooledConn connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a PgPooledConn connection to the database.
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing the inserted `BusinessProfile` if successful, or an error if the insertion fails.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BusinessProfile> {
         generics::generic_insert(conn, self).await
     }
@@ -18,6 +27,7 @@ impl BusinessProfileNew {
 
 impl BusinessProfile {
     #[instrument(skip(conn))]
+        /// Asynchronously updates a record in the database based on the profile ID, using the provided business profile update data.
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
@@ -39,6 +49,7 @@ impl BusinessProfile {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by the given profile ID in the database using the provided database connection.
     pub async fn find_by_profile_id(conn: &PgPooledConn, profile_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -48,6 +59,7 @@ impl BusinessProfile {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by the given profile name and merchant ID in the database.
     pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
         profile_name: &str,
@@ -62,6 +74,16 @@ impl BusinessProfile {
         .await
     }
 
+        /// Retrieves a list of business profiles associated with a specific merchant ID from the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled database connection
+    /// * `merchant_id` - A string slice representing the merchant ID for which to retrieve the business profiles
+    /// 
+    /// # Returns
+    /// 
+    /// A `StorageResult` containing a vector of the retrieved business profiles, if successful
     pub async fn list_business_profile_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -81,6 +103,8 @@ impl BusinessProfile {
         .await
     }
 
+        /// Deletes a record from the database based on the given profile_id and merchant_id.
+    /// Returns a boolean indicating whether the deletion was successful.
     pub async fn delete_by_profile_id_merchant_id(
         conn: &PgPooledConn,
         profile_id: &str,

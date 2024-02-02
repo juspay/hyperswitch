@@ -16,6 +16,22 @@ use crate::DataModelExt;
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
     #[cfg(feature = "olap")]
+        /// Filters payment intents by the given constraints for a specific merchant using a specified storage scheme.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_merchant_id` - The ID of the merchant to filter payment intents for.
+    /// * `_filters` - Payment intent fetch constraints to apply for filtering.
+    /// * `_storage_scheme` - The storage scheme to use for fetching payment intents.
+    /// 
+    /// # Returns
+    /// 
+    /// A vector of `PaymentIntent` objects that match the given constraints, or a `StorageError` if an error occurs.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns a `MockDbError` if the function is called for a mock database.
+    /// 
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,
@@ -26,6 +42,21 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
+        /// Filters payment intents by time range constraints for a specific merchant based on the given storage scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The ID of the merchant
+    /// * `_time_range` - The time range constraints for filtering payment intents
+    /// * `_storage_scheme` - The storage scheme used by the merchant
+    ///
+    /// # Returns
+    ///
+    /// A vector of filtered PaymentIntent objects or a StorageError if an error occurs
+    ///
+    /// # Errors
+    ///
+    /// Returns a StorageError::MockDbError if the function is not implemented for a mock database
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _merchant_id: &str,
@@ -36,6 +67,7 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
+        /// Retrieves filtered and active attempt IDs for the total count of payment intents for a specific merchant and with given constraints and storage scheme.
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &str,
@@ -46,6 +78,8 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
+        /// Asynchronously attempts to fetch filtered payment intents and their corresponding payment attempts from the database based on given constraints and storage scheme. Returns a vector of tuples containing PaymentIntent and PaymentAttempt if successful, otherwise returns a StorageError.
+    
     async fn get_filtered_payment_intents_attempt(
         &self,
         _merchant_id: &str,
@@ -57,6 +91,7 @@ impl PaymentIntentInterface for MockDb {
     }
 
     #[allow(clippy::panic)]
+        /// Inserts a new payment intent into the storage with the provided details and returns the inserted payment intent.
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
@@ -118,6 +153,7 @@ impl PaymentIntentInterface for MockDb {
 
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
+        /// Asynchronously updates a payment intent using the provided update and returns the updated payment intent.
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -139,6 +175,8 @@ impl PaymentIntentInterface for MockDb {
 
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
+        /// Asynchronously finds a payment intent by the specified payment ID and merchant ID.
+    /// Returns a Result containing the found PaymentIntent if it exists, otherwise returns a StorageError.
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -156,6 +194,10 @@ impl PaymentIntentInterface for MockDb {
             .unwrap())
     }
 
+        /// Asynchronously retrieves the active payment attempt associated with the given PaymentIntent. 
+    /// If the active attempt is a foreign ID, it searches for the attempt in the payment attempts collection 
+    /// and updates the active_attempt field of the payment with the found attempt. If the active attempt is 
+    /// an Object, it simply returns a clone of the payment attempt. 
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,

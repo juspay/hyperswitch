@@ -23,6 +23,7 @@ pub trait PaymentLinkDbExt: Sized {
 
 #[async_trait::async_trait]
 impl PaymentLinkDbExt for PaymentLink {
+        /// Asynchronously filters payment links based on the specified constraints for a given merchant ID.
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,

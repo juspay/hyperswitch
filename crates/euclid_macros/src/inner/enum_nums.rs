@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 
+/// This function returns a `TokenStream2` containing a compile error generated from a `syn::Error`. 
 fn error() -> TokenStream2 {
     syn::Error::new(
         Span::call_site(),
@@ -10,6 +11,7 @@ fn error() -> TokenStream2 {
     .to_compile_error()
 }
 
+/// This method takes a TokenStream as input and parses it into a DeriveInput. It then processes the enum data, generating match arms for each variant to convert the enum variant into its corresponding number. Finally, it constructs an implementation block for the enum, adding a method to_num that returns the number corresponding to the enum variant. The resulting TokenStream represents the implementation block.
 pub(crate) fn enum_nums_inner(ts: TokenStream) -> TokenStream {
     let derive_input = syn::parse_macro_input!(ts as syn::DeriveInput);
 

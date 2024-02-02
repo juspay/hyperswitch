@@ -22,6 +22,7 @@ pub enum ConnectorSelection {
 }
 
 impl ConnectorSelection {
+        /// Returns a list of RoutableConnectorChoice based on the type of self.
     pub fn get_connector_list(&self) -> Vec<RoutableConnectorChoice> {
         match self {
             Self::Priority(list) => list.clone(),
@@ -120,6 +121,7 @@ impl EuclidDirFilter for ConnectorSelection {
 }
 
 impl EuclidAnalysable for ConnectorSelection {
+        /// Returns a vector of tuples containing DirValue and Metadata. 
     fn get_dir_value_for_analysis(
         &self,
         rule_name: String,
@@ -204,6 +206,7 @@ pub struct RoutableConnectorChoice {
 }
 
 impl ToString for RoutableConnectorChoice {
+        /// Converts the connector and sub label (if present) to a string and returns the result.
     fn to_string(&self) -> String {
         #[cfg(feature = "connector_choice_mca_id")]
         let base = self.connector.to_string();
@@ -225,6 +228,8 @@ impl ToString for RoutableConnectorChoice {
 
 #[cfg(feature = "connector_choice_bcompat")]
 impl PartialEq for RoutableConnectorChoice {
+        /// Compares two instances of the current struct based on the configuration of the "connector_choice_mca_id" feature. 
+    /// Returns true if the instances are equal, otherwise false.
     fn eq(&self, other: &Self) -> bool {
         #[cfg(not(feature = "connector_choice_mca_id"))]
         {
@@ -244,6 +249,7 @@ impl Eq for RoutableConnectorChoice {}
 
 #[cfg(feature = "connector_choice_bcompat")]
 impl From<RoutableChoiceSerde> for RoutableConnectorChoice {
+        /// Converts a value of type RoutableChoiceSerde into Self.
     fn from(value: RoutableChoiceSerde) -> Self {
         match value {
             RoutableChoiceSerde::OnlyConnector(connector) => Self {
@@ -275,6 +281,7 @@ impl From<RoutableChoiceSerde> for RoutableConnectorChoice {
 
 #[cfg(feature = "connector_choice_bcompat")]
 impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
+        /// Converts a RoutableConnectorChoice into Self.
     fn from(value: RoutableConnectorChoice) -> Self {
         match value.choice_kind {
             RoutableChoiceKind::OnlyConnector => Self::OnlyConnector(Box::new(value.connector)),
@@ -290,6 +297,9 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
 }
 
 impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
+        /// Creates a new instance of the Self type by taking a RoutableConnectorChoice as input
+    /// and extracting the connector and sub_label fields from it. The sub_label field is
+    /// only included if the "connector_choice_mca_id" feature is not enabled.
     fn from(value: RoutableConnectorChoice) -> Self {
         Self {
             connector: value.connector,
@@ -308,6 +318,7 @@ pub struct DetailedConnectorChoice {
 }
 
 impl DetailedConnectorChoice {
+        /// Returns the connector label by combining connector, business country, business label and business sub label (if present).
     pub fn get_connector_label(&self) -> Option<String> {
         self.business_country
             .as_ref()
@@ -373,6 +384,8 @@ pub enum RoutingAlgorithmSerde {
 impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     type Error = error_stack::Report<ParsingError>;
 
+        /// Tries to convert a value of type RoutingAlgorithmSerde into an instance of the current enum type,
+    /// returning a Result that contains either the converted value or an error.
     fn try_from(value: RoutingAlgorithmSerde) -> Result<Self, Self::Error> {
         match &value {
             RoutingAlgorithmSerde::Priority(i) if i.is_empty() => {
@@ -435,6 +448,7 @@ pub enum StraightThroughAlgorithmSerde {
 impl TryFrom<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
     type Error = error_stack::Report<ParsingError>;
 
+        /// Tries to convert a value of type StraightThroughAlgorithmSerde into a StraightThroughAlgorithm, returning a Result.
     fn try_from(value: StraightThroughAlgorithmSerde) -> Result<Self, Self::Error> {
         let inner = match value {
             StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
@@ -466,6 +480,7 @@ impl TryFrom<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
 }
 
 impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
+        /// Converts a StraightThroughAlgorithm enum value into the corresponding Self enum value
     fn from(value: StraightThroughAlgorithm) -> Self {
         let inner = match value {
             StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
@@ -482,6 +497,7 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
 }
 
 impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
+        /// Converts a value of the StraightThroughAlgorithm enum to a value of the same enum.
     fn from(value: StraightThroughAlgorithm) -> Self {
         match value {
             StraightThroughAlgorithm::Single(conn) => Self::Single(conn),
@@ -492,6 +508,7 @@ impl From<StraightThroughAlgorithm> for RoutingAlgorithm {
 }
 
 impl RoutingAlgorithm {
+        /// Returns the kind of routing algorithm stored in the enum variant
     pub fn get_kind(&self) -> RoutingAlgorithmKind {
         match self {
             Self::Single(_) => RoutingAlgorithmKind::Single,
@@ -511,16 +528,24 @@ pub struct RoutingAlgorithmRef {
 }
 
 impl RoutingAlgorithmRef {
+        /// Updates the algorithm ID with the new ID provided and also updates the timestamp to the current unix timestamp.
     pub fn update_algorithm_id(&mut self, new_id: String) {
         self.algorithm_id = Some(new_id);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
 
+        /// Updates the conditional configuration ID with the given value and also updates the timestamp to the current unix timestamp.
     pub fn update_conditional_config_id(&mut self, ids: String) {
         self.config_algo_id = Some(ids);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
 
+        /// Updates the surcharge config ID and timestamp for the current object.
+    ///
+    /// # Arguments
+    ///
+    /// * `ids` - A string containing the new surcharge config ID.
+    ///
     pub fn update_surcharge_config_id(&mut self, ids: String) {
         self.surcharge_config_algo_id = Some(ids);
         self.timestamp = common_utils::date_time::now_unix_timestamp();

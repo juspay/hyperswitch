@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
+/// Handles the registration of an Apple Pay merchant by verifying the provided merchant credentials.
 pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -43,6 +44,7 @@ pub async fn apple_pay_merchant_registration(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
+/// Retrieves the Apple Pay verified domains for a given merchant ID and merchant connector account ID.
 pub async fn retrieve_apple_pay_verified_domains(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -28,6 +28,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+/// This method performs GSM actions including retries and step-up checks for a payment flow.
 pub async fn do_gsm_actions<F, ApiRequest, FData, Ctx>(
     state: &app::AppState,
     payment_data: &mut payments::PaymentData<F>,
@@ -158,6 +159,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// Asynchronously checks if step-up is enabled for a specific merchant connector.
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::AppState,
     merchant_id: &str,
@@ -183,6 +185,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 }
 
 #[instrument(skip_all)]
+/// Retrieves the configured number of retries for a specific merchant from the database, or returns the provided value if it is already provided. If the number of retries is not provided, it looks up the configuration value in the database and parses it as an integer. If successful, it returns the parsed value, otherwise, it logs an error and returns `None`.
 pub async fn get_retries(
     state: &app::AppState,
     retries: Option<i32>,
@@ -214,6 +217,7 @@ pub async fn get_retries(
 }
 
 #[instrument(skip_all)]
+/// Asynchronously retrieves the GatewayStatusMap from the storage based on the provided router data and application state. It extracts error information and connector details from the router data, gets the flow name, and then calls the helper method to retrieve the GatewayStatusMap record from the storage. Returns a RouterResult containing the retrieved GatewayStatusMap if successful, otherwise None.
 pub async fn get_gsm<F, FData>(
     state: &app::AppState,
     router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -230,6 +234,9 @@ pub async fn get_gsm<F, FData>(
 }
 
 #[instrument(skip_all)]
+/// Retrieves the GSM decision from the provided GatewayStatusMap, and returns a GsmDecision.
+/// If the parsing of the decision fails, an internal server error is attached to the error response,
+/// and a warning is logged. If the GSM decision is found, it increments the auto retry GSM match count metric.
 pub fn get_gsm_decision(
     option_gsm: Option<storage::gsm::GatewayStatusMap>,
 ) -> api_models::gsm::GsmDecision {
@@ -253,6 +260,7 @@ pub fn get_gsm_decision(
 }
 
 #[inline]
+/// This method returns the name of the flow as a string. It takes a type parameter F and uses the std::any::type_name function to get the type name of F. It then converts the type name to a string, splits it by "::", and returns the last element, which is considered to be the flow name. If any error occurs during the process, it returns an internal server error as an ApiErrorResponse.
 fn get_flow_name<F>() -> RouterResult<String> {
     Ok(std::any::type_name::<F>()
         .to_string()
@@ -266,6 +274,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+/// This method performs a retry for a payment operation, modifying trackers, and calling the connector service with the provided data. It also increments the auto retry payment count metrics.
 pub async fn do_retry<F, ApiRequest, FData, Ctx>(
     state: &routes::AppState,
     connector: api::ConnectorData,
@@ -320,6 +329,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// This method is used to modify the trackers based on the provided parameters. It updates the payment attempt based on the response received from the router, and then updates the payment intent and inserts the new payment attempt into the database. It handles different types of responses and error scenarios, updating the payment data accordingly. Finally, it returns a RouterResult indicating the success or failure of the modification process.
 pub async fn modify_trackers<F, FData>(
     state: &routes::AppState,
     connector: String,
@@ -452,6 +462,7 @@ where
 }
 
 #[instrument(skip_all)]
+/// Creates a new payment attempt based on the given parameters and returns a storage::PaymentAttemptNew object.
 pub fn make_new_payment_attempt(
     connector: String,
     old_payment_attempt: storage::PaymentAttempt,
@@ -499,6 +510,7 @@ pub fn make_new_payment_attempt(
     }
 }
 
+/// Retrieves a configuration value from the database to determine if a GSM (Global System for Mobile Communications) call should be made for the specified merchant. If the configuration is not found, it defaults to 'false'.
 pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &String) -> bool {
     let config = db
         .find_config_by_key_unwrap_or(
@@ -525,6 +537,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
     for types::RouterData<F, FData, types::PaymentsResponseData>
 {
     #[inline(always)]
+        /// Determines whether the GSM service should be called based on the response and status of the attempt.
     fn should_call_gsm(&self) -> bool {
         if self.response.is_err() {
             true

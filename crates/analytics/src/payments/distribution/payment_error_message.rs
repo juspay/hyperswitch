@@ -28,6 +28,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads payment distribution metrics based on the provided parameters.
     async fn load_distribution(
         &self,
         distribution: &Distribution,

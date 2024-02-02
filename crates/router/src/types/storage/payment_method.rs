@@ -34,10 +34,13 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
+        /// Creates a new permanent card with the given token.
     pub fn permanent_card(token: String) -> Self {
         Self::PermanentCard(CardTokenData { token })
     }
 
+        /// Creates a new instance of the enum with the TemporaryGeneric variant, 
+    /// containing the provided token data.
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
     }

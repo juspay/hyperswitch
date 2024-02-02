@@ -7,6 +7,7 @@ use crate::configs::settings;
 
 #[async_trait::async_trait]
 impl VaultFetch for settings::Jwekey {
+        /// Asynchronously fetches encryption keys from HashiCorp Vault using the provided client and updates the internal state of the struct with the fetched keys. Returns a Result containing the updated struct or an error if the fetching process fails.
     async fn fetch_inner<En>(
         mut self,
         client: &HashiCorpVault,
@@ -52,6 +53,8 @@ impl VaultFetch for settings::Jwekey {
 
 #[async_trait::async_trait]
 impl VaultFetch for settings::Database {
+        /// Asynchronously fetches the inner state of the current object by fetching the password using the specified HashiCorpVault client. 
+    /// Returns a Result containing the updated object with the fetched password or an error if the fetching process fails.
     async fn fetch_inner<En>(
         mut self,
         client: &HashiCorpVault,
@@ -86,6 +89,15 @@ impl VaultFetch for settings::Database {
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 impl VaultFetch for settings::PayPalOnboarding {
+        /// Asynchronously fetches the inner value for the client ID, client secret, and partner ID using the provided HashiCorpVault client. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `client` - A reference to the HashiCorpVault client
+    /// 
+    /// # Returns
+    /// 
+    /// The updated Self after fetching the inner values for client ID, client secret, and partner ID, or an error of type HashiCorpError wrapped in a Result.
     async fn fetch_inner<En>(
         mut self,
         client: &HashiCorpVault,
@@ -112,6 +124,7 @@ impl VaultFetch for settings::PayPalOnboarding {
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 impl VaultFetch for settings::ConnectorOnboarding {
+        /// Asynchronously fetches inner data using the specified client and updates the current instance with the fetched data.
     async fn fetch_inner<En>(
         mut self,
         client: &HashiCorpVault,

@@ -1,6 +1,7 @@
 use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
 
 #[tokio::main]
+/// Asynchronous function that initializes the drainer application. It first retrieves the configuration from the command line and constructs the application configuration. Then, it validates the drainer configuration and creates a new instance of the Store service. If the "vergen" feature is enabled, it prints the drainer version. It sets up the environment and logs the startup configuration. Finally, it starts the drainer and returns a Result indicating success or failure.
 async fn main() -> DrainerResult<()> {
     // Get configuration
     let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();

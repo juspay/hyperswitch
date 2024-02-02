@@ -13,6 +13,7 @@ pub trait Applicative<R> {
 
 impl<R> Applicative<R> for Option<R> {
     type WrappedSelf<T> = Option<T>;
+        /// This method takes a value `v` and returns it wrapped in `Some`.
     fn pure(v: R) -> Self::WrappedSelf<R> {
         Some(v)
     }
@@ -20,6 +21,7 @@ impl<R> Applicative<R> for Option<R> {
 
 impl<R, E> Applicative<R> for Result<R, E> {
     type WrappedSelf<T> = Result<T, E>;
+        /// This method takes a value of type R and wraps it in a Result enum, returning it as a wrapped value of the same type. If successful, it returns Ok(v).
     fn pure(v: R) -> Self::WrappedSelf<R> {
         Ok(v)
     }

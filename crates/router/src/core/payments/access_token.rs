@@ -48,6 +48,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     }
 }
 
+/// Adds an access token for the given merchant account and connector data. 
 pub async fn add_access_token<
     F: Clone + 'static,
     Req: Debug + Clone + 'static,
@@ -135,6 +136,7 @@ pub async fn add_access_token<
     }
 }
 
+/// Asynchronously refreshes the authentication token for the given connector and returns the updated access token.
 pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,

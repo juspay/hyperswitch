@@ -27,6 +27,8 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads the metrics for SDK events based on the provided dimensions, filters, granularity, time range, and database connection pool.
+    /// Returns a result containing a vector of tuples, where each tuple consists of SdkEventMetricsBucketIdentifier and SdkEventMetricRow.
     async fn load_metrics(
         &self,
         dimensions: &[SdkEventDimensions],

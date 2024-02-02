@@ -25,6 +25,7 @@ use crate::{
     AnalyticsProvider,
 };
 
+/// Asynchronously retrieves refund metrics data from the given analytics provider for the specified merchant and request parameters.
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &String,
@@ -122,6 +123,7 @@ pub async fn get_metrics(
     })
 }
 
+/// Asynchronously retrieves refund filters for a given merchant and request, using the provided analytics provider pool.
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetRefundFilterRequest,

@@ -13,6 +13,7 @@ pub enum AnalyticsError {
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
+        /// Matches the enum variant and returns an API error response based on the variant.
     fn switch(&self) -> ApiErrorResponse {
         match self {
             Self::NotImplemented(feature) => ApiErrorResponse::NotImplemented(ApiError::new(

@@ -76,6 +76,7 @@ pub enum AuthenticationType {
 }
 
 impl AuthenticationType {
+        /// This method returns the merchant ID associated with the enum variant, if applicable.
     pub fn get_merchant_id(&self) -> Option<&str> {
         match self {
             Self::ApiKey {
@@ -107,6 +108,7 @@ pub struct UserAuthToken {
 
 #[cfg(feature = "olap")]
 impl UserAuthToken {
+        /// Asynchronously generates a new JWT token for the specified user ID using the provided settings.
     pub async fn new_token(user_id: String, settings: &settings::Settings) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -126,6 +128,7 @@ pub struct AuthToken {
 
 #[cfg(feature = "olap")]
 impl AuthToken {
+        /// Generates a new JWT token for the given user, merchant, role, and organization, using the provided settings.
     pub async fn new_token(
         user_id: String,
         merchant_id: String,
@@ -159,12 +162,17 @@ pub trait AuthInfo {
 }
 
 impl AuthInfo for () {
+        /// Retrieves the merchant ID associated with the current object, if available.
     fn get_merchant_id(&self) -> Option<&str> {
         None
     }
 }
 
 impl AuthInfo for AuthenticationData {
+        /// This method returns the merchant ID associated with the current instance
+    /// of the struct. If a merchant ID is present, it is returned as an Option
+    /// containing a reference to a string. If no merchant ID is present, None
+    /// is returned.
     fn get_merchant_id(&self) -> Option<&str> {
         Some(&self.merchant_account.merchant_id)
     }
@@ -192,6 +200,17 @@ impl<A> AuthenticateAndFetch<(), A> for NoAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user and fetches the authentication type based on the provided request headers and state.
+    ///
+    /// # Arguments
+    ///
+    /// * `_request_headers` - A reference to the request headers.
+    /// * `_state` - A reference to the state of type A.
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing a tuple with the first element being an empty value and the second element being the authentication type, which is set to `AuthenticationType::NoAuth`.
+    ///
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
@@ -206,6 +225,21 @@ impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the request using the provided request headers and fetches the necessary authentication data and type. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request_headers` - The headers of the incoming request.
+    /// * `state` - The state containing the configuration and store needed for authentication.
+    /// 
+    /// # Returns
+    /// 
+    /// A `RouterResult` containing a tuple of `AuthenticationData` and `AuthenticationType` if authentication is successful, otherwise an error is returned.
+    /// 
+    /// # Errors
+    /// 
+    /// An error is returned if the API key is unauthorized, expired, or if there are failures in fetching the necessary authentication data.
+    /// 
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -287,6 +321,7 @@ where
 static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
     tokio::sync::OnceCell::const_new();
 
+/// Asynchronously retrieves the admin API key either from the secrets configuration or through decryption and fetching from external services like KMS or HashiCorp Vault. If the "kms" feature is enabled, it decrypts the encrypted admin API key using the provided KMS client. If the "hashicorp-vault" feature is enabled, it fetches the admin API key from HashiCorp Vault after decryption. Returns a `RouterResult` containing a reference to the admin API key as a `StrongSecret` wrapped in an `Ok` variant, or an error if the retrieval process fails.
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
@@ -328,6 +363,21 @@ impl<A> AuthenticateAndFetch<UserWithoutMerchantFromToken, A> for UserWithoutMer
 where
     A: AppStateInfo + Sync,
 {
+        /// Authenticates the user based on the provided request headers and state, and fetches the user information from the token.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_headers` - The request headers containing the authentication token.
+    /// * `state` - The state object containing the necessary information for authentication.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the user information fetched from the token and the authentication type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the user is found in the blacklist or if the JWT token is invalid.
+    ///
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -357,6 +407,8 @@ impl<A> AuthenticateAndFetch<(), A> for AdminApiAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the request using the provided request headers and fetches the necessary data from the state. 
+    /// Returns a result containing a tuple with an empty value and the authentication type upon success, or an error if the authentication fails.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -395,6 +447,7 @@ impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the request headers and fetches the authentication data and type based on the provided state.
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
@@ -449,6 +502,17 @@ impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the request using the provided request headers and state, and fetches the authentication data and type.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_headers` - The headers of the request.
+    /// * `state` - The state containing the merchant account information.
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing a tuple of `AuthenticationData` and `AuthenticationType` if successful, otherwise an error.
+    ///
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -493,6 +557,8 @@ impl<A> AuthenticateAndFetch<(), A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user based on the provided request headers and fetches the required information. It parses the JWT payload from the request headers and checks if the user is in the blacklist. Then it retrieves the permissions based on the user's role and checks if the user is authorized to access the resource. Finally, it returns a tuple containing an empty value and the authentication type as a result of successful authentication and fetching.
+    
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -522,6 +588,8 @@ impl<A> AuthenticateAndFetch<UserFromToken, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user using the request headers and fetches user information from the provided state.
+    /// Returns a tuple containing the user information extracted from the JWT token payload and the authentication type.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -560,6 +628,21 @@ impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantFromRoute
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user using the provided request headers and fetches the required data.
+    ///
+    /// # Arguments
+    ///
+    /// * `request_headers` - The headers containing the authentication token
+    /// * `state` - The state object containing the necessary data for authentication
+    ///
+    /// # Returns
+    ///
+    /// A `RouterResult` containing a tuple with an empty tuple and the `AuthenticationType`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JWT token is invalid, the user is blacklisted, or if the user does not have the required permissions.
+    ///
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -587,6 +670,26 @@ where
     }
 }
 
+/// Asynchronously parses the JWT payload from the provided headers and application state.
+/// 
+/// # Arguments
+/// 
+/// * `headers` - A reference to the HeaderMap containing the headers of the request.
+/// * `state` - A reference to the application state implementing the AppStateInfo trait.
+/// 
+/// # Returns
+/// 
+/// Returns a RouterResult containing the parsed JWT payload of type T.
+/// 
+/// # Generic Types
+/// 
+/// * `T` - The type into which the JWT payload will be deserialized.
+/// * `A` - The type of the application state implementing the AppStateInfo trait.
+/// 
+/// # Errors
+/// 
+/// This method may return an error if there is an issue with obtaining the JWT from the authorization header or decoding the JWT payload.
+/// 
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -603,6 +706,8 @@ impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user and fetches the authentication data and type based on the request headers and state. 
+    /// Returns a result containing the authentication data and authentication type if successful, or an error if authentication fails.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -653,6 +758,9 @@ impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticate the user with the given request headers and fetch the necessary authentication data and type. 
+    /// The method parses the JWT payload from the request headers and checks if the user is in the blacklist. If not, it proceeds to get the permissions and perform authorization checks. 
+    /// It then retrieves the merchant key store and merchant account using the payload data. Finally, it constructs and returns the authentication data with the user ID and the authentication type.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -704,6 +812,7 @@ impl<A> AuthenticateAndFetch<UserFromToken, A> for DashboardNoPermissionAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user and fetches the user information from the JWT token
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -735,6 +844,17 @@ impl<A> AuthenticateAndFetch<(), A> for DashboardNoPermissionAuth
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the user using the provided request headers and state, then fetches the authentication type.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `request_headers` - The headers from the incoming request.
+    /// * `state` - The state object used for authentication.
+    /// 
+    /// # Returns
+    /// 
+    /// A Result containing a tuple of an empty payload and the authentication type, or an error if the JWT token is invalid.
+    /// 
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -754,6 +874,7 @@ pub trait ClientSecretFetch {
 }
 
 impl ClientSecretFetch for payments::PaymentsRequest {
+        /// This method returns an optional reference to the client secret string associated with the current instance.
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -795,6 +916,7 @@ impl ClientSecretFetch for api_models::pm_auth::ExchangeTokenCreateRequest {
     }
 }
 
+/// Retrieves the authentication type and flow based on the provided headers.
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
@@ -809,6 +931,7 @@ pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
+/// This method checks the client secret and retrieves authentication data based on the provided headers and payload. It returns a tuple containing a trait object implementing AuthenticateAndFetch and an api::AuthFlow enum. The method also has generic constraints for the AppStateInfo trait and the AuthenticateAndFetch trait for ApiKeyAuth and PublishableKeyAuth types.
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -842,6 +965,7 @@ where
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
+/// Checks if the provided API key is an ephemeral key and validates it against the given customer ID. If the API key is not an ephemeral key, it returns an `ApiKeyAuth` result. If the API key is an ephemeral key, it retrieves the ephemeral key from the database and validates it against the customer ID. If the customer ID is valid, it returns a `MerchantIdAuth` result with the merchant ID from the ephemeral key.
 pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
@@ -865,12 +989,21 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
 }
 
+/// Checks if the given `HeaderMap` contains the JWT authorization header.
+/// 
+/// # Arguments
+/// * `headers` - A reference to the `HeaderMap` to be checked.
+/// 
+/// # Returns
+/// A boolean value indicating whether the JWT authorization header is present in the `HeaderMap`.
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
 static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::OnceCell::const_new();
 
+/// Retrieves the JWT secret from the provided secrets and, if the "kms" feature is enabled, decrypts it using the provided KmsClient.
+/// If the "kms" feature is enabled, the JWT secret is decrypted using the KmsClient, otherwise the JWT secret is simply cloned from the secrets.
 pub async fn get_jwt_secret(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
@@ -893,6 +1026,7 @@ pub async fn get_jwt_secret(
         .await
 }
 
+/// Asynchronously decodes a JWT token using the provided state information. It retrieves the JWT secret from the state configuration, decodes the token, and returns the decoded claims as a result. If the decoding fails, it returns an error indicating an invalid JWT token.
 pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
@@ -914,10 +1048,13 @@ where
         .change_context(errors::ApiErrorResponse::InvalidJwtToken)
 }
 
+/// Retrieves the API key from the provided headers, if it exists, and returns it as a RouterResult.
 pub fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
     get_header_value_by_key("api-key".into(), headers)?.get_required_value("api_key")
 }
 
+/// Retrieves the header value for the specified key from the given HeaderMap. 
+/// If the key is found, the method returns Some(value), otherwise it returns None.
 pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult<Option<&str>> {
     headers
         .get(&key)
@@ -934,6 +1071,9 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .transpose()
 }
 
+/// Retrieves the JWT token from the Authorization header in the provided HeaderMap.
+/// If the token is found, it is converted to a string and the "Bearer " prefix is stripped.
+/// If the token is not found or cannot be converted to a string, an error is returned.
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)
@@ -946,12 +1086,22 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
         .ok_or(errors::ApiErrorResponse::InvalidJwtToken.into())
 }
 
+/// Strips the "Bearer " prefix from the provided JWT token and returns the stripped token.
+///
+/// # Arguments
+///
+/// * `token` - A string slice representing the JWT token to be stripped.
+///
+/// # Returns
+///
+/// Returns a Result containing a reference to the stripped token on success, or an ApiErrorResponse indicating an invalid JWT token.
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
 }
 
+/// This method determines the authentication type based on the presence of JWT token in the request headers. If a JWT token is present, it returns the jwt_auth_type, otherwise it returns the default_auth.
 pub fn auth_type<'a, T, A>(
     default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     jwt_auth_type: &'a dyn AuthenticateAndFetch<T, A>,
@@ -970,6 +1120,7 @@ static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
     tokio::sync::OnceCell::const_new();
 
 #[cfg(feature = "recon")]
+/// Retrieves the recon admin API key either from a KMS-encrypted source or directly from the secrets based on the feature flag. If the "kms" feature is enabled, the KmsClient is used to decrypt the encrypted API key. The retrieved API key is then wrapped in a StrongSecret and returned as a result.
 pub async fn get_recon_admin_api_key(
     secrets: &settings::Secrets,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
@@ -1001,6 +1152,8 @@ impl<A> AuthenticateAndFetch<(), A> for ReconAdmin
 where
     A: AppStateInfo + Sync,
 {
+        /// Asynchronously authenticates the request using the provided request headers and fetches necessary data. 
+    /// Returns a tuple containing an empty value and the authentication type.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
@@ -1041,6 +1194,12 @@ impl AuthInfo for ReconUser {
 #[cfg(all(feature = "olap", feature = "recon"))]
 #[async_trait]
 impl AuthenticateAndFetch<ReconUser, AppState> for ReconJWT {
+        /// Asynchronously authenticates the user and fetches their information.
+    /// 
+    /// This method takes the request headers and the application state as input, and then
+    /// parses the JWT payload using the `parse_jwt_payload` function. It returns a tuple
+    /// containing the `ReconUser` object with the user ID from the payload, and the
+    /// `AuthenticationType` as `NoAuth`.
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,

@@ -32,6 +32,7 @@ pub struct Payouts {
 }
 
 impl Default for Payouts {
+        /// Creates a new instance of the Payout struct with default values for all fields, except for created_at and last_modified_at which are set to the current date and time.
     fn default() -> Self {
         let now = common_utils::date_time::now();
 
@@ -133,6 +134,7 @@ pub struct PayoutsUpdateInternal {
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
+        /// Converts a PayoutsUpdate enum into its corresponding struct representation.
     fn from(payout_update: PayoutsUpdate) -> Self {
         match payout_update {
             PayoutsUpdate::Update {

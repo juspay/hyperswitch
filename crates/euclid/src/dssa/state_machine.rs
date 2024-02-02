@@ -19,12 +19,16 @@ struct ComparisonStateMachine<'a> {
 
 impl<'a> ComparisonStateMachine<'a> {
     #[inline]
+        /// Checks if the comparison logic is finished processing all the values.
+    /// Returns true if the count plus one is greater than or equal to the length of values, or if the comparison logic is set to NegativeConjunction, otherwise returns false.
     fn is_finished(&self) -> bool {
         self.count + 1 >= self.values.len()
             || matches!(self.logic, dir::DirComparisonLogic::NegativeConjunction)
     }
 
     #[inline]
+        /// Advances the count of the current logic if the comparison logic is PositiveDisjunction,
+    /// wrapping around to 0 if the count exceeds the length of the values.
     fn advance(&mut self) {
         if let dir::DirComparisonLogic::PositiveDisjunction = self.logic {
             self.count = (self.count + 1) % self.values.len();
@@ -32,11 +36,13 @@ impl<'a> ComparisonStateMachine<'a> {
     }
 
     #[inline]
+        /// Resets the count to 0.
     fn reset(&mut self) {
         self.count = 0;
     }
 
     #[inline]
+        /// This method takes a mutable reference to a ConjunctiveContext and inserts a ContextValue into it based on the logic and values of the ComparisonStateMachine. If the logic is PositiveDisjunction, it inserts an assertion ContextValue into the context at the specified index using the values and metadata of the ComparisonStateMachine. Returns a Result indicating success or a StateMachineError if there are index out of bounds errors.
     fn put(&self, context: &mut types::ConjunctiveContext<'a>) -> Result<(), StateMachineError> {
         if let dir::DirComparisonLogic::PositiveDisjunction = self.logic {
             *context
@@ -56,6 +62,7 @@ impl<'a> ComparisonStateMachine<'a> {
     }
 
     #[inline]
+        /// This method pushes a context value onto the given ConjunctiveContext based on the logic of the ComparisonStateMachine. If the logic is PositiveDisjunction, it asserts a value from the ComparisonStateMachine's values at a given index along with its metadata. If the logic is NegativeConjunction, it negates all the values in the ComparisonStateMachine along with their metadata and pushes the resulting context value onto the ConjunctiveContext.
     fn push(&self, context: &mut types::ConjunctiveContext<'a>) -> Result<(), StateMachineError> {
         match self.logic {
             dir::DirComparisonLogic::PositiveDisjunction => {
@@ -84,6 +91,7 @@ struct ConditionStateMachine<'a> {
 }
 
 impl<'a> ConditionStateMachine<'a> {
+        /// Creates a new ComparisonStateCollection with the given conditions and start index.
     fn new(condition: &'a [dir::DirComparison], start_idx: usize) -> Self {
         let mut machines = Vec::<ComparisonStateMachine<'a>>::with_capacity(condition.len());
 
@@ -106,6 +114,16 @@ impl<'a> ConditionStateMachine<'a> {
         }
     }
 
+        /// Initializes the state machines with the given context. It pushes the context into each state machine.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `context` - A mutable reference to the `ConjunctiveContext` to be pushed into the state machines.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), StateMachineError>` - A result indicating success or an error if pushing the context into any state machine fails.
+    /// 
     fn init(&self, context: &mut types::ConjunctiveContext<'a>) -> Result<(), StateMachineError> {
         for machine in &self.state_machines {
             machine.push(context)?;
@@ -114,11 +132,14 @@ impl<'a> ConditionStateMachine<'a> {
     }
 
     #[inline]
+        /// Truncates the given conjunctive context by removing all elements starting from the specified index.
     fn destroy(&self, context: &mut types::ConjunctiveContext<'a>) {
         context.truncate(self.start_ctx_idx);
     }
 
     #[inline]
+        /// Checks if all state machines in the list have finished their execution.
+    /// Returns true if all state machines have finished, false otherwise.
     fn is_finished(&self) -> bool {
         !self
             .state_machines
@@ -127,10 +148,12 @@ impl<'a> ConditionStateMachine<'a> {
     }
 
     #[inline]
+        /// Returns the index of the next context by adding the starting context index to the number of state machines currently in the context.
     fn get_next_ctx_idx(&self) -> usize {
         self.start_ctx_idx + self.state_machines.len()
     }
 
+        /// Advance each state machine in reverse order. If a state machine is finished, reset it, put the conjunctive context into it, and move on to the next state machine. If a state machine is not finished, advance it, put the conjunctive context into it, and stop the iteration.
     fn advance(
         &mut self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -157,6 +180,18 @@ struct IfStmtStateMachine<'a> {
 }
 
 impl<'a> IfStmtStateMachine<'a> {
+        /// Creates a new instance of `Self` (the current struct) with the given `stmt` and `ctx_start_idx`.
+    ///
+    /// This method initializes the condition state machine with the condition of the `stmt`, and creates a vector of nested `DirIfStatement` references from the `nested` field of the `stmt`.
+    ///
+    /// # Arguments
+    ///
+    /// * `stmt` - A reference to a `DirIfStatement` which is used to initialize the condition state machine and to create the vector of nested statements.
+    /// * `ctx_start_idx` - An index used for context within the condition state machine.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `Self` with the initialized condition state machine, nested statement vector, and nested index set to 0.
     fn new(stmt: &'a dir::DirIfStatement, ctx_start_idx: usize) -> Self {
         let condition_machine = ConditionStateMachine::new(&stmt.condition, ctx_start_idx);
         let nested: Vec<&'a dir::DirIfStatement> = match &stmt.nested {
@@ -171,6 +206,7 @@ impl<'a> IfStmtStateMachine<'a> {
         }
     }
 
+        /// Initializes the current state machine with the given context, and returns the result as a Result.
     fn init(
         &self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -183,21 +219,36 @@ impl<'a> IfStmtStateMachine<'a> {
     }
 
     #[inline]
+        /// Checks if the current nested index plus one is greater than or equal to the length of the nested array.
     fn is_finished(&self) -> bool {
         self.nested_idx + 1 >= self.nested.len()
     }
 
     #[inline]
+        /// Checks if the condition machine is finished or not.
+    /// 
+    /// Returns true if the condition machine is finished, otherwise returns false.
     fn is_condition_machine_finished(&self) -> bool {
         self.condition_machine.is_finished()
     }
 
     #[inline]
+        /// Destroys the current object by calling the destroy method on the condition machine
     fn destroy(&self, context: &mut types::ConjunctiveContext<'a>) {
         self.condition_machine.destroy(context);
     }
 
     #[inline]
+        /// Advances the condition machine using the provided conjunctive context.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `context` - A mutable reference to a conjunctive context.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), StateMachineError>` - A result indicating success or a state machine error.
+    /// 
     fn advance_condition_machine(
         &mut self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -206,6 +257,12 @@ impl<'a> IfStmtStateMachine<'a> {
         Ok(())
     }
 
+        /// Advances the state machine to the next nested state, if available, and returns it as an Option.
+    ///
+    /// # Returns
+    /// - Ok(None) if the nested state is empty
+    /// - Ok(Some(StateMachine)) containing the next nested state if available
+    /// - Err(StateMachineError) if there is an index out of bounds error while getting the next nested state
     fn advance(&mut self) -> Result<Option<Self>, StateMachineError> {
         if self.nested.is_empty() {
             Ok(None)
@@ -232,6 +289,7 @@ struct RuleStateMachine<'a> {
 }
 
 impl<'a> RuleStateMachine<'a> {
+        /// Creates a new instance of the struct, initializing it with the provided `rule` and `connector_selection_data`.
     fn new<O>(
         rule: &'a dir::DirRule<O>,
         connector_selection_data: &'a [(dir::DirValue, Metadata)],
@@ -254,10 +312,21 @@ impl<'a> RuleStateMachine<'a> {
         }
     }
 
+        /// Checks if the current state of the machine is finished. Returns true if there are no if statement machines
+    /// left to be executed and the running stack is empty, otherwise returns false.
     fn is_finished(&self) -> bool {
         self.if_stmt_machines.is_empty() && self.running_stack.is_empty()
     }
 
+        /// Initializes the next state machine in the running stack, adding connectors to the context if they have not already been added. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `context` - A mutable reference to the conjunctive context.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Result<(), StateMachineError>` - A result indicating success or an error if the initialization fails.
     fn init_next(
         &mut self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -287,51 +356,57 @@ impl<'a> RuleStateMachine<'a> {
         Ok(())
     }
 
-    fn advance(
-        &mut self,
-        context: &mut types::ConjunctiveContext<'a>,
-    ) -> Result<(), StateMachineError> {
-        let mut condition_machines_finished = true;
+        /// Advances the state machine by executing the next step in the running stack. 
+        /// If the condition machines for the current statement are not finished, it advances 
+        /// the condition machine. If all condition machines are finished, it advances the 
+        /// next statement in the running stack. If there are nested running statements, it 
+        /// initializes and pushes them onto the running stack. If there are no more statements 
+        /// to run, it initializes the next statement. 
+        fn advance(
+            &mut self,
+            context: &mut types::ConjunctiveContext<'a>,
+        ) -> Result<(), StateMachineError> {
+            let mut condition_machines_finished = true;
 
-        for stmt_machine in self.running_stack.iter_mut().rev() {
-            if !stmt_machine.is_condition_machine_finished() {
-                condition_machines_finished = false;
-                stmt_machine.advance_condition_machine(context)?;
-                break;
-            } else {
-                stmt_machine.advance_condition_machine(context)?;
+            for stmt_machine in self.running_stack.iter_mut().rev() {
+                if !stmt_machine.is_condition_machine_finished() {
+                    condition_machines_finished = false;
+                    stmt_machine.advance_condition_machine(context)?;
+                    break;
+                } else {
+                    stmt_machine.advance_condition_machine(context)?;
+                }
             }
-        }
-
-        if !condition_machines_finished {
-            return Ok(());
-        }
-
-        let mut maybe_next_running: Option<IfStmtStateMachine<'a>> = None;
-
-        while let Some(last) = self.running_stack.last_mut() {
-            if !last.is_finished() {
-                maybe_next_running = last.advance()?;
-                break;
-            } else {
-                last.destroy(context);
-                self.running_stack.pop();
+    
+            if !condition_machines_finished {
+                return Ok(());
             }
-        }
-
-        if let Some(mut next_running) = maybe_next_running {
-            while let Some(nested_running) = next_running.init(context)? {
+    
+            let mut maybe_next_running: Option<IfStmtStateMachine<'a>> = None;
+    
+            while let Some(last) = self.running_stack.last_mut() {
+                if !last.is_finished() {
+                    maybe_next_running = last.advance()?;
+                    break;
+                } else {
+                    last.destroy(context);
+                    self.running_stack.pop();
+                }
+            }
+    
+            if let Some(mut next_running) = maybe_next_running {
+                while let Some(nested_running) = next_running.init(context)? {
+                    self.running_stack.push(next_running);
+                    next_running = nested_running;
+                }
+    
                 self.running_stack.push(next_running);
-                next_running = nested_running;
+            } else {
+                self.init_next(context)?;
             }
-
-            self.running_stack.push(next_running);
-        } else {
-            self.init_next(context)?;
+    
+            Ok(())
         }
-
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
@@ -342,6 +417,7 @@ pub struct RuleContextManager<'a> {
 }
 
 impl<'a> RuleContextManager<'a> {
+        /// Constructs a new instance of Self with the given dir rule and connector selection data.
     pub fn new<O>(
         rule: &'a dir::DirRule<O>,
         connector_selection_data: &'a [(dir::DirValue, Metadata)],
@@ -353,6 +429,8 @@ impl<'a> RuleContextManager<'a> {
         }
     }
 
+        /// Advances the state machine and returns the next conjunctive context if the state machine is not finished,
+    /// Otherwise, returns None. If this is the first call to advance, it initializes the state machine and returns the initial conjunctive context.
     pub fn advance(&mut self) -> Result<Option<&types::ConjunctiveContext<'a>>, StateMachineError> {
         if !self.init {
             self.init = true;
@@ -362,7 +440,7 @@ impl<'a> RuleContextManager<'a> {
             Ok(None)
         } else {
             self.machine.advance(&mut self.context)?;
-
+    
             if self.machine.is_finished() {
                 Ok(None)
             } else {
@@ -371,6 +449,12 @@ impl<'a> RuleContextManager<'a> {
         }
     }
 
+        /// Advances the state machine to the next step and returns a mutable reference to the conjunctive context if the state machine is not finished.
+    /// If the state machine is finished, it returns None.
+    ///
+    /// # Errors
+    /// Returns a StateMachineError if the state machine encounters an error during advancement.
+    /// 
     pub fn advance_mut(
         &mut self,
     ) -> Result<Option<&mut types::ConjunctiveContext<'a>>, StateMachineError> {
@@ -389,8 +473,7 @@ impl<'a> RuleContextManager<'a> {
                 Ok(Some(&mut self.context))
             }
         }
-    }
-}
+    }}
 
 #[derive(Debug)]
 pub struct ProgramStateMachine<'a> {
@@ -400,6 +483,7 @@ pub struct ProgramStateMachine<'a> {
 }
 
 impl<'a> ProgramStateMachine<'a> {
+        /// Creates a new instance of Self using the given DirProgram and connector_selection_data.
     pub fn new<O>(
         program: &'a dir::DirProgram<O>,
         connector_selection_data: &'a [Vec<(dir::DirValue, Metadata)>],
@@ -421,6 +505,7 @@ impl<'a> ProgramStateMachine<'a> {
         }
     }
 
+        /// Checks if the current rule machine is finished and if there are no more rule machines in the queue.
     pub fn is_finished(&self) -> bool {
         self.current_rule_machine
             .as_ref()
@@ -428,6 +513,16 @@ impl<'a> ProgramStateMachine<'a> {
             && self.rule_machines.is_empty()
     }
 
+        /// Initializes the state machine with the provided conjunctive context. If the state machine has not been initialized before, it calls the `init_next` method on the current rule machine with the given context. Once initialized, the `is_init` flag is set to true.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - A mutable reference to the conjunctive context to be used for initialization.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), StateMachineError>` - A result indicating success or an error of type `StateMachineError`.
+    ///
     pub fn init(
         &mut self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -442,6 +537,9 @@ impl<'a> ProgramStateMachine<'a> {
         Ok(())
     }
 
+        /// Advances the state machine by either initializing the next rule machine if the current one is finished,
+    /// or by advancing the current rule machine if it is not finished. It also clears the context if a new rule machine
+    /// is initialized.
     pub fn advance(
         &mut self,
         context: &mut types::ConjunctiveContext<'a>,
@@ -471,13 +569,14 @@ pub struct AnalysisContextManager<'a> {
 }
 
 impl<'a> AnalysisContextManager<'a> {
+        /// Creates a new instance of Self with the given DirProgram and connector selection data.
     pub fn new<O>(
         program: &'a dir::DirProgram<O>,
         connector_selection_data: &'a [Vec<(dir::DirValue, Metadata)>],
     ) -> Self {
         let machine = ProgramStateMachine::new(program, connector_selection_data);
         let context: types::ConjunctiveContext<'a> = Vec::new();
-
+    
         Self {
             context,
             machine,
@@ -485,6 +584,12 @@ impl<'a> AnalysisContextManager<'a> {
         }
     }
 
+        /// Advances the state machine and returns the next conjunctive context if available
+    /// 
+    /// # Returns
+    /// - `Ok(Some(&types::ConjunctiveContext<'a>))` if the state machine has not finished and the next conjunctive context is available
+    /// - `Ok(None)` if the state machine has finished
+    /// - `Err(StateMachineError)` if an error occurs during the state machine advancement
     pub fn advance(&mut self) -> Result<Option<&types::ConjunctiveContext<'a>>, StateMachineError> {
         if !self.init {
             self.init = true;
@@ -504,6 +609,15 @@ impl<'a> AnalysisContextManager<'a> {
     }
 }
 
+/// Generates a selection data for connectors in the given DirProgram, where the connectors are of type EuclidAnalysable.
+/// 
+/// # Arguments
+/// 
+/// * `program` - A reference to a DirProgram containing connectors of type O that implement EuclidAnalysable.
+/// 
+/// # Returns
+/// 
+/// A vector of vectors, where each inner vector contains tuples of DirValue and Metadata representing the selection data for the connectors in the program.
 pub fn make_connector_selection_data<O: EuclidAnalysable>(
     program: &dir::DirProgram<O>,
 ) -> Vec<Vec<(dir::DirValue, Metadata)>> {
@@ -525,6 +639,8 @@ mod tests {
     use crate::{dirval, frontend::ast, types::DummyOutput};
 
     #[test]
+        /// This method is used to test correct contexts by initializing a state machine and a context manager
+    /// and then comparing the expected contexts with the actual contexts derived by the state machine and the context manager.
     fn test_correct_contexts() {
         let program_str = r#"
             default: ["stripe", "adyen"]

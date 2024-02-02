@@ -10,6 +10,7 @@ use crate::{
 
 impl BlocklistFingerprintNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a BlocklistFingerprint into the database using the provided PgPooledConn connection and returns a StorageResult containing the inserted BlocklistFingerprint.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BlocklistFingerprint> {
         generics::generic_insert(conn, self).await
     }
@@ -17,6 +18,7 @@ impl BlocklistFingerprintNew {
 
 impl BlocklistFingerprint {
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record by the given merchant ID and fingerprint ID in the database.
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &PgPooledConn,
         merchant_id: &str,

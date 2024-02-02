@@ -31,6 +31,15 @@ pub enum Relation {
 }
 
 impl From<Relation> for bool {
+        /// Converts a value of type Relation into Self.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A value of type Relation to be converted
+    /// 
+    /// # Returns
+    /// 
+    /// The converted value of type Self
     fn from(value: Relation) -> Self {
         matches!(value, Relation::Positive)
     }
@@ -41,11 +50,13 @@ pub struct NodeId(usize);
 
 impl utils::EntityId for NodeId {
     #[inline]
+        /// Returns the id value of the object.
     fn get_id(&self) -> usize {
         self.0
     }
 
     #[inline]
+        /// Creates a new instance of Self with the given id.
     fn with_id(id: usize) -> Self {
         Self(id)
     }
@@ -61,6 +72,12 @@ pub struct DomainInfo<'a> {
 pub struct DomainIdentifier<'a>(&'a str);
 
 impl<'a> DomainIdentifier<'a> {
+        /// Creates a new instance of Self with the specified domain identifier.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `domain_identifier` - A string slice that represents the domain identifier.
+    /// 
     pub fn new(domain_identifier: &'a str) -> Self {
         Self(domain_identifier)
     }
@@ -100,6 +117,7 @@ impl utils::EntityId for EdgeId {
 pub struct Memoization(FxHashMap<(NodeId, Relation, Strength), Result<(), Arc<AnalysisTrace>>>);
 
 impl Memoization {
+        /// Creates a new instance of the struct, initializing it with a new empty `FxHashMap`.
     pub fn new() -> Self {
         Self(FxHashMap::default())
     }
@@ -107,6 +125,7 @@ impl Memoization {
 
 impl Default for Memoization {
     #[inline]
+        /// Creates a new instance of the current type using the `new` method.
     fn default() -> Self {
         Self::new()
     }
@@ -114,11 +133,13 @@ impl Default for Memoization {
 
 impl Deref for Memoization {
     type Target = FxHashMap<(NodeId, Relation, Strength), Result<(), Arc<AnalysisTrace>>>;
+        /// This method returns a reference to the target type of the Deref trait for the current type.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl DerefMut for Memoization {
+        /// Returns a mutable reference to the value within the `DerefMut` target.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -140,6 +161,7 @@ pub struct Node {
 }
 
 impl Node {
+        /// Creates a new instance of Self with the specified node_type and domain_ids.
     fn new(node_type: NodeType, domain_ids: Vec<DomainId>) -> Self {
         Self {
             node_type,
@@ -199,12 +221,14 @@ pub enum NodeValue {
 }
 
 impl From<dir::DirValue> for NodeValue {
+        /// Creates a new instance of the current enum variant by wrapping a dir::DirValue.
     fn from(value: dir::DirValue) -> Self {
         Self::Value(value)
     }
 }
 
 impl From<dir::DirKey> for NodeValue {
+        /// Converts a DirKey into an instance of the enum Self.
     fn from(key: dir::DirKey) -> Self {
         Self::Key(key)
     }
@@ -264,6 +288,7 @@ pub enum AnalysisError {
 }
 
 impl AnalysisError {
+        /// Creates an assertion from a graph error. If the graph error is an AnalysisError, it creates an AssertionTrace using the provided trace and metadata. If the graph error is of any other type, it creates a Graph assertion with the error.
     fn assertion_from_graph_error(metadata: &Metadata, graph_error: GraphError) -> Self {
         match graph_error {
             GraphError::AnalysisError(trace) => Self::AssertionTrace {
@@ -275,6 +300,7 @@ impl AnalysisError {
         }
     }
 
+        /// Constructs a new instance of Self based on the given metadata and graph error. 
     fn negation_from_graph_error(metadata: Vec<&Metadata>, graph_error: GraphError) -> Self {
         match graph_error {
             GraphError::AnalysisError(trace) => Self::NegationTrace {
@@ -311,6 +337,8 @@ pub enum GraphError {
 }
 
 impl GraphError {
+        /// This method returns the analysis trace associated with the result, if it is an AnalysisError variant. 
+    /// If the result is not an AnalysisError variant, it returns an Err containing the original value.
     fn get_analysis_trace(self) -> Result<Weak<AnalysisTrace>, Self> {
         match self {
             Self::AnalysisError(trace) => Ok(trace),
@@ -320,6 +348,7 @@ impl GraphError {
 }
 
 impl PartialEq<dir::DirValue> for NodeValue {
+        /// Compares the current DirValue with another DirValue to determine if they are equal.
     fn eq(&self, other: &dir::DirValue) -> bool {
         match self {
             Self::Key(dir_key) => *dir_key == other.get_key(),
@@ -342,6 +371,16 @@ pub struct AnalysisContext {
 }
 
 impl AnalysisContext {
+        /// Constructs a new instance of `Self` from an iterator of `DirValue`s, organizing them by their keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `vals` - An iterator of `DirValue`s
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `Self` containing the `DirValue`s organized by their keys
+    ///
     pub fn from_dir_values(vals: impl IntoIterator<Item = dir::DirValue>) -> Self {
         let mut keywise_values: FxHashMap<dir::DirKey, FxHashSet<dir::DirValue>> =
             FxHashMap::default();
@@ -355,6 +394,10 @@ impl AnalysisContext {
         Self { keywise_values }
     }
 
+        /// Checks the presence of a given NodeValue in the keywise_values map.
+    /// If the NodeValue is a Key, checks if it exists in the map or if weak is true.
+    /// If the NodeValue is a Value, retrieves the key and checks if it exists in the map.
+    /// Then based on the type of the key, performs specific checks on the associated values.
     fn check_presence(&self, value: &NodeValue, weak: bool) -> bool {
         match value {
             NodeValue::Key(k) => self.keywise_values.contains_key(k) || weak,
@@ -382,6 +425,7 @@ impl AnalysisContext {
         }
     }
 
+        /// Inserts a DirValue into the keywise_values HashMap. If the key of the DirValue already exists in the HashMap, the DirValue is inserted into the existing HashSet for that key. If the key does not exist, a new HashSet is created and the DirValue is inserted into it.
     pub fn insert(&mut self, value: dir::DirValue) {
         self.keywise_values
             .entry(value.get_key())
@@ -389,6 +433,7 @@ impl AnalysisContext {
             .insert(value);
     }
 
+        /// Removes the specified `dir::DirValue` from the `keywise_values` map. If the value's key is not found in the map, nothing happens. If the set of values associated with the value's key becomes empty after removal, the key is also removed from the map.
     pub fn remove(&mut self, value: dir::DirValue) {
         let set = self.keywise_values.entry(value.get_key()).or_default();
 
@@ -401,6 +446,7 @@ impl AnalysisContext {
 }
 
 impl<'a> KnowledgeGraphBuilder<'a> {
+        /// Creates a new instance of the struct, initializing all internal data structures.
     pub fn new() -> Self {
         Self {
             domain: utils::DenseMap::new(),
@@ -414,6 +460,7 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         }
     }
 
+        /// Builds a KnowledgeGraph from the current state of the builder. 
     pub fn build(self) -> KnowledgeGraph<'a> {
         KnowledgeGraph {
             domain: self.domain,
@@ -425,6 +472,7 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         }
     }
 
+        /// Adds a new domain to the graph with the given domain identifier and description, and returns the domain ID.
     pub fn make_domain(
         &mut self,
         domain_identifier: DomainIdentifier<'a>,
@@ -448,6 +496,9 @@ impl<'a> KnowledgeGraphBuilder<'a> {
             ))
     }
 
+        /// Creates a new value node in the graph with the given value, optional info, domain identifiers, and metadata.
+    /// If the value node already exists, returns the existing node id.
+    /// Returns the node id of the newly created value node.
     pub fn make_value_node<M: KgraphMetadata>(
         &mut self,
         value: NodeValue,
@@ -483,6 +534,7 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         }
     }
 
+        /// Ensures that the nodes with the given IDs exist and creates a new edge between them with the specified strength and relation. If an edge already exists between the nodes, it checks if the new edge has conflicting properties and returns an error if so. Returns the ID of the newly created edge or an error if the edge creation failed.
     pub fn make_edge(
         &mut self,
         pred_id: NodeId,
@@ -530,6 +582,8 @@ impl<'a> KnowledgeGraphBuilder<'a> {
             )
     }
 
+        /// Creates an all aggregator node in the graph with the given nodes, domain, metadata, and optional info. 
+    /// Returns the ID of the newly created aggregator node.
     pub fn make_all_aggregator<M: KgraphMetadata>(
         &mut self,
         nodes: &[(NodeId, Relation, Strength)],
@@ -567,6 +621,7 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         Ok(aggregator_id)
     }
 
+        /// Creates a new Any Aggregator node in the graph with the specified domain and relationships to the given nodes. If the info field is provided, it is associated with the aggregator node. If metadata is provided, it is associated with the aggregator node as KgraphMetadata. Returns the NodeId of the newly created aggregator node, or a GraphError if any of the specified nodes or domains are not found in the graph.
     pub fn make_any_aggregator<M: KgraphMetadata>(
         &mut self,
         nodes: &[(NodeId, Relation)],
@@ -604,6 +659,8 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         Ok(aggregator_id)
     }
 
+        /// Creates a new "In" aggregator node in the graph with the given values, optional info, metadata, and domain identifiers.
+    /// Returns a Result containing the node ID if successful, or a GraphError if an error occurs.
     pub fn make_in_aggregator<M: KgraphMetadata>(
         &mut self,
         values: Vec<dir::DirValue>,
@@ -647,6 +704,9 @@ impl<'a> KnowledgeGraphBuilder<'a> {
         Ok(node_id)
     }
 
+        /// Ensures that a node with the given id exists in the graph.
+    /// If the node exists, returns a Result that contains Ok(()).
+    /// If the node does not exist, returns a Result that contains Err(GraphError::NodeNotFound).
     fn ensure_node_exists(&self, id: NodeId) -> Result<(), GraphError> {
         if self.nodes.contains_key(id) {
             Ok(())
@@ -657,6 +717,7 @@ impl<'a> KnowledgeGraphBuilder<'a> {
 }
 
 impl<'a> KnowledgeGraph<'a> {
+        /// This method checks the specified node in the graph based on the given context, node ID, relation, strength, and memoization. It performs various checks and validations based on the node type and its relationship with other nodes in the graph. If the checks fail, it returns an error containing the relevant analysis trace. If the checks pass, it returns Ok(()).
     fn check_node(
         &self,
         ctx: &AnalysisContext,
@@ -874,6 +935,8 @@ impl<'a> KnowledgeGraph<'a> {
             })
     }
 
+        /// Performs value analysis on a given DirValue using the provided AnalysisContext and Memoization.
+    /// Returns a Result indicating success or a GraphError if an error occurs.
     fn value_analysis(
         &self,
         val: dir::DirValue,
@@ -887,6 +950,10 @@ impl<'a> KnowledgeGraph<'a> {
             })
     }
 
+        /// Check the validity of a given value by looking it up in the value map and then
+    /// checking the corresponding node using the specified analysis context, relation,
+    /// strength, and memoization. If the node check is successful, return true,
+    /// otherwise return false after getting the analysis trace for the error.
     pub fn check_value_validity(
         &self,
         val: dir::DirValue,
@@ -918,6 +985,17 @@ impl<'a> KnowledgeGraph<'a> {
         }
     }
 
+        /// Perform a key-value analysis for a given directory value, using the provided analysis context and memoization data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `val` - The directory value for which to perform the analysis.
+    /// * `ctx` - The analysis context containing necessary data and configurations.
+    /// * `memo` - The memoization data to store and retrieve intermediate analysis results.
+    /// 
+    /// # Returns
+    /// 
+    /// A `Result` indicating success or a `GraphError` if an error occurs during the analysis.
     pub fn key_value_analysis(
         &self,
         val: dir::DirValue,
@@ -928,6 +1006,15 @@ impl<'a> KnowledgeGraph<'a> {
             .and_then(|_| self.value_analysis(val, ctx, memo))
     }
 
+        /// Perform assertion analysis on the provided positive context using the given analysis context and memoization.
+    /// 
+    /// # Arguments
+    /// * `positive_ctx` - A reference to a slice of tuples containing dir::DirValue and Metadata
+    /// * `analysis_ctx` - A reference to the AnalysisContext
+    /// * `memo` - A mutable reference to Memoization
+    /// 
+    /// # Returns
+    /// * `Result<(), AnalysisError>` - A result indicating success or an AnalysisError
     fn assertion_analysis(
         &self,
         positive_ctx: &[(&dir::DirValue, &Metadata)],
@@ -940,6 +1027,7 @@ impl<'a> KnowledgeGraph<'a> {
         })
     }
 
+        /// Performs negation analysis based on the provided negative context, updates the analysis context and memoization, and returns the result or an error.
     fn negation_analysis(
         &self,
         negative_ctx: &[(&[dir::DirValue], &Metadata)],
@@ -998,6 +1086,10 @@ impl<'a> KnowledgeGraph<'a> {
         Ok(())
     }
 
+        /// Performs context analysis based on the given conjunctive context and memoization.
+    /// It creates an analysis context from the values in the context, then performs assertion analysis
+    /// on the positive values and negation analysis on the negative values using the analysis context
+    /// and memoization. It returns a Result indicating success or an AnalysisError if an error occurs.
     pub fn perform_context_analysis(
         &self,
         ctx: &types::ConjunctiveContext<'_>,
@@ -1033,6 +1125,7 @@ impl<'a> KnowledgeGraph<'a> {
         Ok(())
     }
 
+        /// Combines two knowledge graphs by merging their nodes, edges, and domains into a new graph.
     pub fn combine<'b>(g1: &'b Self, g2: &'b Self) -> Result<Self, GraphError> {
         let mut node_builder = KnowledgeGraphBuilder::new();
         let mut g1_old2new_id = utils::DenseMap::<NodeId, NodeId>::new();
@@ -1142,6 +1235,8 @@ mod test {
     use crate::{dirval, frontend::dir::enums};
 
     #[test]
+        /// This method tests the strong positive relation success by creating a knowledge graph,
+    /// performing key value analysis, and asserting that the result is successful.
     fn test_strong_positive_relation_success() {
         let graph = knowledge! {crate
             PaymentMethod(Card) ->> CaptureMethod(Automatic);
@@ -1162,6 +1257,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests for a strong positive relation failure by constructing a knowledge graph, performing a key-value analysis, and asserting that the result is an error.
     fn test_strong_positive_relation_failure() {
         let graph = knowledge! {crate
             PaymentMethod(Card) ->> CaptureMethod(Automatic);
@@ -1178,6 +1274,7 @@ mod test {
     }
 
     #[test]
+        /// This method is used to test a strong negative relation success scenario in a graph. It creates a knowledge graph, initializes a memoization, and then performs key value analysis using the graph and analysis context. Finally, it asserts that the result is successful.
     fn test_strong_negative_relation_success() {
         let graph = knowledge! {crate
             PaymentMethod(Card) -> CaptureMethod(Automatic);
@@ -1197,6 +1294,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the failure case of a strong negative relation between two nodes in the graph.
     fn test_strong_negative_relation_failure() {
         let graph = knowledge! {crate
             PaymentMethod(Card) -> CaptureMethod(Automatic);
@@ -1216,6 +1314,7 @@ mod test {
     }
 
     #[test]
+        /// This method is used to test the failure case when one of the key-value analysis in the graph does not match the expected result. It creates a knowledge graph with payment methods and capture methods, then performs a key-value analysis using a specific set of directory values and memoization. It checks if the result is an error and asserts that the analysis trace matches the expected structure for a failure case.
     fn test_normal_one_of_failure() {
         let graph = knowledge! {crate
             PaymentMethod(Card) -> CaptureMethod(Automatic);
@@ -1241,6 +1340,7 @@ mod test {
     }
 
     #[test]
+        /// Performs a test to verify the success of the aggregator. It creates a knowledge graph with a specific rule, initializes a memoization instance, and then performs key value analysis using the graph and specified analysis context. The result is checked for success using an assertion.
     fn test_all_aggregator_success() {
         let graph = knowledge! {crate
             PaymentMethod(Card) & PaymentMethod(not Wallet) -> CaptureMethod(Automatic);
@@ -1259,6 +1359,7 @@ mod test {
     }
 
     #[test]
+        /// Performs a test to ensure that the key-value analysis method returns an error when all aggregators fail to match the given input criteria.
     fn test_all_aggregator_failure() {
         let graph = knowledge! {crate
             PaymentMethod(Card) & PaymentMethod(not Wallet) -> CaptureMethod(Automatic);
@@ -1277,6 +1378,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the scenario where all aggregator nodes in the knowledge graph have mandatory failures. It creates a knowledge graph with a specific rule, initializes a Memoization instance, and then performs a key-value analysis using the graph and context. The method asserts that the result is a mandatory failure for all aggregator nodes in the analysis trace.
     fn test_all_aggregator_mandatory_failure() {
         let graph = knowledge! {crate
             PaymentMethod(Card) & PaymentMethod(not Wallet) ->> CaptureMethod(Automatic);
@@ -1302,6 +1404,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the success of key value analysis in an aggregator using the provided graph and analysis context, and memoizes the result. It checks if the result is successful and asserts it.
     fn test_in_aggregator_success() {
         let graph = knowledge! {crate
             PaymentMethod(in [Card, Wallet]) -> CaptureMethod(Automatic);
@@ -1321,6 +1424,7 @@ mod test {
     }
 
     #[test]
+        /// This method is used to test the failure case in an aggregator. It creates a knowledge graph, initializes a memoization object, and then performs key-value analysis using the graph and analysis context. It then asserts that the result is an error.
     fn test_in_aggregator_failure() {
         let graph = knowledge! {crate
             PaymentMethod(in [Card, Wallet]) -> CaptureMethod(Automatic);
@@ -1341,6 +1445,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests the success scenario for the not in aggregator by creating a knowledge graph with a PaymentMethod not in Card or Wallet mapping to CaptureMethod Automatic. It then performs a key value analysis using the graph and analysis context, and memoizes the result. Finally, it asserts that the result is Ok.
     fn test_not_in_aggregator_success() {
         let graph = knowledge! {crate
             PaymentMethod(not in [Card, Wallet]) ->> CaptureMethod(Automatic);
@@ -1360,6 +1465,7 @@ mod test {
     }
 
     #[test]
+        /// This method tests for failure when a given payment method is not in the aggregator.
     fn test_not_in_aggregator_failure() {
         let graph = knowledge! {crate
             PaymentMethod(not in [Card, Wallet]) ->> CaptureMethod(Automatic);
@@ -1380,6 +1486,7 @@ mod test {
     }
 
     #[test]
+        /// This method is used to test the failure trace in an aggregator. It creates a knowledge graph with a specific relationship, initializes a memoization object, and then performs a key value analysis using the graph and analysis context. It then checks for a specific type of analysis trace and asserts whether it matches the expected value. If the trace does not match, it will panic with a specific message.
     fn test_in_aggregator_failure_trace() {
         let graph = knowledge! {crate
             PaymentMethod(in [Card, Wallet]) ->> CaptureMethod(Automatic);
@@ -1416,6 +1523,7 @@ mod test {
     }
 
     #[test]
+        /// Test the memoization functionality in the KnowledgeGraph.
     fn _test_memoization_in_kgraph() {
         let mut builder = KnowledgeGraphBuilder::new();
         let _node_1 = builder.make_value_node(

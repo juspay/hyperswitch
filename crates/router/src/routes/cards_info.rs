@@ -22,6 +22,7 @@ use crate::{
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CardsInfo))]
+/// This method handles the request to retrieve card information based on the first 6 digits of the card number (IIN). It extracts the necessary information from the request parameters, performs authentication checks, and then calls the `retrieve_card_info` function to fetch the card information from the server. It returns the response as an implementation of the Responder trait.
 pub async fn card_iin_info(
     state: web::Data<AppState>,
     req: HttpRequest,

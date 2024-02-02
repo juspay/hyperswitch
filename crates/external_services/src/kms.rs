@@ -18,6 +18,7 @@ static KMS_CLIENT: tokio::sync::OnceCell<KmsClient> = tokio::sync::OnceCell::con
 
 /// Returns a shared KMS client, or initializes a new one if not previously initialized.
 #[inline]
+/// Asynchronously retrieves a KMS client using the provided KmsConfig. If the client is already initialized, it returns a reference to the existing client. Otherwise, it creates a new KmsClient using the provided config and initializes it, then returns a reference to the newly created client.
 pub async fn get_kms_client(config: &KmsConfig) -> &'static KmsClient {
     KMS_CLIENT.get_or_init(|| KmsClient::new(config)).await
 }
@@ -191,12 +192,22 @@ impl KmsConfig {
 pub struct KmsValue(Secret<String>);
 
 impl From<String> for KmsValue {
+        /// Creates a new instance of Self by wrapping the provided `String` value in a Secret and calling the Secret's `new` method.
     fn from(value: String) -> Self {
         Self(Secret::new(value))
     }
 }
 
 impl From<Secret<String>> for KmsValue {
+        /// Constructs a new instance of Self from a Secret<String> value.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `value` - A Secret<String> value to be used in constructing Self.
+    /// 
+    /// # Returns
+    /// 
+    /// An instance of Self containing the provided Secret<String> value.
     fn from(value: Secret<String>) -> Self {
         Self(value)
     }
@@ -205,6 +216,7 @@ impl From<Secret<String>> for KmsValue {
 #[cfg(feature = "hashicorp-vault")]
 #[async_trait::async_trait]
 impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
+        /// Asynchronously fetches the inner value using the specified HashiCorpVault client and maps the result to a KmsValue.
     async fn fetch_inner<En>(
         self,
         client: &super::hashicorp_vault::HashiCorpVault,
@@ -229,8 +241,9 @@ impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
 }
 
 impl common_utils::ext_traits::ConfigExt for KmsValue {
+        /// Checks if the string, after trimming whitespace, is empty.
     fn is_empty_after_trim(&self) -> bool {
-        self.0.peek().is_empty_after_trim()
+            self.0.peek().is_empty_after_trim()
     }
 }
 
@@ -238,6 +251,8 @@ impl common_utils::ext_traits::ConfigExt for KmsValue {
 mod tests {
     #![allow(clippy::expect_used)]
     #[tokio::test]
+        /// Sets the AWS secret access key and access key ID, initializes a KmsConfig with the key ID and region,
+    /// encrypts a given string with KMS, and prints the encrypted fingerprint.
     async fn check_kms_encryption() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
@@ -259,6 +274,7 @@ mod tests {
     }
 
     #[tokio::test]
+        /// Asynchronously sets the AWS secret access key and access key ID, initializes a KmsConfig with a specified key ID and AWS region, then decrypts a KMS-encrypted cipher using the KMS client, printing the decrypted text.
     async fn check_kms_decrypt() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");

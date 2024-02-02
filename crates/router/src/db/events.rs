@@ -22,6 +22,16 @@ pub trait EventInterface {
 
 #[async_trait::async_trait]
 impl EventInterface for Store {
+        /// Asynchronously inserts a new event into the storage. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `event` - A `storage::EventNew` struct representing the new event to be inserted.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a `storage::Event` if the insertion is successful, otherwise an `errors::StorageError`.
+    /// 
     async fn insert_event(
         &self,
         event: storage::EventNew,
@@ -29,6 +39,17 @@ impl EventInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         event.insert(&conn).await.map_err(Into::into).into_report()
     }
+        /// Asynchronously updates an event in the database with the given event ID and event update details.
+    ///
+    /// # Arguments
+    ///
+    /// - `event_id`: A String representing the unique identifier of the event to be updated.
+    /// - `event`: A storage::EventUpdate object containing the details to be updated for the event.
+    ///
+    /// # Returns
+    ///
+    /// A CustomResult containing a storage::Event if the update is successful, or an errors::StorageError if an error occurs.
+    ///
     async fn update_event(
         &self,
         event_id: String,
@@ -44,6 +65,9 @@ impl EventInterface for Store {
 
 #[async_trait::async_trait]
 impl EventInterface for MockDb {
+        /// Asynchronously inserts a new event into the storage. This method takes in a new event and inserts it into
+    /// the storage after generating an ID and setting the creation timestamp. It returns a Result containing the
+    /// inserted event on success, or a StorageError on failure.
     async fn insert_event(
         &self,
         event: storage::EventNew,
@@ -71,6 +95,9 @@ impl EventInterface for MockDb {
 
         Ok(stored_event)
     }
+
+    /// Asynchronously updates the event with the specified event_id using the provided storage::EventUpdate. 
+    /// Returns a CustomResult containing the updated storage::Event if successful, otherwise returns an errors::StorageError.
     async fn update_event(
         &self,
         event_id: String,
@@ -107,6 +134,7 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+        /// Asynchronously tests the mockdb event interface by creating and updating events in the mock database.
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())

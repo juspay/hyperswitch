@@ -15,6 +15,18 @@ use crate::{
 
 #[cfg(feature = "payouts")]
 #[instrument(skip(db))]
+/// Validates the uniqueness of a payout ID against a merchant ID in the database.
+///
+/// # Arguments
+///
+/// * `db` - A reference to a database storage interface
+/// * `payout_id` - A string representing the payout ID to validate
+/// * `merchant_id` - A string representing the merchant ID to validate against
+///
+/// # Returns
+///
+/// An asynchronous result containing an option of `storage::Payouts` if the validation is successful, or an error if the validation fails.
+///
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
@@ -50,6 +62,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
 #[cfg(feature = "payouts")]
+/// Validates the create request for a payout, checking the merchant ID, payout ID, payout token, and profile ID, and returning a tuple containing the validated payout ID, optional payout method data, and profile ID.
 pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,

@@ -41,6 +41,16 @@ pub trait PaymentMethodInterface {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for Store {
+        /// Asynchronously finds a payment method by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_method_id` - The ID of the payment method to find.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `storage::PaymentMethod` if the payment method is found, otherwise an `errors::StorageError`.
+    ///
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
@@ -52,6 +62,16 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously inserts a new payment method into the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_method_new` - The new payment method to be inserted into the storage.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the inserted `PaymentMethod` if successful, otherwise returns a `StorageError`.
+    ///
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
@@ -64,6 +84,17 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+        /// Updates the given payment method with the provided payment method update in the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `payment_method` - The payment method to be updated.
+    /// * `payment_method_update` - The updated information for the payment method.
+    ///
+    /// # Returns
+    ///
+    /// The updated payment method if successful, otherwise returns a StorageError.
+    ///
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
@@ -77,6 +108,17 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds a list of payment methods belonging to a specific customer and merchant.
+    ///
+    /// # Arguments
+    ///
+    /// * `customer_id` - The ID of the customer whose payment methods are to be retrieved.
+    /// * `merchant_id` - The ID of the merchant where the payment methods are associated.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a vector of `storage::PaymentMethod` if successful, otherwise an `errors::StorageError`.
+    ///
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -89,6 +131,7 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously deletes a payment method by merchant ID and payment method ID.
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
@@ -108,6 +151,9 @@ impl PaymentMethodInterface for Store {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for MockDb {
+        /// Asynchronously finds a payment method by its ID in the storage.
+    /// If the payment method is found, it returns a `CustomResult` containing the payment method.
+    /// If the payment method is not found, it returns a `CustomResult` containing a `StorageError` indicating that the value was not found.
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
@@ -127,6 +173,7 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+        /// Asynchronously inserts a new payment method into the storage. Returns a result containing the newly inserted payment method or a `StorageError`.
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
@@ -165,6 +212,7 @@ impl PaymentMethodInterface for MockDb {
         Ok(payment_method)
     }
 
+        /// Asynchronously finds payment methods by customer and merchant IDs from the storage. It searches for payment methods that match the provided customer ID and merchant ID, and returns a vector of the found payment methods. If no payment methods are found, it returns a custom result with a storage error indicating that the payment method could not be found.
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -187,6 +235,16 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+        /// Asynchronously deletes a payment method by the given merchant_id and payment_method_id.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID
+    /// * `payment_method_id` - A reference to a string representing the payment method ID
+    ///
+    /// # Returns
+    ///
+    /// * `CustomResult<storage::PaymentMethod, errors::StorageError>` - A result containing the deleted payment method if successful, or a storage error if the payment method is not found
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
@@ -207,6 +265,7 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+        /// Asynchronously updates the payment method using the provided payment method and payment method update.
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,

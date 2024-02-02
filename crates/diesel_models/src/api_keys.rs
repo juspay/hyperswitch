@@ -55,6 +55,7 @@ pub(crate) struct ApiKeyUpdateInternal {
 }
 
 impl From<ApiKeyUpdate> for ApiKeyUpdateInternal {
+        /// Converts an ApiKeyUpdate enum into the current struct.
     fn from(api_key_update: ApiKeyUpdate) -> Self {
         match api_key_update {
             ApiKeyUpdate::Update {
@@ -83,12 +84,14 @@ impl From<ApiKeyUpdate> for ApiKeyUpdateInternal {
 pub struct HashedApiKey(String);
 
 impl HashedApiKey {
+        /// Consumes the current instance and returns the inner `String` value.
     pub fn into_inner(self) -> String {
         self.0
     }
 }
 
 impl From<String> for HashedApiKey {
+        /// Creates a new instance of Self using the provided hashed_api_key.
     fn from(hashed_api_key: String) -> Self {
         Self(hashed_api_key)
     }
@@ -108,6 +111,7 @@ mod diesel_impl {
         DB: Backend,
         String: ToSql<Text, DB>,
     {
+                /// Serialize the value to a SQL literal and write it to the given output
         fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
             self.0.to_sql(out)
         }
@@ -118,6 +122,7 @@ mod diesel_impl {
         DB: Backend,
         String: FromSql<Text, DB>,
     {
+                /// Converts a raw SQL value into a result of Self type.
         fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
             Ok(Self(String::from_sql(bytes)?))
         }
@@ -130,6 +135,7 @@ mod diesel_impl {
     {
         type Row = Self;
 
+                /// Builds an instance of the current struct from the given row.
         fn build(row: Self::Row) -> diesel::deserialize::Result<Self> {
             Ok(row)
         }

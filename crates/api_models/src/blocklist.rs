@@ -35,6 +35,7 @@ pub struct ListBlocklistQuery {
     pub offset: u16,
 }
 
+/// This method returns the default limit for a list, which is set to 10.
 fn default_list_limit() -> u16 {
     10
 }

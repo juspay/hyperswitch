@@ -16,6 +16,7 @@ pub enum DatabaseError {
 }
 
 impl From<diesel::result::Error> for DatabaseError {
+        /// Converts a diesel::result::Error into a custom Error enum
     fn from(error: diesel::result::Error) -> Self {
         match error {
             diesel::result::Error::DatabaseError(

@@ -22,6 +22,7 @@ where
     type InitError = ();
     type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
 
+        /// Creates a new transform with the given service.
     fn new_transform(&self, service: S) -> Self::Future {
         std::future::ready(Ok(RequestIdMiddleware { service }))
     }
@@ -47,6 +48,7 @@ where
 
     actix_web::dev::forward_ready!(service);
 
+        /// This method takes a ServiceRequest and processes it by extracting the "x-request-id" header, making a call to the underlying service, and modifying the response by appending the "x-request-id" header with a new request ID. If an "x-request-id" header existed in the original request, it logs the value before overwriting it with the new request ID. The method returns a future that resolves to the modified response.
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
         let old_x_request_id = req.headers().get("x-request-id").cloned();
         let mut req = req;
@@ -109,6 +111,7 @@ where
     type InitError = ();
     type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
 
+        /// Creates a new transform by wrapping the provided service with a LogSpanInitializerMiddleware.
     fn new_transform(&self, service: S) -> Self::Future {
         std::future::ready(Ok(LogSpanInitializerMiddleware { service }))
     }
@@ -160,6 +163,7 @@ where
     }
 }
 
+/// Recursively extracts details from a serde_json::Value based on the parent key.
 fn get_request_details_from_value(json_value: &serde_json::Value, parent_key: &str) -> String {
     match json_value {
         serde_json::Value::Null => format!("{}: null", parent_key),
@@ -211,6 +215,7 @@ where
     type InitError = ();
     type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
 
+        /// Creates a new instance of Http400RequestDetailsLoggerMiddleware with the provided service.
     fn new_transform(&self, service: S) -> Self::Future {
         std::future::ready(Ok(Http400RequestDetailsLoggerMiddleware {
             service: std::rc::Rc::new(service),
@@ -239,6 +244,7 @@ where
 
     actix_web::dev::forward_ready!(service);
 
+        /// This method takes a ServiceRequest and processes it by extracting the request ID, collecting the payload, creating a new payload from the collected bytes, and then calling the service with the new request. It also logs the request details if the response status is 400. It returns the response as a result.
     fn call(&self, mut req: actix_web::dev::ServiceRequest) -> Self::Future {
         let svc = self.service.clone();
         let request_id_fut = req.extract::<router_env::tracing_actix_web::RequestId>();

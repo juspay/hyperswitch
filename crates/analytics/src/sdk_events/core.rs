@@ -23,6 +23,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// This method is responsible for fetching SDK events data from the analytics provider based on the given request and publishable key. It handles different cases based on the type of analytics provider and returns a vector of SDK events results wrapped in a Result type.
 pub async fn sdk_events_core(
     pool: &AnalyticsProvider,
     req: SdkEventsRequest,
@@ -44,6 +45,7 @@ pub async fn sdk_events_core(
 }
 
 #[instrument(skip_all)]
+/// Asynchronously retrieves metrics data based on the provided request parameters and analytics provider pool.
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     publishable_key: Option<&String>,
@@ -147,6 +149,7 @@ pub async fn get_metrics(
 }
 
 #[allow(dead_code)]
+/// Retrieves SDK event filters based on the given request and publishable key using the provided analytics provider pool. Returns a response containing the SDK event filters.
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetSdkEventFiltersRequest,

@@ -52,6 +52,7 @@ pub enum CacheKind<'a> {
 }
 
 impl<'a> From<CacheKind<'a>> for RedisValue {
+        /// Converts a CacheKind enum variant into a corresponding string value and creates a new instance of Self using the string value.
     fn from(kind: CacheKind<'a>) -> Self {
         let value = match kind {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
@@ -64,6 +65,7 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
 
 impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
     type Error = Report<errors::ValidationError>;
+        /// Tries to convert a RedisValue into a specific enum variant, returning a Result.
     fn try_from(kind: RedisValue) -> Result<Self, Self::Error> {
         let validation_err = errors::ValidationError::InvalidValue {
             message: "Invalid publish key provided in pubsub".into(),
@@ -83,6 +85,7 @@ impl<T> Cacheable for T
 where
     T: Any + Clone + Send + Sync,
 {
+        /// Returns a reference to the trait object `dyn Any` for the current object.
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -96,6 +99,7 @@ pub struct Cache {
 
 impl std::ops::Deref for Cache {
     type Target = MokaCache<String, Arc<dyn Cacheable>>;
+        /// This method returns a reference to the inner data of the current instance.
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -121,20 +125,25 @@ impl Cache {
         }
     }
 
+        /// Asynchronously pushes a value into the cache with the specified key. The value must implement the Cacheable trait.
     pub async fn push<T: Cacheable>(&self, key: String, val: T) {
         self.insert(key, Arc::new(val)).await;
     }
 
+        /// Asynchronously retrieves a value from the cache by its key and attempts to downcast it to the specified type.
+    /// If the value is found in the cache and can be downcast to the specified type, it is cloned and returned, otherwise returns None.
     pub async fn get_val<T: Clone + Cacheable>(&self, key: &str) -> Option<T> {
         let val = self.get(key).await?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
 
+        /// Asynchronously removes the value associated with the specified key from the cache.
     pub async fn remove(&self, key: &str) {
         self.invalidate(key).await;
     }
 }
 
+/// Asynchronously gets the value associated with the specified key from Redis if it exists, or populates the value by executing the provided function and storing the result in Redis. Returns a `CustomResult` containing the retrieved or populated value, or a `StorageError` if an error occurs during the process.
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
     key: impl AsRef<str>,
@@ -176,6 +185,7 @@ where
     }
 }
 
+/// Asynchronously gets the value from the in-memory cache using the provided key. If the value is not found in the cache, it populates the value by fetching it from Redis using the provided function and then stores it in the cache. Returns the value either from the cache or from the Redis store.
 pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
     key: &str,
@@ -197,6 +207,16 @@ where
     }
 }
 
+/// Asynchronously redacts a value from the cache using the provided key and function, and then deletes the corresponding data from the Redis store. 
+/// 
+/// # Arguments
+/// * `store` - A reference to a trait object implementing the RedisConnInterface.
+/// * `key` - The key used to access the value in the cache and Redis store.
+/// * `fun` - A closure that returns a future with the result to redact from the cache and store.
+/// * `in_memory` - An optional reference to the in-memory cache.
+/// 
+/// # Returns
+/// A custom result containing the redacted data or a storage error.
 pub async fn redact_cache<T, F, Fut>(
     store: &dyn RedisConnInterface,
     key: &str,
@@ -225,6 +245,7 @@ where
     Ok(data)
 }
 
+/// Asynchronously publishes the given `key` into the redact channel using the provided `store`.
 pub async fn publish_into_redact_channel<'a>(
     store: &dyn RedisConnInterface,
     key: CacheKind<'a>,
@@ -243,6 +264,7 @@ pub async fn publish_into_redact_channel<'a>(
         .change_context(StorageError::KVError)
 }
 
+/// Asynchronously publishes data into a Redis channel and then redacts the data from the cache
 pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &dyn RedisConnInterface,
     key: CacheKind<'a>,
@@ -262,6 +284,7 @@ mod cache_tests {
     use super::*;
 
     #[tokio::test]
+        /// Asynchronously constructs a new cache with a specified expiration time and then adds a key-value pair to the cache. It then checks if the value can be retrieved from the cache and asserts that the retrieved value matches the expected value.
     async fn construct_and_get_cache() {
         let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
@@ -272,6 +295,7 @@ mod cache_tests {
     }
 
     #[tokio::test]
+        /// This method is a test function to verify the eviction behavior of the cache based on size. It creates a new cache with a capacity of 2 items and a maximum size of 2 bytes, and initializes it with a specified eviction policy. It then pushes a key-value pair into the cache and asserts that the value is not present in the cache after the eviction policy has been applied.
     async fn eviction_on_size_test() {
         let cache = Cache::new(2, 2, Some(0));
         cache.push("key".to_string(), "val".to_string()).await;
@@ -279,6 +303,7 @@ mod cache_tests {
     }
 
     #[tokio::test]
+        /// Asynchronously invalidates the cache for a specific key by adding a new value, removing the key, and then asserting that the value for the key is None.
     async fn invalidate_cache_for_key() {
         let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
@@ -289,6 +314,10 @@ mod cache_tests {
     }
 
     #[tokio::test]
+        /// Executes a test to ensure that the cache eviction occurs on time.
+    ///
+    /// This method initializes a new cache with a maximum capacity of 2 items and a time-to-live of 2 seconds. It then pushes a key-value pair into the cache and waits for 3 seconds using the `tokio::time::sleep` function. After the wait, it checks that the value associated with the key has been evicted from the cache by asserting that the `get_val` method returns `None`.
+    ///
     async fn eviction_on_time_test() {
         let cache = Cache::new(2, 2, None);
         cache.push("key".to_string(), "val".to_string()).await;

@@ -42,6 +42,7 @@ pub struct PaymentResponse;
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
 {
+        /// Asynchronously updates the payment tracker using the provided database, payment ID, payment data, router data, and storage scheme. It returns the updated payment data wrapped in a `RouterResult`.
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -60,7 +61,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         payment_data.mandate_id = payment_data
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
-
+    
         payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
@@ -69,7 +70,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             storage_scheme,
         ))
         .await?;
-
+    
         Ok(payment_data)
     }
 }
@@ -78,6 +79,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAuthorizationData>
     for PaymentResponse
 {
+        /// This method updates the payment tracker with the incremental authorization details, updates the payment_intent and payment_attempt 'amount' if the incremental authorization is successful, and updates the status of the authorization record. It then fetches all the authorizations of the payment and sends an incremental authorization response.
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -208,6 +210,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
 
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+        /// Asynchronously updates the tracker using the provided payment data and router data, based on the specified storage scheme.
+    /// 
+    /// # Arguments
+    /// * `db` - The reference to the application state
+    /// * `payment_id` - The reference to the payment ID
+    /// * `payment_data` - The payment data to be updated
+    /// * `router_data` - The router data related to payment syncing and response
+    /// * `storage_scheme` - The storage scheme used by the merchant
+    /// 
+    /// # Returns
+    /// The result of updating the payment data in the tracker
+    /// 
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -234,6 +248,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     for PaymentResponse
 {
+        /// Asynchronously updates the payment tracker with the given payment data and returns the updated payment data.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - The reference to the application state
+    /// * `payment_id` - The reference to the payment ID
+    /// * `payment_data` - The payment data to be updated
+    /// * `router_data` - The router data containing session and response data
+    /// * `storage_scheme` - The storage scheme for the merchant
+    ///
+    /// # Returns
+    ///
+    /// The updated payment data wrapped in a `RouterResult`
+    ///
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -262,6 +290,24 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
 {
+        /// Asynchronously updates the payment tracker in the database based on the provided parameters and returns the updated payment data.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - A reference to the application state database
+    /// * `payment_id` - The ID of the payment
+    /// * `payment_data` - The payment data to be updated
+    /// * `router_data` - The router data containing information related to payment capture and response
+    /// * `storage_scheme` - The storage scheme used by the merchant
+    ///
+    /// # Returns
+    ///
+    /// The updated payment data wrapped in a `RouterResult`
+    ///
+    /// # Constraints
+    ///
+    /// The generic type `F` must implement both `'b` and `Send` traits
+    ///
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -288,6 +334,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+        /// Asynchronously updates the tracker for a payment using the provided data and storage scheme.
+    ///
+    /// # Arguments
+    /// * `db` - The database state
+    /// * `payment_id` - The payment ID
+    /// * `payment_data` - The payment data to be updated
+    /// * `router_data` - The router data for the payment
+    /// * `storage_scheme` - The storage scheme for the merchant
+    ///
+    /// # Returns
+    /// The updated payment data
+    ///
+    /// # Errors
+    /// Returns an error if the update operation fails
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -317,6 +377,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     for PaymentResponse
 {
+        /// Asynchronously updates the tracker for a payment with the given payment ID using the provided payment data, router data, and storage scheme. Returns the updated payment data.
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -344,6 +405,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
 
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
+        /// Asynchronously updates the payment tracker with the provided data and returns the updated payment data.
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -373,6 +435,20 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
     for PaymentResponse
 {
+        /// Asynchronously updates the payment tracker with the provided payment data and router data.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - The reference to the application state.
+    /// * `payment_id` - The reference to the payment ID.
+    /// * `payment_data` - The payment data to be updated.
+    /// * `router_data` - The router data containing setup mandate request data and payments response data.
+    /// * `storage_scheme` - The storage scheme for the merchant.
+    ///
+    /// # Returns
+    ///
+    /// The updated payment data after the tracker has been updated.
+    ///
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -411,6 +487,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
     for PaymentResponse
 {
+        /// Asynchronously updates the payment tracker with the given payment information and response data using the provided database and storage scheme. Returns the updated payment data.
     async fn update_tracker<'b>(
         &'b self,
         db: &'b AppState,
@@ -434,6 +511,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 }
 
 #[instrument(skip_all)]
+/// Updates the payment response tracker based on the response from the router. It handles various response scenarios and updates the payment data and intent accordingly. It also updates the payment attempt and captures and returns the updated payment data.
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &AppState,
     _payment_id: &api::PaymentIdType,
@@ -847,6 +925,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     Ok(payment_data)
 }
 
+/// Processes the response from capture update and returns a list of capture updates and captures that need to be updated in the storage.
 fn response_to_capture_update(
     multiple_capture_data: &MultipleCaptureData,
     response_list: HashMap<String, CaptureSyncResponse>,
@@ -872,6 +951,7 @@ fn response_to_capture_update(
     Ok(capture_update_list)
 }
 
+/// Retrieves capture updates for unmapped capture sync responses by comparing them with pending captures without connector capture ID from the multiple capture data.
 fn get_capture_update_for_unmapped_capture_responses(
     unmapped_capture_sync_response_list: Vec<CaptureSyncResponse>,
     multiple_capture_data: &MultipleCaptureData,
@@ -900,6 +980,7 @@ fn get_capture_update_for_unmapped_capture_responses(
     Ok(result)
 }
 
+/// This method calculates the total amount captured based on the provided payment data, request details, amount already captured, and the status of the router data. If the payment data contains multiple capture data, it retrieves the total blocked amount. Otherwise, it calculates the captured amount based on the request and payment data, taking into account the router data status. It returns the total amount captured as an Option<i64>.
 fn get_total_amount_captured<F: Clone, T: types::Capturable>(
     request: T,
     amount_captured: Option<i64>,

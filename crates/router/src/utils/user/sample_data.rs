@@ -15,6 +15,7 @@ use crate::{
 };
 
 #[allow(clippy::type_complexity)]
+/// This method generates sample payment data based on the provided request and merchant ID. It retrieves merchant details, parses business details, and calculates the number of failed payments and refunds based on the sample data size. It then generates payment intents, payment attempt batches, and optional refunds for each payment. The method handles various parameters such as currency, connector, and authentication type to create the sample data. Finally, it returns a vector containing the generated sample payment data.
 pub async fn generate_sample_data(
     state: &AppState,
     req: SampleDataRequest,
@@ -304,6 +305,8 @@ pub async fn generate_sample_data(
     Ok(res)
 }
 
+/// This method takes a number as input and returns a PaymentMethodType based on whether the number is even or odd.
+/// If the input number is even, it returns PaymentMethodType::Debit, otherwise it returns PaymentMethodType::Credit.
 fn get_payment_method_type(num: u8) -> common_enums::PaymentMethodType {
     let rem: u8 = (num) % 2;
     match rem {

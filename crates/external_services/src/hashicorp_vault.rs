@@ -67,6 +67,16 @@ pub enum Kv2 {}
 impl Engine for Kv2 {
     type ReturnType<'b, T: 'b> =
         Pin<Box<dyn Future<Output = error_stack::Result<T, HashiCorpError>> + Send + 'b>>;
+        /// Reads a value from a specified location in HashiCorp Vault using the provided client.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `client` - A reference to a HashiCorpVault client
+    /// * `location` - A String representing the location in the vault from which to read the value
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Future that resolves to the value read from the specified location in the vault.
     fn read(client: &HashiCorpVault, location: String) -> Self::ReturnType<'_, String> {
         Box::pin(async move {
             let mut split = location.split(':');
@@ -159,12 +169,23 @@ pub trait FromEncoded: Sized {
 }
 
 impl FromEncoded for masking::Secret<String> {
+        /// Converts a string into an instance of the current type, if possible.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - A string to be converted into an instance of the current type
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the instance of the current type if conversion is successful, or `None` if the conversion fails
+    ///
     fn from_encoded(input: String) -> Option<Self> {
         Some(input.into())
     }
 }
 
 impl FromEncoded for Vec<u8> {
+        /// Decodes the input string from hexadecimal encoding and returns an Option containing the result.
     fn from_encoded(input: String) -> Option<Self> {
         hex::decode(input).ok()
     }

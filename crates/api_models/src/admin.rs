@@ -339,10 +339,12 @@ pub mod payout_routing_algorithm {
     impl<'de> Visitor<'de> for RoutingAlgorithmVisitor {
         type Value = serde_json::Value;
 
+                /// This method takes a mutable reference to a formatter and writes the string "routing algorithm" to it.
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("routing algorithm")
         }
 
+                /// This method is used to visit a map and extract the "type" and "data" values from it. It then constructs a JSON object using the extracted values and returns it. If the "type" value is "single", it attempts to convert the "data" value into a PayoutConnectors enum and returns a PayoutRoutingAlgorithm::Single with the converted value as the parameter. If the "type" value is not "single", it returns an error with a custom message indicating that the routing algorithm is unknown.
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
         where
             A: de::MapAccess<'de>,
@@ -397,6 +399,8 @@ pub mod payout_routing_algorithm {
             formatter.write_str("routing algorithm")
         }
 
+                /// Visits the deserializer and deserializes the input using the RoutingAlgorithmVisitor.
+        /// Returns a Result containing the deserialized value wrapped in Some, or an error if deserialization fails.
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
         where
             D: Deserializer<'de>,
@@ -406,6 +410,7 @@ pub mod payout_routing_algorithm {
                 .map(Some)
         }
 
+                /// This method is used to handle the case when no value is present during deserialization. It returns a `Result` with a `None` value if no value is present.
         fn visit_none<E>(self) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -413,6 +418,7 @@ pub mod payout_routing_algorithm {
             Ok(None)
         }
 
+                /// This method is used to visit a unit type during the deserialization process. It always returns a `Result` with a `None` value, indicating that no value is expected for a unit type.
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -422,6 +428,7 @@ pub mod payout_routing_algorithm {
     }
 
     #[allow(dead_code)]
+        /// Deserialize a JSON value using the given deserializer.
     pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<serde_json::Value, D::Error>
     where
         D: Deserializer<'a>,
@@ -429,6 +436,7 @@ pub mod payout_routing_algorithm {
         deserializer.deserialize_any(RoutingAlgorithmVisitor)
     }
 
+        /// Deserialize an optional value using the provided deserializer.
     pub(crate) fn deserialize_option<'a, D>(
         deserializer: D,
     ) -> Result<Option<serde_json::Value>, D::Error>

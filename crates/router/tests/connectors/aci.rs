@@ -13,6 +13,7 @@ use tokio::sync::oneshot;
 
 use crate::{connector_auth::ConnectorAuthentication, utils};
 
+/// Constructs a payment router data object with default values for various fields and returns it.
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
         .aci
@@ -103,6 +104,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     }
 }
 
+/// Constructs a refunds router data object with default values for various fields.
 fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
     let auth = ConnectorAuthentication::new()
         .aci
@@ -166,6 +168,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 
 #[actix_web::test]
 
+/// Asynchronously creates a successful payment by setting up the necessary state, connector, and request data, executing the connector processing step, and asserting that the response status is "Charged".
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -209,6 +212,7 @@ async fn payments_create_success() {
 
 #[actix_web::test]
 #[ignore]
+/// This method creates a failure scenario for a payment by setting up a mock environment and triggering a payment request that is intended to fail. It then executes the payment processing step using a mock API client and checks if the response indicates a failure. If the response does not indicate a failure, it prints an error message and asserts the failure scenario. 
 async fn payments_create_failure() {
     {
         let conf = Settings::new().unwrap();
@@ -266,6 +270,7 @@ async fn payments_create_failure() {
 
 #[actix_web::test]
 
+/// Asynchronously processes refunds for successful payments. It first sets up a state with the given configuration and a mock API client. Then it constructs payment and refund router data, executes connector processing steps for payment and refund, and asserts that the payment and refund transactions were successful. If any of the steps fail, it will panic with an appropriate error message.
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
@@ -335,6 +340,7 @@ async fn refund_for_successful_payments() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously creates a failure scenario for refunds. It sets up a new ConnectorData, AppState, and ConnectorIntegration, then constructs a refund router data request with a specific connector transaction ID. It then executes the connector processing step for refunds, checks if the response is an error, and prints the response. Finally, it asserts that the refund was intended to fail but it passed.
 async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;

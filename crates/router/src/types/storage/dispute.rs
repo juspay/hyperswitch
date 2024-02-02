@@ -18,6 +18,16 @@ pub trait DisputeDbExt: Sized {
 
 #[async_trait::async_trait]
 impl DisputeDbExt for Dispute {
+        /// Asynchronously filters dispute records based on the provided constraints and returns the filtered results.
+    /// 
+    /// # Arguments
+    /// - `conn`: A reference to a pooled database connection
+    /// - `merchant_id`: A string reference representing the merchant ID
+    /// - `dispute_list_constraints`: An instance of `DisputeListConstraints` containing the constraints for filtering
+    /// 
+    /// # Returns
+    /// A `CustomResult` containing a vector of filtered dispute records or a `DatabaseError` if an error occurs during the database operation
+    /// 
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,

@@ -15,6 +15,7 @@ struct BluesnapTest;
 impl ConnectorActions for BluesnapTest {}
 static CONNECTOR: BluesnapTest = BluesnapTest {};
 impl utils::Connector for BluesnapTest {
+        /// This method returns a `ConnectorData` object containing information about the Bluesnap connector.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bluesnap;
         types::api::ConnectorData {
@@ -25,6 +26,7 @@ impl utils::Connector for BluesnapTest {
         }
     }
 
+        /// Retrieves the authentication token for the connector.
     fn get_auth_token(&self) -> ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -34,16 +36,20 @@ impl utils::Connector for BluesnapTest {
         )
     }
 
+        /// This method returns the name "bluesnap" as a String value.
     fn get_name(&self) -> String {
         "bluesnap".to_string()
     }
 }
+/// Retrieves the details of the payment method, returning an option containing the payment authorization data.
+/// If the payment method details are available, it returns Some with the payment authorization data, otherwise it returns None.
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         email: Some(Email::from_str("test@gmail.com").unwrap()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }
+/// Retrieves the payment information, if available.
 fn get_payment_info() -> Option<PaymentInfo> {
     Some(PaymentInfo {
         address: Some(PaymentAddress {
@@ -66,6 +72,7 @@ fn get_payment_info() -> Option<PaymentInfo> {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously authorizes a payment using the given payment method details and payment information.
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
         .authorize_payment(payment_method_details(), get_payment_info())
@@ -78,6 +85,7 @@ async fn should_only_authorize_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously captures an authorized payment if the payment is authorized. 
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(payment_method_details(), None, get_payment_info())
@@ -90,6 +98,10 @@ async fn should_capture_authorized_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously attempts to partially capture an authorized payment. This method
+/// authorizes and captures a payment using the specified payment method details, 
+/// an amount to capture, and payment information. It then asserts that the response 
+/// status is "Charged".
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -109,6 +121,7 @@ async fn should_partially_capture_authorized_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously triggers the authorization of a payment, retrieves the transaction ID from the response, and synchronously retries until the status matches the authorized status. Asserts that the response status is authorized.
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(payment_method_details(), get_payment_info())
@@ -135,6 +148,7 @@ async fn should_sync_authorized_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously authorizes and voids a payment using the connector, providing payment method details, cancellation data, and payment information. Expects a void payment response with a status of "Voided".
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -155,6 +169,7 @@ async fn should_void_authorized_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously captures a payment and initiates a refund, then checks the refund status
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(payment_method_details(), None, None, get_payment_info())
@@ -179,6 +194,8 @@ async fn should_refund_manually_captured_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously captures a payment and partially refunds the amount manually captured,
+/// using the payment method details, refund amount, and payment information.
 async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
@@ -211,6 +228,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously captures a payment and then processes a refund manually, ensuring the refund status matches the success status.
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
         .capture_payment_and_refund(payment_method_details(), None, None, get_payment_info())
@@ -235,6 +253,7 @@ async fn should_sync_manually_captured_refund() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously makes a payment using the CONNECTOR service. This method calls the `make_payment` function of the CONNECTOR service with the payment method details and payment information obtained from the respective functions. It awaits the response and unwraps the result. It then asserts that the status of the authorize response is equal to `enums::AttemptStatus::Charged`.
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_payment_info())
@@ -247,6 +266,7 @@ async fn should_make_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously makes a payment using the CONNECTOR, then checks and retries until the payment status matches the specified status. 
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_payment_info())
@@ -275,6 +295,9 @@ async fn should_sync_auto_captured_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously checks if a payment that was automatically captured should be refunded. 
+/// This method makes a payment and then attempts to refund it. It then checks the refund status 
+/// and asserts that the refund was successful. 
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_payment_info())
@@ -299,6 +322,11 @@ async fn should_refund_auto_captured_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously attempts to partially refund a succeeded payment. This method
+/// makes a payment and refund request using the provided payment method details
+/// and refund amount, then retries the refund operation until the refund status
+/// matches the expected success status. It asserts that the refund status is
+/// success after the refund operation is completed.
 async fn should_partially_refund_succeeded_payment() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(
@@ -330,6 +358,7 @@ async fn should_partially_refund_succeeded_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Makes a payment, verifies that the payment was successfully charged, and then attempts to refund the payment multiple times. 
 async fn should_refund_succeeded_payment_multiple_times() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_payment_info())
@@ -370,6 +399,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously attempts to sync a refund with the payment connector and checks for a successful refund status.
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_payment_info())
@@ -394,6 +424,7 @@ async fn should_sync_refund() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// This method is used to test that a payment should fail for an incorrect CVC code.
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
@@ -420,6 +451,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// This method tests if a payment fails when an invalid expiration month is provided.
 async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
@@ -446,6 +478,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously makes a payment using a specific payment method data with an incorrect expiry year, and asserts that the response will contain a general validation failure message.
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
@@ -472,6 +505,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously attempts to void a payment that was already auto-captured, and asserts that the void payment operation fails with an error message indicating that the transaction has already been captured.
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_payment_info())
@@ -494,6 +528,7 @@ async fn should_fail_void_payment_for_auto_capture() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously attempts to capture a payment and checks that it fails with an invalid payment.
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
         .capture_payment("123456789".to_string(), None, None)
@@ -511,6 +546,8 @@ async fn should_fail_capture_for_invalid_payment() {
 
 #[serial_test::serial]
 #[actix_web::test]
+/// Asynchronously makes a payment and then attempts to process a refund with an amount higher than the payment amount. 
+/// Expects the refund to fail with a specific error message. 
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
         .make_payment_and_refund(

@@ -33,6 +33,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, Ctx> for PaymentCancel
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves the trackers for a payment cancellation request, including the payment intent, payment attempt, addresses, payment data, business profile, and customer details. This method also performs various validations and database operations to ensure the integrity of the data being retrieved.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -193,6 +194,32 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, Ctx> for PaymentCancel
 {
     #[instrument(skip_all)]
+        /// Update trackers for a payment attempt and payment intent in the database based on the provided payment data, customer information, and other parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - The application state containing the database connection
+    /// * `payment_data` - The payment data containing information about the payment attempt and payment intent
+    /// * `_customer` - An optional parameter representing customer information
+    /// * `storage_scheme` - The storage scheme for the merchant
+    /// * `_updated_customer` - An optional parameter representing updated customer information
+    /// * `_mechant_key_store` - The key store for the merchant
+    /// * `_frm_suggestion` - An optional parameter representing a suggestion for the payment form
+    /// * `_header_payload` - The header payload for the API request
+    ///
+    /// # Returns
+    ///
+    /// A result containing a boxed operation for payments cancellation request and the updated payment data
+    ///
+    /// # Generic
+    ///
+    /// * `F` - The type of the payment data
+    ///
+    /// # Remarks
+    ///
+    /// The method updates the payment intent and payment attempt in the database based on the provided data and parameters. It also handles cancellation and voiding of payment attempts based on the payment intent status.
+    ///
+    /// The method returns a result containing a boxed operation for payments cancellation request and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         db: &'b AppState,
@@ -255,6 +282,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsCancelRequest, Ctx> for PaymentCancel
 {
     #[instrument(skip_all)]
+        /// Validates a payment cancel request using the provided merchant account information.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,

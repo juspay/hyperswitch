@@ -15,6 +15,14 @@ use crate::{
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
+        /// Executes the workflow for API key expiry, including sending email notifications to merchants about expiring API keys and handling retry logic for sending reminders. 
+    /// 
+    /// # Arguments
+    /// * `state` - The application state containing the store and email client
+    /// * `process` - The process tracker for the workflow
+    /// 
+    /// # Returns
+    /// * `Result<(), errors::ProcessTrackerError>` - Result indicating success or an error of type `errors::ProcessTrackerError`
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
@@ -126,6 +134,18 @@ Team Hyperswitch"),
         Ok(())
     }
 
+        /// Asynchronously handles any errors that occur during the execution of a workflow. 
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The reference to the application state
+    /// * `process` - The storage process tracker
+    /// * `error` - The process tracker error that occurred
+    ///
+    /// # Returns
+    ///
+    /// A custom result that either contains an empty value or a process tracker error
+    ///
     async fn error_handler<'a>(
         &'a self,
         _state: &'a AppState,

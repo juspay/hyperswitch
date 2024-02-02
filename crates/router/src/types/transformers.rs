@@ -42,6 +42,7 @@ impl<F, T> ForeignInto<T> for F
 where
     T: ForeignFrom<F>,
 {
+        /// Converts the current type `self` into a value of type `T` using the `foreign_from` method of the type `T`.
     fn foreign_into(self) -> T {
         T::foreign_from(self)
     }
@@ -53,12 +54,14 @@ where
 {
     type Error = <T as ForeignTryFrom<F>>::Error;
 
+        /// Attempts to convert the value of type T into type U, returning a Result.
     fn foreign_try_into(self) -> Result<T, Self::Error> {
         T::foreign_try_from(self)
     }
 }
 
 impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType {
+        /// Converts a RefundType from the api_models module to the corresponding variant of the current enum.
     fn foreign_from(item: api_models::refunds::RefundType) -> Self {
         match item {
             api_models::refunds::RefundType::Instant => Self::InstantRefund,
@@ -68,6 +71,7 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
 }
 
 impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
+        /// Converts a storage_enums::AttemptStatus to a corresponding enum variant of Self.
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
         match s {
             storage_enums::AttemptStatus::Charged | storage_enums::AttemptStatus::AutoRefunded => {
@@ -110,6 +114,7 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
 impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStatus {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+        /// Converts the given attempt status from storage_enums::AttemptStatus to the corresponding enum variant of Self and returns a Result.
     fn foreign_try_from(
         attempt_status: storage_enums::AttemptStatus,
     ) -> errors::RouterResult<Self> {
@@ -148,6 +153,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
 }
 
 impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDataType {
+        /// Converts a `MandateType` from the `api_models::payments` module into the current type.
     fn foreign_from(from: api_models::payments::MandateType) -> Self {
         match from {
             api_models::payments::MandateType::SingleUse(inner) => {
@@ -161,6 +167,7 @@ impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDa
 }
 
 impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
+        /// Converts a `MandateDataType` enum from the `storage_enums` module into an instance of the current type.
     fn foreign_from(from: storage_enums::MandateDataType) -> Self {
         match from {
             storage_enums::MandateDataType::SingleUse(inner) => {
@@ -176,6 +183,7 @@ impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::Manda
 impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
     type Error = error_stack::Report<common_utils::errors::ValidationError>;
 
+        /// Attempts to convert from an API enum to the current enum, returning a Result.
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
@@ -264,6 +272,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
 }
 
 impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::MandateAmountData {
+        /// Converts a `storage_enums::MandateAmountData` struct into the current struct.
     fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
         Self {
             amount: from.amount,
@@ -277,6 +286,7 @@ impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::Man
 
 // TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
 impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::MandateData {
+        /// Converts a `MandateData` from the API model to the corresponding data model.
     fn foreign_from(d: api_models::payments::MandateData) -> Self {
         Self {
             customer_acceptance: d.customer_acceptance.map(|d| {
@@ -329,6 +339,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
 }
 
 impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::MandateAmountData {
+        /// Converts a `MandateAmountData` from the `api_models::payments` module into the current type.
     fn foreign_from(from: api_models::payments::MandateAmountData) -> Self {
         Self {
             amount: from.amount,
@@ -341,6 +352,7 @@ impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::Man
 }
 
 impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
+        /// Converts an enum value from the api_enums module to an enum value from the storage_enums module.
     fn foreign_from(value: api_enums::IntentStatus) -> Self {
         match value {
             api_enums::IntentStatus::Succeeded => Some(storage_enums::EventType::PaymentSucceeded),
@@ -367,6 +379,7 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
 }
 
 impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
+        /// Converts the provided PaymentMethodType to a corresponding enum variant of Self.
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
             api_enums::PaymentMethodType::ApplePay
@@ -460,6 +473,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
 
 impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::PaymentMethod {
     type Error = errors::ApiErrorResponse;
+        /// Converts the given payment method data into the corresponding enum variant of Self and returns a Result.
     fn foreign_try_from(
         payment_method_data: api_models::payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
@@ -487,6 +501,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
 }
 
 impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
+        /// Converts a value of type `storage_enums::RefundStatus` to the current type.
     fn foreign_from(value: storage_enums::RefundStatus) -> Self {
         match value {
             storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
@@ -499,6 +514,7 @@ impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventTyp
 }
 
 impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
+        /// Converts a `storage_enums::DisputeStatus` value to a corresponding `Self` value.
     fn foreign_from(value: storage_enums::DisputeStatus) -> Self {
         match value {
             storage_enums::DisputeStatus::DisputeOpened => Self::DisputeOpened,
@@ -513,6 +529,10 @@ impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
 }
 
 impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventType> {
+        /// Converts a value from the MandateStatus enum to the EventType enum.
+    /// - If the input value is MandateStatus::Active, it returns Some(EventType::MandateActive).
+    /// - If the input value is MandateStatus::Revoked, it returns Some(EventType::MandateRevoked).
+    /// - If the input value is MandateStatus::Inactive or MandateStatus::Pending, it returns None.
     fn foreign_from(value: storage_enums::MandateStatus) -> Self {
         match value {
             storage_enums::MandateStatus::Active => Some(storage_enums::EventType::MandateActive),
@@ -525,6 +545,7 @@ impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventTy
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
     type Error = errors::ValidationError;
 
+        /// Attempts to convert an incoming webhook event into a result of the current type.
     fn foreign_try_from(
         value: api_models::webhooks::IncomingWebhookEvent,
     ) -> Result<Self, Self::Error> {
@@ -541,6 +562,10 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::MandateStatus {
     type Error = errors::ValidationError;
 
+        /// Attempts to convert an incoming webhook event into an instance of the current type.
+    /// If the incoming webhook event is MandateActive, it returns Ok with the Active variant.
+    /// If the incoming webhook event is MandateRevoked, it returns Ok with the Revoked variant.
+    /// Otherwise, it returns an error with a validation error indicating that the incoming webhook event type provided is incorrect.
     fn foreign_try_from(
         value: api_models::webhooks::IncomingWebhookEvent,
     ) -> Result<Self, Self::Error> {
@@ -555,6 +580,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 }
 
 impl ForeignFrom<storage::Config> for api_types::Config {
+        /// Constructs a new instance of Self using the provided storage configuration.
     fn foreign_from(config: storage::Config) -> Self {
         Self {
             key: config.key,
@@ -564,6 +590,10 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 }
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
+        /// This method takes a reference to a `ConfigUpdate` from the `api_types` module
+    /// and returns a new instance of the current struct. It creates an instance of the 
+    /// `Self` enum with the variant `Update`, setting the `config` field to the cloned
+    /// value of the input `ConfigUpdate`.
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
         Self::Update {
             config: Some(config.value.clone()),
@@ -572,6 +602,7 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 }
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
+        /// Creates a new instance of the current struct from the given `Address` instance.
     fn from(address: &domain::Address) -> Self {
         Self {
             address: Some(api_types::AddressDetails {
@@ -599,6 +630,7 @@ impl
         crate::core::api_keys::PlaintextApiKey,
     )> for api_models::api_keys::CreateApiKeyResponse
 {
+        /// Converts a tuple of (diesel_models::api_keys::ApiKey, crate::core::api_keys::PlaintextApiKey) into an instance of Self.
     fn foreign_from(
         item: (
             diesel_models::api_keys::ApiKey,
@@ -621,6 +653,7 @@ impl
 }
 
 impl ForeignFrom<diesel_models::api_keys::ApiKey> for api_models::api_keys::RetrieveApiKeyResponse {
+        /// Converts an `ApiKey` from the `diesel_models` module into the current struct.
     fn foreign_from(api_key: diesel_models::api_keys::ApiKey) -> Self {
         Self {
             key_id: api_key.key_id,
@@ -637,6 +670,16 @@ impl ForeignFrom<diesel_models::api_keys::ApiKey> for api_models::api_keys::Retr
 impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
     for diesel_models::api_keys::ApiKeyUpdate
 {
+        /// Transforms an UpdateApiKeyRequest from the API into a Self enum variant.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - An instance of api_models::api_keys::UpdateApiKeyRequest
+    ///
+    /// # Returns
+    ///
+    /// The Self enum variant with the corresponding fields populated from the provided UpdateApiKeyRequest.
+    ///
     fn foreign_from(api_key: api_models::api_keys::UpdateApiKeyRequest) -> Self {
         Self::Update {
             name: api_key.name,
@@ -650,6 +693,7 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
     type Error = errors::ValidationError;
 
+        /// Converts an incoming webhook event into a result of the corresponding enum variant.
     fn foreign_try_from(
         value: api_models::webhooks::IncomingWebhookEvent,
     ) -> Result<Self, Self::Error> {
@@ -675,6 +719,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 }
 
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+        /// Converts a storage::Dispute struct into the current struct, mapping the fields accordingly.
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
             dispute_id: dispute.dispute_id,
@@ -698,6 +743,15 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
 }
 
 impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationResponse {
+        /// Creates a new instance of Self by converting a storage::Authorization into Self.
+    ///
+    /// # Arguments
+    ///
+    /// * `authorization` - The storage::Authorization to convert into Self
+    ///
+    /// # Returns
+    ///
+    /// A new instance of Self with the fields initialized from the provided storage::Authorization.
     fn foreign_from(authorization: storage::Authorization) -> Self {
         Self {
             authorization_id: authorization.authorization_id,
@@ -711,6 +765,7 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
 }
 
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
+        /// Converts a `storage::Dispute` object into the current object, mapping its fields to the corresponding fields of the current object.
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
             dispute_id: dispute.dispute_id,
@@ -729,6 +784,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
 }
 
 impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataResponse {
+        /// Creates a new instance of Self (the current struct) by converting a storage::FileMetadata struct into its equivalent. 
     fn foreign_from(file_metadata: storage::FileMetadata) -> Self {
         Self {
             file_id: file_metadata.file_id,
@@ -741,6 +797,7 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
 }
 
 impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
+        /// Converts a `diesel_models::cards_info::CardInfo` into the current struct.
     fn foreign_from(item: diesel_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
@@ -755,6 +812,7 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
 
 impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantConnectorResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert a domain::MerchantConnectorAccount into the current type, handling the conversion of payment_methods_enabled and frm_configs fields and returning a Result with the converted type or an error.
     fn try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled {
             Some(val) => serde_json::Value::Array(val)
@@ -814,6 +872,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
 }
 
 impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttemptResponse {
+        /// Converts a `PaymentAttempt` object from the `storage` module to the current type.
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
         Self {
             attempt_id: payment_attempt.attempt_id,
@@ -841,6 +900,7 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
 }
 
 impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
+        /// Converts a storage::Capture into Self
     fn foreign_from(capture: storage::Capture) -> Self {
         Self {
             capture_id: capture.capture_id,
@@ -860,6 +920,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
 }
 
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
+        /// Converts a value of type api_models::payouts::Bank to the corresponding enum variant of Self.
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
@@ -870,6 +931,7 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
 }
 
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
+        /// Converts a value of type `api_models::payouts::PayoutMethodData` into the enum `Self`.
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
@@ -879,6 +941,7 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
 }
 
 impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
+        /// Converts a `PayoutType` enum from the `api_models` module into the corresponding enum value of the current module.
     fn foreign_from(value: api_models::enums::PayoutType) -> Self {
         match value {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
@@ -889,6 +952,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
 
 impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert a HeaderMap into a Result containing the current struct or an error. 
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
         let payment_confirm_source: Option<api_enums::PaymentSource> =
             get_header_value_by_key("payment_confirm_source".into(), headers)?
@@ -925,6 +989,7 @@ impl
         Option<&domain::Customer>,
     )> for api_models::payments::PaymentsRequest
 {
+        /// Creates a new instance of Self by extracting values from the provided tuple and mapping them to the fields of Self. If the values are present, they are mapped to the corresponding fields, otherwise default values are used.
     fn foreign_from(
         value: (
             Option<&storage::PaymentAttempt>,
@@ -954,6 +1019,7 @@ impl
         api_models::payments::PaymentLinkStatus,
     )> for api_models::payments::RetrievePaymentLinkResponse
 {
+        /// Constructs a new instance of Self using the provided payment link configuration and status.
     fn foreign_from(
         (payment_link_config, status): (
             storage::PaymentLink,
@@ -975,6 +1041,7 @@ impl
 }
 
 impl From<domain::Address> for payments::AddressDetails {
+        /// Converts a domain::Address into a new instance of Self, with certain fields encrypted
     fn from(addr: domain::Address) -> Self {
         Self {
             city: addr.city,
@@ -991,6 +1058,7 @@ impl From<domain::Address> for payments::AddressDetails {
 }
 
 impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
+        /// Converts a ConnectorSelection enum value into the current type.
     fn foreign_from(value: ConnectorSelection) -> Self {
         match value {
             ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
@@ -1003,6 +1071,7 @@ impl ForeignFrom<ConnectorSelection> for routing_types::RoutingAlgorithm {
 impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
+        /// Creates a new instance of Self (i.e., the current struct) using the provided api_models::organization::OrganizationNew item, extracting and setting the org_id and org_name fields from the item.
     fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
         Self {
             org_id: item.org_id,
@@ -1012,6 +1081,7 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
 }
 
 impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+        /// Converts a GsmCreateRequest into the current struct.
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
         Self {
             connector: value.connector.to_string(),
@@ -1030,6 +1100,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
 }
 
 impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
+        /// Convert a value of type `storage::GatewayStatusMap` into an instance of the current struct.
     fn foreign_from(value: storage::GatewayStatusMap) -> Self {
         Self {
             connector: value.connector.to_string(),

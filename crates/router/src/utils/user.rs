@@ -18,6 +18,8 @@ pub mod password;
 pub mod sample_data;
 
 impl UserFromToken {
+        /// Asynchronously retrieves the merchant account associated with the current user from the given `AppState`.
+    /// If the merchant account is found, it is returned as a result. If not found, appropriate user errors are returned.
     pub async fn get_merchant_account(&self, state: AppState) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
@@ -47,6 +49,16 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
+        /// Asynchronously retrieves a user from the provided app state using the user's ID. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state containing the store
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `UserResult` containing the retrieved user or an `InternalServerError` error.
+    /// 
     pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
         let user = state
             .store
@@ -57,6 +69,7 @@ impl UserFromToken {
     }
 }
 
+/// Asynchronously generates a JSON Web Token (JWT) authentication token for the given user and user role within the provided app state.
 pub async fn generate_jwt_auth_token(
     state: &AppState,
     user: &UserFromStorage,
@@ -73,6 +86,19 @@ pub async fn generate_jwt_auth_token(
     Ok(Secret::new(token))
 }
 
+/// Generates a JSON Web Token (JWT) authentication token with custom role attributes for a user
+///
+/// # Arguments
+///
+/// * `state` - The application state
+/// * `user` - The user for whom the token is being generated
+/// * `merchant_id` - The ID of the merchant to which the user belongs
+/// * `org_id` - The ID of the organization to which the user belongs
+/// * `role_id` - The ID of the role assigned to the user
+///
+/// # Returns
+///
+/// A `Result` containing a `Secret` holding the generated JWT authentication token
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     state: AppState,
     user: &UserFromStorage,
@@ -91,6 +117,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     Ok(Secret::new(token))
 }
 
+/// Returns a UserResult containing a user_api::DashboardEntryResponse based on the given state, user, user_role, and token.
 pub fn get_dashboard_entry_response(
     state: &AppState,
     user: UserFromStorage,
@@ -111,6 +138,7 @@ pub fn get_dashboard_entry_response(
 }
 
 #[allow(unused_variables)]
+/// This method checks if the "email" feature is enabled in the application. If the feature is enabled, it calls the get_verification_days_left method on the user object. Otherwise, it returns Ok(None).
 pub fn get_verification_days_left(
     state: &AppState,
     user: &UserFromStorage,
@@ -121,6 +149,7 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
+/// Retrieves details of multiple merchant accounts with their status based on the user roles provided.
 pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,

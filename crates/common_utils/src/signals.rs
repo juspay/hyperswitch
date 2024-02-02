@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 /// It will send a signal to the receiver when a SIGTERM or SIGINT is received
 ///
 #[cfg(not(target_os = "windows"))]
+/// Listens for signals using signal_hook_tokio and sends a corresponding message through the provided sender channel when a signal is received. 
 pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: mpsc::Sender<()>) {
     if let Some(signal) = sig.next().await {
         logger::info!(
@@ -39,12 +40,18 @@ pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: mpsc::S
 /// It will send a signal to the receiver when a SIGTERM or SIGINT is received
 ///
 #[cfg(target_os = "windows")]
+/// Handles the signal event by sending a message to the provided sender.
 pub async fn signal_handler(_sig: DummySignal, _sender: mpsc::Sender<()>) {}
 
 ///
 /// This function is used to generate a list of signals that the signal_handler should listen for
 ///
 #[cfg(not(target_os = "windows"))]
+/// Retrieves the allowed signals for the application to handle using signal_hook_tokio.
+///
+/// # Returns
+///
+/// A Result containing the SignalsInfo struct that provides information about the allowed signals, or an Error if there was an issue retrieving the signals.
 pub fn get_allowed_signals() -> Result<signal_hook_tokio::SignalsInfo, std::io::Error> {
     signal_hook_tokio::Signals::new([signal_hook::consts::SIGTERM, signal_hook::consts::SIGINT])
 }
@@ -53,6 +60,11 @@ pub fn get_allowed_signals() -> Result<signal_hook_tokio::SignalsInfo, std::io::
 /// This function is used to generate a list of signals that the signal_handler should listen for
 ///
 #[cfg(target_os = "windows")]
+/// Retrieves the allowed signals for the DummySignal.
+/// 
+/// # Returns
+/// 
+/// - `Result<DummySignal, std::io::Error>`: A Result containing the allowed DummySignal if successful, or an std::io::Error if an error occurred.
 pub fn get_allowed_signals() -> Result<DummySignal, std::io::Error> {
     Ok(DummySignal)
 }

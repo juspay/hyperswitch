@@ -60,12 +60,15 @@ pub enum AnalyticsProvider {
 }
 
 impl Default for AnalyticsProvider {
+        /// Creates a new instance of the enum with the variant set to `Sqlx` and the inner value set to the default
+    /// implementation of `SqlxClient`.
     fn default() -> Self {
         Self::Sqlx(SqlxClient::default())
     }
 }
 
 impl ToString for AnalyticsProvider {
+        /// Converts the enum variant to a String representation.
     fn to_string(&self) -> String {
         String::from(match self {
             Self::Clickhouse(_) => "Clickhouse",
@@ -78,6 +81,7 @@ impl ToString for AnalyticsProvider {
 
 impl AnalyticsProvider {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves payment metrics based on the provided parameters and records the fetch time for each payment metric.
     pub async fn get_payment_metrics(
         &self,
         metric: &PaymentMetrics,
@@ -182,6 +186,7 @@ impl AnalyticsProvider {
         .await
     }
 
+        /// Asynchronously retrieves the payment distribution for a given set of dimensions and filters, as well as a specified time range and granularity. This method records the fetch time for each payment metric and returns a result containing a vector of tuples, where each tuple consists of a payment metrics bucket identifier and a payment distribution row. The distribution is loaded from the specified data source(s) based on the type of the self enum variant, which can be Sqlx, Clickhouse, CombinedCkh, or CombinedSqlx.
     pub async fn get_payment_distribution(
         &self,
         distribution: &Distribution,
@@ -292,6 +297,7 @@ impl AnalyticsProvider {
         .await
     }
 
+        /// Asynchronously fetches refund metrics using the provided parameters and records the time taken for the fetch operation.
     pub async fn get_refund_metrics(
         &self,
         metric: &RefundMetrics,
@@ -392,6 +398,7 @@ impl AnalyticsProvider {
         .await
     }
 
+        /// Asynchronously retrieves SDK event metrics based on the provided parameters such as metric, dimensions, public key, filters, granularity, and time range.
     pub async fn get_sdk_event_metrics(
         &self,
         metric: &SdkEventMetrics,
@@ -424,6 +431,7 @@ impl AnalyticsProvider {
         }
     }
 
+        /// Asynchronously retrieves API event metrics based on the provided parameters. The method selects the appropriate storage backend based on the self reference, and then calls the load_metrics method on the metric parameter to retrieve the metrics.
     pub async fn get_api_event_metrics(
         &self,
         metric: &ApiEventMetrics,
@@ -453,6 +461,7 @@ impl AnalyticsProvider {
         }
     }
 
+        /// Constructs an instance of AnalyticsClient based on the provided AnalyticsConfig.
     pub async fn from_conf(config: &AnalyticsConfig) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx } => Self::Sqlx(SqlxClient::from_conf(sqlx).await),
@@ -496,6 +505,7 @@ pub enum AnalyticsConfig {
 }
 
 impl Default for AnalyticsConfig {
+        /// Constructs a new instance of Self with default values for its fields.
     fn default() -> Self {
         Self::Sqlx {
             sqlx: Database::default(),

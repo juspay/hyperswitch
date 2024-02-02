@@ -7,12 +7,14 @@ use crate::{errors, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResul
 
 impl MandateNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a new record into the database using the provided connection and returns the inserted record if successful.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Mandate {
+        /// Asynchronously finds a record in the database by the given merchant ID and mandate ID.
     pub async fn find_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -27,6 +29,7 @@ impl Mandate {
         .await
     }
 
+        /// Asynchronously finds a record in the database by the given merchant ID and connector mandate ID. 
     pub async fn find_by_merchant_id_connector_mandate_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -41,6 +44,8 @@ impl Mandate {
         .await
     }
 
+        /// Asynchronously finds records by matching the merchant_id and customer_id in the database using the provided connection. 
+    /// Returns a vector of the found records or an error if the operation fails.
     pub async fn find_by_merchant_id_customer_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -63,6 +68,7 @@ impl Mandate {
         .await
     }
 
+        /// Updates a mandate in the database based on the given merchant ID and mandate ID, using the provided mandate update information. Returns a result containing the updated mandate or an error if the mandate is not found.
     pub async fn update_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
         merchant_id: &str,

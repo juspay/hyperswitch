@@ -12,11 +12,22 @@ use crate::{
     },
 };
 
+/// Checks if the given role ID corresponds to an internal role, such as internal admin or view only user.
 pub fn is_internal_role(role_id: &str) -> bool {
     role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
 }
 
+/// Retrieves a list of active roles for a specific user from the application state. 
+/// 
+/// # Arguments
+/// 
+/// * `state` - The application state containing the user roles store.
+/// * `user_id` - The unique identifier of the user for whom the roles are to be retrieved.
+/// 
+/// # Returns
+/// 
+/// A result containing a vector of active user roles, or an error if the operation fails.
 pub async fn get_active_user_roles_for_user(
     state: &AppState,
     user_id: &str,
@@ -31,6 +42,13 @@ pub async fn get_active_user_roles_for_user(
         .collect())
 }
 
+/// Validates the given role ID by checking if it is invitable based on predefined permissions.
+///
+/// # Arguments
+/// * `role_id` - A string reference containing the role ID to be validated
+///
+/// # Returns
+/// * `UserResult<()>` - A result indicating whether the role ID is valid or not
 pub fn validate_role_id(role_id: &str) -> UserResult<()> {
     if predefined_permissions::is_role_invitable(role_id) {
         return Ok(());
@@ -38,6 +56,7 @@ pub fn validate_role_id(role_id: &str) -> UserResult<()> {
     Err(UserErrors::InvalidRoleId.into())
 }
 
+/// Retrieves the name and permissions of a role and returns it as a tuple. If the role has no name, it returns None.
 pub fn get_role_name_and_permission_response(
     role_info: &RoleInfo,
 ) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
@@ -54,6 +73,7 @@ pub fn get_role_name_and_permission_response(
 }
 
 impl From<Permission> for user_role_api::Permission {
+        /// Converts a Permission enum value to its corresponding Self enum value.
     fn from(value: Permission) -> Self {
         match value {
             Permission::PaymentRead => Self::PaymentRead,

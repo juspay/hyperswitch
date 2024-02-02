@@ -54,6 +54,15 @@ pub enum DashboardMetadataUpdate {
 }
 
 impl From<DashboardMetadataUpdate> for DashboardMetadataUpdateInternal {
+        /// Creates a new instance of Self from the given DashboardMetadataUpdate.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `metadata_update` - The DashboardMetadataUpdate to create the new instance from.
+    /// 
+    /// # Returns
+    /// 
+    /// A new instance of Self created from the provided DashboardMetadataUpdate.
     fn from(metadata_update: DashboardMetadataUpdate) -> Self {
         let last_modified_at = common_utils::date_time::now();
         match metadata_update {

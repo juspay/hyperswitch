@@ -33,6 +33,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
+/// Asynchronously makes a payout method data based on the provided parameters. It retrieves the necessary token data, validates it, and performs the appropriate operation based on the presence of payout method data and hyperswitch token. It then either fetches the payout method data from the temporary locker or creates/updates the payout method data in the locker. Returns an optional PayoutMethodData as a result.
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     payout_method_data: Option<&api::PayoutMethodData>,
@@ -170,6 +171,7 @@ pub async fn make_payout_method_data<'a>(
     }
 }
 
+/// Saves the payout data to the locker for the given payout attempt, payout method data, merchant account, and key store. It determines the payment method type and stores the payout method in the locker. Then it updates the payout method in the payouts table, fetches card info from the database, inserts payment method in the payment method table, and finally returns a result indicating the success or failure of the operation.
 pub async fn save_payout_data_to_locker(
     state: &AppState,
     payout_attempt: &storage::payout_attempt::PayoutAttempt,
@@ -363,6 +365,7 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
+/// Retrieves the customer details from the database based on the provided customer ID and merchant ID. If the customer does not exist, it creates a new customer with the provided details and returns the newly created customer. If the customer already exists, it returns the existing customer details.
 pub async fn get_or_create_customer_details(
     state: &AppState,
     customer_details: &CustomerDetails,
@@ -417,6 +420,7 @@ pub async fn get_or_create_customer_details(
     }
 }
 
+/// Decide the payout connector to be used based on the given state, merchant account, request straight through algorithm, and payout routing data. 
 pub fn decide_payout_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -498,6 +502,17 @@ pub fn decide_payout_connector(
     Ok(api::PayoutConnectorCallType::Single(connector_data))
 }
 
+/// Asynchronously retrieves the default payout connector based on the provided request connector option.
+///
+/// # Arguments
+///
+/// * `_state` - The application state
+/// * `request_connector` - The optional request connector value
+///
+/// # Returns
+///
+/// * Returns a `CustomResult` containing the default `PayoutConnectorChoice` or an `ApiErrorResponse` if an error occurs.
+///
 pub async fn get_default_payout_connector(
     _state: &AppState,
     request_connector: Option<serde_json::Value>,
@@ -508,6 +523,7 @@ pub async fn get_default_payout_connector(
     ))
 }
 
+/// Determines whether the Payout Connector's create customer endpoint should be called based on the connector's requirements and the existence of the customer details. 
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &AppState,
     connector: &api::PayoutConnectorData,
@@ -532,6 +548,15 @@ pub fn should_call_payout_connector_create_customer<'a>(
     }
 }
 
+/// Checks if the given payout status indicates that a payout has been initiated.
+///
+/// # Arguments
+///
+/// * `status` - The payout status to be checked
+///
+/// # Returns
+///
+/// Returns true if the payout status is either Pending or RequiresFulfillment, indicating that a payout has been initiated.
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,
@@ -539,6 +564,7 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
     )
 }
 
+/// Checks if the given payout status represents a terminal state, i.e., a state where no further action is required.
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     !matches!(
         status,
@@ -549,6 +575,16 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
     )
 }
 
+/// Checks if the given payout status represents an error state.
+///
+/// # Arguments
+///
+/// * `status` - The payout status to be checked.
+///
+/// # Returns
+///
+/// * `true` if the status is Cancelled, Failed, or Ineligible; otherwise `false`.
+///
 pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,
@@ -558,6 +594,15 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
     )
 }
 
+/// Checks if the given payout status is eligible for local payout cancellation.
+///
+/// # Arguments
+///
+/// * `status` - The payout status to be checked for eligibility.
+///
+/// # Returns
+///
+/// Returns true if the given status is `RequiresCreation` or `RequiresPayoutMethodData`, otherwise returns false.
 pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,

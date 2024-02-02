@@ -161,6 +161,7 @@ async fn payments_create_adyen() {
 #[actix_web::test]
 // verify the API-KEY/merchant id has stripe as first choice
 #[ignore]
+/// This method is used to simulate a failed payment creation scenario. It sends a POST request to an endpoint with invalid request data, then sends a GET request to another endpoint with invalid api key, and asserts that the responses are as expected.
 async fn payments_create_fail() {
     Box::pin(utils::setup()).await;
 
@@ -220,6 +221,7 @@ async fn payments_create_fail() {
 
 #[actix_web::test]
 #[ignore]
+/// Asynchronously sends requests to the payment service endpoints to retrieve pending payment tasks, and then subsequently confirms or cancels the payments. 
 async fn payments_todo() {
     Box::pin(utils::setup()).await;
 
@@ -254,6 +256,7 @@ async fn payments_todo() {
 }
 
 #[test]
+/// This method creates a list of connectors, serializes it to JSON, then deserializes it back into a new list. It then prints out the JSON representation of the original list and the deserialized list and finally asserts that true is equal to true.
 fn connector_list() {
     let connector_list = types::ConnectorsList {
         connectors: vec![String::from("stripe"), "adyen".to_string()],
@@ -447,6 +450,7 @@ async fn payments_create_core() {
 
 #[actix_rt::test]
 #[ignore]
+/// This method is used to create a payment request without redirecting the user to a different page. It involves setting up the necessary payment details, including customer ID, merchant ID, payment ID, and other payment-specific information. It then fetches the merchant key store and account from the database, constructs a payment request, and sends it to the payment service. Finally, it compares the expected response with the actual response and asserts their equality.
 async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");

@@ -10,6 +10,15 @@ use crate::{
 
 impl BlocklistLookupNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a new record into the database using the given connection.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a `PgPooledConn` which represents a connection to the database.
+    /// 
+    /// # Returns
+    /// 
+    /// The result of the insertion operation, wrapped in a `StorageResult` which may contain a `BlocklistLookup` if successful.
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BlocklistLookup> {
         generics::generic_insert(conn, self).await
     }
@@ -17,6 +26,8 @@ impl BlocklistLookupNew {
 
 impl BlocklistLookup {
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the provided merchant_id and fingerprint.
+    /// Returns a StorageResult containing the found record if successful, or an error if the operation fails.
     pub async fn find_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -32,6 +43,8 @@ impl BlocklistLookup {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously deletes a record from the database table associated with the given type `Self`
+    /// by matching the `merchant_id` and `fingerprint` fields with the provided values.
     pub async fn delete_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
         merchant_id: &str,

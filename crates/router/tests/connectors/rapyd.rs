@@ -13,6 +13,7 @@ use crate::{
 struct Rapyd;
 impl ConnectorActions for Rapyd {}
 impl utils::Connector for Rapyd {
+        /// Retrieves the connector data for the Rapyd connector.
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Rapyd;
         types::api::ConnectorData {
@@ -23,6 +24,13 @@ impl utils::Connector for Rapyd {
         }
     }
 
+        /// Retrieve the authentication token for the connector.
+    ///
+    /// This method retrieves the authentication token for the connector by creating a new `ConnectorAuthentication` instance, accessing the `rapyd` property, and converting it to a `ConnectorAuthType` using the `utils::to_connector_auth_type` function. If the `rapyd` property is missing, an error message is thrown.
+    ///
+    /// # Returns
+    ///
+    /// The authentication token in the form of a `ConnectorAuthType`.
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
@@ -32,12 +40,14 @@ impl utils::Connector for Rapyd {
         )
     }
 
+        /// Returns the name "rapyd" as a String.
     fn get_name(&self) -> String {
-        "rapyd".to_string()
-    }
+            "rapyd".to_string()
+        }
 }
 
 #[actix_web::test]
+/// Asynchronously authorizes a payment using Rapyd API with specific payment details
 async fn should_only_authorize_payment() {
     let response = Rapyd {}
         .authorize_payment(
@@ -66,6 +76,8 @@ async fn should_only_authorize_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously authorizes and captures a payment using Rapyd API with the provided payment data.
+/// 
 async fn should_authorize_and_capture_payment() {
     let response = Rapyd {}
         .make_payment(
@@ -93,6 +105,7 @@ async fn should_authorize_and_capture_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously checks if the payment is already authorized and captures it if it is.
 async fn should_capture_already_authorized_payment() {
     let connector = Rapyd {};
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
@@ -112,6 +125,7 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 #[serial]
+/// Asynchronously tests that attempting to void an already authorized payment fails. It does this by first authorizing a payment using the Rapyd connector, then attempting to void the payment using the same connector. The method asserts that the authorization response status is 'Authorized', gets the transaction ID from the response, and then uses it to attempt to void the payment. Finally, it asserts that the response from the voiding attempt is 'Failure', as Rapyd does not allow authorized payments to be voided.
 async fn voiding_already_authorized_payment_fails() {
     let connector = Rapyd {};
     let authorize_response = connector.authorize_payment(None, None).await.unwrap();
@@ -130,6 +144,7 @@ async fn voiding_already_authorized_payment_fails() {
 }
 
 #[actix_web::test]
+/// Asynchronously makes a successful payment using the Rapyd connector and then attempts to refund the payment. If the payment is successful, the method will check the refund status and assert that the refund was successful.
 async fn should_refund_succeeded_payment() {
     let connector = Rapyd {};
     //make a successful payment
@@ -149,6 +164,7 @@ async fn should_refund_succeeded_payment() {
 }
 
 #[actix_web::test]
+/// Asynchronously attempts to make a payment with an incorrect card number and asserts that the payment fails.
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = Rapyd {}
         .make_payment(

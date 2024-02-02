@@ -28,6 +28,12 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads metrics for API events based on the provided dimensions, merchant ID,
+    /// filters, granularity, time range, and database connection pool. It constructs a query to
+    /// retrieve the sum of latency, count of latency, and the minimum and maximum created_at values,
+    /// applies the provided filters and merchant ID, executes the query, processes the results,
+    /// and returns a vector of tuples containing the bucket identifier and the metric row for each
+    /// API event.
     async fn load_metrics(
         &self,
         _dimensions: &[ApiEventDimensions],

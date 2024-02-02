@@ -53,6 +53,7 @@ pub enum UserRoleUpdate {
 }
 
 impl From<UserRoleUpdate> for UserRoleUpdateInternal {
+        /// Converts a UserRoleUpdate enum into a UserRole struct with the necessary fields populated based on the variant of the enum.
     fn from(value: UserRoleUpdate) -> Self {
         let last_modified = common_utils::date_time::now();
         match value {

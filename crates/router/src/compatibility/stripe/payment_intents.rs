@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
+/// Handles the creation of a payment intent by processing the form payload, extracting the necessary data, and making a call to the payments_core function. Returns the result of the payments_core function as a response.
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -69,6 +70,7 @@ pub async fn payment_intents_create(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+/// Retrieves a payment intent from the Stripe API using the provided client secret and authentication headers.
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -129,6 +131,7 @@ pub async fn payment_intents_retrieve(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+/// Retrieves a payment intent using gateway credentials and returns an HTTP response.
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -193,6 +196,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
+/// Asynchronously updates a payment intent using the provided form data and request parameters.
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -259,6 +263,7 @@ pub async fn payment_intents_update(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
+/// Handles the confirmation of a payment intent by processing the request payload and performing the necessary authentication and payment confirmation steps. Returns an HTTP response indicating the success or failure of the payment confirmation.
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -327,6 +332,7 @@ pub async fn payment_intents_confirm(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
+/// Asynchronously captures a payment intent using the provided form payload and request data.
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -384,6 +390,7 @@ pub async fn payment_intents_capture(
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
+/// Handles the cancellation of a payment intent by processing the request payload, extracting the payment ID from the path, and triggering the payments cancellation flow. It also handles authentication, locking, and error handling, and returns a response containing the result of the payment cancellation.
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -446,6 +453,7 @@ pub async fn payment_intents_cancel(
 }
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
+/// Asynchronously handles the request to retrieve a list of payment intents based on the provided constraints.
 pub async fn payment_intent_list(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

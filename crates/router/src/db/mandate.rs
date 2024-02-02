@@ -48,6 +48,17 @@ pub trait MandateInterface {
 
 #[async_trait::async_trait]
 impl MandateInterface for Store {
+        /// Asynchronously finds a mandate by the given merchant ID and mandate ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A string reference representing the merchant ID to search for.
+    /// * `mandate_id` - A string reference representing the mandate ID to search for.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `storage::Mandate` if the mandate is found, or an `errors::StorageError` if an error occurs.
+    ///
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -60,6 +71,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds a mandate by its merchant ID and connector mandate ID in the storage. Returns a `CustomResult` containing the found `storage::Mandate` or a `StorageError` if an error occurs.
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
         merchant_id: &str,
@@ -76,6 +88,17 @@ impl MandateInterface for Store {
         .into_report()
     }
 
+        /// Asynchronously finds a mandate by the given merchant ID and customer ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A string slice representing the merchant ID.
+    /// * `customer_id` - A string slice representing the customer ID.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `storage::Mandate` if successful, otherwise an `errors::StorageError`.
+    /// 
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -88,6 +111,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously updates a mandate by the given merchant id and mandate id using the provided mandate update information.
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -101,6 +125,17 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously finds mandates by the given merchant ID and mandate constraints.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `mandate_constraints` - A `MandateListConstraints` object representing the constraints to filter the mandates.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `Mandate` objects if successful, otherwise a `StorageError`.
+    /// 
     async fn find_mandates_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -113,6 +148,14 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+        /// Asynchronously inserts a new mandate into the storage.
+    /// 
+    /// # Arguments
+    /// * `mandate` - A `storage::MandateNew` struct representing the new mandate to be inserted.
+    /// 
+    /// # Returns
+    /// A `CustomResult` containing the inserted `storage::Mandate` or a `StorageError` if the insertion fails.
+    /// 
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,
@@ -128,6 +171,7 @@ impl MandateInterface for Store {
 
 #[async_trait::async_trait]
 impl MandateInterface for MockDb {
+        /// Asynchronously finds a mandate by the given merchant ID and mandate ID in the storage. Returns a CustomResult with the found mandate if it exists, otherwise returns a StorageError indicating that the mandate was not found.
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -143,6 +187,9 @@ impl MandateInterface for MockDb {
             .map_err(|err| err.into())
     }
 
+        /// Asynchronously finds a mandate by merchant ID and connector mandate ID in the storage. 
+    /// Returns a `CustomResult` containing the found `storage::Mandate` if it exists, 
+    /// otherwise returns a `StorageError` indicating that the mandate was not found.
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
         merchant_id: &str,
@@ -161,6 +208,16 @@ impl MandateInterface for MockDb {
             .map_err(|err| err.into())
     }
 
+        /// Asynchronously finds a mandate by merchant ID and customer ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_id` - A reference to a string representing the merchant ID.
+    /// * `customer_id` - A reference to a string representing the customer ID.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing a vector of `storage::Mandate` or a `StorageError`.
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -178,6 +235,8 @@ impl MandateInterface for MockDb {
             .collect());
     }
 
+        /// Updates a mandate based on the merchant ID and mandate ID with the provided mandate update.
+    /// Returns a result containing the updated mandate or a storage error if the mandate is not found.
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -223,6 +282,8 @@ impl MandateInterface for MockDb {
         }
     }
 
+        /// Asynchronously finds mandates by merchant ID based on the provided constraints.
+    /// Returns a vector of storage mandates or a storage error.
     async fn find_mandates_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -254,7 +315,7 @@ impl MandateInterface for MockDb {
             }
             checker
         });
-
+    
         let mandates: Vec<storage::Mandate> = if let Some(limit) = mandate_constraints.limit {
             #[allow(clippy::as_conversions)]
             mandates_iter
@@ -267,6 +328,7 @@ impl MandateInterface for MockDb {
         Ok(mandates)
     }
 
+        /// Asynchronously inserts a new mandate into the storage and returns the inserted mandate.
     async fn insert_mandate(
         &self,
         mandate_new: storage::MandateNew,

@@ -19,6 +19,7 @@ pub struct ProcessTrackerBatch {
 }
 
 impl ProcessTrackerBatch {
+        /// Converts the fields of the struct into pairs of field names and their corresponding values in a format suitable for storing in a Redis database. Returns a vector of tuples where the first element is the field name and the second element is the field value.
     pub fn to_redis_field_value_pairs(
         &self,
     ) -> CustomResult<Vec<(&str, String)>, errors::ProcessTrackerError> {
@@ -44,6 +45,8 @@ impl ProcessTrackerBatch {
         ])
     }
 
+        /// Takes a HashMap representing a Redis stream entry and attempts to parse it into a ProcessTracker object.
+    /// Returns a Result with the parsed ProcessTracker object or a ProcessTrackerError if any required field is missing or parsing fails.
     pub fn from_redis_stream_entry(
         entry: HashMap<String, Option<String>>,
     ) -> CustomResult<Self, errors::ProcessTrackerError> {

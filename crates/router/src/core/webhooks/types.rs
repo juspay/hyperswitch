@@ -17,6 +17,10 @@ pub trait OutgoingWebhookType:
 }
 
 impl OutgoingWebhookType for webhooks::OutgoingWebhook {
+        /// This method generates the signature for outgoing webhooks using the provided payment response hash key.
+    /// It encodes the self object to a JSON string, then uses the provided hash key to sign the encoded payload
+    /// using HMAC-SHA512 algorithm. The resulting signature is then optionally encoded to a hex string and
+    /// returned as an Option. If the encoding or signing process fails, it returns a WebhooksFlowError.
     fn get_outgoing_webhooks_signature(
         &self,
         payment_response_hash_key: Option<String>,
@@ -39,6 +43,13 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
             .attach_printable("Failed to sign the message")?
             .map(hex::encode))
     }
+        /// Adds a webhook signature header to the provided Vec of headers.
+    ///
+    /// # Arguments
+    ///
+    /// * `header` - A mutable reference to a Vec of tuples containing strings and Maskable<String> types
+    /// * `signature` - The signature to be added to the header
+    ///
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
         header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }

@@ -7,6 +7,9 @@ use crate::{
     types::{currency_match, ExchangeRates},
 };
 
+/// This method converts an amount of money from one currency to another using the provided exchange rates.
+/// It takes in the exchange rates, the currency to convert from, the currency to convert to, and the amount to convert.
+/// It then calculates the conversion using the exchange rates and returns the result as a Decimal, or an error if the conversion fails.
 pub fn convert(
     ex_rates: &ExchangeRates,
     from_currency: Currency,
@@ -33,6 +36,7 @@ mod tests {
 
     use crate::types::CurrencyFactors;
     #[test]
+        /// Creates a currency-to-currency conversion using exchange rates and calculates the converted amount.
     fn currency_to_currency_conversion() {
         use super::*;
         let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
@@ -56,6 +60,7 @@ mod tests {
     }
 
     #[test]
+        /// Converts a given amount from one currency to another based on the provided conversion rates and currency factors.
     fn currency_to_base_conversion() {
         use super::*;
         let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
@@ -78,6 +83,7 @@ mod tests {
     }
 
     #[test]
+        /// Creates a base to currency conversion using a sample rate and converts a specified amount from one currency to another.
     fn base_to_currency_conversion() {
         use super::*;
         let mut conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();

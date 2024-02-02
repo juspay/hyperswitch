@@ -22,6 +22,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+/// Saves a payment method to the database based on the response received.
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -177,6 +178,7 @@ where
     }
 }
 
+/// Asynchronously skips saving the payment card in the merchant's locker. It generates a payment method ID, extracts necessary card details, and constructs a payment method response based on the provided merchant account and payment method request. If a card is included in the payment method request, it creates a card detail from the locker and returns a payment method response with the card detail included. If no card is included, it generates a payment method ID and returns a payment method response without a card detail.
 async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
@@ -256,6 +258,22 @@ async fn skip_saving_card_in_locker(
     }
 }
 
+/// Saves a payment method in the locker for a specific merchant account and customer.
+///
+/// # Arguments
+///
+/// * `state` - The application state
+/// * `merchant_account` - The merchant account for which the payment method is being saved
+/// * `payment_method_request` - The request containing the details of the payment method to be saved
+///
+/// # Returns
+///
+/// A tuple containing the payment method response and a boolean indicating whether the operation was successful or not
+///
+/// # Errors
+///
+/// This method can return an error if the payment method request validation fails or if there are any internal server errors.
+///
 pub async fn save_in_locker(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -299,6 +317,7 @@ pub async fn save_in_locker(
     }
 }
 
+/// Creates payment method metadata by combining the given metadata with connector token information.
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
     connector_token: Option<(&api::ConnectorData, String)>,
@@ -322,6 +341,7 @@ pub fn create_payment_method_metadata(
     }))
 }
 
+/// Adds a payment method token using the provided tokenization action and data. 
 pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     state: &AppState,
     connector: &api::ConnectorData,

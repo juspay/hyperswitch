@@ -78,6 +78,7 @@ where
 
 #[async_trait::async_trait]
 impl MerchantAccountInterface for Store {
+        /// Asynchronously inserts a new merchant account into the database after constructing a new account, encrypting the data, and converting the merchant key. Returns a Result containing the inserted domain::MerchantAccount or an errors::StorageError.
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
@@ -97,6 +98,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously finds a merchant account by the given merchant ID using the provided merchant key store.
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -129,6 +131,7 @@ impl MerchantAccountInterface for Store {
         }
     }
 
+        /// Asynchronously updates a merchant account in the storage, using the provided merchant account data and key store. Returns a CustomResult with the updated merchant account if successful, or a StorageError if an error occurs during the update process.
     async fn update_merchant(
         &self,
         this: domain::MerchantAccount,
@@ -155,6 +158,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously updates specific fields in a merchant account and returns the updated merchant account.
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
@@ -181,6 +185,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+        /// Asynchronously finds a merchant account by the given publishable key. This method first checks if the "accounts_cache" feature is enabled, and if so, it attempts to retrieve the merchant account from the in-memory cache. If the feature is not enabled, or if the cache does not contain the account, it fetches the account from the database. Once the merchant account is retrieved, it obtains the key store associated with the merchant ID and the master key, and returns an `authentication::AuthenticationData` struct containing the decrypted merchant account and the key store.
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -228,6 +233,10 @@ impl MerchantAccountInterface for Store {
     }
 
     #[cfg(feature = "olap")]
+        /// Retrieves a list of merchant accounts associated with the given organization ID. This method
+    /// decrypts the encrypted merchant accounts using the master key, retrieves the corresponding
+    /// merchant key stores, and converts the decrypted merchant accounts. It returns a vector
+    /// containing the domain::MerchantAccount objects.
     async fn list_merchant_accounts_by_organization_id(
         &self,
         organization_id: &str,
@@ -268,43 +277,45 @@ impl MerchantAccountInterface for Store {
         Ok(merchant_accounts)
     }
 
-    async fn delete_merchant_account_by_merchant_id(
-        &self,
-        merchant_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-
-        let is_deleted_func = || async {
-            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-                .await
-                .map_err(Into::into)
-                .into_report()
-        };
-
-        let is_deleted;
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            is_deleted = is_deleted_func().await?;
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            let merchant_account =
-                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+        /// Asynchronously deletes a merchant account by its ID. If the 'accounts_cache' feature is enabled, it also updates the merchant account cache after deletion.
+        async fn delete_merchant_account_by_merchant_id(
+            &self,
+            merchant_id: &str,
+        ) -> CustomResult<bool, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+    
+            let is_deleted_func = || async {
+                storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
                     .await
                     .map_err(Into::into)
-                    .into_report()?;
-
-            is_deleted = is_deleted_func().await?;
-
-            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
+                    .into_report()
+            };
+    
+            let is_deleted;
+    
+            #[cfg(not(feature = "accounts_cache"))]
+            {
+                is_deleted = is_deleted_func().await?;
+            }
+    
+            #[cfg(feature = "accounts_cache")]
+            {
+                let merchant_account =
+                    storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()?;
+    
+                is_deleted = is_deleted_func().await?;
+    
+                publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
+            }
+    
+            Ok(is_deleted)
         }
 
-        Ok(is_deleted)
-    }
-
     #[cfg(feature = "olap")]
+        /// Retrieves multiple merchant accounts from the database, decrypts their encrypted data using the corresponding key stores, and returns the decrypted merchant accounts.
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<String>,
@@ -359,6 +370,17 @@ impl MerchantAccountInterface for Store {
 #[async_trait::async_trait]
 impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
+        /// Asynchronously inserts a merchant account into the storage, encrypting the account data using the provided merchant key store.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `merchant_account` - The merchant account to be inserted into the storage.
+    /// * `merchant_key_store` - The key store used for encrypting the merchant account data.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the inserted merchant account if successful, otherwise a `StorageError` is returned.
+    /// 
     async fn insert_merchant(
         &self,
         mut merchant_account: domain::MerchantAccount,
@@ -384,6 +406,17 @@ impl MerchantAccountInterface for MockDb {
     }
 
     #[allow(clippy::panic)]
+        /// Asynchronously finds a merchant account by the given merchant ID using the provided merchant key store.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_id` - A reference to a string representing the merchant ID to search for.
+    /// * `merchant_key_store` - A reference to a `MerchantKeyStore` containing the keys necessary for decryption.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a `MerchantAccount` if found, or a `StorageError` if not found or if an error occurs during decryption.
+    ///
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -409,6 +442,22 @@ impl MerchantAccountInterface for MockDb {
         }
     }
 
+        /// Updates a merchant account with the provided merchant account update and merchant key store.
+    /// 
+    /// # Arguments
+    /// 
+    /// - `_this`: The merchant account to be updated.
+    /// - `_merchant_account`: The update to be applied to the merchant account.
+    /// - `_merchant_key_store`: The key store for the merchant.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing the updated `MerchantAccount` if successful, otherwise a `StorageError`.
+    /// 
+    /// # Errors
+    /// 
+    /// An error of type `StorageError` is returned if the update operation fails.
+    /// 
     async fn update_merchant(
         &self,
         _this: domain::MerchantAccount,
@@ -419,6 +468,22 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Asynchronously updates specific fields in a merchant account in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The ID of the merchant account to be updated.
+    /// * `_merchant_account` - The updated merchant account information.
+    /// * `_merchant_key_store` - The key store for the merchant account.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `CustomResult` containing the updated `MerchantAccount` if successful, otherwise returns a `StorageError`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `StorageError::MockDbError` if the function for `MockDb` is not implemented.
+    ///
     async fn update_specific_fields_in_merchant(
         &self,
         _merchant_id: &str,
@@ -429,6 +494,16 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Asynchronously finds a merchant account using the provided publishable key.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_publishable_key` - A reference to a string containing the publishable key to search for.
+    /// 
+    /// # Returns
+    /// 
+    /// * `CustomResult<authentication::AuthenticationData, errors::StorageError>` - Result containing the found merchant account data if successful, or a `StorageError` if there was an error.
+    /// 
     async fn find_merchant_account_by_publishable_key(
         &self,
         _publishable_key: &str,
@@ -437,6 +512,16 @@ impl MerchantAccountInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+        /// Deletes a merchant account by the given merchant ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_id` - The ID of the merchant account to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` containing a boolean value indicating whether the deletion was successful or not, or a `StorageError` if an error occurred.
+    ///
     async fn delete_merchant_account_by_merchant_id(
         &self,
         _merchant_id: &str,
@@ -446,6 +531,16 @@ impl MerchantAccountInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+        /// Asynchronously retrieves a list of merchant accounts associated with the specified organization ID.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `organization_id` - A string slice representing the unique identifier of the organization.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` that contains a `Vec` of `domain::MerchantAccount` if successful, otherwise an `errors::StorageError` is returned.
+    /// 
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _organization_id: &str,
@@ -454,6 +549,20 @@ impl MerchantAccountInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
+        /// Asynchronously retrieves multiple merchant accounts by their IDs from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `merchant_ids` - A vector of strings representing the IDs of the merchant accounts to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// A `CustomResult` that resolves to a vector of `MerchantAccount` objects if the operation is successful, otherwise an `errors::StorageError` is returned.
+    ///
+    /// # Errors
+    ///
+    /// An `errors::StorageError::MockDbError` will be returned if the operation encounters a mock database error.
+    ///
     async fn list_multiple_merchant_accounts(
         &self,
         _merchant_ids: Vec<String>,
@@ -463,6 +572,17 @@ impl MerchantAccountInterface for MockDb {
 }
 
 #[cfg(feature = "accounts_cache")]
+/// Asynchronously publishes the merchant account information into a cache and then redacts it.
+///
+/// # Arguments
+///
+/// * `store` - A reference to a storage interface.
+/// * `merchant_account` - A reference to the merchant account to be published and redacted.
+///
+/// # Returns
+///
+/// A Result containing either `()` on success or a `StorageError` on failure.
+///
 async fn publish_and_redact_merchant_account_cache(
     store: &dyn super::StorageInterface,
     merchant_account: &storage::MerchantAccount,

@@ -156,6 +156,7 @@ impl AwsSes {
         Ok(Client::new(&ses_config))
     }
 
+        /// Retrieves the shared configuration for AWS SES based on the specified region and optional proxy URL.
     fn get_shared_config(
         region: String,
         proxy_url: Option<impl AsRef<str>>,
@@ -175,6 +176,7 @@ impl AwsSes {
         Ok(config)
     }
 
+        /// This method takes a proxy URL, creates a `hyper_proxy::ProxyConnector` using the provided URL, and returns a `CustomResult` containing the connector or an `AwsSesError` if the process fails.
     fn get_proxy_connector(
         proxy_url: impl AsRef<str>,
     ) -> CustomResult<hyper_proxy::ProxyConnector<hyper::client::HttpConnector>, AwsSesError> {
@@ -197,6 +199,7 @@ impl AwsSes {
 impl EmailClient for AwsSes {
     type RichText = Body;
 
+        /// Converts the given intermediate string into rich text format and returns a result containing the rich text or an EmailError.
     fn convert_to_rich_text(
         &self,
         intermediate_string: IntermediateString,
@@ -213,6 +216,19 @@ impl EmailClient for AwsSes {
         Ok(email_body)
     }
 
+        /// Asynchronously sends an email using the specified recipient, subject, body, and optional proxy URL. 
+    /// 
+    /// # Arguments
+    /// 
+    /// * `recipient` - The email address of the recipient.
+    /// * `subject` - The subject of the email.
+    /// * `body` - The body of the email in rich text format.
+    /// * `proxy_url` - An optional proxy URL to use for sending the email.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` with a `()` indicating success or an `EmailError` indicating a failure in sending the email.
+    /// 
     async fn send_email(
         &self,
         recipient: pii::Email,

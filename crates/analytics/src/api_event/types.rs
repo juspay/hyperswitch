@@ -11,6 +11,7 @@ where
     T: AnalyticsDataSource,
     AnalyticsCollection: ToSql<T>,
 {
+        /// Sets filter clauses for status code, flow type, and API flow on the given QueryBuilder.
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         if !self.status_code.is_empty() {
             builder

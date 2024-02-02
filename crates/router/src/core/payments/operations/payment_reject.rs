@@ -32,6 +32,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
+        /// Retrieves the trackers for a given payment and returns a RouterResult containing the GetTrackerResponse.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -181,6 +182,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
+        /// Updates the payment trackers based on the provided payment data and other parameters.
+    /// Returns a tuple containing a boxed operation and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
@@ -248,6 +251,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsCan
     for PaymentReject
 {
     #[instrument(skip_all)]
+        /// Validates a payments cancel request using the provided merchant account information.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsCancelRequest,

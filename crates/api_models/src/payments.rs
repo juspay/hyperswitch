@@ -333,6 +333,7 @@ pub struct PaymentsRequest {
 }
 
 impl PaymentsRequest {
+        /// Returns the total capturable amount, which is the sum of the base amount and the surcharge amount if available.
     pub fn get_total_capturable_amount(&self) -> Option<i64> {
         let surcharge_amount = self
             .surcharge_details
@@ -389,9 +390,14 @@ pub struct BrowserInformation {
 }
 
 impl RequestSurchargeDetails {
+        /// Checks if the surcharge amount and tax amount are both zero.
+    /// 
+    /// Returns true if the surcharge amount is zero and the tax amount is either zero or not present, 
+    /// otherwise returns false.
     pub fn is_surcharge_zero(&self) -> bool {
         self.surcharge_amount == 0 && self.tax_amount.unwrap_or(0) == 0
     }
+        /// Calculates the total surcharge amount by adding the surcharge amount to the tax amount if it exists, or 0 if the tax amount is None.
     pub fn get_total_surcharge_amount(&self) -> i64 {
         self.surcharge_amount + self.tax_amount.unwrap_or(0)
     }
@@ -404,6 +410,12 @@ pub struct HeaderPayload {
 }
 
 impl HeaderPayload {
+        /// Creates a new instance of Self with the given payment_confirm_source.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `payment_confirm_source` - The payment source to be associated with the instance.
+    /// 
     pub fn with_source(payment_confirm_source: api_enums::PaymentSource) -> Self {
         Self {
             payment_confirm_source: Some(payment_confirm_source),
@@ -499,6 +511,15 @@ pub struct CaptureResponse {
 }
 
 impl PaymentsRequest {
+        /// Retrieves the feature metadata as a JSON Value, if it exists. 
+    /// 
+    /// If the feature metadata exists, it encodes it to a JSON Value using the `Encode` trait
+    /// and returns it wrapped in a `Some` option. If the feature metadata is empty, it returns `None`.
+    /// 
+    /// # Returns
+    /// 
+    /// A `CustomResult` containing either a `Some` option with the JSON Value of the feature metadata,
+    /// or an error of type `ParsingError` if there was an issue with encoding the metadata.
     pub fn get_feature_metadata_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
@@ -511,6 +532,10 @@ impl PaymentsRequest {
             .transpose()
     }
 
+        /// Retrieves the connector metadata as a `serde_json::Value` if it exists, otherwise returns `None`.
+    ///
+    /// # Returns
+    /// Returns a `CustomResult` containing either the `serde_json::Value` of the connector metadata or a `ParsingError` if an error occurs during parsing.
     pub fn get_connector_metadata_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
@@ -523,6 +548,9 @@ impl PaymentsRequest {
             .transpose()
     }
 
+        /// Retrieves the allowed payment method types as a serde_json::Value object wrapped in a common_utils::errors::CustomResult. 
+    /// If the allowed_payment_method_types is Some, it encodes the Vec<api_enums::PaymentMethodType> to a serde_json::Value and returns it. 
+    /// If the allowed_payment_method_types is None, it returns None.
     pub fn get_allowed_payment_method_types_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
@@ -535,6 +563,7 @@ impl PaymentsRequest {
             .transpose()
     }
 
+        /// Retrieves the order details as a vector of SecretSerdeValue wrapped in an Option, or returns a ParsingError if parsing fails.
     pub fn get_order_details_as_value(
         &self,
     ) -> common_utils::errors::CustomResult<
@@ -563,6 +592,15 @@ pub enum Amount {
 }
 
 impl From<Amount> for i64 {
+    /// Converts an Amount enum variant into the corresponding value.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `amount` - An enum variant of the Amount type.
+    /// 
+    /// # Returns
+    /// 
+    /// The value associated with the Amount enum variant, or 0 if the variant is Amount::Zero.
     fn from(amount: Amount) -> Self {
         match amount {
             Amount::Value(val) => val.get(),
@@ -572,6 +610,9 @@ impl From<Amount> for i64 {
 }
 
 impl From<i64> for Amount {
+        /// Creates a new instance of `Self` from the given `i64` value.
+    /// If the value is non-zero, it will be wrapped in a `NonZeroI64` and mapped to an `Amount::Value`.
+    /// If the value is zero, `Self::Zero` will be returned.
     fn from(val: i64) -> Self {
         NonZeroI64::new(val).map_or(Self::Zero, Amount::Value)
     }
@@ -641,6 +682,7 @@ pub struct UpdateHistory {
 }
 
 impl MandateIds {
+        /// Create a new instance of the struct with the given mandate_id.
     pub fn new(mandate_id: String) -> Self {
         Self {
             mandate_id,
@@ -701,6 +743,7 @@ pub enum MandateType {
 }
 
 impl Default for MandateType {
+        /// Creates a new instance of the enum with the variant `MultiUse` set to `None`.
     fn default() -> Self {
         Self::MultiUse(None)
     }
@@ -783,6 +826,7 @@ pub struct Card {
 }
 
 impl Card {
+        /// Applies additional card information to the existing card details and returns a new instance of the struct with the updated information.
     fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
         Self {
             card_number: self.card_number.clone(),
@@ -968,6 +1012,7 @@ pub enum PaymentMethodData {
 }
 
 impl PaymentMethodData {
+        /// Returns the payment method type if the session token type matches a specific wallet or pay later method.
     pub fn get_payment_method_type_if_session_token_type(
         &self,
     ) -> Option<api_enums::PaymentMethodType> {
@@ -996,6 +1041,10 @@ impl PaymentMethodData {
             | Self::CardToken(_) => None,
         }
     }
+        /// Applies additional payment data to the existing payment method.
+    ///
+    /// If the additional payment data is of type Card, it applies the additional card info to the existing payment card.
+    /// If the additional payment data is not of type Card, it returns a copy of the existing payment method.
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
@@ -1018,6 +1067,7 @@ pub trait GetPaymentMethodType {
 }
 
 impl GetPaymentMethodType for CardRedirectData {
+        /// This method returns the payment method type based on the variant of the enum.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::Knet {} => api_enums::PaymentMethodType::Knet,
@@ -1029,6 +1079,7 @@ impl GetPaymentMethodType for CardRedirectData {
 }
 
 impl GetPaymentMethodType for WalletData {
+        /// This method returns the type of payment method based on the enum variant of the current object.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
@@ -1061,6 +1112,7 @@ impl GetPaymentMethodType for WalletData {
 }
 
 impl GetPaymentMethodType for PayLaterData {
+        /// Returns the payment method type based on the specific payment method variant.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
@@ -1076,6 +1128,7 @@ impl GetPaymentMethodType for PayLaterData {
 }
 
 impl GetPaymentMethodType for BankRedirectData {
+        /// Returns the type of payment method based on the enum variant of the current instance.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
@@ -1106,6 +1159,7 @@ impl GetPaymentMethodType for BankRedirectData {
 }
 
 impl GetPaymentMethodType for BankDebitData {
+        /// Returns the type of payment method based on the enum variant.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
@@ -1117,6 +1171,7 @@ impl GetPaymentMethodType for BankDebitData {
 }
 
 impl GetPaymentMethodType for BankTransferData {
+        /// Returns the type of payment method based on the enum variant
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankTransfer { .. } => api_enums::PaymentMethodType::Ach,
@@ -1137,17 +1192,20 @@ impl GetPaymentMethodType for BankTransferData {
 }
 
 impl GetPaymentMethodType for CryptoData {
+        /// Returns the payment method type as a `PaymentMethodType` enum, specifically `CryptoCurrency`.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         api_enums::PaymentMethodType::CryptoCurrency
     }
 }
 
 impl GetPaymentMethodType for UpiData {
+        /// This method returns the payment method type as UPI Collect.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         api_enums::PaymentMethodType::UpiCollect
     }
 }
 impl GetPaymentMethodType for VoucherData {
+        /// Returns the type of payment method based on the enum variant.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::Boleto(_) => api_enums::PaymentMethodType::Boleto,
@@ -1168,6 +1226,7 @@ impl GetPaymentMethodType for VoucherData {
     }
 }
 impl GetPaymentMethodType for GiftCardData {
+        /// Returns the type of payment method associated with the enum variant.
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::Givex(_) => api_enums::PaymentMethodType::Givex,
@@ -1814,6 +1873,7 @@ pub enum PaymentIdType {
 }
 
 impl std::fmt::Display for PaymentIdType {
+        /// Formats the enum variant into a string representation.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::PaymentIntentId(payment_id) => {
@@ -1834,6 +1894,7 @@ impl std::fmt::Display for PaymentIdType {
 }
 
 impl PaymentIdType {
+        /// Calls the function `f` with the value inside the `Result`, and returns a new `Result` with the original enum variant and the result of the function `f` applied to the value inside the original `Result`. If the original enum variant is `PaymentIntentId`, the function `f` will be applied to the value inside the `Result` and then wrapped in a new `Result` with the `PaymentIntentId` variant. The same process applies to other enum variants.
     pub fn and_then<F, E>(self, f: F) -> Result<Self, E>
     where
         F: FnOnce(String) -> Result<String, E>,
@@ -1848,6 +1909,7 @@ impl PaymentIdType {
 }
 
 impl Default for PaymentIdType {
+        /// Creates a new instance of `Self` with a default `PaymentIntentId`.
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
     }
@@ -2560,6 +2622,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
+/// Returns the default limit value, which is 10.
 fn default_limit() -> u32 {
     10
 }
@@ -2579,6 +2642,7 @@ pub struct MandateValidationFields {
 }
 
 impl From<&PaymentsRequest> for MandateValidationFields {
+        /// Constructs a new instance of PaymentsRequest from the given PaymentsRequest object.
     fn from(req: &PaymentsRequest) -> Self {
         Self {
             mandate_id: req.mandate_id.clone(),
@@ -2597,6 +2661,7 @@ impl From<&PaymentsRequest> for MandateValidationFields {
 }
 
 impl From<&VerifyRequest> for MandateValidationFields {
+        /// Creates a new instance of Self by converting a VerifyRequest into the required type.
     fn from(req: &VerifyRequest) -> Self {
         Self {
             mandate_id: None,
@@ -2610,6 +2675,7 @@ impl From<&VerifyRequest> for MandateValidationFields {
 }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+        /// Converts a PaymentsSessionRequest into a new instance of Self, initializing the session_token as an empty vector and setting the payment_id and client_secret based on the input item.
     fn from(item: PaymentsSessionRequest) -> Self {
         let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
         Self {
@@ -2621,6 +2687,7 @@ impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
 }
 
 impl From<PaymentsStartRequest> for PaymentsRequest {
+        /// Converts a PaymentsStartRequest struct into a new instance of Self, initializing the payment_id and merchant_id fields based on the input item, while setting all other fields to their default values.
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
             payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
@@ -2631,6 +2698,7 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
 }
 
 impl From<AdditionalCardInfo> for CardResponse {
+        /// Creates a new instance of `Self` (presumably a struct or enum) by copying the fields of the provided `AdditionalCardInfo` instance `card`.
     fn from(card: AdditionalCardInfo) -> Self {
         Self {
             last4: card.last4,
@@ -2648,6 +2716,7 @@ impl From<AdditionalCardInfo> for CardResponse {
 }
 
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
+        /// Converts AdditionalPaymentData into the corresponding PaymentMethod enum variant
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
@@ -3284,10 +3353,12 @@ mod payment_id_type {
     impl<'de> Visitor<'de> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
+                /// Writes "payment id" to the given formatter.
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("payment id")
         }
 
+                /// This method takes a reference to a string and returns a Result containing the value wrapped in a PaymentIdType::PaymentIntentId enum variant.
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -3303,6 +3374,7 @@ mod payment_id_type {
             formatter.write_str("payment id")
         }
 
+                /// This method is used to visit a deserializer and deserialize any type of data using the given `PaymentIdVisitor`.
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
         where
             D: Deserializer<'de>,
@@ -3310,6 +3382,7 @@ mod payment_id_type {
             deserializer.deserialize_any(PaymentIdVisitor).map(Some)
         }
 
+                /// This method indicates that the deserializer encountered a "None" value and returns a Result with the associated value or a de::Error.
         fn visit_none<E>(self) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -3317,6 +3390,15 @@ mod payment_id_type {
             Ok(None)
         }
 
+                /// This method is used to visit a unit type and return a result. 
+        /// 
+        /// # Arguments
+        /// 
+        /// * `self` - The unit to be visited.
+        /// 
+        /// # Returns
+        /// 
+        /// Returns a `Result` with the `Value` of `None` or an error of type `E`.
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -3326,6 +3408,7 @@ mod payment_id_type {
     }
 
     #[allow(dead_code)]
+        /// Deserialize the PaymentIdType from the given Deserializer.
     pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<PaymentIdType, D::Error>
     where
         D: Deserializer<'a>,
@@ -3333,6 +3416,15 @@ mod payment_id_type {
         deserializer.deserialize_any(PaymentIdVisitor)
     }
 
+        /// Deserialize an optional PaymentIdType from the given deserializer.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `deserializer` - The deserializer for deserializing the PaymentIdType.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a Result containing an Option of PaymentIdType or an error of type D::Error.
     pub(crate) fn deserialize_option<'a, D>(
         deserializer: D,
     ) -> Result<Option<PaymentIdType>, D::Error>
@@ -3355,10 +3447,12 @@ pub mod amount {
     impl<'de> de::Visitor<'de> for AmountVisitor {
         type Value = Amount;
 
+                /// Writes the string "amount as integer" to the provided formatter.
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "amount as integer")
         }
 
+                /// Visits a u64 value and converts it to an i64, then calls the visit_i64 method with the converted value.
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -3372,6 +3466,7 @@ pub mod amount {
             self.visit_i64(v)
         }
 
+                /// This method is used to visit a signed 64-bit integer value and convert it into a result. If the integer is negative, it returns a custom error with a message indicating that a positive integer was expected. If the integer is positive, it creates an `Amount` instance from the integer and returns it as a successful result.
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
@@ -3388,10 +3483,12 @@ pub mod amount {
     impl<'de> de::Visitor<'de> for OptionalAmountVisitor {
         type Value = Option<Amount>;
 
+                /// Writes the option of amount (as integer) to the given formatter.
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(formatter, "option of amount (as integer)")
         }
 
+                /// This method takes a deserializer and attempts to deserialize an i64 value using the `AmountVisitor`. It then maps the result to Some value.
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
         where
             D: serde::Deserializer<'de>,
@@ -3408,12 +3505,23 @@ pub mod amount {
     }
 
     #[allow(dead_code)]
+        /// Deserialize a custom Amount type from the given deserializer.
+    /// 
+    /// # Arguments
+    /// * `deserializer` - The deserializer used to deserialize the Amount type.
+    /// 
+    /// # Returns
+    /// Result containing the deserialized Amount or an error if deserialization fails.
     pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Amount, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         deserializer.deserialize_any(AmountVisitor)
     }
+        /// Deserialize an optional amount from the given deserializer.
+    ///
+    /// This method takes a deserializer as input and attempts to deserialize an optional amount from it.
+    /// If successful, it returns an `Option<Amount>`, otherwise it returns an error of type `D::Error`.
     pub(crate) fn deserialize_option<'de, D>(deserializer: D) -> Result<Option<Amount>, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -3428,6 +3536,7 @@ mod tests {
     use super::*;
 
     #[test]
+        /// This method tests the default serialization of the MandateType enum using serde_json. It creates a default MandateType instance and asserts that its JSON representation matches the expected value.
     fn test_mandate_type() {
         let mandate_type = MandateType::default();
         assert_eq!(

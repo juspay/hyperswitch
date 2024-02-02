@@ -19,6 +19,7 @@ use crate::{
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// This method handles the creation of a routing configuration by extracting the necessary data from the request, authenticating the user, and then calling the `create_routing_config` method in the `routing` module to create the routing configuration. The method returns a responder that wraps the result of the operation.
 pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -48,6 +49,7 @@ pub async fn routing_create_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// This method handles the routing link configuration by calling the link_routing_config function from the routing module. It takes the Appstate, HttpRequest, and RoutingAlgorithmId as input parameters and returns an implementation of Responder. The method uses server_wrap function from oss_api to wrap the flow, state, request, path, and other parameters for processing. It also performs authentication checks based on feature flags and permissions before processing the request. The method is asynchronous and uses the async keyword for the function definition.
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -83,6 +85,7 @@ pub async fn routing_link_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Asynchronously retrieves the routing configuration for a given routing algorithm ID. This method takes in the web app state, HTTP request, and the routing algorithm ID as input, and returns a Responder. It uses the oss_api::server_wrap function to handle the server logic for retrieving the routing configuration and authenticating the request. The method also performs API locking if applicable.
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -113,6 +116,7 @@ pub async fn routing_retrieve_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// This method is used to list the routing configurations based on the given query parameters. If the feature "business_profile_routing" is enabled, it retrieves the merchant routing dictionary using the provided query parameters. If the feature is not enabled, it retrieves the merchant routing dictionary without any query parameters.
 pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -173,6 +177,7 @@ pub async fn list_routing_configs(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Handles the routing unlink configuration API endpoint. If the 'business_profile_routing' feature is enabled, it takes in the routing configuration payload and passes it to the 'unlink_routing_config' function from the 'routing' module. Otherwise, it calls the same function with the authentication data from the request. It then wraps the result in the OSS API server and returns the response.
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -231,6 +236,7 @@ pub async fn routing_unlink_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Update the default configuration for routing with the given JSON payload of RoutableConnectorChoice. This method wraps the call to update_default_routing_config with the necessary authentication and locking checks.
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -259,6 +265,7 @@ pub async fn routing_update_default_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// This method handles the retrieval of the default routing configuration. It uses the oss_api::server_wrap function to wrap the logic for retrieving the default routing configuration. It takes the Appstate, HttpRequest, and an authentication data as input parameters and returns a Responder.
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -286,6 +293,10 @@ pub async fn routing_retrieve_default_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// This method is used to upsert a surcharge decision manager configuration. It takes in the App
+/// State, HttpRequest, and a JSON payload containing the surcharge decision configuration request.
+/// The method then uses the OSS API to wrap the flow, state, request, JSON payload, and authentication
+/// data, and calls the upsert_surcharge_decision_config method to perform the upsert operation.
 pub async fn upsert_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -319,6 +330,7 @@ pub async fn upsert_surcharge_decision_manager_config(
 }
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Deletes a surcharge decision manager configuration.
 pub async fn delete_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -351,6 +363,7 @@ pub async fn delete_surcharge_decision_manager_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Asynchronously retrieves the surcharge decision manager configuration. It wraps the retrieval process with server_wrap, which handles authorization, locking, and error handling.
 pub async fn retrieve_surcharge_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -382,6 +395,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Asynchronously upserts a decision manager configuration using the provided JSON payload and authentication data.
 pub async fn upsert_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -416,6 +430,7 @@ pub async fn upsert_decision_manager_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Asynchronously deletes the decision manager configuration using the provided state and request.
 pub async fn delete_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -448,6 +463,7 @@ pub async fn delete_decision_manager_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Asynchronously retrieves the decision manager configuration. This method wraps the server_wrap function from the oss_api module to handle the retrieval of the conditional configuration based on the provided state and authentication data. It uses the Flow::DecisionManagerRetrieveConfig enum variant to identify the flow of the operation. Depending on the feature flag "release", it applies the appropriate authentication type and API locking action. The method returns an implementation of the Responder trait.
 pub async fn retrieve_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -476,6 +492,9 @@ pub async fn retrieve_decision_manager_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Retrieves the linked routing configuration based on the feature flag "business_profile_routing".
+/// If the feature flag is enabled, it uses the provided query parameters to retrieve the routing configuration with authentication.
+/// If the feature flag is not enabled, it retrieves the routing configuration without any query parameters and authentication.
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -533,6 +552,9 @@ pub async fn routing_retrieve_linked_config(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Retrieves the default routing configuration for profiles. This method handles the request asynchronously
+/// and uses server_wrap to wrap the actual logic. Depending on the release feature, it applies different
+/// authentication types using the auth_type method. The method returns a Responder.
 pub async fn routing_retrieve_default_config_for_profiles(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -564,6 +586,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
 
 #[cfg(feature = "olap")]
 #[instrument(skip_all)]
+/// Updates the default routing configuration for a specific profile using the provided JSON payload. This method requires the AppState, HttpRequest, profile ID, and JSON payload as input parameters. It then constructs a RoutingPayloadWrapper and passes it to the oss_api::server_wrap function, which handles authentication and calls the routing::update_default_routing_config_for_profile function to update the default routing configuration. Finally, it awaits the result and returns it as a Responder.
 pub async fn routing_update_default_config_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,

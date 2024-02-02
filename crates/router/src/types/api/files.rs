@@ -21,6 +21,9 @@ pub enum FileDataRequired {
 
 impl ForeignTryFrom<FileUploadProvider> for types::Connector {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Attempts to convert a FileUploadProvider into the corresponding enum variant of Self.
+    /// If the conversion is successful, returns Ok with the enum variant.
+    /// If the FileUploadProvider is not supported, returns Err with an ApiErrorResponse indicating that the provider is not supported.
     fn foreign_try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
         match item {
             FileUploadProvider::Stripe => Ok(Self::Stripe),
@@ -35,6 +38,7 @@ impl ForeignTryFrom<FileUploadProvider> for types::Connector {
 
 impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
+        /// Tries to convert a `Connector` enum into an instance of the current struct. Returns a Result where Ok contains the converted instance and Err contains an error message if the connector is not supported as a file provider.
     fn foreign_try_from(item: &types::Connector) -> Result<Self, Self::Error> {
         match *item {
             types::Connector::Stripe => Ok(Self::Stripe),
@@ -86,6 +90,7 @@ pub trait RetrieveFile:
 }
 
 pub trait FileUpload: ConnectorCommon + Sync + UploadFile + RetrieveFile {
+        /// Validates the file upload based on its purpose, size, and type.
     fn validate_file_upload(
         &self,
         _purpose: FilePurpose,

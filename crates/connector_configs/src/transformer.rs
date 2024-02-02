@@ -14,6 +14,7 @@ use crate::common_config::{
 };
 
 impl DashboardRequestPayload {
+        /// Transforms a payment method type and a list of card providers into a RequestPaymentMethodTypes object
     pub fn transform_card(
         payment_method_type: PaymentMethodType,
         card_provider: Vec<api_models::enums::CardNetwork>,
@@ -31,6 +32,7 @@ impl DashboardRequestPayload {
         }
     }
 
+        /// Returns the payment experience based on the given connector, payment method type, and payment method.
     pub fn get_payment_experience(
         connector: Connector,
         payment_method_type: PaymentMethodType,
@@ -88,6 +90,7 @@ impl DashboardRequestPayload {
         payment_method_types
     }
 
+        /// Takes a request and an API response, processes the request's enabled payment methods, and creates a ConnectorApiIntegrationPayload with the updated payment method details and other metadata.
     pub fn create_connector_request(
         request: Self,
         api_response: ConnectorApiIntegrationPayload,
@@ -176,6 +179,7 @@ impl DashboardRequestPayload {
         }
     }
 
+        /// Transforms the given request metadata into an instance of ApiModelMetaData, extracting specific fields from the metadata and populating the corresponding fields in the new structure. If the request metadata is None, default values are used for the fields.
     pub fn transform_metedata(request: Self) -> Option<ApiModelMetaData> {
         let default_metadata = DashboardMetaData {
             apple_pay_combined: None,
@@ -211,6 +215,7 @@ impl DashboardRequestPayload {
         })
     }
 
+        /// Returns the custom gateway name based on the given connector type.
     fn get_custom_gateway_name(connector: Connector) -> String {
         match connector {
             Connector::Checkout => String::from("checkoutltd"),
@@ -221,6 +226,7 @@ impl DashboardRequestPayload {
             _ => connector.to_string(),
         }
     }
+        /// Retrieves Google Pay details based on the provided DashboardMetaData and Connector.
     fn get_google_pay_details(
         meta_data: DashboardMetaData,
         connector: Connector,

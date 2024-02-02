@@ -101,6 +101,7 @@ pub struct MandateUpdateInternal {
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
+        /// Converts a MandateUpdate enum into a struct, initializing the fields based on the variant of the enum.
     fn from(mandate_update: MandateUpdate) -> Self {
         match mandate_update {
             MandateUpdate::StatusUpdate { mandate_status } => Self {

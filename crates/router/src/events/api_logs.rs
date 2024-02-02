@@ -46,6 +46,7 @@ pub struct ApiEvent {
 
 impl ApiEvent {
     #[allow(clippy::too_many_arguments)]
+        /// Create a new instance of ApiEvent with the provided parameters.
     pub fn new(
         merchant_id: Option<String>,
         api_flow: &impl FlowMetric,
@@ -91,6 +92,8 @@ impl ApiEvent {
 impl TryFrom<ApiEvent> for RawEvent {
     type Error = serde_json::Error;
 
+        /// Attempts to convert an `ApiEvent` into a `Self`, which is a type that implements the method. 
+    /// If successful, it returns a `Result` containing the converted value. 
     fn try_from(value: ApiEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             event_type: EventType::ApiLogs,
@@ -101,6 +104,7 @@ impl TryFrom<ApiEvent> for RawEvent {
 }
 
 impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
+        /// This method returns the API event type, if available, by delegating the call to the underlying JSON object or JSON object with headers.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         match self {
             Self::Json(r) => r.get_api_event_type(),
@@ -131,6 +135,8 @@ impl_misc_api_event_type!(
 );
 
 impl ApiEventMetric for PaymentsRedirectResponseData {
+        /// Returns the API event type as an Option. If the event type is PaymentRedirectionResponse,
+    /// it includes the connector and payment information from the resource ID.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentRedirectionResponse {
             connector: self.connector.clone(),
@@ -143,6 +149,7 @@ impl ApiEventMetric for PaymentsRedirectResponseData {
 }
 
 impl ApiEventMetric for DisputeId {
+        /// Returns the API event type associated with the current instance, if available.
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Dispute {
             dispute_id: self.dispute_id.clone(),

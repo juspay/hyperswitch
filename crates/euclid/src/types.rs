@@ -79,29 +79,31 @@ impl EuclidDirFilter for DummyOutput {
     ];
 }
 impl EuclidAnalysable for DummyOutput {
-    fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(DirValue, Metadata)> {
-        self.outputs
-            .iter()
-            .map(|dummyc| {
-                let metadata_key = "MetadataKey".to_string();
-                let metadata_value = dummyc;
-                (
-                    DirValue::MetaData(MetadataValue {
-                        key: metadata_key.clone(),
-                        value: metadata_value.clone(),
-                    }),
-                    std::collections::HashMap::from_iter([(
-                        "DUMMY_OUTPUT".to_string(),
-                        serde_json::json!({
-                            "rule_name":rule_name,
-                             "Metadata_Key" :metadata_key,
-                             "Metadata_Value" : metadata_value,
+        /// This method takes a rule name as input and returns a vector of tuples containing DirValue and Metadata.
+        /// It iterates over the outputs and creates DirValue::MetaData with the given metadata key and value, and a HashMap containing dummy output information.
+        fn get_dir_value_for_analysis(&self, rule_name: String) -> Vec<(DirValue, Metadata)> {
+            self.outputs
+                .iter()
+                .map(|dummyc| {
+                    let metadata_key = "MetadataKey".to_string();
+                    let metadata_value = dummyc;
+                    (
+                        DirValue::MetaData(MetadataValue {
+                            key: metadata_key.clone(),
+                            value: metadata_value.clone(),
                         }),
-                    )]),
-                )
-            })
-            .collect()
-    }
+                        std::collections::HashMap::from_iter([(
+                            "DUMMY_OUTPUT".to_string(),
+                            serde_json::json!({
+                                "rule_name":rule_name,
+                                 "Metadata_Key" :metadata_key,
+                                 "Metadata_Value" : metadata_value,
+                            }),
+                        )]),
+                    )
+                })
+                .collect()
+        }
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct DummyOutput {
@@ -119,6 +121,7 @@ pub enum DataType {
 }
 
 impl EuclidKey {
+        /// Returns the data type associated with the key type.
     pub fn key_type(&self) -> DataType {
         match self {
             Self::PaymentMethod => DataType::EnumVariant,
@@ -154,6 +157,7 @@ pub enum NumValueRefinement {
 }
 
 impl From<ast::ComparisonType> for Option<NumValueRefinement> {
+        /// Converts an ast::ComparisonType to a NumValueRefinement.
     fn from(comp_type: ast::ComparisonType) -> Self {
         match comp_type {
             ast::ComparisonType::Equal => None,
@@ -167,6 +171,7 @@ impl From<ast::ComparisonType> for Option<NumValueRefinement> {
 }
 
 impl From<NumValueRefinement> for ast::ComparisonType {
+        /// Converts a NumValueRefinement enum variant into its corresponding Self enum variant.
     fn from(value: NumValueRefinement) -> Self {
         match value {
             NumValueRefinement::NotEqual => Self::NotEqual,
@@ -196,6 +201,8 @@ pub struct NumValue {
 }
 
 impl NumValue {
+        /// Compares the number values and refinements of two instances of the struct. Returns true if the two instances fit each other based on their number values and refinements, otherwise returns false.
+    
     pub fn fits(&self, other: &Self) -> bool {
         let this_num = self.number;
         let other_num = other.number;
@@ -255,6 +262,7 @@ pub enum EuclidValue {
 }
 
 impl EuclidValue {
+        /// Retrieves the numeric value from the enum variant. If the enum variant is PaymentAmount, it returns Some with a clone of the value. Otherwise, it returns None.
     pub fn get_num_value(&self) -> Option<NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
@@ -262,6 +270,7 @@ impl EuclidValue {
         }
     }
 
+        /// Returns the EuclidKey associated with the enum variant.
     pub fn get_key(&self) -> EuclidKey {
         match self {
             Self::PaymentMethod(_) => EuclidKey::PaymentMethod,
@@ -289,6 +298,7 @@ mod global_type_tests {
     use super::*;
 
     #[test]
+        /// This method tests if the given NumValue fits greater than the other NumValue.
     fn test_num_value_fits_greater_than() {
         let val1 = NumValue {
             number: 10,
@@ -298,11 +308,12 @@ mod global_type_tests {
             number: 30,
             refinement: Some(NumValueRefinement::GreaterThan),
         };
-
+    
         assert!(val1.fits(&val2))
     }
 
     #[test]
+        /// This method checks if the number value of the current NumValue instance fits the criteria of being less than the number value of another NumValue instance.
     fn test_num_value_fits_less_than() {
         let val1 = NumValue {
             number: 30,

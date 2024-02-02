@@ -4,6 +4,7 @@ use crate::common_config::{
 };
 
 impl ConnectorApiIntegrationPayload {
+        /// Transforms the response payload into a `DashboardRequestPayload` by extracting and organizing the payment method details.
     pub fn get_transformed_response_payload(response: Self) -> DashboardRequestPayload {
         let mut wallet_details: Vec<Provider> = Vec::new();
         let mut bank_redirect_details: Vec<Provider> = Vec::new();
@@ -338,6 +339,7 @@ impl ConnectorApiIntegrationPayload {
         }
     }
 
+     /// Extracts Google Pay metadata response from the given response and returns the corresponding GooglePayData if present.
     pub fn get_google_pay_metadata_response(response: Self) -> Option<GooglePayData> {
         match response.metadata {
             Some(meta_data) => {

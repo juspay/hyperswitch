@@ -35,6 +35,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
+        /// Asynchronously retrieves trackers for a payment based on the provided parameters.
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -396,6 +397,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     for PaymentUpdate
 {
     #[instrument(skip_all)]
+        /// Asynchronously gets or creates customer details. If the customer details are provided in the request, it checks if the customer already exists. If not, it creates a new customer and returns the corresponding payment operation and the customer details. The operation is performed using the provided database interface, payment data, and merchant key store.
     async fn get_or_create_customer_details<'a>(
         &'a self,
         db: &dyn StorageInterface,
@@ -421,6 +423,20 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Asynchronously creates payment method data using the given payment data, merchant key store, and customer information.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `state` - The application state
+    /// * `payment_data` - Mutable reference to payment data
+    /// * `_storage_scheme` - The storage scheme for the merchant
+    /// * `merchant_key_store` - The key store for the merchant
+    /// * `customer` - Optional customer information
+    /// 
+    /// # Returns
+    /// 
+    /// A tuple containing a boxed operation and an optional payment method data
+    /// 
     async fn make_pm_data<'a>(
         &'a self,
         state: &'a AppState,
@@ -443,6 +459,18 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     }
 
     #[instrument(skip_all)]
+        /// Adds a task to the process tracker for the given payment attempt. If requeue is set to true, the task will be added to the requeue queue. Optionally, a schedule time can be provided to schedule the task for a future time.
+    ///
+    /// # Arguments
+    ///
+    /// * `_state` - The reference to the application state
+    /// * `_payment_attempt` - The reference to the payment attempt to be added to the process tracker
+    /// * `_requeue` - A boolean indicating whether the task should be added to the requeue queue
+    /// * `_schedule_time` - An optional schedule time for the task
+    ///
+    /// # Returns
+    ///
+    /// A result indicating success or an error response
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a AppState,
@@ -453,6 +481,21 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         Ok(())
     }
 
+        /// Asynchronously retrieves the connector choice for a payment request based on the merchant account, application state, payment request, payment intent, and merchant key store.
+    ///
+    /// # Arguments
+    ///
+    /// * `_merchant_account` - The merchant account for the payment request
+    /// * `state` - The application state
+    /// * `request` - The payment request
+    /// * `_payment_intent` - The payment intent
+    /// * `_key_store` - The merchant key store
+    ///
+    /// # Returns
+    ///
+    /// * `api::ConnectorChoice` - The chosen connector for processing the payment
+    /// * `errors::ApiErrorResponse` - An API error response if the connector choice cannot be retrieved
+    ///
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -470,6 +513,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
+        /// Asynchronously updates the payment attempt and payment intent with the provided data, and returns a tuple containing a boxed operation and the updated payment data.
     async fn update_trackers<'b>(
         &'b self,
         state: &'b AppState,
@@ -636,6 +680,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
     for PaymentUpdate
 {
     #[instrument(skip_all)]
+        /// Validates the payments request and returns a tuple containing a boxed operation and a validate result.
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
@@ -652,14 +697,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             .payment_id
             .clone()
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
-
+    
         let request_merchant_id = request.merchant_id.as_deref();
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
-
+    
         helpers::validate_request_amount_and_amount_to_capture(
             request.amount,
             request.amount_to_capture,
@@ -669,11 +714,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             field_name: "amount_to_capture".to_string(),
             expected_format: "amount_to_capture lesser than or equal to amount".to_string(),
         })?;
-
+    
         helpers::validate_payment_method_fields_present(request)?;
-
+    
         let mandate_type = helpers::validate_mandate(request, false)?;
-
+    
         Ok((
             Box::new(self),
             operations::ValidateResult {
@@ -693,6 +738,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 }
 
 impl PaymentUpdate {
+        /// Populates the given PaymentAttempt with data from the provided PaymentsRequest,
+    /// updating its fields based on the corresponding fields in the request.
     fn populate_payment_attempt_with_request(
         payment_attempt: &mut storage::PaymentAttempt,
         request: &api::PaymentsRequest,
@@ -714,6 +761,7 @@ impl PaymentUpdate {
             .capture_method
             .map(|i| payment_attempt.capture_method.replace(i));
     }
+        /// Populates a payment intent with information from a payments request.
     fn populate_payment_intent_with_request(
         payment_intent: &mut storage::PaymentIntent,
         request: &api::PaymentsRequest,

@@ -120,6 +120,7 @@ pub fn setup(
     }
 }
 
+/// Returns an OpenTelemetry exporter builder configured based on the provided LogTelemetry configuration.
 fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {
     let mut exporter_builder = opentelemetry_otlp::new_exporter().tonic();
 
@@ -140,6 +141,7 @@ enum TraceUrlAssert {
 }
 
 impl TraceUrlAssert {
+        /// Compares the given URL with the value of the enum variant and returns true if they match or if the URL ends with the value of the enum variant, otherwise returns false.
     fn compare_url(&self, url: &str) -> bool {
         match self {
             Self::Match(value) => url == value,
@@ -149,6 +151,7 @@ impl TraceUrlAssert {
 }
 
 impl From<String> for TraceUrlAssert {
+        /// This method takes a String value and returns an enum variant based on the value's prefix. If the value starts with '*', it returns the EndsWith variant with the trimmed value. Otherwise, it returns the Match variant with the original value.
     fn from(value: String) -> Self {
         match value {
             url if url.starts_with('*') => Self::EndsWith(url.trim_start_matches('*').to_string()),
@@ -183,6 +186,7 @@ impl TraceAssertion {
 struct ConditionalSampler<T: trace::ShouldSample + Clone + 'static>(TraceAssertion, T);
 
 impl<T: trace::ShouldSample + Clone + 'static> trace::ShouldSample for ConditionalSampler<T> {
+        /// Determines whether a span should be sampled based on the provided parameters and the attributes of the span. If the span should be sampled, it delegates to the next sampler; otherwise, it returns a SamplingResult with the decision to drop the span.
     fn should_sample(
         &self,
         parent_context: Option<&opentelemetry::Context>,
@@ -219,6 +223,7 @@ impl<T: trace::ShouldSample + Clone + 'static> trace::ShouldSample for Condition
     }
 }
 
+/// Sets up a tracing pipeline with the specified configuration and service name, returning an optional OpenTelemetryLayer.
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
     service_name: &str,
@@ -269,6 +274,7 @@ fn setup_tracing_pipeline(
     }
 }
 
+/// Sets up a metrics pipeline for logging telemetry based on the provided configuration. It creates a histogram with specified buckets, configures an OTLP pipeline with the given exporter and other parameters, and returns a `BasicController` for managing the created metrics pipeline. If `ignore_errors` is set to true in the configuration, any errors encountered during pipeline setup are logged and the method returns `None`. Otherwise, it returns `Some` containing the `BasicController` or panics if the pipeline setup fails.
 fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicController> {
     let histogram_buckets = {
         let mut init = 0.01;

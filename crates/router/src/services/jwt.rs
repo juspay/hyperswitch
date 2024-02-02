@@ -6,6 +6,7 @@ use masking::PeekInterface;
 use super::authentication;
 use crate::{configs::settings::Settings, core::errors::UserErrors};
 
+/// This method generates an expiration time by adding the provided duration to the current system time. It then calculates the duration since the Unix epoch and returns it as a custom result. If any error occurs during the process, it changes the context of the error to InternalServerError and returns it as a custom result.
 pub fn generate_exp(
     exp_duration: std::time::Duration,
 ) -> CustomResult<std::time::Duration, UserErrors> {
@@ -17,6 +18,17 @@ pub fn generate_exp(
         .change_context(UserErrors::InternalServerError)
 }
 
+/// Asynchronously generates a JSON Web Token (JWT) using the provided claims data and settings.
+///
+/// # Arguments
+///
+/// * `claims_data` - The data to be serialized as the JWT claims.
+/// * `settings` - The settings used to obtain the JWT secret.
+///
+/// # Returns
+///
+/// A `CustomResult` containing the generated JWT as a `String`, or a `UserErrors` if an error occurs.
+///
 pub async fn generate_jwt<T>(
     claims_data: &T,
     settings: &Settings,

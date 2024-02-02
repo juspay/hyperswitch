@@ -25,6 +25,8 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
+        /// Asynchronously loads metrics based on the provided dimensions, merchant ID, filters, granularity, time range, and connection pool. 
+    /// Returns a result containing a vector of tuples, where each tuple consists of a PaymentMetricsBucketIdentifier and a PaymentMetricRow.
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],

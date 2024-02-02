@@ -5,6 +5,7 @@ use storage_impl::redis::cache;
 mod utils;
 
 #[actix_web::test]
+/// Asynchronously invalidates existing cache entries for a successful cache invalidation request.
 async fn invalidate_existing_cache_success() {
     // Arrange
     Box::pin(utils::setup()).await;
@@ -55,6 +56,7 @@ async fn invalidate_existing_cache_success() {
 }
 
 #[actix_web::test]
+/// Asynchronously invalidates a non-existing cache by sending a POST request to the cache invalidation endpoint with a non-existing cache key. The method sets up the necessary utilities, constructs the API key, and makes the POST request using the awc::Client. It then asserts that the response status code is NOT_FOUND.
 async fn invalidate_non_existing_cache_success() {
     // Arrange
     Box::pin(utils::setup()).await;

@@ -17,6 +17,7 @@ use crate::macros::{
     helpers::non_enum_error,
 };
 
+/// This method takes a DeriveInput AST and generates an implementation of various error-related traits and methods for a custom error type. It extracts the name, generics, and variants of the input AST, retrieves type properties, and iterates through the variants to collect their properties. It then generates implementations for error type, error code, error message, and serialization, and returns them as a TokenStream.
 pub(crate) fn api_error_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let name = &ast.ident;
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
@@ -61,6 +62,7 @@ pub(crate) fn api_error_derive_inner(ast: &DeriveInput) -> syn::Result<TokenStre
     })
 }
 
+/// This method is used to implement an error type for a given enum. It takes the enum name, the properties of the error type, and a map of variant properties as input. It then generates a TokenStream representing the implementation of the error type for the provided enum, based on the input properties and variant information.
 fn implement_error_type(
     enum_name: &Ident,
     type_properties: &ErrorTypeProperties,
@@ -93,6 +95,7 @@ fn implement_error_type(
     }
 }
 
+/// Generates a method that returns the error code associated with each variant of the given enum.
 fn implement_error_code(
     enum_name: &Ident,
     variants_properties_map: &HashMap<&Variant, ErrorVariantProperties>,
@@ -113,6 +116,7 @@ fn implement_error_code(
     }
 
     quote! {
+        /// Returns the error code associated with the variant.
         pub fn error_code(&self) -> String {
             match self {
                 #(#arms),*
@@ -121,6 +125,7 @@ fn implement_error_code(
     }
 }
 
+/// Generates an error message method for a given enum, using a map of variant properties.
 fn implement_error_message(
     enum_name: &Ident,
     variants_properties_map: &HashMap<&Variant, ErrorVariantProperties>,
@@ -152,6 +157,7 @@ fn implement_error_message(
     }
 
     quote! {
+        /// Returns the error message for the enum variant.
         pub fn error_message(&self) -> String {
             match self {
                 #(#arms),*
@@ -160,6 +166,7 @@ fn implement_error_message(
     }
 }
 
+/// This method takes in various parameters related to error types and their properties, and generates a Rust implementation for serialization of the given enum. It iterates through the variants of the enum, extracts the necessary information, and constructs the appropriate response definition based on the variant's properties. It then generates a match arm for each variant, creating an instance of the response and serializing it using the given serializer. Finally, it returns the generated implementation for serde::Serialize for the given enum with the necessary generics and where clauses.
 fn implement_serialize(
     enum_name: &Ident,
     generics: (&ImplGenerics<'_>, &TypeGenerics<'_>, Option<&WhereClause>),

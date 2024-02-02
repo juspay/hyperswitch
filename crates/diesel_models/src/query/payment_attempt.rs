@@ -22,6 +22,16 @@ use crate::{
 
 impl PaymentAttemptNew {
     #[instrument(skip(conn))]
+        /// Asynchronously inserts a PaymentAttempt into the database using the provided database connection.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - A reference to a pooled Postgres connection
+    ///
+    /// # Returns
+    ///
+    /// A `StorageResult` containing the inserted `PaymentAttempt` if successful, or an error if the insertion fails.
+    ///
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self.populate_derived_fields()).await
     }
@@ -29,6 +39,7 @@ impl PaymentAttemptNew {
 
 impl PaymentAttempt {
     #[instrument(skip(conn))]
+        /// Asynchronously updates the database record with the given payment attempt ID and returns the updated record.
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -57,6 +68,17 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds an optional record by payment_id and merchant_id in the database.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `conn` - A reference to a pooled database connection.
+    /// * `payment_id` - A string reference representing the payment ID.
+    /// * `merchant_id` - A string reference representing the merchant ID.
+    /// 
+    /// # Returns
+    /// 
+    /// An `Option` containing the found record if it exists, or `None` if no record is found.
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -72,6 +94,7 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given connector_transaction_id, payment_id, and merchant_id.
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
@@ -88,12 +111,12 @@ impl PaymentAttempt {
         .await
     }
 
+        /// Finds the last successful attempt by payment ID and merchant ID. Performs ordering on the application level instead of the database level. 
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
     ) -> StorageResult<Self> {
-        // perform ordering on the application level instead of database level
         generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
@@ -120,6 +143,7 @@ impl PaymentAttempt {
         )
     }
 
+        /// Finds the last successful or partially captured attempt by payment ID and merchant ID.
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -157,6 +181,7 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given merchant ID and connector transaction ID.
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -172,6 +197,7 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given merchant ID and attempt ID.
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -187,6 +213,8 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database by the given merchant_id and preprocessing_id.
+    /// Returns a Result containing the found record or an error.
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -202,6 +230,8 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds a record in the database with the given payment_id, merchant_id, and attempt_id.
+    /// Returns a result containing the found record or an error.
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -220,6 +250,7 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+        /// Asynchronously finds records by merchant_id and payment_id in the database.
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -242,6 +273,7 @@ impl PaymentAttempt {
         .await
     }
 
+        /// Retrieves filters for payments based on the given payment intents and merchant ID.
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
@@ -344,6 +376,19 @@ impl PaymentAttempt {
             filter_authentication_type,
         ))
     }
+        /// Asynchronously retrieves the total count of attempts based on the provided filters and parameters.
+    /// 
+    /// # Arguments
+    /// * `conn` - A reference to a pooled database connection
+    /// * `merchant_id` - The ID of the merchant for which the attempts are being counted
+    /// * `active_attempt_ids` - A slice of active attempt IDs
+    /// * `connector` - An optional vector of connector strings
+    /// * `payment_method` - An optional vector of payment methods
+    /// * `payment_method_type` - An optional vector of payment method types
+    /// * `authentication_type` - An optional vector of authentication types
+    /// 
+    /// # Returns
+    /// A `StorageResult` containing the total count of attempts as an `i64`, or a database error if the operation fails
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
         merchant_id: &str,

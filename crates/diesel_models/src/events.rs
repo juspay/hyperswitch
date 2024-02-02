@@ -46,6 +46,7 @@ pub struct Event {
 }
 
 impl From<EventUpdate> for EventUpdateInternal {
+        /// Converts an EventUpdate into Self.
     fn from(event_update: EventUpdate) -> Self {
         match event_update {
             EventUpdate::UpdateWebhookNotified {

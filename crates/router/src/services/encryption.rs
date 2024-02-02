@@ -26,6 +26,17 @@ pub struct JweBody {
     pub encrypted_key: String,
 }
 
+/// Asynchronously encrypts the given payload using the provided public key in JWE format.
+///
+/// # Arguments
+///
+/// * `payload` - The data to be encrypted as a byte array
+/// * `public_key` - The public key used for encryption
+///
+/// # Returns
+///
+/// A `String` containing the encrypted data or an `EncryptionError` if an error occurs.
+///
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,
@@ -52,6 +63,16 @@ pub enum KeyIdCheck<'a> {
     SkipKeyIdCheck,
 }
 
+/// Decrypts a JWE (JSON Web Encryption) token using the provided key and algorithm.
+/// 
+/// # Arguments
+/// * `jwt` - The JWE token to decrypt
+/// * `key_ids` - The key IDs used for checking request and response key IDs
+/// * `private_key` - The private key used for decryption
+/// * `alg` - The algorithm used for decryption
+/// 
+/// # Returns
+/// A `CustomResult` containing the decrypted payload as a `String`, or an `EncryptionError` if decryption fails
 pub async fn decrypt_jwe(
     jwt: &str,
     key_ids: KeyIdCheck<'_>,
@@ -82,6 +103,19 @@ pub async fn decrypt_jwe(
         .attach_printable("Could not decode JWE payload from UTF-8")
 }
 
+/// Signs the provided payload using the RS256 algorithm and the specified private key,
+/// and returns the signed JWT as a string.
+///
+/// # Arguments
+///
+/// * `payload` - The payload to be signed as a byte slice
+/// * `kid` - The key ID used for signing
+/// * `private_key` - The private key used for signing
+///
+/// # Returns
+///
+/// If successful, returns the signed JWT as a string. If an error occurs during the signing process,
+/// an `EncryptionError` is returned.
 pub async fn jws_sign_payload(
     payload: &[u8],
     kid: &str,
@@ -102,6 +136,7 @@ pub async fn jws_sign_payload(
     Ok(jwt)
 }
 
+/// Verifies the signature of a JSON Web Signature (JWS) using the RS256 algorithm and a provided key.
 pub fn verify_sign(
     jws_body: String,
     key: impl AsRef<[u8]>,
@@ -217,6 +252,7 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 ";
 
     #[actix_rt::test]
+        /// Asynchronously tests the encryption and decryption of a JSON Web Encryption (JWE) payload using specified encryption and decryption keys.
     async fn test_jwe() {
         let jwt = encrypt_jwe("request_payload".as_bytes(), ENCRYPTION_KEY)
             .await
@@ -229,6 +265,8 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
     }
 
     #[actix_rt::test]
+        /// Asynchronously tests the JSON Web Signature (JWS) functionality by signing a payload, verifying the signature,
+    /// and asserting that the original payload matches the verified payload.
     async fn test_jws() {
         let jwt = jws_sign_payload("jws payload".as_bytes(), "1", SIGNING_KEY)
             .await

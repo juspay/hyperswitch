@@ -605,12 +605,16 @@ pub struct AccessTokenRequestData {
 }
 
 pub trait Capturable {
+        /// This method takes a reference to a PaymentData instance and returns the captured amount 
+    /// from it, if available. If the captured amount is not available, it returns None.
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         None
     }
+        /// This method calculates the amount that can be captured from a given payment data based on the attempt status. 
+    /// It returns an Option containing the calculated amount, or None if the amount cannot be determined.
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -624,8 +628,9 @@ pub trait Capturable {
 }
 
 impl Capturable for PaymentsAuthorizeData {
+        /// This method returns the captured amount from the payment data, taking into account any surcharge details. If surcharge details are available, it returns the final amount after surcharge; otherwise, it returns the original amount.
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
-    where
+        where
         F: Clone,
     {
         let final_amount = self
@@ -635,6 +640,7 @@ impl Capturable for PaymentsAuthorizeData {
         final_amount.or(Some(self.amount))
     }
 
+        /// Returns the amount that can be captured based on the payment data and attempt status.
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
@@ -674,12 +680,14 @@ impl Capturable for PaymentsAuthorizeData {
 }
 
 impl Capturable for PaymentsCaptureData {
+        /// Retrieves the amount to be captured for a payment, if available.
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount_to_capture)
     }
+        /// Returns the amount that is capturable based on the provided payment data and attempt status.
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -706,12 +714,14 @@ impl Capturable for PaymentsCaptureData {
 }
 
 impl Capturable for CompleteAuthorizeData {
+        /// Retrieves the captured amount from the payment data.
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
     {
         Some(self.amount)
     }
+        /// Returns the amount that can be captured based on the payment data and attempt status.
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
@@ -751,6 +761,7 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsCancelData {
+        /// Retrieves the previously captured amount from the provided payment data.
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
@@ -758,6 +769,7 @@ impl Capturable for PaymentsCancelData {
         // return previously captured amount
         payment_data.payment_intent.amount_captured
     }
+        /// Determines the amount that can be captured for a payment attempt based on the attempt status and payment data.
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -786,6 +798,14 @@ impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
 impl Capturable for PaymentsIncrementalAuthorizationData {
+        /// Retrieves the amount that is capturable for a given PaymentData and attempt status.
+    ///
+    /// # Arguments
+    /// * `_payment_data` - The payment data for which the capturable amount is to be retrieved.
+    /// * `_attempt_status` - The status of the attempt for which the capturable amount is to be retrieved.
+    ///
+    /// # Returns
+    /// The capturable amount as an Option<i64>.
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -798,6 +818,9 @@ impl Capturable for PaymentsIncrementalAuthorizationData {
     }
 }
 impl Capturable for PaymentsSyncData {
+        /// Retrieves the amount to be captured from the given payment data. 
+    /// If the `amount_to_capture` field is present in the `payment_attempt`, it returns that amount.
+    /// Otherwise, it returns the total amount from the `payment_attempt`.
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
@@ -807,6 +830,10 @@ impl Capturable for PaymentsSyncData {
             .amount_to_capture
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
     }
+        /// Returns the amount that can be captured for a payment attempt, based on the payment data and attempt status.
+    ///
+    /// If the attempt status is a terminal status, returns Some(0), indicating that no further capture is possible. 
+    /// Otherwise, returns None, indicating that the capture amount is not yet determined.
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -858,11 +885,18 @@ pub enum CaptureSyncResponse {
 }
 
 impl CaptureSyncResponse {
+        /// Retrieves the amount captured for a transaction, if any.
+    ///
+    /// If the transaction was successful or resulted in an error, this method returns the amount captured.
+    /// If the transaction did not result in a capture, it returns None.
     pub fn get_amount_captured(&self) -> Option<i64> {
         match self {
             Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
         }
     }
+        /// Retrieves the connector response reference ID from the enum variant.
+    /// If the enum variant is a Success, it returns the connector response reference ID wrapped in Some.
+    /// If the enum variant is an Error, it returns None.
     pub fn get_connector_response_reference_id(&self) -> Option<String> {
         match self {
             Self::Success {
@@ -942,6 +976,7 @@ pub enum ResponseId {
 }
 
 impl ResponseId {
+        /// This method retrieves the connector transaction ID from the enum variant and returns it as a String.
     pub fn get_connector_transaction_id(
         &self,
     ) -> errors::CustomResult<String, errors::ValidationError> {
@@ -1175,6 +1210,7 @@ pub enum ConnectorAuthType {
 }
 
 impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
+        /// Converts a value of type api_models::admin::ConnectorAuthType into the enum Self.
     fn from(value: api_models::admin::ConnectorAuthType) -> Self {
         match value {
             api_models::admin::ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
@@ -1213,6 +1249,7 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
 }
 
 impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
+        /// Converts a ConnectorAuthType enum into the corresponding ConnectorAuth enum.
     fn foreign_from(from: ConnectorAuthType) -> Self {
         match from {
             ConnectorAuthType::TemporaryAuth => Self::TemporaryAuth,
@@ -1269,6 +1306,7 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
+        /// Constructs and returns a new instance of the current struct with a `NotImplemented` error response, default message, internal server error status code, and optional fields set to `None`.
     pub fn get_not_implemented() -> Self {
         Self {
             code: errors::ApiErrorResponse::NotImplemented {
@@ -1289,6 +1327,7 @@ impl ErrorResponse {
 
 impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
+        /// Converts a `ConnectorAuthType` into a `Self` instance, where `Self` refers to the current struct or enum implementing the `try_from` method. Returns a `Result` containing either the converted `Self` instance or an error of type `Self::Error`. The method matches the `ConnectorAuthType` input and constructs a new `Self` instance based on the variant of the input. If the input is of type `ConnectorAuthType::HeaderKey`, it creates a new instance with the `app_id` set to the `api_key` and `id` set to `None`. If the input is of type `ConnectorAuthType::BodyKey`, `SignatureKey`, or `MultiAuthKey`, it creates a new instance with the `app_id` set to the `api_key` and `id` set to `Some(key1)`. If the input is of any other type, it returns an error of type `errors::ApiErrorResponse::InvalidDataValue` with the field name set to "connector_account_details".
     fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
@@ -1307,7 +1346,7 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: Some(key1),
             }),
-
+    
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),
@@ -1316,6 +1355,7 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
 }
 
 impl From<errors::ApiErrorResponse> for ErrorResponse {
+        /// This method converts an ApiErrorResponse into Self, extracting the error code, error message, and status code as well as setting the reason, attempt status, and connector transaction id to None or default values.
     fn from(error: errors::ApiErrorResponse) -> Self {
         Self {
             code: error.error_code(),
@@ -1332,12 +1372,14 @@ impl From<errors::ApiErrorResponse> for ErrorResponse {
 }
 
 impl Default for ErrorResponse {
+        /// Returns a new instance of Self, using the ApiErrorResponse::InternalServerError as the value.
     fn default() -> Self {
         Self::from(errors::ApiErrorResponse::InternalServerError)
     }
 }
 
 impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+        /// Creates a new instance of PaymentsAuthorizeRouterData from a reference to mutable PaymentsAuthorizeRouterData.
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
@@ -1351,6 +1393,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
 impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
     for PaymentMethodTokenizationData
 {
+        /// Creates a new instance of Self by extracting relevant data from the provided RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>.
     fn from(data: &RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>) -> Self {
         Self {
             payment_method_data: data.request.payment_method_data.clone(),
@@ -1367,9 +1410,16 @@ pub trait Tokenizable {
 }
 
 impl Tokenizable for SetupMandateRequestData {
+        /// Retrieves the payment method data associated with the router.
     fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
-        Ok(self.payment_method_data.clone())
-    }
+            Ok(self.payment_method_data.clone())
+        }
+        /// Sets the session token for the current user.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `_token` - An optional string containing the session token.
+    /// 
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
@@ -1377,12 +1427,18 @@ impl Tokenizable for PaymentsAuthorizeData {
     fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
         Ok(self.payment_method_data.clone())
     }
+        /// Sets the session token for the current user.
+    /// 
+    /// # Arguments
+    /// * `token` - An optional String containing the session token to be set. If None, the session token will be cleared.
+    /// 
     fn set_session_token(&mut self, token: Option<String>) {
         self.session_token = token;
     }
 }
 
 impl Tokenizable for CompleteAuthorizeData {
+        /// Retrieves the payment method data associated with the current instance.
     fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
         self.payment_method_data
             .clone()
@@ -1392,6 +1448,7 @@ impl Tokenizable for CompleteAuthorizeData {
 }
 
 impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
+        /// Creates a new instance of Self from the provided SetupMandateRouterData, initializing its fields with the corresponding values from the data's request field. The amount field is initialized to 0, and the statement_descriptor, capture_method, webhook_url, complete_authorize_url, order_details, order_category, session_token, payment_experience, payment_method_type, customer_id, surcharge_details, and metadata fields are initialized to None. The enrolled_for_3ds field is set to true. The request_incremental_authorization field is initialized with the value from the data's request field.
     fn from(data: &SetupMandateRouterData) -> Self {
         Self {
             currency: data.request.currency,
@@ -1429,6 +1486,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
 impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
+        /// Creates a new instance of Self by extracting data from the input tuple and populating the fields accordingly.
     fn from(item: (&RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
         let data = item.0;
         let request = item.1;
@@ -1483,6 +1541,8 @@ impl<F1, F2>
         PayoutsData,
     )> for RouterData<F2, PayoutsData, PayoutsResponseData>
 {
+        /// Creates a new instance of Self using the provided item tuple. 
+    /// The method extracts the necessary data from the tuple and initializes a new instance with the extracted data.
     fn from(
         item: (
             &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,

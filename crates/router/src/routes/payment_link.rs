@@ -27,6 +27,10 @@ use crate::{
 )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
 
+/// This method is used to retrieve a payment link. It takes in the application state, the HTTP request,
+/// the path containing the payment link ID, and the JSON payload containing the request parameters.
+/// It first verifies the client secret and authentication, then calls the retrieve_payment_link function
+/// to retrieve the payment link and returns the response.
 pub async fn payment_link_retrieve(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
@@ -51,6 +55,7 @@ pub async fn payment_link_retrieve(
     .await
 }
 
+/// Initiates a payment link for a specific merchant and payment ID.
 pub async fn initiate_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
@@ -105,6 +110,7 @@ pub async fn initiate_payment_link(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
+/// This method handles the HTTP request for listing payment links. It takes the Appstate, HttpRequest, and PaymentLinkListConstraints as input parameters and returns an implementation of Responder trait. Inside the method, it creates a flow for PaymentLinkList, extracts the payload, and then calls the server_wrap function from the api module to handle the request asynchronously. The server_wrap function passes the flow, state, request, payload, a closure for listing payment links, the API key authentication method, and locking action as parameters. Finally, it awaits the result and returns it.
 pub async fn payments_link_list(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
@@ -124,6 +130,7 @@ pub async fn payments_link_list(
     .await
 }
 
+/// Retrieves the status of a payment link by making an async request to the server. 
 pub async fn payment_link_status(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,

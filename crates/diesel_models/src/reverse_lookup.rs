@@ -42,6 +42,7 @@ pub struct ReverseLookupNew {
 }
 
 impl From<ReverseLookupNew> for ReverseLookup {
+        /// Creates a new instance of Self using the specified ReverseLookupNew instance.
     fn from(new: ReverseLookupNew) -> Self {
         Self {
             lookup_id: new.lookup_id,

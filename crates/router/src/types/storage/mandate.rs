@@ -20,6 +20,7 @@ pub trait MandateDbExt: Sized {
 
 #[async_trait::async_trait]
 impl MandateDbExt for Mandate {
+        /// Asynchronously filters mandates from the database based on the provided constraints. It takes a database connection, merchant ID, and mandate list constraints as input and returns a `CustomResult` containing a vector of the filtered mandates or a `DatabaseError` in case of an error. The method constructs a query to filter mandates based on the provided constraints such as created time, connector, mandate status, and limit, and then executes the query using the provided database connection. It logs the constructed query for debugging purposes and returns the filtered mandates as a result.
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,

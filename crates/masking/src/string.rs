@@ -22,6 +22,14 @@ where
 {
     type Err = core::convert::Infallible;
 
+        /// Attempts to create a new instance of Self from the given string slice.
+    /// 
+    /// # Arguments
+    /// * `src` - The string slice to create a new instance from
+    /// 
+    /// # Returns
+    /// * If successful, returns a Result containing the new instance of Self
+    /// * If an error occurs, returns a Result containing the error type associated with Self
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(src.to_string()))
     }
