@@ -4,7 +4,6 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::logger;
 
-use super::errors::StorageErrorExt;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
@@ -34,6 +33,9 @@ pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRol
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
         predefined_permissions::PREDEFINED_PERMISSIONS
             .iter()
+            .filter(|(role_id, _)| {
+                predefined_permissions::is_role_invitable(role_id).unwrap_or(false)
+            })
             .filter_map(|(role_id, role_info)| {
                 utils::user_role::get_role_name_and_permission_response(role_info).map(
                     |(permissions, role_name)| user_role_api::RoleInfoResponse {
@@ -90,7 +92,7 @@ pub async fn update_user_role(
 ) -> UserResponse<()> {
     if !predefined_permissions::is_role_updatable_to(&req.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable(format!("role_id={} is not updatable", req.role_id));
+            .attach_printable(format!("role_id = {} is not updatable", req.role_id));
     }
 
     let user_from_db =
@@ -205,9 +207,9 @@ pub async fn delete_user_role(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            if !predefined_permissions::is_role_deletable(&user_role.role_id) {
+            if !predefined_permissions::is_role_deletable(&user_role.role_id)? {
                 return Err(UserErrors::InvalidRoleId.into())
-                    .attach_printable("Deletion not allowed for users with specific role id");
+                    .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
             }
         }
         None => {

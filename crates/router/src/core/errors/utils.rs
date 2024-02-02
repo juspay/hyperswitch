@@ -530,11 +530,11 @@ impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors
         self,
         duplicate_response: errors::UserErrors,
     ) -> error_stack::Result<T, errors::UserErrors> {
-        self.map_err(|err| {
-            if err.current_context().is_db_unique_violation() {
-                err.change_context(duplicate_response)
+        self.map_err(|e| {
+            if e.current_context().is_db_unique_violation() {
+                e.change_context(duplicate_response)
             } else {
-                err.change_context(errors::UserErrors::InternalServerError)
+                e.change_context(errors::UserErrors::InternalServerError)
             }
         })
     }

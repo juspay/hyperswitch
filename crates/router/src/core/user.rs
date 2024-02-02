@@ -12,6 +12,7 @@ use router_env::env;
 use router_env::logger;
 
 use super::errors::{UserErrors, UserResponse, UserResult};
+use crate::services::authorization::predefined_permissions;
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 use crate::{
@@ -412,7 +413,11 @@ pub async fn invite_user(
             .attach_printable("User Inviting themself");
     }
 
-    utils::user_role::validate_role_id(request.role_id.as_str())?;
+    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+        return Err(UserErrors::InvalidRoleId.into())
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    }
+
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
 
     let invitee_user = state
@@ -568,7 +573,11 @@ async fn handle_invitation(
             .attach_printable("User Inviting themself");
     }
 
-    utils::user_role::validate_role_id(request.role_id.as_str())?;
+    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+        return Err(UserErrors::InvalidRoleId.into())
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    }
+
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     let invitee_user = state
         .store

@@ -322,16 +322,20 @@ pub fn get_role_name_from_id(role_id: &str) -> Option<&'static str> {
         .and_then(|role_info| role_info.name)
 }
 
-pub fn is_role_invitable(role_id: &str) -> bool {
+pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
-        .map_or(false, |role_info| role_info.is_invitable)
+        .map(|role_info| role_info.is_invitable)
+        .ok_or(UserErrors::InvalidRoleId.into())
+        .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }
 
-pub fn is_role_deletable(role_id: &str) -> bool {
+pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
-        .map_or(false, |role_info| role_info.is_deletable)
+        .map(|role_info| role_info.is_deletable)
+        .ok_or(UserErrors::InvalidRoleId.into())
+        .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }
 
 pub fn is_role_updatable_to(role_id: &str) -> UserResult<bool> {
@@ -339,5 +343,5 @@ pub fn is_role_updatable_to(role_id: &str) -> UserResult<bool> {
         .get(role_id)
         .map(|role_info| role_info.is_updatable_to)
         .ok_or(UserErrors::InvalidRoleId.into())
-        .attach_printable("role_id = {role_id} doesn't exist")
+        .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }

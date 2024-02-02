@@ -6,10 +6,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
@@ -29,13 +26,6 @@ pub async fn get_active_user_roles_for_user(
         .into_iter()
         .filter(|ele| ele.status == UserStatus::Active)
         .collect())
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
 }
 
 pub fn get_role_name_and_permission_response(
