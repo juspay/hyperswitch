@@ -143,7 +143,7 @@ where
         Box::pin(
             async move {
                 let response = response_fut.await;
-                logger::info!(golden_log_line = true);
+                logger::info!(golden_log_line = true, http_response?=response);
                 response
             }
             .instrument(
