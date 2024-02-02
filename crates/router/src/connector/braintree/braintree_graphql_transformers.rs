@@ -195,7 +195,7 @@ pub enum BraintreeAuthResponse {
     ErrorResponse(Box<ErrorResponse>),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BraintreeCompleteAuthResponse {
     AuthResponse(Box<AuthResponse>),
@@ -764,7 +764,7 @@ pub struct RSyncResponse {
     data: RSyncResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BraintreeRSyncResponse {
     RSyncResponse(Box<RSyncResponse>),
@@ -1112,29 +1112,29 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BraintreeCancelRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelTransactionData {
     reversal: CancelResponseTransactionBody,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelResponseData {
     reverse_transaction: CancelTransactionData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelResponse {
     data: CancelResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BraintreeCancelResponse {
     CancelResponse(Box<CancelResponse>),

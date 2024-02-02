@@ -152,7 +152,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CheckoutTokenResponse {
     token: Secret<String>,
 }
@@ -555,7 +555,7 @@ pub struct PaymentsResponse {
     response_summary: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
     ActionResponse(Vec<ActionResponse>),
@@ -723,7 +723,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
 pub struct PaymentVoidRequest {
     reference: String,
 }
-#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentVoidResponse {
     #[serde(skip)]
     pub(super) status: u16,
@@ -816,7 +816,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsCaptureRouterData>> for Payment
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
@@ -950,7 +950,7 @@ pub struct ErrorResponse {
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Serialize)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -962,7 +962,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,

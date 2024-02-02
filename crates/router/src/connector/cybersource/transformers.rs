@@ -1290,7 +1290,7 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourcePaymentStatus {
     Authorized,
@@ -1367,14 +1367,14 @@ impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::Authoriza
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourcePaymentsResponse {
     ClientReferenceInformation(CybersourceClientReferenceResponse),
     ErrorInformation(CybersourceErrorInformationResponse),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceClientReferenceResponse {
     id: String,
@@ -1386,14 +1386,14 @@ pub struct CybersourceClientReferenceResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceErrorInformationResponse {
     id: String,
     error_information: CybersourceErrorInformation,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationResponse {
     access_token: String,
@@ -1401,7 +1401,7 @@ pub struct CybersourceConsumerAuthInformationResponse {
     reference_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthSetupInfoResponse {
     id: String,
@@ -1409,7 +1409,7 @@ pub struct ClientAuthSetupInfoResponse {
     consumer_authentication_information: CybersourceConsumerAuthInformationResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceAuthSetupResponse {
     ClientAuthSetupInfo(ClientAuthSetupInfoResponse),
@@ -1423,7 +1423,7 @@ pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceSetupMandatesResponse {
     ClientReferenceInformation(CybersourceClientReferenceResponse),
@@ -1460,13 +1460,13 @@ pub struct ClientRiskInformationRules {
     name: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
     payment_instrument: CybersoucrePaymentInstrument,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CybersourceErrorInformation {
     reason: Option<String>,
     message: Option<String>,
@@ -1895,7 +1895,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
@@ -1919,7 +1919,7 @@ pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     access_token: Option<String>,
@@ -1929,7 +1929,7 @@ pub struct CybersourceConsumerAuthInformationEnrollmentResponse {
     validate_response: CybersourceConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthCheckInfoResponse {
     id: String,
@@ -1939,7 +1939,7 @@ pub struct ClientAuthCheckInfoResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourcePreProcessingResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
@@ -2322,14 +2322,14 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceTransactionResponse {
     ApplicationInformation(CybersourceApplicationInfoResponse),
     ErrorInformation(CybersourceErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceApplicationInfoResponse {
     id: String,
