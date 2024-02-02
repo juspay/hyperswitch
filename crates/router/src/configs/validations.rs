@@ -68,11 +68,20 @@ impl super::settings::Locker {
 
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+        use common_utils::fp_utils::when;
+        
+        when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "server host must not be empty".into(),
             ))
+        })?;
+
+        when(self.workers==0, ||{
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "number of workers must be greater than 0".into(),
+            ))
         })
+        
     }
 }
 
