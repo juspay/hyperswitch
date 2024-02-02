@@ -63,7 +63,7 @@ pub async fn get_connector_data(
         #[cfg(feature = "connector_choice_mca_id")]
         merchant_connector_id: None,
         #[cfg(not(feature = "connector_choice_mca_id"))]
-        business_sub_label: payment_data.payment_attempt.business_sub_label.clone(),
+        business_sub_label: payout_data.payout_attempt.business_label.clone(),
         algorithm: None,
         routing_info: PaymentRoutingInfo {
             algorithm: None,
@@ -108,6 +108,7 @@ pub async fn get_connector_data(
             .await?
         }
     };
+    // TODO: Make payout connector calls
     let connector_data = match connector_details {
         api::ConnectorCallType::PreDetermined(connector) => connector,
 

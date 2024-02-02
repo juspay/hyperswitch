@@ -32,11 +32,13 @@ use rand::{
 };
 use rustc_hash::FxHashMap;
 
+#[cfg(feature = "payouts")]
+use crate::core::payouts;
 #[cfg(not(feature = "business_profile_routing"))]
 use crate::utils::StringExt;
 use crate::{
     core::{
-        errors, errors as oss_errors, payments as payments_oss, payouts,
+        errors, errors as oss_errors, payments as payments_oss,
         routing::{self, helpers as routing_helpers},
     },
     logger,

@@ -2887,10 +2887,29 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
+    #[allow(unused_variables)]
+    let (profile_id, routing_algorithm) = match operation_data {
+        OperationData::Payment(payment_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    payment_data.payment_intent.profile_id.clone(),
+                    business_profile.routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.routing_algorithm.clone())
+            }
+        }
+        #[cfg(feature = "payouts")]
+        OperationData::Payout(payout_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    Some(payout_data.payout_attempt.profile_id.clone()),
+                    business_profile.payout_routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.payout_routing_algorithm.clone())
+            }
+        }
     };
 
     let algorithm_ref = routing_algorithm
@@ -2917,13 +2936,7 @@ where
         operation_data,
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
-        match operation_data {
-            OperationData::Payment(payment_data) => payment_data.payment_intent.profile_id.clone(),
-            #[cfg(feature = "payouts")]
-            OperationData::Payout(payout_data) => {
-                Some(payout_data.payout_attempt.profile_id.clone())
-            }
-        },
+        profile_id,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
