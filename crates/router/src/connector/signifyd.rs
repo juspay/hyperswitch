@@ -10,6 +10,7 @@ use transformers as signifyd;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -251,6 +252,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmSaleRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<frm_types::FrmSaleRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
@@ -335,6 +337,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmCheckoutRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<frm_types::FrmCheckoutRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
@@ -421,6 +424,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmTransactionRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<frm_types::FrmTransactionRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
@@ -507,6 +511,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmFulfillmentRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
         let response: signifyd::FrmFullfillmentSignifydApiResponse = res
@@ -593,6 +598,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmRecordReturnRouterData,
+        event_builder: &mut ConnectorEvent,
         res: Response,
     ) -> CustomResult<frm_types::FrmRecordReturnRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsRecordReturnResponse = res

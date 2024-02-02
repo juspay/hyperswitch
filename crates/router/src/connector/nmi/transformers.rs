@@ -873,19 +873,20 @@ pub enum NmiStatus {
     Unknown,
 }
 
-impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
-    for types::PaymentsSyncRouterData
+impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::PaymentsSyncResponseRouterData<types::Response>,
+        item: types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response = SyncResponse::try_from(item.response.response.to_vec())?;
         Ok(Self {
-            status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
+            status: enums::AttemptStatus::from(NmiStatus::from(
+                item.response.transaction.condition,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    response.transaction.transaction_id,
+                    item.response.transaction.transaction_id,
                 ),
                 redirection_data: None,
                 mandate_reference: None,

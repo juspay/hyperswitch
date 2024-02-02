@@ -18,6 +18,7 @@ use crate::{
     connector::{utils as connector_utils, utils::RefundsRequestData},
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -357,12 +358,15 @@ impl
     fn handle_response(
         &self,
         data: &types::SetupMandateRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourceSetupMandatesResponse = res
             .response
             .parse_struct("CybersourceSetupMandatesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -428,6 +432,7 @@ impl
     fn handle_response(
         &self,
         data: &types::MandateRevokeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
         if matches!(res.status_code, 204) {
@@ -563,12 +568,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePreProcessingResponse = res
             .response
             .parse_struct("Cybersource AuthEnrollmentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -649,6 +657,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
@@ -658,6 +667,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -747,12 +758,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourceTransactionResponse = res
             .response
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -851,6 +865,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         if data.is_three_ds()
@@ -861,6 +876,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.set_response_body(&response);
+            router_env::logger::info!(connector_response=?response);
             types::RouterData::try_from(types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -871,6 +888,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .response
                 .parse_struct("Cybersource PaymentResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.set_response_body(&response);
+            router_env::logger::info!(connector_response=?response);
             types::RouterData::try_from(types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -981,12 +1000,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePaymentsResponse = res
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1099,12 +1121,15 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourcePaymentsResponse = res
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1210,12 +1235,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundExecuteRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundExecuteRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourceRefundResponse = res
             .response
             .parse_struct("Cybersource RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1276,12 +1304,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: cybersource::CybersourceRsyncResponse = res
             .response
             .parse_struct("Cybersource RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1373,6 +1404,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsIncrementalAuthorizationRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1386,6 +1418,8 @@ impl
             .response
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,

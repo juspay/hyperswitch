@@ -17,6 +17,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers, logger,
     services::{
         self,
@@ -177,13 +178,16 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: stripe::StripeSourceResponse = res
             .response
             .parse_struct("StripeSourceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -299,6 +303,7 @@ impl
     fn handle_response(
         &self,
         data: &types::ConnectorCustomerRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::ConnectorCustomerRouterData, errors::ConnectorError>
     where
@@ -308,7 +313,9 @@ impl
             .response
             .parse_struct("StripeCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -421,6 +428,7 @@ impl
     fn handle_response(
         &self,
         data: &types::TokenizationRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
     where
@@ -430,7 +438,9 @@ impl
             .response
             .parse_struct("StripeTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -551,6 +561,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError>
     where
@@ -561,7 +572,10 @@ impl
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -673,6 +687,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
@@ -686,7 +701,10 @@ impl
                     .response
                     .parse_struct("SetupIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                logger::info!(connector_response=?response);
+
+                event_builder.set_response_body(&response);
+                router_env::logger::info!(connector_response=?response);
+
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -698,7 +716,10 @@ impl
                     .response
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                logger::info!(connector_response=?response);
+
+                event_builder.set_response_body(&response);
+                router_env::logger::info!(connector_response=?response);
+
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -843,18 +864,57 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                stripe::get_bank_transfer_authorize_response(data, res, bank_transfer_data.deref())
+                match bank_transfer_data {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. }
+                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                        let response: stripe::ChargesResponse = res
+                            .response
+                            .parse_struct("ChargesResponse")
+                            .change_context(
+                                errors::ConnectorError::ResponseDeserializationFailed,
+                            )?;
+
+                        event_builder.set_response_body(&response);
+                        router_env::logger::info!(connector_response=?response);
+
+                        types::RouterData::try_from(types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                    }
+                    _ => {
+                        let response: stripe::PaymentIntentResponse = res
+                            .response
+                            .parse_struct("PaymentIntentResponse")
+                            .change_context(
+                                errors::ConnectorError::ResponseDeserializationFailed,
+                            )?;
+
+                        event_builder.set_response_body(&response);
+                        router_env::logger::info!(connector_response=?response);
+
+                        types::RouterData::try_from(types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                    }
+                }
             }
             _ => {
                 let response: stripe::PaymentIntentResponse = res
                     .response
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                logger::info!(connector_response=?response);
+
+                event_builder.set_response_body(&response);
+                router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -970,13 +1030,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1110,6 +1174,7 @@ impl
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1128,7 +1193,10 @@ impl
             .response
             .parse_struct("SetupIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1239,13 +1307,17 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: stripe::RefundResponse =
             res.response
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1340,6 +1412,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
@@ -1349,7 +1422,10 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             res.response
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1488,6 +1564,7 @@ impl
     fn handle_response(
         &self,
         data: &types::UploadFileRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
@@ -1592,6 +1669,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RetrieveFileRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1719,6 +1797,7 @@ impl
     fn handle_response(
         &self,
         data: &types::SubmitEvidenceRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
         let response: stripe::DisputeObj = res

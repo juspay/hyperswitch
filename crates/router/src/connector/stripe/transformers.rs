@@ -3472,33 +3472,6 @@ pub fn get_bank_transfer_authorize_response(
     res: types::Response,
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-    match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. }
-        | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
-            let response: ChargesResponse = res
-                .response
-                .parse_struct("ChargesResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
-        _ => {
-            let response: PaymentIntentResponse = res
-                .response
-                .parse_struct("PaymentIntentResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
-    }
 }
 
 pub fn construct_file_upload_request(

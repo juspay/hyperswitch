@@ -290,8 +290,46 @@ where
                 response: res.into(),
                 status_code: 200,
             };
+            match connector_request {
+                Some(request) => {
+                    let masked_request_body = match &request.body {
+                        Some(request) => match request {
+                            RequestContent::Json(i)
+                            | RequestContent::FormUrlEncoded(i)
+                            | RequestContent::Xml(i) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
+                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                        },
+                        None => serde_json::Value::Null,
+                    };
+                    let request_url = request.url.clone();
+                    let request_method = request.method;
 
-            connector_integration.handle_response(req, response)
+                    let current_time = Instant::now();
+                    let external_latency = current_time.elapsed().as_millis();
+
+                    let mut connector_event = ConnectorEvent::new(
+                        req.connector.clone(),
+                        std::any::type_name::<T>(),
+                        masked_request_body,
+                        request_url,
+                        request_method,
+                        req.payment_id.clone(),
+                        req.merchant_id.clone(),
+                        state.request_id.as_ref(),
+                        external_latency,
+                        req.refund_id.clone(),
+                        req.dispute_id.clone(),
+                        200, //Temp
+                    );
+
+                    connector_integration.handle_response(req, &mut connector_event, response)
+                }
+                None => Err(
+                    errors::ConnectorError::ProcessingStepFailed(None).into(), //Temp
+                ),
+            }
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
@@ -499,7 +537,7 @@ where
                             Ok(response)
                         }
                         Err(error) => {
-                            connector_event.set_error(json!({"error": err.to_string()}));
+                            connector_event.set_error(json!({"error": error.to_string()}));
                             match connector_event.try_into() {
                                 Ok(event) => {
                                     state.event_handler().log_event(event);

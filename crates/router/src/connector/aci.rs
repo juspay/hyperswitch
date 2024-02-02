@@ -11,6 +11,7 @@ use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -221,6 +222,7 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError>
     where
@@ -231,6 +233,8 @@ impl
             res.response
                 .parse_struct("AciPaymentsResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -335,12 +339,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: aci::AciPaymentsResponse =
             res.response
                 .parse_struct("AciPaymentsResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -422,12 +429,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: aci::AciPaymentsResponse =
             res.response
                 .parse_struct("AciPaymentsResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -522,12 +532,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: aci::AciRefundResponse = res
             .response
             .parse_struct("AciRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

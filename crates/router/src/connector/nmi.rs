@@ -12,6 +12,7 @@ use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
@@ -181,11 +182,14 @@ impl
     fn handle_response(
         &self,
         data: &types::SetupMandateRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -265,11 +269,14 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -343,11 +350,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -428,11 +438,14 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::NmiCompleteResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -496,10 +509,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response = nmi::SyncResponse::try_from(data.response.response.to_vec())?;
+
         types::RouterData::try_from(types::ResponseRouterData {
-            response: res.clone(),
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -569,11 +585,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -637,11 +656,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -711,11 +733,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.set_response_body(&response);
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -777,6 +802,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
+        event_builder: &mut ConnectorEvent,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         types::RouterData::try_from(types::ResponseRouterData {

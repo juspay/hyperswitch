@@ -427,13 +427,13 @@ pub struct ClientProcessorInformation {
     avs: Option<Avs>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientRiskInformation {
     rules: Option<Vec<ClientRiskInformationRules>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
     name: String,
 }
@@ -825,7 +825,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaPaymentStatus {
     Authorized,
@@ -886,7 +886,7 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationResponse {
     access_token: String,
@@ -894,7 +894,7 @@ pub struct BankOfAmericaConsumerAuthInformationResponse {
     reference_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthSetupInfoResponse {
     id: String,
@@ -902,21 +902,21 @@ pub struct ClientAuthSetupInfoResponse {
     consumer_authentication_information: BankOfAmericaConsumerAuthInformationResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaAuthSetupResponse {
     ClientAuthSetupInfo(ClientAuthSetupInfoResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPaymentsResponse {
     ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaClientReferenceResponse {
     id: String,
@@ -927,14 +927,14 @@ pub struct BankOfAmericaClientReferenceResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaErrorInformationResponse {
     id: String,
     error_information: BankOfAmericaErrorInformation,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BankOfAmericaErrorInformation {
     reason: Option<String>,
     message: Option<String>,
@@ -1310,7 +1310,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterDat
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankOfAmericaAuthEnrollmentStatus {
     PendingAuthentication,
@@ -1334,7 +1334,7 @@ pub struct BankOfAmericaThreeDSMetadata {
     three_ds_data: BankOfAmericaConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationEnrollmentResponse {
     access_token: Option<String>,
@@ -1344,7 +1344,7 @@ pub struct BankOfAmericaConsumerAuthInformationEnrollmentResponse {
     validate_response: BankOfAmericaConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthCheckInfoResponse {
     id: String,
@@ -1354,7 +1354,7 @@ pub struct ClientAuthCheckInfoResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPreProcessingResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
@@ -1644,14 +1644,14 @@ impl<F>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaTransactionResponse {
     ApplicationInformation(BankOfAmericaApplicationInfoResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaApplicationInfoResponse {
     id: String,
@@ -1660,7 +1660,7 @@ pub struct BankOfAmericaApplicationInfoResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
     status: BankofamericaPaymentStatus,
@@ -1879,7 +1879,7 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRefundResponse {
     id: String,
@@ -1903,7 +1903,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaRefundStatus {
     Succeeded,
@@ -1913,13 +1913,13 @@ pub enum BankofamericaRefundStatus {
     Voided,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncApplicationInformation {
     status: BankofamericaRefundStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRsyncResponse {
     id: String,

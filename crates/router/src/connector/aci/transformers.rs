@@ -648,7 +648,7 @@ impl FromStr for AciPaymentStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
     id: String,
@@ -670,7 +670,7 @@ pub struct AciErrorResponse {
     pub(super) result: ResultCode,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRedirectionData {
     method: Option<services::Method>,
@@ -678,13 +678,13 @@ pub struct AciRedirectionData {
     url: Url,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Parameters {
     name: String,
     value: String,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultCode {
     pub(super) code: String,
@@ -692,7 +692,7 @@ pub struct ResultCode {
     pub(super) parameter_errors: Option<Vec<ErrorParameters>>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ErrorParameters {
     pub(super) name: String,
     pub(super) value: Option<String>,
@@ -819,7 +819,7 @@ impl From<AciRefundStatus> for enums::RefundStatus {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundResponse {
     id: String,

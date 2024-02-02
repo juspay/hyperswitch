@@ -527,7 +527,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
@@ -572,7 +572,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// capture_method is not part of response from connector.
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct Payment {
     pub id: String,
     pub status: PaymentStatus,
@@ -606,7 +606,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub payment: Payment,

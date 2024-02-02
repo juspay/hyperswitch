@@ -178,7 +178,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BraintreePaymentStatus {
     Succeeded,
@@ -272,25 +272,25 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     transaction: TransactionResponse,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientToken {
     pub value: String,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeSessionTokenResponse {
     pub client_token: ClientToken,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionResponse {
     id: String,
@@ -378,7 +378,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -396,7 +396,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     pub id: String,
     pub status: RefundStatus,
