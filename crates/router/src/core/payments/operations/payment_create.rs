@@ -712,7 +712,9 @@ impl PaymentCreate {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
         }
 
-        let mandate_dets = if let Some(update_id) = request
+        let mandate_details = if request.mandate_data.is_none() {
+            None
+        } else if let Some(update_id) = request
             .mandate_data
             .as_ref()
             .and_then(|inner| inner.update_mandate_id.clone())
@@ -723,8 +725,6 @@ impl PaymentCreate {
             };
             Some(MandateTypeDetails::MandateDetails(mandate_data))
         } else {
-            // let mandate_type: data_models::mandates::MandateDataType =
-
             let mandate_data = MandateDetails {
                 update_mandate_id: None,
                 mandate_type: request
@@ -761,7 +761,7 @@ impl PaymentCreate {
                 business_sub_label: request.business_sub_label.clone(),
                 surcharge_amount,
                 tax_amount,
-                mandate_details: mandate_dets,
+                mandate_details,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
