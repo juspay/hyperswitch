@@ -12,4 +12,9 @@ ALTER COLUMN
 ALTER TABLE
   payout_attempt DROP COLUMN straight_through_algorithm;
 
--- TODO: FIX THIS
+ALTER TABLE
+  payout_attempt
+ALTER COLUMN
+  connector
+SET
+  NOT NULL;

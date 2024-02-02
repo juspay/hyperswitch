@@ -25,3 +25,8 @@ ALTER TABLE
   payout_attempt
 ALTER COLUMN
   connector TYPE VARCHAR(64) USING connector ->> 'routed_through';
+
+ALTER TABLE
+  payout_attempt
+ALTER COLUMN
+  connector DROP NOT NULL;

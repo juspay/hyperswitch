@@ -52,6 +52,7 @@ pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<routing_types::RoutingAlgorithmId>,
+    transaction_type: &routing::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -66,6 +67,7 @@ pub async fn routing_link_config(
                 #[cfg(not(feature = "business_profile_routing"))]
                 auth.key_store,
                 algorithm_id.0,
+                transaction_type,
             )
         },
         #[cfg(not(feature = "release"))]
@@ -179,6 +181,7 @@ pub async fn routing_unlink_config(
     #[cfg(feature = "business_profile_routing")] payload: web::Json<
         routing_types::RoutingConfigRequest,
     >,
+    transaction_type: &routing::TransactionType,
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
@@ -189,7 +192,12 @@ pub async fn routing_unlink_config(
             &req,
             payload.into_inner(),
             |state, auth: auth::AuthenticationData, payload_req| {
-                routing::unlink_routing_config(state, auth.merchant_account, payload_req)
+                routing::unlink_routing_config(
+                    state,
+                    auth.merchant_account,
+                    payload_req,
+                    transaction_type,
+                )
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(

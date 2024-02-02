@@ -7,7 +7,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payments};
+use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -48,10 +48,6 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
-    #[serde(
-        default,
-        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
-    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through

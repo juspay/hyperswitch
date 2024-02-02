@@ -20,7 +20,7 @@ use crate::{
             customers::get_connector_customer_details_if_present, route_connector_v1, routing,
             CustomerDetails,
         },
-        routing::OperationData,
+        routing::TransactionData,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -462,7 +462,7 @@ pub async fn decide_payout_connector(
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &OperationData::<()>::Payout(payout_data.clone()),
+                &TransactionData::<()>::Payout(payout_data.clone()),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
@@ -522,7 +522,7 @@ pub async fn decide_payout_connector(
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &OperationData::<()>::Payout(payout_data.clone()),
+                &TransactionData::<()>::Payout(payout_data.clone()),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
@@ -574,7 +574,7 @@ pub async fn decide_payout_connector(
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        &OperationData::<()>::Payout(payout_data.clone()),
+        &TransactionData::<()>::Payout(payout_data.clone()),
         routing_data,
         eligible_connectors,
     )

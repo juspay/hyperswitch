@@ -1,10 +1,9 @@
 pub use api_models::admin::{
-    payout_routing_algorithm, BusinessProfileCreate, BusinessProfileResponse,
-    BusinessProfileUpdate, MerchantAccountCreate, MerchantAccountDeleteResponse,
-    MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
-    MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
-    MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
+    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
+    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
+    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, PayoutRoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
     WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;

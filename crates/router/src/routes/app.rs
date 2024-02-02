@@ -49,6 +49,7 @@ use crate::routes::recon as recon_routes;
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
+    core::routing,
     db::{StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
@@ -472,9 +473,25 @@ impl Routing {
                     .route(web::post().to(cloud_routing::routing_update_default_config)),
             )
             .service(
-                web::resource("/deactivate")
-                    .route(web::post().to(cloud_routing::routing_unlink_config)),
+                web::resource("/deactivate").route(web::post().to(|state, req, payload| {
+                    cloud_routing::routing_unlink_config(
+                        state,
+                        req,
+                        payload,
+                        &routing::TransactionType::Payment,
+                    )
+                })),
             )
+            .service(web::resource("/deactivate/payouts").route(web::post().to(
+                |state, req, payload| {
+                    cloud_routing::routing_unlink_config(
+                        state,
+                        req,
+                        payload,
+                        &routing::TransactionType::Payout,
+                    )
+                },
+            )))
             .service(
                 web::resource("/decision")
                     .route(web::put().to(cloud_routing::upsert_decision_manager_config))
@@ -494,8 +511,28 @@ impl Routing {
                     .route(web::get().to(cloud_routing::routing_retrieve_config)),
             )
             .service(
-                web::resource("/{algorithm_id}/activate")
-                    .route(web::post().to(cloud_routing::routing_link_config)),
+                web::resource("/{algorithm_id}/activate").route(web::post().to(
+                    |state, req, path| {
+                        cloud_routing::routing_link_config(
+                            state,
+                            req,
+                            path,
+                            &routing::TransactionType::Payment,
+                        )
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{algorithm_id}/activate/payouts").route(web::post().to(
+                    |state, req, path| {
+                        cloud_routing::routing_link_config(
+                            state,
+                            req,
+                            path,
+                            &routing::TransactionType::Payout,
+                        )
+                    },
+                )),
             )
             .service(
                 web::resource("/default/profile/{profile_id}").route(

@@ -12,7 +12,10 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        routing,
+    },
     db::StorageInterface,
     types::{domain, storage},
     utils::{self, StringExt},
@@ -235,10 +238,16 @@ pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
+    transaction_type: &routing::TransactionType,
 ) -> RouterResult<()> {
     let ref_val = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
+
+    let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
+        routing::TransactionType::Payment => (Some(ref_val), None),
+        routing::TransactionType::Payout => (None, Some(ref_val)),
+    };
 
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
@@ -248,10 +257,10 @@ pub async fn update_business_profile_active_algorithm_ref(
         redirect_to_merchant_with_http_post: None,
         webhook_details: None,
         metadata: None,
-        routing_algorithm: Some(ref_val),
+        routing_algorithm,
         intent_fulfillment_time: None,
         frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
+        payout_routing_algorithm,
         applepay_verified_domains: None,
         modified_at: None,
         is_recon_enabled: None,
