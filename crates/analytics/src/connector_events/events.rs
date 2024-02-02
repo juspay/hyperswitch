@@ -1,7 +1,4 @@
-use api_models::analytics::{
-    connector_events::{ConnectorEventsRequest, QueryType},
-    Granularity,
-};
+use api_models::analytics::{connector_events::ConnectorEventsRequest, Granularity};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
@@ -32,24 +29,21 @@ where
     query_builder
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
-    match query_param.query_param {
-        QueryType::Payment { payment_id } => query_builder
-            .add_filter_clause("payment_id", payment_id)
-            .switch()?,
-        QueryType::Refund {
-            payment_id,
-            refund_id,
-        } => {
-            query_builder
-                .add_filter_clause("payment_id", payment_id)
-                .switch()?;
-            query_builder
-                .add_filter_clause("refund_id", refund_id)
-                .switch()?;
-        }
-        QueryType::Dispute { dispute_id } => query_builder
-            .add_filter_clause("dispute_id", dispute_id)
-            .switch()?,
+
+    query_builder
+        .add_filter_clause("payment_id", query_param.payment_id)
+        .switch()?;
+
+    if let Some(refund_id) = query_param.refund_id {
+        query_builder
+            .add_filter_clause("refund_id", &refund_id)
+            .switch()?;
+    }
+
+    if let Some(dispute_id) = query_param.dispute_id {
+        query_builder
+            .add_filter_clause("dispute_id", &dispute_id)
+            .switch()?;
     }
 
     //TODO!: update the execute_query function to return reports instead of plain errors...
