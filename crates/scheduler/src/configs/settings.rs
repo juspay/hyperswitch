@@ -9,6 +9,15 @@ pub struct SchedulerSettings {
     pub consumer: ConsumerSettings,
     pub loop_interval: u64,
     pub graceful_shutdown_interval: u64,
+    pub server: Server,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Server {
+    pub port: u16,
+    pub workers: usize,
+    pub host: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
