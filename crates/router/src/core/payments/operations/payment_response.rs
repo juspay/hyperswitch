@@ -601,10 +601,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     ) {
                         (true, Some(common_enums::AuthenticationType::NoThreeDs))
                         | (true, None) => Some(common_enums::AuthenticationType::ThreeDs),
-                        (false, Some(common_enums::AuthenticationType::ThreeDs))
-                        | (false, None) => Some(common_enums::AuthenticationType::NoThreeDs),
-                        (false, Some(common_enums::AuthenticationType::NoThreeDs))
-                        | (true, Some(common_enums::AuthenticationType::ThreeDs)) => None,
+                        _ => None,
                     };
 
                     // incase of success, update error code and error message
