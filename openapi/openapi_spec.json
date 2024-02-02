@@ -8205,6 +8205,23 @@
       "GoPayRedirection": {
         "type": "object"
       },
+      "GooglePayAssuranceDetails": {
+        "type": "object",
+        "required": [
+          "card_holder_authenticated",
+          "account_verified"
+        ],
+        "properties": {
+          "card_holder_authenticated": {
+            "type": "boolean",
+            "description": "indicates that Cardholder possession validation has been performed"
+          },
+          "account_verified": {
+            "type": "boolean",
+            "description": "indicates that identification and verifications (ID&V) was performed"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
