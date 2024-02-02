@@ -4489,7 +4489,7 @@ impl Default for super::settings::RequiredFields {
                                                 "payment_method_data.bank_redirect.giropay.country".to_string(),
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_redirect.giropay.country".to_string(),
-                                                    display_name: "bank_account_iban".to_string(),
+                                                    display_name: "country".to_string(),
                                                     field_type: enums::FieldType::UserCountry {
                                                         options: vec![
                                                                 "DE".to_string(),
