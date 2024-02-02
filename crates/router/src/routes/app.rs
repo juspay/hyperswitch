@@ -6,6 +6,7 @@ use actix_web::{web, Scope};
     any(feature = "hashicorp-vault", feature = "aws_kms")
 ))]
 use analytics::AnalyticsConfig;
+use encryption_interface::encryption_management::EncryptionManagementInterface;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
@@ -73,6 +74,7 @@ pub struct AppState {
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -150,6 +152,13 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+        #[allow(clippy::expect_used)]
+        let encryption_client = conf
+            .encryption_management
+            .get_encryption_management_client()
+            .await
+            .expect("Failed to create encryption client");
+
         Box::pin(async move {
             #[cfg(feature = "aws_kms")]
             let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
@@ -287,6 +296,7 @@ impl AppState {
                 pool,
                 request_id: None,
                 file_storage_client,
+                encryption_client,
             }
         })
         .await

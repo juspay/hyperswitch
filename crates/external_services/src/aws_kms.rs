@@ -6,9 +6,11 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
+use encryption_interface::encryption_management::{EncryptionError, EncryptionManagementInterface};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
+use secrets_interface::secrets_management::{SecretManagementInterface, SecretsManagementError};
 /// decrypting data using the AWS KMS SDK.
 pub mod decrypt;
 
@@ -36,7 +38,7 @@ pub struct AwsKmsConfig {
 }
 
 /// Client for AWS KMS operations.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AwsKmsClient {
     inner_client: Client,
     key_id: String,
@@ -136,13 +138,48 @@ impl AwsKmsClient {
     }
 }
 
-/// Errors that could occur during AWS KMS operations.
+#[async_trait::async_trait]
+impl EncryptionManagementInterface for AwsKmsClient {
+    async fn encrypt(&self, input: String) -> CustomResult<String, EncryptionError> {
+        self.encrypt(input)
+            .await
+            .change_context(EncryptionError::EncryptionFailed)
+    }
+
+    async fn decrypt(&self, input: String) -> CustomResult<String, EncryptionError> {
+        self.decrypt(input)
+            .await
+            .change_context(EncryptionError::DecryptionFailed)
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretManagementInterface for AwsKmsClient {
+    async fn store_secret(
+        &self,
+        input: Secret<String>,
+    ) -> CustomResult<String, SecretsManagementError> {
+        self.encrypt(input.peek())
+            .await
+            .change_context(SecretsManagementError::EncryptionFailed)
+    }
+
+    async fn get_secret(
+        &self,
+        input: Secret<String>,
+    ) -> CustomResult<String, SecretsManagementError> {
+        self.decrypt(input.peek())
+            .await
+            .change_context(SecretsManagementError::DecryptionFailed)
+    }
+}
+
+/// Errors that could occur during KMS operations.
 #[derive(Debug, thiserror::Error)]
 pub enum AwsKmsError {
     /// An error occurred when base64 encoding input data.
     #[error("Failed to base64 encode input data")]
     Base64EncodingFailed,
-
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,

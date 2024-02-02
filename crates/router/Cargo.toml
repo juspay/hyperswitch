@@ -108,6 +108,7 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["signa
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+encryption_interface = { version = "0.1.0", path = "../encryption_interface" }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 external_services = { version = "0.1.0", path = "../external_services" }
@@ -116,6 +117,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+secrets_interface = { version = "0.1.0", path = "../secrets_interface" }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 openapi = { version = "0.1.0", path = "../openapi", optional = true }
