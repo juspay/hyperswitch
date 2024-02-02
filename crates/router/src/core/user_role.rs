@@ -6,7 +6,7 @@ use router_env::logger;
 
 use super::errors::StorageErrorExt;
 use crate::{
-    core::errors::{UserErrors, UserResponse},
+    core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
     services::{
         authentication::{self as auth},
@@ -88,16 +88,15 @@ pub async fn update_user_role(
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
-    let merchant_id = user_from_token.merchant_id;
-    let role_id = req.role_id.clone();
-    utils::user_role::validate_role_id(role_id.as_str())?;
+    if !predefined_permissions::is_role_updatable_to(&req.role_id)? {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable(format!("role_id={} is not updatable", req.role_id));
+    }
 
-    let user_from_db = utils::user::get_user_from_db_by_pii_email(
-        &state,
-        req.email,
-        UserErrors::InvalidRoleOperation,
-    )
-    .await?;
+    let user_from_db =
+        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
     if user_from_token.user_id == user_from_db.get_user_id() {
         return Err(UserErrors::InvalidRoleOperation.into())
@@ -108,9 +107,9 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_from_db.get_user_id(),
-            merchant_id.as_str(),
+            user_from_token.merchant_id.as_str(),
             UserRoleUpdate::UpdateRole {
-                role_id,
+                role_id: req.role_id,
                 modified_by: user_from_token.user_id,
             },
         )
