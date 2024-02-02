@@ -27,8 +27,8 @@ impl Store {
             master_pool: diesel_make_pg_pool(
                 &config.master_database,
                 test_transaction,
-                #[cfg(feature = "kms")]
-                external_services::kms::get_kms_client(&config.kms).await,
+                #[cfg(feature = "aws_kms")]
+                external_services::aws_kms::get_aws_kms_client(&config.kms).await,
                 #[cfg(feature = "hashicorp-vault")]
                 #[allow(clippy::expect_used)]
                 external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)

@@ -94,6 +94,17 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
             })
         })?;
 
+    let outgoing_check = state
+        .health_check_outgoing()
+        .await
+        .map(|_| true)
+        .map_err(|err| {
+            error_stack::report!(errors::ApiErrorResponse::HealthCheckError {
+                component: "Outgoing Request",
+                message: err.to_string()
+            })
+        })?;
+
     logger::debug!("Locker health check end");
 
     let response = RouterHealthCheckResponse {
@@ -102,6 +113,7 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
         locker: locker_status,
         #[cfg(feature = "olap")]
         analytics: analytics_status,
+        outgoing_request: outgoing_check,
     };
 
     Ok(api::ApplicationResponse::Json(response))

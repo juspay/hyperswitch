@@ -8,8 +8,8 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-release = ["kms", "vergen"]
-kms = ["external_services/kms"]
+release = ["aws_kms", "vergen"]
+aws_kms = ["external_services/aws_kms"]
 hashicorp-vault = ["external_services/hashicorp-vault"]
 vergen = ["router_env/vergen"]
 
