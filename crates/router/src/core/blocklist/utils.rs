@@ -1,8 +1,8 @@
 use api_models::blocklist as api_blocklist;
 use common_utils::crypto::{self, SignMessage};
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 
 use super::{errors, AppState};
 use crate::{
@@ -38,15 +38,15 @@ pub async fn delete_entry_from_blocklist(
                     message: "blocklist record with given fingerprint id not found".to_string(),
                 })?;
 
-            #[cfg(feature = "kms")]
-            let decrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
+            #[cfg(feature = "aws_kms")]
+            let decrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
                 .await
                 .decrypt(blocklist_fingerprint.encrypted_fingerprint)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to kms decrypt fingerprint")?;
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
 
             let blocklist_entry = state
@@ -184,15 +184,15 @@ pub async fn insert_entry_into_blocklist(
                     message: "fingerprint not found".to_string(),
                 })?;
 
-            #[cfg(feature = "kms")]
-            let decrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
+            #[cfg(feature = "aws_kms")]
+            let decrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
                 .await
                 .decrypt(blocklist_fingerprint.encrypted_fingerprint)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to kms decrypt encrypted fingerprint")?;
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
 
             state

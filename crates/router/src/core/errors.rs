@@ -221,12 +221,12 @@ pub enum VaultError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum KmsError {
+pub enum AwsKmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
-    #[error("Failed to KMS decrypt input data")]
+    #[error("Failed to AWS KMS decrypt input data")]
     DecryptionFailed,
-    #[error("Missing plaintext KMS decryption output")]
+    #[error("Missing plaintext AWS KMS decryption output")]
     MissingPlaintextDecryptionOutput,
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
