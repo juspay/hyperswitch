@@ -1,6 +1,7 @@
 use drainer::{
     errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
 };
+use router_env::tracing::Instrument;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -31,10 +32,13 @@ async fn main() -> DrainerResult<()> {
         .await
         .expect("Failed to create the server");
 
-    tokio::spawn(async move {
-        let _ = web_server.await;
-        logger::error!("The health check probe stopped working!");
-    });
+    tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
 
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);

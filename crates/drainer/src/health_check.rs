@@ -114,7 +114,7 @@ impl HealthCheckInterface for Store {
                         diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
                     let _x: i32 = query.get_result_async(&conn).await.map_err(|err| {
                         logger::error!(read_err=?err,"Error while reading element in the database");
-                        HealthCheckDBError::DBReadError
+                        HealthCheckDBError::DbReadError
                     })?;
 
                     logger::debug!("Database read was successful");
@@ -126,14 +126,14 @@ impl HealthCheckInterface for Store {
 
                     config.insert(&conn).await.map_err(|err| {
                         logger::error!(write_err=?err,"Error while writing to database");
-                        HealthCheckDBError::DBWriteError
+                        HealthCheckDBError::DbWriteError
                     })?;
 
                     logger::debug!("Database write was successful");
 
                     Config::delete_by_key(&conn, "test_key").await.map_err(|err| {
                         logger::error!(delete_err=?err,"Error while deleting element in the database");
-                        HealthCheckDBError::DBDeleteError
+                        HealthCheckDBError::DbDeleteError
                     })?;
 
                     logger::debug!("Database delete was successful");
@@ -221,13 +221,13 @@ impl HealthCheckInterface for Store {
 #[derive(Debug, thiserror::Error)]
 pub enum HealthCheckDBError {
     #[error("Error while connecting to database")]
-    DBError,
+    DbError,
     #[error("Error while writing to database")]
-    DBWriteError,
+    DbWriteError,
     #[error("Error while reading element in the database")]
-    DBReadError,
+    DbReadError,
     #[error("Error while deleting element in the database")]
-    DBDeleteError,
+    DbDeleteError,
     #[error("Unpredictable error occurred")]
     UnknownError,
     #[error("Error in database transaction")]
@@ -237,7 +237,7 @@ pub enum HealthCheckDBError {
 impl From<diesel::result::Error> for HealthCheckDBError {
     fn from(error: diesel::result::Error) -> Self {
         match error {
-            diesel::result::Error::DatabaseError(_, _) => Self::DBError,
+            diesel::result::Error::DatabaseError(_, _) => Self::DbError,
 
             diesel::result::Error::RollbackErrorOnCommit { .. }
             | diesel::result::Error::RollbackTransaction

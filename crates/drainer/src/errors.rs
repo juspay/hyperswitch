@@ -21,9 +21,9 @@ pub enum DrainerError {
 
 #[derive(Debug, Error, Clone, serde::Serialize)]
 pub enum HealthCheckError {
-    #[error("Database health check is failiing with error: {message}")]
+    #[error("Database health check is failing with error: {message}")]
     DbError { message: String },
-    #[error("Redis health check is failiing with error: {message}")]
+    #[error("Redis health check is failing with error: {message}")]
     RedisError { message: String },
 }
 
