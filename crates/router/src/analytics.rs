@@ -21,7 +21,7 @@ pub mod routes {
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthToken, AuthenticationData},
+            authentication::{self as auth, AuthenticationData},
             authorization::permissions::Permission,
             ApplicationResponse,
         },
@@ -378,23 +378,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GenerateRefundReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -430,23 +420,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GenerateDisputeReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -482,23 +462,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;

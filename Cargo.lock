@@ -5529,6 +5529,7 @@ dependencies = [
  "external_services",
  "futures 0.3.28",
  "masking",
+ "num_cpus",
  "once_cell",
  "rand 0.8.5",
  "redis_interface",

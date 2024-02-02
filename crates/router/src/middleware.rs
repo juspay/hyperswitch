@@ -141,9 +141,14 @@ where
         let response_fut = self.service.call(req);
 
         Box::pin(
-            response_fut.instrument(
+            async move {
+                let response = response_fut.await;
+                logger::info!(golden_log_line = true);
+                response
+            }
+            .instrument(
                 router_env::tracing::info_span!(
-                    "golden_log_line",
+                    "ROOT_SPAN",
                     payment_id = Empty,
                     merchant_id = Empty,
                     connector_name = Empty,

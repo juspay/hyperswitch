@@ -166,6 +166,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserSignUp
             | Flow::UserSignInWithoutInviteChecks
             | Flow::UserSignIn
+            | Flow::Signout
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
             | Flow::GetMutltipleDashboardMetadata

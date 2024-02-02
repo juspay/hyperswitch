@@ -33,6 +33,12 @@ pub trait UserInterface {
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -87,6 +93,18 @@ impl UserInterface for Store {
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_id(&conn, user_id, user)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::User::update_by_user_email(&conn, user_email, user)
             .await
             .map_err(Into::into)
             .into_report()
@@ -224,6 +242,50 @@ impl UserInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No user available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        update_user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let mut users = self.users.lock().await;
+        let user_email_pii: common_utils::pii::Email = user_email
+            .to_string()
+            .try_into()
+            .map_err(|_| errors::StorageError::MockDbError)?;
+        users
+            .iter_mut()
+            .find(|user| user.email == user_email_pii)
+            .map(|user| {
+                *user = match &update_user {
+                    storage::UserUpdate::VerifyUser => storage::User {
+                        is_verified: true,
+                        ..user.to_owned()
+                    },
+                    storage::UserUpdate::AccountUpdate {
+                        name,
+                        password,
+                        is_verified,
+                        preferred_merchant_id,
+                    } => storage::User {
+                        name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
+                        password: password.clone().unwrap_or(user.password.clone()),
+                        is_verified: is_verified.unwrap_or(user.is_verified),
+                        preferred_merchant_id: preferred_merchant_id
+                            .clone()
+                            .or(user.preferred_merchant_id.clone()),
+                        ..user.to_owned()
+                    },
+                };
+                user.to_owned()
+            })
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No user available for user_email = {user_email}"
                 ))
                 .into(),
             )
