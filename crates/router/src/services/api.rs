@@ -184,7 +184,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn handle_response(
         &self,
         data: &types::RouterData<T, Req, Resp>,
-        event_builder: &mut ConnectorEvent,
+        event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
     where
@@ -290,46 +290,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
-            match connector_request {
-                Some(request) => {
-                    let masked_request_body = match &request.body {
-                        Some(request) => match request {
-                            RequestContent::Json(i)
-                            | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => i
-                                .masked_serialize()
-                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
-                        },
-                        None => serde_json::Value::Null,
-                    };
-                    let request_url = request.url.clone();
-                    let request_method = request.method;
-
-                    let current_time = Instant::now();
-                    let external_latency = current_time.elapsed().as_millis();
-
-                    let mut connector_event = ConnectorEvent::new(
-                        req.connector.clone(),
-                        std::any::type_name::<T>(),
-                        masked_request_body,
-                        request_url,
-                        request_method,
-                        req.payment_id.clone(),
-                        req.merchant_id.clone(),
-                        state.request_id.as_ref(),
-                        external_latency,
-                        req.refund_id.clone(),
-                        req.dispute_id.clone(),
-                        200, //Temp
-                    );
-
-                    connector_integration.handle_response(req, &mut connector_event, response)
-                }
-                None => Err(
-                    errors::ConnectorError::ProcessingStepFailed(None).into(), //Temp
-                ),
-            }
+            connector_integration.handle_response(req, None, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
@@ -440,7 +401,7 @@ where
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
                                     match connector_integration
-                                        .handle_response(req, &mut connector_event, body)
+                                        .handle_response(req, Some(&mut connector_event), body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -488,7 +449,7 @@ where
                                                 }
                                                 Err(err)
                                             },
-                                        }?;
+                                        }?
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);

@@ -185,7 +185,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmCheckoutRouterData,
-        event_builder: &mut ConnectorEvent,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmCheckoutRouterData, errors::ConnectorError> {
         let response: riskified::RiskifiedPaymentsResponse = res
@@ -314,7 +314,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmTransactionRouterData,
-        event_builder: &mut ConnectorEvent,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmTransactionRouterData, errors::ConnectorError> {
         let response: riskified::RiskifiedTransactionResponse = res
@@ -409,7 +409,7 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmFulfillmentRouterData,
-        event_builder: &mut ConnectorEvent,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
         let response: riskified::RiskifiedFulfilmentResponse = res
