@@ -10,7 +10,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers as payments_helpers,
     },
-    types::{self, domain},
+    types::{self, domain, storage},
 };
 
 const IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW: &str =
@@ -20,6 +20,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
 
+#[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
     authentication_provider: String,
     payment_method_data: payments::PaymentMethodData,
@@ -34,7 +35,7 @@ pub fn construct_authentication_router_data(
     device_channel: String,
     merchant_account: domain::MerchantAccount,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
-    authentication_data: super::types::AuthenticationData,
+    authentication_data: (super::types::AuthenticationData, storage::Authentication),
 ) -> RouterResult<types::ConnectorAuthenticationRouterData> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account

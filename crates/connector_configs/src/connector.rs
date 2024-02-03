@@ -147,6 +147,7 @@ pub struct ConnectorConfig {
     pub signifyd: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
+    pub tokenex: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -257,6 +258,7 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Zen => Ok(connector_data.zen),
+            Connector::Tokenex => Ok(connector_data.tokenex),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector1 => Ok(connector_data.dummy_connector),
             #[cfg(feature = "dummy_connector")]

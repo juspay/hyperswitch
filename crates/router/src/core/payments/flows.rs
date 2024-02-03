@@ -145,6 +145,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -211,6 +212,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_webhook_source_verification!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -294,6 +296,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -377,6 +380,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -430,6 +434,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -515,6 +520,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -620,6 +626,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -702,6 +709,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -784,6 +792,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -867,6 +876,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -926,6 +936,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -1009,6 +1020,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -1095,6 +1107,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -1178,6 +1191,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -1261,6 +1275,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Airwallex,
@@ -1344,6 +1359,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1428,6 +1444,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1511,6 +1528,7 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1595,6 +1613,7 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1663,6 +1682,7 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1747,6 +1767,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1831,6 +1852,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1915,6 +1937,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -1999,6 +2022,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -2083,6 +2107,7 @@ impl<const T: u8>
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -2165,6 +2190,7 @@ impl<const T: u8>
 }
 
 default_imp_for_incremental_authorization!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,
@@ -2246,6 +2272,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_revoking_mandates!(
+    connector::Tokenex,
     connector::Threedsecureio,
     connector::Aci,
     connector::Adyen,

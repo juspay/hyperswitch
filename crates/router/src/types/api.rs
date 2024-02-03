@@ -414,6 +414,7 @@ impl ConnectorData {
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::Connector::Threedsecureio => Ok(Box::new(&connector::Threedsecureio)),
+                enums::Connector::Tokenex => Ok(Box::new(&connector::Tokenex)),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),

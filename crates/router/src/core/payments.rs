@@ -170,8 +170,7 @@ where
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
     let separate_authentication = payment_data
         .payment_attempt
-        .external_3ds_authentication_requested
-        .clone();
+        .external_3ds_authentication_requested;
     payment_data = tokenize_in_router_when_confirm_false(
         state,
         &operation,
@@ -3069,9 +3068,7 @@ pub async fn payment_external_authentication(
 
     let merchant_connector_account = db
         .find_merchant_connector_account_by_profile_id_connector_name(
-            profile_id,
-            "threedsecureio",
-            &key_store,
+            profile_id, "tokenex", &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -3089,6 +3086,7 @@ pub async fn payment_external_authentication(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let authentication_data: AuthenticationData = authentication
         .authentication_data
+        .clone()
         .parse_value("authentication data")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -3207,7 +3205,7 @@ pub async fn payment_external_authentication(
         })?;
     let authentication_response = authentication_core::perform_authentication(
         &state,
-        "threedsecureio".to_string(),
+        "tokenex".to_string(),
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,
@@ -3233,7 +3231,7 @@ pub async fn payment_external_authentication(
         Some(currency),
         authentication::MessageCategory::Payment,
         "02".to_string(),
-        authentication_data,
+        (authentication_data, authentication),
     )
     .await?;
     Ok(services::ApplicationResponse::Json(

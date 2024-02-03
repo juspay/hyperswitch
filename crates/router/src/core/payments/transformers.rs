@@ -551,8 +551,7 @@ where
                                     three_ds_data: api_models::payments::ThreeDsData {
                                         authentication_url: format!(
                                             "{base_url}/payments/{payment_id}/3ds/authentication"
-                                        )
-                                        .into(),
+                                        ),
                                         three_ds_method_details:
                                             api_models::payments::ThreeDsMethodData {
                                                 three_ds_method_data_submission: true,

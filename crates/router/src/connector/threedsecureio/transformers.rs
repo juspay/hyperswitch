@@ -316,30 +316,35 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .message_version
                 .clone(),
             ds_end_protocol_version: item
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .message_version
                 .clone(),
             acs_start_protocol_version: item
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .message_version
                 .clone(),
             acs_end_protocol_version: item
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .message_version
                 .clone(),
             three_dsserver_trans_id: item
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .threeds_server_transaction_id
                 .clone(),
             acct_number: card_details.card_number.clone(),
@@ -478,6 +483,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .router_data
                 .request
                 .authentication_data
+                .0
                 .message_version
                 .clone(),
             purchase_amount: item.amount.to_string(),
@@ -582,7 +588,7 @@ pub struct ThreedsecureioAuthenticationRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioPreAuthenticationRequest {
-    acct_number: String,
+    acct_number: cards::CardNumber,
     ds: Option<DirectoryServer>,
 }
 
@@ -624,11 +630,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
     ) -> Result<Self, Self::Error> {
         let router_data = value.router_data;
         Ok(Self {
-            acct_number: router_data
-                .request
-                .card_holder_account_number
-                .clone()
-                .get_card_no(),
+            acct_number: router_data.request.card_holder_account_number.clone(),
             ds: None,
         })
     }

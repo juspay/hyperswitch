@@ -21,12 +21,6 @@ pub enum AuthenticationResponseData {
     },
 }
 
-impl AuthenticationResponseData {
-    pub fn is_3ds_version_greater_than_2() -> bool {
-        todo!()
-    }
-}
-
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub enum AuthNFlowType {
     #[default]

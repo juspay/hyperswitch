@@ -45,6 +45,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    Tokenex,
     Threedsecureio,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]

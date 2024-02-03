@@ -1058,7 +1058,10 @@ pub struct ConnectorAuthenticationRequestData {
     pub currency: Option<common_enums::Currency>,
     pub message_category: api_authentication::MessageCategory,
     pub device_channel: String,
-    pub authentication_data: crate::core::authentication::types::AuthenticationData,
+    pub authentication_data: (
+        crate::core::authentication::types::AuthenticationData,
+        storage::Authentication,
+    ),
 }
 
 #[derive(Clone, Debug)]

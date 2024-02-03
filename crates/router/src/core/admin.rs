@@ -1651,6 +1651,10 @@ pub(crate) fn validate_auth_and_metadata_type(
     use crate::connector::*;
 
     match connector_name {
+        api_enums::Connector::Tokenex => {
+            tokenex::transformers::TokenexAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Threedsecureio => {
             threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
             Ok(())

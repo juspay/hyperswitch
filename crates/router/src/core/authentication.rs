@@ -17,9 +17,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self as core_types, api},
+    types::{self as core_types, api, storage},
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &AppState,
     authentication_provider: String,
@@ -35,7 +36,7 @@ pub async fn perform_authentication(
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
     device_channel: String,
-    authentication_data: types::AuthenticationData,
+    authentication_data: (types::AuthenticationData, storage::Authentication),
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -66,7 +67,7 @@ pub async fn perform_authentication(
         authentication_data,
     )?;
     let response = services::execute_connector_processing_step(
-        &state,
+        state,
         connector_integration,
         &router_data,
         CallConnectorAction::Trigger,
