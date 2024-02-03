@@ -19,6 +19,17 @@ pub struct AuthenticationResponse {
     pub trans_status: String,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub three_dsserver_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
+}
+
+#[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
+pub struct PostAuthenticationResponse {
+    pub trans_status: String,
+    pub authentication_value: Option<String>,
+    pub eci: Option<String>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize, PartialEq, Eq)]
@@ -45,7 +56,19 @@ pub trait ConnectorPreAuthentication:
 {
 }
 
+pub trait ConnectorPostAuthentication:
+    services::ConnectorIntegration<
+    PostAuthentication,
+    types::ConnectorPostAuthenticationRequestData,
+    types::ConnectorPostAuthenticationResponse,
+>
+{
+}
+
 pub trait ExternalAuthentication:
-    super::ConnectorCommon + ConnectorAuthentication + ConnectorPreAuthentication
+    super::ConnectorCommon
+    + ConnectorAuthentication
+    + ConnectorPreAuthentication
+    + ConnectorPostAuthentication
 {
 }

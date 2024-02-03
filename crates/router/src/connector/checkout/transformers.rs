@@ -178,7 +178,8 @@ impl<F, T>
 pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub number: cards::CardNumber,
+    // pub number: cards::CardNumber,
+    pub number: String,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvv: Secret<String>,
@@ -259,6 +260,10 @@ pub enum CheckoutPaymentIntent {
 pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
+    eci: Option<String>,
+    cryptogram: Option<String>,
+    xid: Option<String>,
+    version: Option<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -289,7 +294,8 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             api::PaymentMethodData::Card(ccard) => {
                 let a = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,
-                    number: ccard.card_number.clone(),
+                    // number: ccard.card_number.clone(),
+                    number: "4000002760003184".to_owned(),
                     expiry_month: ccard.card_exp_month.clone(),
                     expiry_year: ccard.card_exp_year.clone(),
                     cvv: ccard.card_cvc,
@@ -384,10 +390,38 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
+                eci: item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .and_then(|auth| auth.eci),
+                cryptogram: item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .and_then(|auth| auth.cavv),
+                xid: item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .map(|auth| auth.threeds_server_transaction_id),
+                version: item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .clone()
+                    .map(|auth| auth.message_version),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
+                eci: None,
+                cryptogram: None,
+                xid: None,
+                version: None,
             },
         };
 

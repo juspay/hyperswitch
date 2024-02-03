@@ -3154,6 +3154,26 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub payment_id: String,
     /// Client Secret
     pub client_secret: String,
+    /// SDKInformation
+    pub sdk_information: Option<SDKInformation>,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct SDKInformation {
+    pub sdk_app_id: String,
+    pub sdk_enc_data: String,
+    pub sdk_ephem_pub_key: SDKEphemPubKey,
+    pub sdk_trans_id: String,
+    pub sdk_reference_number: String,
+    pub sdk_max_timeout: String,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct SDKEphemPubKey {
+    kty: String,
+    y: String,
+    x: String,
+    crv: String,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -3164,6 +3184,10 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_url: Option<Url>,
     /// challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub three_dsserver_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

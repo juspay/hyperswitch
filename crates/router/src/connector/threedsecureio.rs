@@ -547,6 +547,7 @@ impl api::IncomingWebhook for Threedsecureio {
 impl api::ConnectorPreAuthentication for Threedsecureio {}
 impl api::ExternalAuthentication for Threedsecureio {}
 impl api::ConnectorAuthentication for Threedsecureio {}
+impl api::ConnectorPostAuthentication for Threedsecureio {}
 
 impl
     ConnectorIntegration<
@@ -656,11 +657,17 @@ impl
             response: Ok(types::ConnectorAuthenticationResponse {
                 trans_status: response.trans_status.clone(),
                 acs_url: response.acs_url,
-                challenge_request: if response.trans_status != "Y" {
+                challenge_request: if response.trans_status != "Y"
+                    && response.acs_signed_content.is_none()
+                {
                     Some(creq_base64)
                 } else {
                     None
                 },
+                acs_reference_number: Some(response.acs_reference_number.clone()),
+                acs_trans_id: Some(response.acs_trans_id.clone()),
+                three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
+                acs_signed_content: response.acs_signed_content,
             }),
             ..data.clone()
         })
@@ -766,6 +773,103 @@ impl
                 },
             ),
             status: common_enums::AttemptStatus::AuthenticationPending,
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::PostAuthentication,
+        types::ConnectorPostAuthenticationRequestData,
+        types::ConnectorPostAuthenticationResponse,
+    > for Threedsecureio
+{
+    fn get_headers(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/postauth", self.base_url(connectors),))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = threedsecureio::ThreedsecureioPostAuthenticationRequest {
+            three_ds_server_trans_id: req
+                .request
+                .authentication_data
+                .threeds_server_transaction_id
+                .clone(),
+        };
+        println!("req_obj post-authn {:?}", req_obj);
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::ConnectorPostAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorPostAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorPostAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::ConnectorPostAuthenticationRouterData,
+        res: Response,
+    ) -> CustomResult<types::ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
+        let response: Result<
+            threedsecureio::ThreedsecureioPostAuthenticationResponse,
+            error_stack::Report<ParsingError>,
+        > = res
+            .response
+            .parse_struct("threedsecureio PaymentsSyncResponse");
+        println!("response post-authn {:?}", response);
+        let response =
+            response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ConnectorPostAuthenticationRouterData {
+            response: Ok(types::ConnectorPostAuthenticationResponse {
+                trans_status: response.trans_status.clone(),
+                authentication_value: response.authentication_value,
+                eci: response.eci,
+            }),
             ..data.clone()
         })
     }
