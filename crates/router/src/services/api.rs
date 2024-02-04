@@ -664,24 +664,21 @@ pub async fn send_request(
     // it can’t really retry it automatically on a new connection, since the server may have acted already
     match response {
         Ok(response) => Ok(response),
-        Err(error) => {
-            if error.current_context() == &errors::ApiClientError::ConnectionClosed {
-                metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
-                match cloned_send_request {
-                    Some(cloned_request) => {
-                        metrics_request::record_operation_time(
-                            cloned_request,
-                            &metrics::EXTERNAL_REQUEST_TIME,
-                            &[metrics_tag],
-                        )
-                        .await
-                    }
-                    None => Err(error),
+        Err(error) if error.current_context() == &errors::ApiClientError::ConnectionClosed => {
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+            match cloned_send_request {
+                Some(cloned_request) => {
+                    metrics_request::record_operation_time(
+                        cloned_request,
+                        &metrics::EXTERNAL_REQUEST_TIME,
+                        &[metrics_tag],
+                    )
+                    .await
                 }
-            } else {
-                Err(error)
+                None => Err(error),
             }
-        }
+        },
+        err @ Err(_) => err
     }
 }
 
