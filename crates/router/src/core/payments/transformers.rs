@@ -167,6 +167,8 @@ where
         external_latency: None,
         apple_pay_flow,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     };
 
     Ok(router_data)
@@ -1440,6 +1442,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 Some(RequestIncrementalAuthorization::True)
                     | Some(RequestIncrementalAuthorization::Default)
             ),
+            metadata: payment_data.payment_intent.metadata.clone(),
         })
     }
 }

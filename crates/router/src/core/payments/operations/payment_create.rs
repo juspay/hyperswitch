@@ -59,6 +59,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
@@ -711,7 +712,9 @@ impl PaymentCreate {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
         }
 
-        let mandate_dets = if let Some(update_id) = request
+        let mandate_details = if request.mandate_data.is_none() {
+            None
+        } else if let Some(update_id) = request
             .mandate_data
             .as_ref()
             .and_then(|inner| inner.update_mandate_id.clone())
@@ -722,8 +725,6 @@ impl PaymentCreate {
             };
             Some(MandateTypeDetails::MandateDetails(mandate_data))
         } else {
-            // let mandate_type: data_models::mandates::MandateDataType =
-
             let mandate_data = MandateDetails {
                 update_mandate_id: None,
                 mandate_type: request
@@ -760,7 +761,7 @@ impl PaymentCreate {
                 business_sub_label: request.business_sub_label.clone(),
                 surcharge_amount,
                 tax_amount,
-                mandate_details: mandate_dets,
+                mandate_details,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,

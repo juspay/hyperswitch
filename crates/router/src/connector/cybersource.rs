@@ -79,7 +79,9 @@ impl Cybersource {
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret.expose())
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "connector_account_details.api_secret",
+            })?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
