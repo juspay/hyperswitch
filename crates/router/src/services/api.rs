@@ -677,8 +677,8 @@ pub async fn send_request(
                 }
                 None => Err(error),
             }
-        },
-        err @ Err(_) => err
+        }
+        err @ Err(_) => err,
     }
 }
 
