@@ -35,7 +35,10 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
+    configs::settings::{
+        ConnectorRequestReferenceIdConfig, Server, SupportedConnectorsForMandate,
+        TempLockerEnableConfig,
+    },
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -3886,4 +3889,13 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+pub fn update_supported_connectors(
+    connector_name: api_enums::Connector,
+    supported_connectors_for_update_mandate: SupportedConnectorsForMandate,
+) -> bool {
+    supported_connectors_for_update_mandate
+        .connector_list
+        .contains(&connector_name)
 }
