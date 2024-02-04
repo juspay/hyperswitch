@@ -21,6 +21,7 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
+use crate::types::BrowserInformation;
 
 #[derive(Debug, Serialize, Default, Deserialize)]
 pub struct NuveiMeta {
@@ -73,6 +74,7 @@ pub struct NuveiPaymentsRequest {
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
+    pub device_details: Option<DeviceDetails>,
     pub checksum: String,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
@@ -133,7 +135,6 @@ pub struct PaymentOption {
     pub card: Option<Card>,
     pub redirect_url: Option<Url>,
     pub user_payment_option_id: Option<String>,
-    pub device_details: Option<DeviceDetails>,
     pub alternative_payment_method: Option<AlternativePaymentMethod>,
     pub billing_address: Option<BillingAddress>,
 }
@@ -313,7 +314,7 @@ pub struct V2AdditionalParams {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceDetails {
-    pub ip_address: String,
+    pub ip_address: Secret<String, pii::IpAddress>,
 }
 
 impl From<enums::CaptureMethod> for TransactionType {
@@ -881,6 +882,7 @@ impl<F>
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address: request_data.billing_address,
+            device_details : request_data.device_details,
             url_details: Some(UrlDetails {
                 success_url: return_url.clone(),
                 failure_url: return_url.clone(),
@@ -895,7 +897,7 @@ fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let browser_info = item.request.get_optional_browser_info();
+    let browser_information = item.request.get_optional_browser_info();
     let related_transaction_id = if item.is_three_ds() {
         item.request.related_transaction_id.clone()
     } else {
@@ -955,7 +957,7 @@ fn get_card_info<F>(
                 _ => (None, None, None),
             };
         let three_d = if item.is_three_ds() {
-            let browser_details = match browser_info {
+            let browser_details = match &browser_information {
                 Some(browser_info) => Some(BrowserDetails {
                     accept_header: browser_info.get_accept_header()?,
                     ip: browser_info.get_ip_address()?,
@@ -987,6 +989,7 @@ fn get_card_info<F>(
             related_transaction_id,
             is_rebilling,
             user_token_id,
+            device_details: get_device_details(&browser_information)?,
             payment_option: PaymentOption::from(NuveiCardDetails {
                 card: card_details.clone(),
                 three_d,
@@ -1347,6 +1350,19 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
         },
     }
 }
+
+fn get_device_details(
+    browser_info: &Option<BrowserInformation>,
+) -> Result<Option<DeviceDetails>, error_stack::Report<errors::ConnectorError>> {
+    let device_details = match browser_info {
+        Some(browser_info) => Some(DeviceDetails {
+            ip_address: browser_info.get_ip_address()?,
+        }),
+        None => None,
+    };
+    Ok(device_details)
+}
+
 
 fn build_error_response<T>(
     response: &NuveiPaymentsResponse,
