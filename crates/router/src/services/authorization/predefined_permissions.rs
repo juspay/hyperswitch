@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "olap")]
 use error_stack::ResultExt;
 use once_cell::sync::Lazy;
 
