@@ -8,10 +8,10 @@ use common_utils::errors::CustomResult;
 #[async_trait::async_trait]
 pub trait EncryptionManagementInterface: Sync + Send + dyn_clone::DynClone {
     /// Encrypt the given input data
-    async fn encrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError>;
+    async fn encrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError>;
 
     /// Decrypt the given input data
-    async fn decrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError>;
+    async fn decrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError>;
 }
 
 dyn_clone::clone_trait_object!(EncryptionManagementInterface);

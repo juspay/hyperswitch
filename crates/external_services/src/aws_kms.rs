@@ -140,16 +140,18 @@ impl AwsKmsClient {
 
 #[async_trait::async_trait]
 impl EncryptionManagementInterface for AwsKmsClient {
-    async fn encrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError> {
+    async fn encrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
         self.encrypt(input)
             .await
             .change_context(EncryptionError::EncryptionFailed)
+            .map(|val| val.into_bytes())
     }
 
-    async fn decrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError> {
+    async fn decrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
         self.decrypt(input)
             .await
             .change_context(EncryptionError::DecryptionFailed)
+            .map(|val| val.into_bytes())
     }
 }
 
@@ -172,7 +174,7 @@ pub enum AwsKmsError {
     /// An error occurred when base64 encoding input data.
     #[error("Failed to base64 encode input data")]
     Base64EncodingFailed,
-    
+
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,

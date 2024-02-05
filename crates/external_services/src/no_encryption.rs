@@ -30,14 +30,16 @@ impl NoEncryption {
 
 #[async_trait::async_trait]
 impl EncryptionManagementInterface for NoEncryption {
-    async fn encrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError> {
+    async fn encrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
         self.encrypt(input)
             .change_context(EncryptionError::EncryptionFailed)
+            .map(|val| val.into_bytes())
     }
 
-    async fn decrypt(&self, input: &[u8]) -> CustomResult<String, EncryptionError> {
+    async fn decrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
         self.decrypt(input)
             .change_context(EncryptionError::DecryptionFailed)
+            .map(|val| val.into_bytes())
     }
 }
 
