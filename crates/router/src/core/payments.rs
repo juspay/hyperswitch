@@ -2889,7 +2889,7 @@ where
 {
     #[allow(unused_variables)]
     let (profile_id, routing_algorithm) = match operation_data {
-        TransactionData::Payment(&ref payment_data) => {
+        TransactionData::Payment(payment_data) => {
             if cfg!(feature = "business_profile_routing") {
                 (
                     payment_data.payment_intent.profile_id.clone(),
@@ -2900,7 +2900,7 @@ where
             }
         }
         #[cfg(feature = "payouts")]
-        TransactionData::Payout(&ref payout_data) => {
+        TransactionData::Payout(payout_data) => {
             if cfg!(feature = "business_profile_routing") {
                 (
                     Some(payout_data.payout_attempt.profile_id.clone()),

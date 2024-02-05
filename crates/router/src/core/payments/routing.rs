@@ -323,11 +323,9 @@ pub async fn perform_static_routing_v1<F: Clone>(
 
         CachedAlgorithm::Advanced(interpreter) => {
             let backend_input = match operation_data {
-                routing::TransactionData::Payment(ref payment_data) => {
-                    make_dsl_input(payment_data)?
-                }
+                routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
                 #[cfg(feature = "payouts")]
-                routing::TransactionData::Payout(ref payout_data) => {
+                routing::TransactionData::Payout(payout_data) => {
                     make_dsl_input_for_payouts(payout_data)?
                 }
             };
@@ -687,7 +685,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match operation_data {
-        routing::TransactionData::Payment(ref payment_data) => make_dsl_input(payment_data)?,
+        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
         #[cfg(feature = "payouts")]
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
@@ -720,7 +718,7 @@ pub async fn perform_fallback_routing<F: Clone>(
         #[cfg(feature = "profile_specific_fallback_routing")]
         {
             match operation_data {
-                routing::TransactionData::Payment(ref payment_data) => payment_data
+                routing::TransactionData::Payment(payment_data) => payment_data
                     .payment_intent
                     .profile_id
                     .as_ref()
