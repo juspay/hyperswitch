@@ -394,6 +394,10 @@ pub enum HealthCheckDBError {
     UnknownError,
     #[error("Error in database transaction")]
     TransactionError,
+    #[error("Error while executing query in Sqlx Analytics")]
+    SqlxAnalyticsError,
+    #[error("Error while executing query in Clickhouse Analytics")]
+    ClickhouseAnalyticsError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {

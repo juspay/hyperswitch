@@ -142,7 +142,7 @@ pub fn mk_app(
             .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
+    #[cfg(all(feature = "olap", feature = "aws_kms"))]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }

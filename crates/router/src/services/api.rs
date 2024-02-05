@@ -400,6 +400,8 @@ where
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        req.refund_id.clone(),
+                        req.dispute_id.clone(),
                         status_code,
                     );
 
@@ -1749,19 +1751,50 @@ pub fn build_redirection_form(
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
-
     let mut tera = Tera::default();
+
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
+
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
 
-    let mut context = Context::new();
     context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
+    context.insert("rendered_css", &rendered_css);
+    context.insert("rendered_js", &rendered_js);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -1779,13 +1812,45 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/status.html").to_string();
     let mut tera = Tera::default();
-    let _ = tera.add_raw_template("payment_link_status", &html_template);
 
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_status/status.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
     let mut context = Context::new();
     context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_status/status.js").to_string();
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
     context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_status/status.html").to_string();
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
+
+    context.insert("rendered_css", &rendered_css);
+
+    context.insert("rendered_js", &rendered_js);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),

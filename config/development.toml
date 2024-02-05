@@ -228,6 +228,11 @@ stream = "SCHEDULER_STREAM"
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
+[scheduler.server]
+port = 3000
+host = "127.0.0.1"
+workers = 1
+
 [email]
 sender_email = "example@example.com"
 aws_region = ""
@@ -292,6 +297,9 @@ sofort = { country = "AT,BE,DE,IT,NL,ES", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 cashapp = { country = "US", currency = "USD" }
 
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+
 [pm_filters.adyen]
 google_pay = { country = "AU,NZ,JP,HK,SG,MY,TH,VN,BH,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,RO,HR,LI,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,TR,IS,CA,US", currency = "AED,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HTG,HUF,IDR,ILS,INR,IQD,JMD,JOD,JPY,KES,KGS,KHR,KMF,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LYD,MAD,MDL,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLE,SOS,SRD,STN,SVC,SZL,THB,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW" }
 apple_pay = { country = "AU,NZ,CN,JP,HK,SG,MY,BH,AE,KW,BR,ES,GB,SE,NO,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,LI,UA,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
@@ -348,6 +356,7 @@ mini_stop = {country = "JP", currency = "JPY"}
 family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
+pix = { country = "BR", currency = "BRL" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -433,6 +442,7 @@ bluesnap = {payment_method = "card"}
 bankofamerica = {payment_method = "card"}
 cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
+payme = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

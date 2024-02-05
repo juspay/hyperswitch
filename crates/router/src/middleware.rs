@@ -58,7 +58,7 @@ where
                 let request_id = request_id_fut.await?;
                 let request_id = request_id.as_hyphenated().to_string();
                 if let Some(upstream_request_id) = old_x_request_id {
-                    router_env::logger::info!(?request_id, ?upstream_request_id);
+                    router_env::logger::info!(?upstream_request_id);
                 }
                 let mut response = response_fut.await?;
                 response.headers_mut().append(
@@ -141,12 +141,18 @@ where
         let response_fut = self.service.call(req);
 
         Box::pin(
-            response_fut.instrument(
+            async move {
+                let response = response_fut.await;
+                logger::info!(golden_log_line = true);
+                response
+            }
+            .instrument(
                 router_env::tracing::info_span!(
-                    "golden_log_line",
+                    "ROOT_SPAN",
                     payment_id = Empty,
                     merchant_id = Empty,
-                    connector_name = Empty
+                    connector_name = Empty,
+                    flow = "UNKNOWN"
                 )
                 .or_current(),
             ),

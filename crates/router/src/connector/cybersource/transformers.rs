@@ -193,9 +193,22 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?,
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Cybersource"),
-            ))?,
+            payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_)
+            | payments::PaymentMethodData::CardToken(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))?
+            }
         };
 
         let processing_information = ProcessingInformation {
@@ -770,7 +783,7 @@ impl
             })?
             .parse_value("CybersourceThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "Merchant connector account metadata",
+                config: "metadata",
             })?;
 
         let processing_information =
