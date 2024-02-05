@@ -14,18 +14,20 @@ pub mod decrypt;
 
 use crate::{consts, metrics};
 
-static KMS_CLIENT: tokio::sync::OnceCell<KmsClient> = tokio::sync::OnceCell::const_new();
+static AWS_KMS_CLIENT: tokio::sync::OnceCell<AwsKmsClient> = tokio::sync::OnceCell::const_new();
 
-/// Returns a shared KMS client, or initializes a new one if not previously initialized.
+/// Returns a shared AWS KMS client, or initializes a new one if not previously initialized.
 #[inline]
-pub async fn get_kms_client(config: &KmsConfig) -> &'static KmsClient {
-    KMS_CLIENT.get_or_init(|| KmsClient::new(config)).await
+pub async fn get_aws_kms_client(config: &AwsKmsConfig) -> &'static AwsKmsClient {
+    AWS_KMS_CLIENT
+        .get_or_init(|| AwsKmsClient::new(config))
+        .await
 }
 
-/// Configuration parameters required for constructing a [`KmsClient`].
+/// Configuration parameters required for constructing a [`AwsKmsClient`].
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(default)]
-pub struct KmsConfig {
+pub struct AwsKmsConfig {
     /// The AWS key identifier of the KMS key used to encrypt or decrypt data.
     pub key_id: String,
 
@@ -33,16 +35,16 @@ pub struct KmsConfig {
     pub region: String,
 }
 
-/// Client for KMS operations.
+/// Client for AWS KMS operations.
 #[derive(Debug)]
-pub struct KmsClient {
+pub struct AwsKmsClient {
     inner_client: Client,
     key_id: String,
 }
 
-impl KmsClient {
-    /// Constructs a new KMS client.
-    pub async fn new(config: &KmsConfig) -> Self {
+impl AwsKmsClient {
+    /// Constructs a new AWS KMS client.
+    pub async fn new(config: &AwsKmsConfig) -> Self {
         let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
 
@@ -56,12 +58,12 @@ impl KmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
-    pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
+    pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
         let data = consts::BASE64_ENGINE
             .decode(data)
             .into_report()
-            .change_context(KmsError::Base64DecodingFailed)?;
+            .change_context(AwsKmsError::Base64DecodingFailed)?;
         let ciphertext_blob = Blob::new(data);
 
         let decrypt_output = self
@@ -74,21 +76,21 @@ impl KmsClient {
             .map_err(|error| {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
-                logger::error!(kms_sdk_error=?error, "Failed to KMS decrypt data");
+                logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS decrypt data");
                 metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
             .into_report()
-            .change_context(KmsError::DecryptionFailed)?;
+            .change_context(AwsKmsError::DecryptionFailed)?;
 
         let output = decrypt_output
             .plaintext
-            .ok_or(KmsError::MissingPlaintextDecryptionOutput)
+            .ok_or(AwsKmsError::MissingPlaintextDecryptionOutput)
             .into_report()
             .and_then(|blob| {
                 String::from_utf8(blob.into_inner())
                     .into_report()
-                    .change_context(KmsError::Utf8DecodingFailed)
+                    .change_context(AwsKmsError::Utf8DecodingFailed)
             })?;
 
         let time_taken = start.elapsed();
@@ -101,7 +103,7 @@ impl KmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
-    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
+    pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
         let plaintext_blob = Blob::new(data.as_ref());
 
@@ -115,16 +117,16 @@ impl KmsClient {
             .map_err(|error| {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
-                logger::error!(kms_sdk_error=?error, "Failed to KMS encrypt data");
+                logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS encrypt data");
                 metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
                 error
             })
             .into_report()
-            .change_context(KmsError::EncryptionFailed)?;
+            .change_context(AwsKmsError::EncryptionFailed)?;
 
         let output = encrypted_output
             .ciphertext_blob
-            .ok_or(KmsError::MissingCiphertextEncryptionOutput)
+            .ok_or(AwsKmsError::MissingCiphertextEncryptionOutput)
             .into_report()
             .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
@@ -134,9 +136,9 @@ impl KmsClient {
     }
 }
 
-/// Errors that could occur during KMS operations.
+/// Errors that could occur during AWS KMS operations.
 #[derive(Debug, thiserror::Error)]
-pub enum KmsError {
+pub enum AwsKmsError {
     /// An error occurred when base64 encoding input data.
     #[error("Failed to base64 encode input data")]
     Base64EncodingFailed,
@@ -145,33 +147,33 @@ pub enum KmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
 
-    /// An error occurred when KMS decrypting input data.
-    #[error("Failed to KMS decrypt input data")]
+    /// An error occurred when AWS KMS decrypting input data.
+    #[error("Failed to AWS KMS decrypt input data")]
     DecryptionFailed,
 
-    /// An error occurred when KMS encrypting input data.
-    #[error("Failed to KMS encrypt input data")]
+    /// An error occurred when AWS KMS encrypting input data.
+    #[error("Failed to AWS KMS encrypt input data")]
     EncryptionFailed,
 
-    /// The KMS decrypted output does not include a plaintext output.
-    #[error("Missing plaintext KMS decryption output")]
+    /// The AWS KMS decrypted output does not include a plaintext output.
+    #[error("Missing plaintext AWS KMS decryption output")]
     MissingPlaintextDecryptionOutput,
 
-    /// The KMS encrypted output does not include a ciphertext output.
-    #[error("Missing ciphertext KMS encryption output")]
+    /// The AWS KMS encrypted output does not include a ciphertext output.
+    #[error("Missing ciphertext AWS KMS encryption output")]
     MissingCiphertextEncryptionOutput,
 
-    /// An error occurred UTF-8 decoding KMS decrypted output.
+    /// An error occurred UTF-8 decoding AWS KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
 
-    /// The KMS client has not been initialized.
-    #[error("The KMS client has not been initialized")]
-    KmsClientNotInitialized,
+    /// The AWS KMS client has not been initialized.
+    #[error("The AWS KMS client has not been initialized")]
+    AwsKmsClientNotInitialized,
 }
 
-impl KmsConfig {
-    /// Verifies that the [`KmsClient`] configuration is usable.
+impl AwsKmsConfig {
+    /// Verifies that the [`AwsKmsClient`] configuration is usable.
     pub fn validate(&self) -> Result<(), &'static str> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
@@ -185,18 +187,24 @@ impl KmsConfig {
     }
 }
 
-/// A wrapper around a KMS value that can be decrypted.
+/// A wrapper around a AWS KMS value that can be decrypted.
 #[derive(Clone, Debug, Default, serde::Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct KmsValue(Secret<String>);
+pub struct AwsKmsValue(Secret<String>);
 
-impl From<String> for KmsValue {
+impl common_utils::ext_traits::ConfigExt for AwsKmsValue {
+    fn is_empty_after_trim(&self) -> bool {
+        self.0.peek().is_empty_after_trim()
+    }
+}
+
+impl From<String> for AwsKmsValue {
     fn from(value: String) -> Self {
         Self(Secret::new(value))
     }
 }
 
-impl From<Secret<String>> for KmsValue {
+impl From<Secret<String>> for AwsKmsValue {
     fn from(value: Secret<String>) -> Self {
         Self(value)
     }
@@ -204,7 +212,7 @@ impl From<Secret<String>> for KmsValue {
 
 #[cfg(feature = "hashicorp-vault")]
 #[async_trait::async_trait]
-impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
+impl super::hashicorp_vault::decrypt::VaultFetch for AwsKmsValue {
     async fn fetch_inner<En>(
         self,
         client: &super::hashicorp_vault::HashiCorpVault,
@@ -224,13 +232,7 @@ impl super::hashicorp_vault::decrypt::VaultFetch for KmsValue {
                 >,
             > + 'a,
     {
-        self.0.fetch_inner::<En>(client).await.map(KmsValue)
-    }
-}
-
-impl common_utils::ext_traits::ConfigExt for KmsValue {
-    fn is_empty_after_trim(&self) -> bool {
-        self.0.peek().is_empty_after_trim()
+        self.0.fetch_inner::<En>(client).await.map(AwsKmsValue)
     }
 }
 
@@ -238,44 +240,44 @@ impl common_utils::ext_traits::ConfigExt for KmsValue {
 mod tests {
     #![allow(clippy::expect_used)]
     #[tokio::test]
-    async fn check_kms_encryption() {
+    async fn check_aws_kms_encryption() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
-        let config = KmsConfig {
-            key_id: "YOUR KMS KEY ID".to_string(),
+        let config = AwsKmsConfig {
+            key_id: "YOUR AWS KMS KEY ID".to_string(),
             region: "AWS REGION".to_string(),
         };
 
         let data = "hello".to_string();
         let binding = data.as_bytes();
-        let kms_encrypted_fingerprint = KmsClient::new(&config)
+        let kms_encrypted_fingerprint = AwsKmsClient::new(&config)
             .await
             .encrypt(binding)
             .await
-            .expect("kms encryption failed");
+            .expect("aws kms encryption failed");
 
         println!("{}", kms_encrypted_fingerprint);
     }
 
     #[tokio::test]
-    async fn check_kms_decrypt() {
+    async fn check_aws_kms_decrypt() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
         std::env::set_var("AWS_ACCESS_KEY_ID", "YOUR AWS ACCESS KEY ID");
         use super::*;
-        let config = KmsConfig {
-            key_id: "YOUR KMS KEY ID".to_string(),
+        let config = AwsKmsConfig {
+            key_id: "YOUR AWS KMS KEY ID".to_string(),
             region: "AWS REGION".to_string(),
         };
 
         // Should decrypt to hello
-        let data = "KMS ENCRYPTED CIPHER".to_string();
+        let data = "AWS KMS ENCRYPTED CIPHER".to_string();
         let binding = data.as_bytes();
-        let kms_encrypted_fingerprint = KmsClient::new(&config)
+        let kms_encrypted_fingerprint = AwsKmsClient::new(&config)
             .await
             .decrypt(binding)
             .await
-            .expect("kms decryption failed");
+            .expect("aws kms decryption failed");
 
         println!("{}", kms_encrypted_fingerprint);
     }

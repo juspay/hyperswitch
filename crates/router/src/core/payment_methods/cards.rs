@@ -603,9 +603,9 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let jwekey = &state.kms_secrets;
 
     let payment_method_data = if !locker.mock_locker {
@@ -661,9 +661,9 @@ pub async fn call_to_locker_hs<'a>(
     locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let jwekey = &state.kms_secrets;
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
@@ -722,9 +722,9 @@ pub async fn get_card_from_hs_locker<'a>(
     locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::Card, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let jwekey = &state.kms_secrets;
 
     if !locker.mock_locker {
@@ -777,9 +777,9 @@ pub async fn delete_card_from_hs_locker<'a>(
     card_reference: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let jwekey = &state.kms_secrets;
 
     let request = payment_methods::mk_delete_card_request_hs(
@@ -1829,8 +1829,17 @@ pub async fn list_payment_methods(
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
-                |d| match d {
+            mandate_payment: payment_attempt
+                .and_then(|inner| inner.mandate_details)
+                .and_then(|man_type_details| match man_type_details {
+                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
+                        Some(mandate_type)
+                    }
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        mandate_details.mandate_type
+                    }
+                })
+                .map(|d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -1852,8 +1861,7 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                },
-            ),
+                }),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
@@ -2061,13 +2069,30 @@ pub async fn filter_payment_methods(
                         })?;
                     let filter7 = payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
-                        .map(|_mandate_details| {
-                            filter_pm_based_on_supported_payments_for_mandate(
-                                supported_payment_methods_for_mandate,
-                                &payment_method,
-                                &payment_method_object.payment_method_type,
-                                connector_variant,
-                            )
+                        .map(|mandate_details| {
+                            let (mandate_type_present, update_mandate_id_present) =
+                                match mandate_details {
+                                    data_models::mandates::MandateTypeDetails::MandateType(_) => {
+                                        (true, false)
+                                    }
+                                    data_models::mandates::MandateTypeDetails::MandateDetails(
+                                        mand_details,
+                                    ) => (
+                                        mand_details.mandate_type.is_some(),
+                                        mand_details.update_mandate_id.is_some(),
+                                    ),
+                                };
+
+                            if mandate_type_present || update_mandate_id_present {
+                                filter_pm_based_on_supported_payments_for_mandate(
+                                    supported_payment_methods_for_mandate,
+                                    &payment_method,
+                                    &payment_method_object.payment_method_type,
+                                    connector_variant,
+                                )
+                            } else {
+                                true
+                            }
                         })
                         .unwrap_or(true);
 

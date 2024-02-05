@@ -54,6 +54,8 @@ pub enum Tag {
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Deep health Check
+    DeepHealthCheck,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -241,6 +243,8 @@ pub enum Flow {
     PaymentLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
+    /// Payment Link Status
+    PaymentLinkStatus,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -267,6 +271,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// User Sign In without invite checks
+    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -281,6 +287,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Signout flow
+    Signout,
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
@@ -323,8 +331,10 @@ pub enum Flow {
     InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
-    /// Delete user
-    DeleteUser,
+    /// Reinvite user
+    ReInviteUser,
+    /// Delete user role
+    DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
@@ -333,6 +343,8 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Reset tracking id
     ResetTrackingId,
+    /// Verify email token without invite checks
+    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
