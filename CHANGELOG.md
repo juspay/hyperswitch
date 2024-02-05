@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.05.0
+
+### Features
+
+- **connector-config:** [Volt] Add config changes for open_banking_uk ([#3529](https://github.com/juspay/hyperswitch/pull/3529)) ([`11bc891`](https://github.com/juspay/hyperswitch/commit/11bc891fd41809b3cefb9004b161d1f9c30ce68c))
+- **user:** Add support for resend invite ([#3523](https://github.com/juspay/hyperswitch/pull/3523)) ([`cf0e0b3`](https://github.com/juspay/hyperswitch/commit/cf0e0b330e4c62860f645bcb61d96b07c9f4fb7b))
+- Add deep health check for drainer ([#3396](https://github.com/juspay/hyperswitch/pull/3396)) ([`63c383f`](https://github.com/juspay/hyperswitch/commit/63c383f5a2b8da36d82e5563bddc5878d4b5bef5))
+
+### Bug Fixes
+
+- Add outgoing checks for scheduler ([#3526](https://github.com/juspay/hyperswitch/pull/3526)) ([`d283053`](https://github.com/juspay/hyperswitch/commit/d283053e5eb2dab6cfdaacc3012d50199fb03175))
+
+### Refactors
+
+- **connector:** [Noon] change error message from not supported to not implemented ([#2849](https://github.com/juspay/hyperswitch/pull/2849)) ([`892b04f`](https://github.com/juspay/hyperswitch/commit/892b04f805c219e2cf7cbe5736aef19909e986f7))
+- Rename `kms` feature flag to `aws_kms` ([#3249](https://github.com/juspay/hyperswitch/pull/3249)) ([`91519d8`](https://github.com/juspay/hyperswitch/commit/91519d846219a878c3c87ced466337ace02e99c6))
+
+**Full Changelog:** [`2024.02.02.0...2024.02.05.0`](https://github.com/juspay/hyperswitch/compare/2024.02.02.0...2024.02.05.0)
+
+- - -
+
 ## 2024.02.02.0
 
 ### Features
