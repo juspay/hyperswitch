@@ -24,9 +24,20 @@ pub struct Decryptable<T, S: EncryptionState> {
 }
 
 impl<T: Clone, S: EncryptionState> Decryptable<T, S> {
-    /// Returns the inner value of Decryptable
-    pub fn into_inner(&self) -> T {
-        self.inner.clone()
+    ///
+    /// Get the inner data while consuming self
+    ///
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
+    ///
+    /// Get the reference to inner value
+    ///
+    #[inline]
+    pub fn get_inner(&self) -> &T {
+        &self.inner
     }
 }
 

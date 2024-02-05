@@ -32,7 +32,7 @@ pub enum SecretsManagementConfig {
         hc_vault: hashicorp_vault::HashiCorpVaultConfig,
     },
 
-    /// Varient representing no encryption
+    /// Variant representing no encryption
     #[default]
     NoEncryption,
 }
