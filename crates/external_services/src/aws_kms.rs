@@ -172,7 +172,7 @@ pub enum AwsKmsError {
     /// An error occurred when base64 encoding input data.
     #[error("Failed to base64 encode input data")]
     Base64EncodingFailed,
-    
+
     /// An error occurred when base64 decoding input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,

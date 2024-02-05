@@ -4,7 +4,7 @@ use common_utils::errors::CustomResult;
 
 use crate::{
     type_state::{RawSecret, SecretStateContainer, SecuredSecret},
-    {SecretManagementInterface, SecretsManagementError},
+    SecretManagementInterface, SecretsManagementError,
 };
 
 /// Trait defining the interface for retrieving a raw secret value, given a secured value
