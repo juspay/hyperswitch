@@ -4,6 +4,8 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -757,7 +759,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_db = state.clone().store;
-
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()

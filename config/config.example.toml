@@ -322,7 +322,7 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
 
-# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+# AWS KMS configuration. Only applicable when the `aws_kms` feature flag is enabled.
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
@@ -431,6 +431,9 @@ mini_stop = { country = "JP", currency = "JPY" }
 family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
+
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

@@ -1,11 +1,5 @@
-#[cfg(feature = "kms")]
-use external_services::kms;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::Deserialize;
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
-pub type Password = masking::Secret<String>;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]

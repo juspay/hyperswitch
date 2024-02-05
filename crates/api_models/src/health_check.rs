@@ -9,10 +9,12 @@ pub struct RouterHealthCheckResponse {
 }
 
 impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SchedulerHealthCheckResponse {
     pub database: bool,
     pub redis: bool,
+    pub outgoing_request: bool,
 }
 
 impl common_utils::events::ApiEventMetric for SchedulerHealthCheckResponse {}

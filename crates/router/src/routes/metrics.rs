@@ -5,9 +5,9 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
-#[cfg(feature = "kms")]
+#[cfg(feature = "aws_kms")]
 counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
-#[cfg(feature = "kms")]
+#[cfg(feature = "aws_kms")]
 counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
