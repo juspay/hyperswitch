@@ -298,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
 }
 // PaymentsResponse
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyPaymentStatus {
     Approved,
@@ -308,7 +308,7 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyPaymentsResponse {
     pub correlation_id: String,
     pub transaction_status: PayeezyPaymentStatus,
@@ -327,7 +327,7 @@ pub struct PayeezyPaymentsResponse {
     pub reference: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsStoredCredentials {
     cardbrand_original_transaction_id: String,
 }

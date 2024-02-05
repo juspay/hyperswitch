@@ -184,7 +184,7 @@ pub struct TokenRequest {
     pub token_data: StripePaymentMethodData,
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeTokenResponse {
     pub id: String,
     pub object: String,
@@ -199,7 +199,7 @@ pub struct CustomerRequest {
     pub source: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
@@ -218,7 +218,7 @@ pub struct ChargesRequest {
     pub meta_data: Option<HashMap<String, String>>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
     pub amount: u64,
@@ -2035,7 +2035,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -2132,7 +2132,7 @@ pub struct LastPaymentError {
     decline_code: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
@@ -2140,20 +2140,20 @@ pub struct PaymentIntentSyncResponse {
     pub latest_charge: Option<StripeChargeEnum>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum StripeChargeEnum {
     ChargeId(String),
     ChargeObject(StripeCharge),
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct StripeBankRedirectDetails {
     #[serde(rename = "generated_sepa_debit")]
     attached_payment_method: Option<String>,
@@ -2167,7 +2167,7 @@ impl Deref for PaymentIntentSyncResponse {
     }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum StripePaymentMethodDetailsResponse {
     //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
@@ -2252,7 +2252,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SetupIntentResponse {
     pub id: String,
     pub object: String,
@@ -2568,7 +2568,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     CashappHandleRedirectOrDisplayQrCode(StripeCashappQrResponse),
@@ -2642,7 +2642,7 @@ pub struct WechatPayRedirectToQr {
     image_data_url: Url,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeVerifyWithMicroDepositsResponse {
     hosted_verification_url: Url,
 }
@@ -2913,13 +2913,13 @@ pub struct MitExemption {
     pub network_transaction_id: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LatestAttempt {
     PaymentIntentAttempt(LatestPaymentAttempt),
     SetupAttempt(String),
 }
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
@@ -3465,13 +3465,6 @@ pub fn get_bank_transfer_request_data(
             Ok(RequestContent::FormUrlEncoded(Box::new(req)))
         }
     }
-}
-
-pub fn get_bank_transfer_authorize_response(
-    data: &types::PaymentsAuthorizeRouterData,
-    res: types::Response,
-    bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
 }
 
 pub fn construct_file_upload_request(

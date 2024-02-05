@@ -172,12 +172,12 @@ fn get_region(
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessCustomerResponse {
     customers: Customers,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Customers {
     id: Secret<String>,
 }
@@ -391,12 +391,12 @@ impl From<BankType> for AccountType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessBankAccountResponse {
     customer_bank_accounts: CustomerBankAccountResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomerBankAccountResponse {
     pub id: Secret<String>,
 }
@@ -540,12 +540,12 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessMandateResponse {
     mandates: MandateResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MandateResponse {
     id: String,
 }
@@ -817,7 +817,7 @@ impl<F> TryFrom<&GocardlessRouterData<&types::RefundsRouterData<F>>> for Gocardl
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }

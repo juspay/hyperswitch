@@ -140,7 +140,7 @@ pub struct WiseAddressDetails {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseRecipientCreateResponse {
     id: i64,
@@ -179,7 +179,7 @@ pub enum WisePayOutOption {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutQuoteResponse {
     source_amount: f64,
@@ -196,7 +196,7 @@ pub struct WisePayoutQuoteResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WiseRateType {
     #[default]
@@ -225,7 +225,7 @@ pub struct WiseTransferDetails {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutResponse {
     id: i64,
@@ -265,7 +265,7 @@ pub enum FundType {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseFulfillResponse {
     status: WiseStatus,

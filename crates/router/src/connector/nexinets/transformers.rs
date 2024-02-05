@@ -211,7 +211,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexinetsPaymentStatus {
     Success,
@@ -275,7 +275,7 @@ impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
@@ -285,7 +285,7 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {
     pub transaction_id: String,
@@ -386,7 +386,7 @@ pub struct NexinetsCaptureOrVoidRequest {
     pub currency: enums::Currency,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsOrder {
     pub order_id: String,
@@ -412,7 +412,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentResponse {
     pub transaction_id: String,
@@ -483,7 +483,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundResponse {
     pub transaction_id: String,
@@ -494,7 +494,7 @@ pub struct NexinetsRefundResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Success,
@@ -504,7 +504,7 @@ pub enum RefundStatus {
     InProgress,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundType {
     Refund,

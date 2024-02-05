@@ -299,14 +299,14 @@ impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HelcimPaymentStatus {
     Approved,
     Declined,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimTransactionType {
     Purchase,
@@ -339,7 +339,7 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
@@ -689,12 +689,12 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimRefundTransactionType {
     Refund,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     status: HelcimPaymentStatus,

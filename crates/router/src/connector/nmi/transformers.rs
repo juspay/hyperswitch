@@ -137,7 +137,7 @@ fn get_card_details(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiVaultResponse {
     pub response: Response,
     pub responsetext: String,
@@ -313,7 +313,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiCompleteResponse {
     pub response: Response,
     pub responsetext: String,
@@ -682,7 +682,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Response {
     #[serde(alias = "1")]
     Approved,
@@ -692,7 +692,7 @@ pub enum Response {
     Error,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StandardResponse {
     pub response: Response,
     pub responsetext: String,

@@ -869,7 +869,7 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data {
+                match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer { .. }
                     | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                         let response: stripe::ChargesResponse = res

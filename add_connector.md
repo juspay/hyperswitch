@@ -573,14 +573,14 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
   fn handle_response(
       &self,
       data: &types::PaymentsAuthorizeRouterData,
-      event_builder: &mut ConnectorEvent,
+      event_builder: Option<&mut ConnectorEvent>,
       res: types::Response,
   ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
       let response: checkout::PaymentsResponse = res
           .response
           .parse_struct("PaymentIntentResponse")
           .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.set_response_body(&response);
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
       types::RouterData::try_from(types::ResponseRouterData {
           response,

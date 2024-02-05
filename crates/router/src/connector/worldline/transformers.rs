@@ -613,13 +613,13 @@ pub struct PaymentResponse {
     pub merchant_action: Option<MerchantAction>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAction {
     pub redirect_data: RedirectData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RedirectData {
     #[serde(rename = "redirectURL")]
     pub redirect_url: Url,

@@ -555,7 +555,7 @@ pub struct Shift4WebhookObjectResource {
     pub data: serde_json::Value,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4NonThreeDsResponse {
     pub id: String,
     pub currency: String,
@@ -566,7 +566,7 @@ pub struct Shift4NonThreeDsResponse {
     pub flow: Option<FlowResponse>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4ThreeDsResponse {
     pub enrolled: bool,
     pub version: Option<String>,
@@ -575,7 +575,7 @@ pub struct Shift4ThreeDsResponse {
     pub token: Token,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
     pub id: String,
     pub created: i64,
@@ -593,7 +593,7 @@ pub struct Token {
     pub three_d_secure_info: ThreeDSecureInfo,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct ThreeDSecureInfo {
     pub amount: i64,
     pub currency: String,
@@ -605,7 +605,7 @@ pub struct ThreeDSecureInfo {
     pub authentication_flow: Option<SecretSerdeValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlowResponse {
     pub next_action: Option<NextAction>,
@@ -613,13 +613,13 @@ pub struct FlowResponse {
     pub return_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
     pub redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NextAction {
     Redirect,

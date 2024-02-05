@@ -151,7 +151,7 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
     Complete,
@@ -188,7 +188,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CardResponse {
     pub name_on_card: Secret<String>,
     pub last_4_account_number: String,
@@ -196,7 +196,7 @@ pub struct CardResponse {
     pub card_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum ForteResponseCode {
     A01,
     A05,
@@ -218,7 +218,7 @@ impl From<ForteResponseCode> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ResponseStatus {
     pub environment: String,
     pub response_type: String,
@@ -237,7 +237,7 @@ pub enum ForteAction {
     Verify,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsResponse {
     pub transaction_id: String,
     pub location_id: String,
@@ -286,7 +286,7 @@ impl<F, T>
 
 //PsyncResponse
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsSyncResponse {
     pub transaction_id: String,
     pub location_id: String,
@@ -356,7 +356,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCaptureRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureResponseStatus {
     pub environment: String,
     pub response_type: String,
@@ -365,7 +365,7 @@ pub struct CaptureResponseStatus {
     pub authorization_code: String,
 }
 // Capture Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteCaptureResponse {
     pub transaction_id: String,
     pub original_transaction_id: String,
@@ -423,7 +423,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ForteCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CancelResponseStatus {
     pub response_type: String,
     pub response_code: ForteResponseCode,
@@ -431,7 +431,7 @@ pub struct CancelResponseStatus {
     pub authorization_code: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteCancelResponse {
     pub transaction_id: String,
     pub location_id: String,
@@ -495,7 +495,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Complete,
@@ -523,7 +523,7 @@ impl From<ForteResponseCode> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     pub transaction_id: String,
     pub original_transaction_id: String,
@@ -550,7 +550,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     status: RefundStatus,
     transaction_id: String,

@@ -388,7 +388,7 @@ fn get_address_details(
     Ok(address_details)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
     pub resource: String,

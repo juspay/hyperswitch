@@ -662,22 +662,22 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
         })
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum NoonRevokeStatus {
     Cancelled,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonCancelSubscriptionObject {
     status: NoonRevokeStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonRevokeMandateResult {
     subscription: NoonCancelSubscriptionObject,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonRevokeMandateResponse {
     result: NoonRevokeMandateResult,
 }
@@ -712,7 +712,7 @@ impl<F>
     }
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Success,
@@ -731,19 +731,19 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsTransactionResponse {
     id: String,
     status: RefundStatus,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct NoonRefundResponseResult {
     transaction: NoonPaymentsTransactionResponse,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
 }
@@ -765,7 +765,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
@@ -773,12 +773,12 @@ pub struct NoonRefundResponseTransactions {
     transaction_reference: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct NoonRefundSyncResponseResult {
     transactions: Vec<NoonRefundResponseTransactions>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
 }

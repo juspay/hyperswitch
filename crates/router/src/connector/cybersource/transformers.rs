@@ -1312,7 +1312,7 @@ pub enum CybersourcePaymentStatus {
     //PartialAuthorized, not being consumed yet.
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceIncrementalAuthorizationStatus {
     Authorized,
@@ -1416,7 +1416,7 @@ pub enum CybersourceAuthSetupResponse {
     ErrorInformation(CybersourceErrorInformationResponse),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
     status: CybersourceIncrementalAuthorizationStatus,
@@ -1449,13 +1449,13 @@ pub struct Avs {
     code_raw: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientRiskInformation {
     rules: Option<Vec<ClientRiskInformationRules>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
     name: String,
 }
@@ -2338,7 +2338,7 @@ pub struct CybersourceApplicationInfoResponse {
     error_information: Option<CybersourceErrorInformation>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
     status: CybersourcePaymentStatus,
@@ -2461,7 +2461,7 @@ impl From<CybersourceRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CybersourceRefundStatus {
     Succeeded,
@@ -2471,7 +2471,7 @@ pub enum CybersourceRefundStatus {
     Voided,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceRefundResponse {
     id: String,
@@ -2495,13 +2495,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, CybersourceRefundRes
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncApplicationInformation {
     status: CybersourceRefundStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceRsyncResponse {
     id: String,
