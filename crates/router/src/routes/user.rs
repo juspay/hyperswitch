@@ -402,6 +402,25 @@ pub async fn invite_multiple_user(
 }
 
 #[cfg(feature = "email")]
+pub async fn resend_invite(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ReInviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::ReInviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::resend_invite,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
 pub async fn verify_email_without_invite_checks(
     state: web::Data<AppState>,
     http_req: HttpRequest,

@@ -7,8 +7,8 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -869,8 +869,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         }
 
         if let Some(encoded_hash) = card_number_fingerprint {
-            #[cfg(feature = "kms")]
-            let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
+            #[cfg(feature = "aws_kms")]
+            let encrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
                 .await
                 .encrypt(encoded_hash)
                 .await
@@ -882,7 +882,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     Some,
                 );
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let encrypted_fingerprint = Some(encoded_hash);
 
             if let Some(encrypted_fingerprint) = encrypted_fingerprint {
