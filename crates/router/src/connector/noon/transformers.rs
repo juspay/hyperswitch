@@ -79,12 +79,12 @@ pub struct NoonOrderNvp {
 
 fn get_value_as_string(value: &serde_json::Value) -> String {
     match value {
-        serde_json::Value::Null => "null".to_string(),
-        serde_json::Value::Bool(bool) => bool.to_string(),
-        serde_json::Value::Number(num) => num.to_string(),
         serde_json::Value::String(string) => string.to_owned(),
-        serde_json::Value::Array(_) => "null".to_string(),
-        serde_json::Value::Object(_) => "null".to_string(),
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Array(_)
+        | serde_json::Value::Object(_) => value.to_string(),
     }
 }
 
