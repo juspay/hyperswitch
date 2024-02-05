@@ -512,7 +512,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response = nmi::SyncResponse::try_from(data.response.to_vec())?;
+        let response = nmi::SyncResponse::try_from(res.response.to_vec())?;
 
         event_builder.map(|i| i.set_response_body(&response));
 
