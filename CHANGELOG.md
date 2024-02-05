@@ -4,6 +4,15 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.02.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [NMI] Handle empty response in psync and error response in complete authorize ([#3550](https://github.com/juspay/hyperswitch/pull/3550)) ([`781f024`](https://github.com/juspay/hyperswitch/commit/781f024096973cb58566765a83a3a9c610d48a34))
+- **router:** Handle empty body parse failures in bad request logger middleware ([#3544](https://github.com/juspay/hyperswitch/pull/3544)) ([`efffc1e`](https://github.com/juspay/hyperswitch/commit/efffc1e8fa8d8cda7484bd19a48bbc2b87d1bd60))
+
+- - -
+
 ## 2024.02.02.0
 
 ### Features
