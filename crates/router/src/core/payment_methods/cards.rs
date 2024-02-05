@@ -2083,10 +2083,16 @@ pub async fn filter_payment_methods(
                                     ),
                                 };
 
-                            if mandate_type_present || update_mandate_id_present {
+                            if mandate_type_present {
                                 filter_pm_based_on_supported_payments_for_mandate(
                                     supported_payment_methods_for_mandate,
                                     &payment_method,
+                                    &payment_method_object.payment_method_type,
+                                    connector_variant,
+                                )
+                            } else if update_mandate_id_present {
+                                filter_pm_based_on_supported_payments_for_update_mandate(
+                                    supported_payment_methods_for_mandate,
                                     &payment_method_object.payment_method_type,
                                     connector_variant,
                                 )
@@ -2112,6 +2118,18 @@ pub async fn filter_payment_methods(
         }
     }
     Ok(())
+}
+fn filter_pm_based_on_supported_payments_for_update_mandate(
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    payment_method_type: &api_enums::PaymentMethodType,
+    connector: api_enums::Connector,
+) -> bool {
+    supported_payment_methods_for_mandate
+        .0
+        .get(&api_enums::PaymentMethod::Card)
+        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+        .unwrap_or(false)
 }
 
 fn filter_pm_based_on_supported_payments_for_mandate(

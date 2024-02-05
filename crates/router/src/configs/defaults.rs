@@ -210,7 +210,7 @@ impl Default for Mandates {
                 ),
             ])),
             update_mandate_supported: SupportedConnectorsForMandate {
-                connector_list: HashSet::from([enums::Connector::Cybersource]),
+                connector_list: HashSet::default(),
             },
         }
     }
