@@ -1,19 +1,21 @@
+//! Module containing trait for raw secret retrieval
+
 use common_utils::errors::CustomResult;
 
 use crate::{
-    secrets_management::{SecretManagementInterface, SecretsManagementError},
-    type_state::{Decryptable, Decrypted, Encrypted},
+    type_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    {SecretManagementInterface, SecretsManagementError},
 };
 
-/// Trait defining the interface for decrypting a Decryptable value
+/// Trait defining the interface for retrieving a raw secret value, given a secured value
 #[async_trait::async_trait]
-pub trait Decryption
+pub trait SecretsHandler
 where
     Self: Sized,
 {
-    /// Decrypt the given value and transitions its type to `Decrypted`
+    /// Retrieve the raw value and transitions its type to `Decrypted`
     async fn decrypt(
-        value: Decryptable<Self, Encrypted>,
+        value: SecretStateContainer<Self, SecuredSecret>,
         kms_client: Box<dyn SecretManagementInterface>,
-    ) -> CustomResult<Decryptable<Self, Decrypted>, SecretsManagementError>;
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError>;
 }

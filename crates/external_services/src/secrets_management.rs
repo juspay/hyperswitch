@@ -5,7 +5,7 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "hashicorp-vault")]
 use error_stack::ResultExt;
-use secrets_interface::secrets_management::{SecretManagementInterface, SecretsManagementError};
+use secrets_interface::{SecretManagementInterface, SecretsManagementError};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
@@ -25,7 +25,7 @@ pub enum SecretsManagementConfig {
         aws_kms: aws_kms::AwsKmsConfig,
     },
 
-    /// HshiCorp-Vault configuration
+    /// HashiCorp-Vault configuration
     #[cfg(feature = "hashicorp-vault")]
     HashiCorpVault {
         /// HC-Vault config
@@ -55,16 +55,16 @@ impl SecretsManagementConfig {
     ) -> CustomResult<Box<dyn SecretManagementInterface>, SecretsManagementError> {
         match self {
             #[cfg(feature = "aws_kms")]
-            Self::AwsKms { aws_kms } => {
-                let res: Box<dyn SecretManagementInterface> =
-                    Box::new(aws_kms::AwsKmsClient::new(aws_kms).await);
-                Ok(res)
-            }
+            Self::AwsKms { aws_kms } => Ok::<_, error_stack::Report<SecretsManagementError>>(
+                Box::new(aws_kms::AwsKmsClient::new(aws_kms).await),
+            ),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => hashicorp_vault::HashiCorpVault::new(hc_vault)
-                .map(|val| Box::from(val).into())
-                .change_context(SecretsManagementError::ClientCreationFailed),
-            Self::NoEncryption => Ok(Box::new(NoEncryption)),
+                .change_context(SecretsManagementError::ClientCreationFailed)
+                .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) }),
+            Self::NoEncryption => {
+                Ok::<_, error_stack::Report<SecretsManagementError>>(Box::new(NoEncryption))
+            }
         }
     }
 }

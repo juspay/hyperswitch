@@ -3,7 +3,7 @@
 //!
 
 use common_utils::errors::CustomResult;
-use encryption_interface::encryption_management::{EncryptionError, EncryptionManagementInterface};
+use encryption_interface::{EncryptionError, EncryptionManagementInterface};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;

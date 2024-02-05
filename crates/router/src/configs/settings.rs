@@ -728,6 +728,14 @@ impl Settings {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        self.encryption_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.secrets_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
     }
 }
