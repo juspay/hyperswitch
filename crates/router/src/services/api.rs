@@ -671,6 +671,9 @@ pub async fn send_request(
             metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
             match cloned_send_request {
                 Some(cloned_request) => {
+                    logger::info!(
+                        "Retrying request due to connection closed before message could complete"
+                    );
                     metrics_request::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
@@ -678,7 +681,10 @@ pub async fn send_request(
                     )
                     .await
                 }
-                None => Err(error),
+                None => {
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    Err(error)
+                }
             }
         }
         err @ Err(_) => err,
