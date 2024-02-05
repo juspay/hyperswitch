@@ -258,13 +258,24 @@ where
             let response = response_fut.await?;
             // Log the request_details when we receive 400 status from the application
             if response.status() == 400 {
-                let value: serde_json::Value = serde_json::from_slice(&bytes)?;
                 let request_id = request_id_fut.await?.as_hyphenated().to_string();
-                logger::info!(
-                    "request_id: {}, request_details: {}",
-                    request_id,
-                    get_request_details_from_value(&value, "")
-                );
+                if !bytes.is_empty() {
+                    let value_result: Result<serde_json::Value, serde_json::Error> =
+                        serde_json::from_slice(&bytes);
+                    match value_result {
+                        Ok(value) => {
+                            logger::info!(
+                                "request_id: {request_id}, request_details: {}",
+                                get_request_details_from_value(&value, "")
+                            );
+                        }
+                        Err(err) => {
+                            logger::warn!("error while parsing the request in json value: {err}");
+                        }
+                    }
+                } else {
+                    logger::info!("request_id: {request_id}, request_details: Empty Body");
+                }
             }
             Ok(response)
         })
