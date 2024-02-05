@@ -885,7 +885,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
             status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    response.transaction.transaction_id.clone(),
+                    response.transaction.transaction_id,
                 ),
                 redirection_data: None,
                 mandate_reference: None,
