@@ -1715,6 +1715,12 @@ pub fn build_redirection_form(
                         item2.value=e.xid;
                         responseForm.appendChild(item2);
 
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='eci';
+                        item6.value=e.eci;
+                        responseForm.appendChild(item6);
+
                         var item3=document.createElement('input');
                         item3.type='hidden';
                         item3.name='cardHolderAuth';
