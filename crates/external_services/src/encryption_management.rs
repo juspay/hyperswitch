@@ -17,11 +17,11 @@ pub enum EncryptionManagementConfig {
     /// AWS KMS configuration
     #[cfg(feature = "aws_kms")]
     AwsKms {
-        ///AWS KMS config
+        /// AWS KMS config
         aws_kms: aws_kms::AwsKmsConfig,
     },
 
-    /// Varient representing no encryption
+    /// Variant representing no encryption
     #[default]
     NoEncryption,
 }

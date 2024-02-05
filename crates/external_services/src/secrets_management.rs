@@ -21,7 +21,7 @@ pub enum SecretsManagementConfig {
     /// AWS KMS configuration
     #[cfg(feature = "aws_kms")]
     AwsKms {
-        ///AWS KMS config
+        /// AWS KMS config
         aws_kms: aws_kms::AwsKmsConfig,
     },
 
@@ -32,7 +32,7 @@ pub enum SecretsManagementConfig {
         hc_vault: hashicorp_vault::HashiCorpVaultConfig,
     },
 
-    /// Varient representing no encryption
+    /// Variant representing no encryption
     #[default]
     NoEncryption,
 }
