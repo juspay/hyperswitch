@@ -5367,13 +5367,16 @@
               "sofort": {
                 "type": "object",
                 "required": [
-                  "billing_details",
-                  "country",
-                  "preferred_language"
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -5381,7 +5384,8 @@
                   "preferred_language": {
                     "type": "string",
                     "description": "The preferred language",
-                    "example": "en"
+                    "example": "en",
+                    "nullable": true
                   }
                 }
               }
@@ -7048,12 +7052,15 @@
           "ALL",
           "AMD",
           "ANG",
+          "AOA",
           "ARS",
           "AUD",
           "AWG",
           "AZN",
+          "BAM",
           "BBD",
           "BDT",
+          "BGN",
           "BHD",
           "BIF",
           "BMD",
@@ -7062,6 +7069,7 @@
           "BRL",
           "BSD",
           "BWP",
+          "BYN",
           "BZD",
           "CAD",
           "CHF",
@@ -7070,6 +7078,7 @@
           "COP",
           "CRC",
           "CUP",
+          "CVE",
           "CZK",
           "DJF",
           "DKK",
@@ -7079,7 +7088,9 @@
           "ETB",
           "EUR",
           "FJD",
+          "FKP",
           "GBP",
+          "GEL",
           "GHS",
           "GIP",
           "GMD",
@@ -7094,6 +7105,7 @@
           "IDR",
           "ILS",
           "INR",
+          "IQD",
           "JMD",
           "JOD",
           "JPY",
@@ -7110,6 +7122,7 @@
           "LKR",
           "LRD",
           "LSL",
+          "LYD",
           "MAD",
           "MDL",
           "MGA",
@@ -7117,11 +7130,13 @@
           "MMK",
           "MNT",
           "MOP",
+          "MRU",
           "MUR",
           "MVR",
           "MWK",
           "MXN",
           "MYR",
+          "MZN",
           "NAD",
           "NGN",
           "NIO",
@@ -7129,6 +7144,7 @@
           "NPR",
           "NZD",
           "OMR",
+          "PAB",
           "PEN",
           "PGK",
           "PHP",
@@ -7137,33 +7153,46 @@
           "PYG",
           "QAR",
           "RON",
+          "RSD",
           "RUB",
           "RWF",
           "SAR",
+          "SBD",
           "SCR",
           "SEK",
           "SGD",
+          "SHP",
+          "SLE",
           "SLL",
           "SOS",
+          "SRD",
           "SSP",
+          "STN",
           "SVC",
           "SZL",
           "THB",
+          "TND",
+          "TOP",
           "TRY",
           "TTD",
           "TWD",
           "TZS",
+          "UAH",
           "UGX",
           "USD",
           "UYU",
           "UZS",
+          "VES",
           "VND",
           "VUV",
+          "WST",
           "XAF",
+          "XCD",
           "XOF",
           "XPF",
           "YER",
-          "ZAR"
+          "ZAR",
+          "ZMW"
         ]
       },
       "CustomerAcceptance": {
@@ -7612,6 +7641,16 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The `profile_id` associated with the dispute",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
+            "nullable": true
           }
         }
       },
@@ -7709,7 +7748,7 @@
         "properties": {
           "expires_at": {
             "type": "string",
-            "example": "2023-07-26T17:33:00-07-21"
+            "example": "1707091200000"
           },
           "reference": {
             "type": "string",

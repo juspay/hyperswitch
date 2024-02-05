@@ -227,6 +227,11 @@ stream = "SCHEDULER_STREAM"
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
+[scheduler.server]
+port = 3000
+host = "127.0.0.1"
+workers = 1
+
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
@@ -245,6 +250,7 @@ bluesnap = {payment_method = "card"}
 bankofamerica = {payment_method = "card"}
 cybersource = {payment_method = "card"}
 nmi = {payment_method = "card"}
+payme = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true
@@ -286,13 +292,16 @@ alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
 open_banking_uk = {country = "GB", currency = "GBP"}
 oxxo = {country = "MX", currency = "MXN"}
-pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 seven_eleven = {country = "JP", currency = "JPY"}
 lawson = {country = "JP", currency = "JPY"}
 mini_stop = {country = "JP", currency = "JPY"}
 family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
+
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -322,7 +331,7 @@ debit = { currency = "USD" }
 ach = { currency = "USD" }
 
 [bank_config.online_banking_fpx]
-adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
@@ -333,14 +342,15 @@ adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,hal
 [mandates.supported_payment_methods]
 pay_later.klarna = {connector_list = "adyen"}
 wallet.google_pay = {connector_list = "stripe,adyen"}
-wallet.apple_pay = {connector_list = "stripe,adyen"}
+wallet.apple_pay = {connector_list = "stripe,adyen,cybersource,noon"}
 wallet.paypal = {connector_list = "adyen"}
 card.credit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
-bank_redirect.ideal = {connector_list = "stripe,adyen"}
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
