@@ -2129,7 +2129,7 @@ pub struct BankTransferNextStepsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
     /// Voucher expiry date and time
-    pub expires_at: Option<String>,
+    pub expires_at: Option<i64>,
     /// Reference number required for the transaction
     pub reference: String,
     /// Url to download the payment instruction
@@ -2197,8 +2197,8 @@ pub struct MultibancoTransferInstructions {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DokuBankTransferInstructions {
-    #[schema(value_type = String, example = "2023-07-26T17:33:00-07-21")]
-    pub expires_at: Option<String>,
+    #[schema(value_type = String, example = "1707091200000")]
+    pub expires_at: Option<i64>,
     #[schema(value_type = String, example = "122385736258")]
     pub reference: Secret<String>,
     #[schema(value_type = String)]

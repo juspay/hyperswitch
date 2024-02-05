@@ -2331,6 +2331,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 name = "drainer"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "async-bb8-diesel",
  "async-trait",
  "bb8",
@@ -2342,8 +2343,10 @@ dependencies = [
  "error-stack",
  "external_services",
  "masking",
+ "mime",
  "once_cell",
  "redis_interface",
+ "reqwest",
  "router_env",
  "serde",
  "serde_json",
@@ -5526,6 +5529,7 @@ dependencies = [
  "external_services",
  "futures 0.3.28",
  "masking",
+ "num_cpus",
  "once_cell",
  "rand 0.8.5",
  "redis_interface",

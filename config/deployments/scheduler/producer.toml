@@ -12,3 +12,9 @@ lock_key = "producer_locking_key" # The following keys defines the producer lock
 lock_ttl = 160                    # the ttl being the expiry (in seconds)
 lower_fetch_limit = 900           # Lower limit for fetching entries from redis queue (in seconds)
 upper_fetch_limit = 0             # Upper limit for fetching entries from the redis queue (in seconds)0
+
+# Scheduler server configuration
+[scheduler.server]
+port = 3000                       # Port on which the server will listen for incoming requests
+host = "127.0.0.1"                # Host IP address to bind the server to
+workers = 1                       # Number of actix workers to handle incoming requests concurrently

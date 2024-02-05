@@ -142,7 +142,7 @@ pub fn mk_app(
             .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
+    #[cfg(all(feature = "olap", feature = "aws_kms"))]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
@@ -258,8 +258,8 @@ pub fn get_application_builder(
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
         .wrap(cors::cors())
-        .wrap(middleware::LogSpanInitializer)
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

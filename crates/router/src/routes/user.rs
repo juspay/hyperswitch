@@ -116,6 +116,20 @@ pub async fn user_connect_account(
     .await
 }
 
+pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::Signout;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user, _| user_core::signout(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn change_password(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -381,6 +395,25 @@ pub async fn invite_multiple_user(
         &req,
         payload.into_inner(),
         user_core::invite_multiple_user,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn resend_invite(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ReInviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::ReInviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::resend_invite,
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))

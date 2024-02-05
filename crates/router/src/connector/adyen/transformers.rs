@@ -370,7 +370,12 @@ pub struct AdyenPtsAction {
     reference: String,
     download_url: Option<Url>,
     payment_method_type: PaymentType,
-    expires_at: Option<String>,
+    #[serde(rename = "expiresAt")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option_without_timezone"
+    )]
+    expires_at: Option<PrimitiveDateTime>,
     initial_amount: Option<Amount>,
     pass_creation_token: Option<String>,
     total_amount: Option<Amount>,
@@ -2536,7 +2541,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info,
             shopper_interaction,
@@ -2583,7 +2588,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2630,7 +2635,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2889,7 +2894,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             shopper_interaction,
             recurring_processing_model: None,
@@ -3434,6 +3439,10 @@ pub fn get_present_to_shopper_metadata(
     response: &PresentToShopperResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let reference = response.action.reference.clone();
+    let expires_at = response
+        .action
+        .expires_at
+        .map(|time| utils::get_timestamp_in_milliseconds(&time));
 
     match response.action.payment_method_type {
         PaymentType::Alfamart
@@ -3446,7 +3455,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Seicomart
         | PaymentType::PayEasy => {
             let voucher_data = payments::VoucherNextStepData {
-                expires_at: response.action.expires_at.clone(),
+                expires_at,
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
@@ -3470,7 +3479,7 @@ pub fn get_present_to_shopper_metadata(
                 Box::new(payments::DokuBankTransferInstructions {
                     reference: Secret::new(response.action.reference.clone()),
                     instructions_url: response.action.instructions_url.clone(),
-                    expires_at: response.action.expires_at.clone(),
+                    expires_at,
                 }),
             );
 
