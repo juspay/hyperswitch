@@ -14,32 +14,24 @@ pub struct NoEncryption;
 
 impl NoEncryption {
     /// Encryption functionality
-    pub fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, NoEncryptionError> {
-        String::from_utf8(data.as_ref().into())
-            .into_report()
-            .change_context(NoEncryptionError::Utf8DecodingFailed)
+    pub fn encrypt(&self, data: impl AsRef<[u8]>) -> Vec<u8> {
+        data.as_ref().into()
     }
 
     /// Decryption functionality
-    pub fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, NoEncryptionError> {
-        String::from_utf8(data.as_ref().into())
-            .into_report()
-            .change_context(NoEncryptionError::Utf8DecodingFailed)
+    pub fn decrypt(&self, data: impl AsRef<[u8]>) -> Vec<u8> {
+        data.as_ref().into()
     }
 }
 
 #[async_trait::async_trait]
 impl EncryptionManagementInterface for NoEncryption {
     async fn encrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
-        self.encrypt(input)
-            .change_context(EncryptionError::EncryptionFailed)
-            .map(|val| val.into_bytes())
+        Ok(self.encrypt(input))
     }
 
     async fn decrypt(&self, input: &[u8]) -> CustomResult<Vec<u8>, EncryptionError> {
-        self.decrypt(input)
-            .change_context(EncryptionError::DecryptionFailed)
-            .map(|val| val.into_bytes())
+        Ok(self.decrypt(input))
     }
 }
 
@@ -49,16 +41,9 @@ impl SecretManagementInterface for NoEncryption {
         &self,
         input: Secret<String>,
     ) -> CustomResult<Secret<String>, SecretsManagementError> {
-        self.decrypt(input.expose())
+        String::from_utf8(self.decrypt(input.expose()))
             .map(Into::into)
+            .into_report()
             .change_context(SecretsManagementError::DecryptionFailed)
     }
-}
-
-/// Errors that could occur during KMS operations.
-#[derive(Debug, thiserror::Error)]
-pub enum NoEncryptionError {
-    /// An error occurred UTF-8 decoding AWS KMS decrypted output.
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
 }
