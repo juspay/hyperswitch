@@ -92,15 +92,15 @@ pub async fn update_user_role(
 ) -> UserResponse<()> {
     if !predefined_permissions::is_role_updatable_to(&req.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable(format!("role_id = {} is not updatable", req.role_id));
+            .attach_printable(format!("role cannot be updated to {}", req.role_id));
     }
 
-    let user_from_db =
+    let user_to_be_updated =
         utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
             .await
             .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    if user_from_token.user_id == user_from_db.get_user_id() {
+    if user_from_token.user_id == user_to_be_updated.get_user_id() {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Admin User Changing their role");
     }
@@ -108,16 +108,18 @@ pub async fn update_user_role(
     state
         .store
         .update_user_role_by_user_id_merchant_id(
-            user_from_db.get_user_id(),
+            user_to_be_updated.get_user_id(),
             user_from_token.merchant_id.as_str(),
             UserRoleUpdate::UpdateRole {
-                role_id: req.role_id,
+                role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
             },
         )
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)
         .attach_printable("UserId MerchantId not found")?;
+
+    auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
     Ok(ApplicationResponse::StatusOk)
 }
