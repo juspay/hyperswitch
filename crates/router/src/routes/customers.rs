@@ -147,7 +147,7 @@ pub async fn get_customer_mandates(
         customer_id: path.into_inner(),
     };
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -166,6 +166,6 @@ pub async fn get_customer_mandates(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
