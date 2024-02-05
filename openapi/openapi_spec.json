@@ -7641,6 +7641,16 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The `profile_id` associated with the dispute",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
+            "nullable": true
           }
         }
       },

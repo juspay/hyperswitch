@@ -716,6 +716,63 @@ async fn handle_new_user_invitation(
     })
 }
 
+#[cfg(feature = "email")]
+pub async fn resend_invite(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+    request: user_api::ReInviteUserRequest,
+) -> UserResponse<()> {
+    let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(invitee_email.clone().get_secret().expose().as_str())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User not found in the records")
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+    let user_role = state
+        .store
+        .find_user_role_by_user_id_merchant_id(user.get_user_id(), &user_from_token.merchant_id)
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User role with given UserId MerchantId not found")
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?;
+
+    if !matches!(user_role.status, UserStatus::InvitationSent) {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Invalid Status for Reinvitation");
+    }
+
+    let email_contents = email_types::InviteUser {
+        recipient_email: invitee_email,
+        user_name: domain::UserName::new(user.get_name())?,
+        settings: state.conf.clone(),
+        subject: "You have been invited to join Hyperswitch Community!",
+        merchant_id: user_from_token.merchant_id,
+    };
+    state
+        .email_client
+        .compose_and_send_email(
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
 pub async fn create_internal_user(
     state: AppState,
     request: user_api::CreateInternalUserRequest,

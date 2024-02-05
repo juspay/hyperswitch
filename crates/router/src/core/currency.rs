@@ -17,7 +17,7 @@ pub async fn retrieve_forex(
             state.conf.forex_api.call_delay,
             state.conf.forex_api.local_fetch_retry_delay,
             state.conf.forex_api.local_fetch_retry_count,
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             &state.conf.kms,
             #[cfg(feature = "hashicorp-vault")]
             &state.conf.hc_vault,
@@ -44,7 +44,7 @@ pub async fn convert_forex(
             amount,
             to_currency,
             from_currency,
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             &state.conf.kms,
             #[cfg(feature = "hashicorp-vault")]
             &state.conf.hc_vault,
