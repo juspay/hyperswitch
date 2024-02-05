@@ -17,4 +17,19 @@ pub struct SchedulerHealthCheckResponse {
     pub outgoing_request: bool,
 }
 
+pub enum HealthState {
+    Running,
+    Error,
+    NotApplicable,
+}
+
+impl From<HealthState> for bool {
+    fn from(value: HealthState) -> Self {
+        match value {
+            HealthState::Running => true,
+            HealthState::Error | HealthState::NotApplicable => false,
+        }
+    }
+}
+
 impl common_utils::events::ApiEventMetric for SchedulerHealthCheckResponse {}
