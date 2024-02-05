@@ -618,9 +618,9 @@ pub async fn send_request(
                     metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
                     errors::ApiClientError::RequestTimeoutReceived
                 }
-                error if is_connection_closed(&error) => {
+                error if is_connection_closed_before_message_could_complete(&error) => {
                     metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::ConnectionClosed
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
@@ -637,9 +637,9 @@ pub async fn send_request(
                     metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
                     errors::ApiClientError::RequestTimeoutReceived
                 }
-                error if is_connection_closed(&error) => {
+                error if is_connection_closed_before_message_could_complete(&error) => {
                     metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::ConnectionClosed
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
             })
@@ -664,7 +664,10 @@ pub async fn send_request(
     // it can’t really retry it automatically on a new connection, since the server may have acted already
     match response {
         Ok(response) => Ok(response),
-        Err(error) if error.current_context() == &errors::ApiClientError::ConnectionClosed => {
+        Err(error)
+            if error.current_context()
+                == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
+        {
             metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
             match cloned_send_request {
                 Some(cloned_request) => {
@@ -682,7 +685,7 @@ pub async fn send_request(
     }
 }
 
-fn is_connection_closed(error: &reqwest::Error) -> bool {
+fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
         if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {

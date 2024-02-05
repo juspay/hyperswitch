@@ -267,7 +267,7 @@ pub enum ApiClientError {
     RequestTimeoutReceived,
 
     #[error("connection closed before a message could complete")]
-    ConnectionClosed,
+    ConnectionClosedIncompleteMessage,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
@@ -285,8 +285,8 @@ impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
-    pub fn is_connection_closed(&self) -> bool {
-        self == &Self::ConnectionClosed
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
     }
 }
 
