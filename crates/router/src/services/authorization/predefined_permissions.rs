@@ -4,10 +4,9 @@ use error_stack::ResultExt;
 use once_cell::sync::Lazy;
 
 use super::permissions::Permission;
-use crate::{
-    consts,
-    core::errors::{UserErrors, UserResult},
-};
+use crate::consts;
+#[cfg(feature = "olap")]
+use crate::core::errors::{UserErrors, UserResult};
 
 pub struct RoleInfo {
     permissions: Vec<Permission>,
@@ -322,6 +321,7 @@ pub fn get_role_name_from_id(role_id: &str) -> Option<&'static str> {
         .and_then(|role_info| role_info.name)
 }
 
+#[cfg(feature = "olap")]
 pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
@@ -330,6 +330,7 @@ pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {
         .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }
 
+#[cfg(feature = "olap")]
 pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
@@ -338,6 +339,7 @@ pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
         .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }
 
+#[cfg(feature = "olap")]
 pub fn is_role_updatable_to(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
