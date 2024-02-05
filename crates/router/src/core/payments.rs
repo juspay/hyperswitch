@@ -3273,7 +3273,7 @@ pub async fn payment_external_authentication(
     let return_url = Some(helpers::create_redirect_url(
         &state.conf.server.base_url,
         &payment_attempt.clone(),
-        &"threedsecureio".to_string(),
+        &"tokenex".to_string(),
         None,
     ));
     let device_channel = if req.sdk_information.is_some() {

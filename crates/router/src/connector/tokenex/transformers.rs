@@ -577,3 +577,24 @@ pub struct ThreeDSecureAuthNResponse {
     pub trans_status: String,
     pub encoded_c_req: String,
 }
+
+// Post Authentication
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenexPostAuthenticationRequest {
+    pub server_transaction_id: String,
+}
+
+#[derive(Default, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenexPostAuthenticationResponse {
+    pub three_d_secure_response: TokenexThreeDSResponse,
+}
+#[derive(Default, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenexThreeDSResponse {
+    pub authentication_value: Option<String>,
+    pub trans_status: String,
+    pub eci: Option<String>,
+}

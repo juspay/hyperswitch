@@ -702,9 +702,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             let merchant_connector_account = state
                 .store
                 .find_merchant_connector_account_by_profile_id_connector_name(
-                    profile_id,
-                    "threedsecureio",
-                    key_store,
+                    profile_id, "tokenex", key_store,
                 )
                 .await
                 .to_not_found_response(

@@ -45,6 +45,7 @@ impl api::RefundSync for Tokenex {}
 impl api::PaymentToken for Tokenex {}
 impl api::ExternalAuthentication for Tokenex {}
 impl api::ConnectorPreAuthentication for Tokenex {}
+impl api::ConnectorPostAuthentication for Tokenex {}
 impl api::ConnectorAuthentication for Tokenex {}
 
 impl
@@ -757,21 +758,6 @@ impl
         println!("response authn {:?}", response);
         let response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        // let creq: serde_json::Value = json!({
-        //     "threeDSServerTransID": response.three_d_secure_response.three_dsserver_trans_id,
-        //     "acsTransID": response.three_d_secure_response.acs_trans_id,
-        //     "messageVersion": response.three_d_secure_response.message_version,
-        //     "messageType": "CReq",
-        //     "challengeWindowSize": "05",
-        // });
-        // println!("creq authn {}", creq);
-        // let creq_str = to_string(&creq)
-        //     .ok()
-        //     .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        // let creq_base64 = BASE64_ENGINE
-        //     .encode(creq_str)
-        //     .trim_end_matches('=')
-        //     .to_owned();
         println!(
             "creq_base64 authn {}",
             &response.three_d_secure_response.encoded_c_req
@@ -785,6 +771,118 @@ impl
                 } else {
                     None
                 },
+                acs_reference_number: Some(
+                    response
+                        .three_d_secure_response
+                        .acs_reference_number
+                        .clone(),
+                ),
+                acs_trans_id: Some(response.three_d_secure_response.acs_trans_id.clone()),
+                three_dsserver_trans_id: Some(
+                    response
+                        .three_d_secure_response
+                        .three_dsserver_trans_id
+                        .clone(),
+                ),
+                acs_signed_content: None,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::PostAuthentication,
+        types::ConnectorPostAuthenticationRequestData,
+        types::ConnectorPostAuthenticationResponse,
+    > for Tokenex
+{
+    fn get_headers(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/v2/ThreeDSecure/ChallengeResults",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_obj = tokenex::TokenexPostAuthenticationRequest {
+            server_transaction_id: req
+                .request
+                .authentication_data
+                .threeds_server_transaction_id
+                .clone(),
+        };
+        println!("req_obj post-authn {:?}", req_obj);
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::ConnectorPostAuthenticationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::ConnectorPostAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorPostAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorPostAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::ConnectorPostAuthenticationRouterData,
+        res: Response,
+    ) -> CustomResult<types::ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
+        let response: Result<
+            tokenex::TokenexPostAuthenticationResponse,
+            error_stack::Report<ParsingError>,
+        > = res.response.parse_struct("tokenex PaymentsSyncResponse");
+        println!("response post-authn {:?}", response);
+        let response =
+            response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ConnectorPostAuthenticationRouterData {
+            response: Ok(types::ConnectorPostAuthenticationResponse {
+                trans_status: response.three_d_secure_response.trans_status.clone(),
+                authentication_value: response.three_d_secure_response.authentication_value,
+                eci: response.three_d_secure_response.eci,
             }),
             ..data.clone()
         })
