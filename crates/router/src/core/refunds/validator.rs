@@ -17,7 +17,7 @@ pub const DEFAULT_LIMIT: i64 = 10;
 pub enum RefundValidationError {
     #[error("The payment attempt was not successful")]
     UnsuccessfulPaymentAttempt,
-    #[error("The refund amount exceeds the payment amount")]
+    #[error("The refund amount exceeds the amount captured")]
     RefundAmountExceedsPaymentAmount,
     #[error("The order has expired")]
     OrderExpired,
@@ -40,7 +40,7 @@ pub fn validate_success_transaction(
 
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
-    payment_attempt_amount: i64, // &storage::PaymentAttempt,
+    amount_captured: i64,
     all_refunds: &[storage::Refund],
     refund_amount: i64,
 ) -> CustomResult<(), RefundValidationError> {
@@ -58,7 +58,7 @@ pub fn validate_refund_amount(
         .sum();
 
     utils::when(
-        refund_amount > (payment_attempt_amount - total_refunded_amount),
+        refund_amount > (amount_captured - total_refunded_amount),
         || {
             Err(report!(
                 RefundValidationError::RefundAmountExceedsPaymentAmount

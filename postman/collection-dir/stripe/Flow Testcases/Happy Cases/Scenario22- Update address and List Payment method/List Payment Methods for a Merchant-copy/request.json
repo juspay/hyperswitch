@@ -32,15 +32,6 @@
       "disabled": true
     }
   ],
-  "body": {
-    "mode": "raw",
-    "raw": "",
-    "options": {
-      "raw": {
-        "language": "json"
-      }
-    }
-  },
   "url": {
     "raw": "{{baseUrl}}/account/payment_methods?client_secret={{client_secret}}",
     "host": [

@@ -1,4 +1,7 @@
-use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
+use drainer::{
+    errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
+};
+use router_env::tracing::Instrument;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -15,10 +18,8 @@ async fn main() -> DrainerResult<()> {
     let store = services::Store::new(&conf, false).await;
     let store = std::sync::Arc::new(store);
 
-    let number_of_streams = store.config.drainer_num_partitions;
-    let max_read_count = conf.drainer.max_read_count;
-    let shutdown_intervals = conf.drainer.shutdown_interval;
-    let loop_interval = conf.drainer.loop_interval;
+    #[cfg(feature = "vergen")]
+    println!("Starting drainer (Version: {})", router_env::git_tag!());
 
     let _guard = router_env::setup(
         &conf.log,
@@ -26,17 +27,23 @@ async fn main() -> DrainerResult<()> {
         [router_env::service_name!()],
     );
 
+    #[allow(clippy::expect_used)]
+    let web_server = Box::pin(start_web_server(conf.clone(), store.clone()))
+        .await
+        .expect("Failed to create the server");
+
+    tokio::spawn(
+        async move {
+            let _ = web_server.await;
+            logger::error!("The health check probe stopped working!");
+        }
+        .in_current_span(),
+    );
+
     logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 
-    start_drainer(
-        store.clone(),
-        number_of_streams,
-        max_read_count,
-        shutdown_intervals,
-        loop_interval,
-    )
-    .await?;
+    start_drainer(store.clone(), conf.drainer).await?;
 
     Ok(())
 }

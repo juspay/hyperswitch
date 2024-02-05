@@ -10,9 +10,11 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use error_stack::{report, FutureExt, ResultExt};
+use diesel_models::configs;
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
+use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
 
 use crate::{
@@ -140,16 +142,16 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
-    let payment_link_config = req
-        .payment_link_config
-        .as_ref()
-        .map(|pl_metadata| {
-            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
+    let fingerprint = Some(utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"));
+    if let Some(fingerprint) = fingerprint {
+        db.insert_config(configs::ConfigNew {
+            key: format!("fingerprint_secret_{}", req.merchant_id),
+            config: fingerprint,
         })
-        .transpose()?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Mot able to generate Merchant fingerprint")?;
+    };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {
         db.find_organization_by_org_id(organization_id)
@@ -199,15 +201,15 @@ pub async fn create_merchant_account(
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            intent_fulfillment_time: None,
             frm_routing_algorithm: req.frm_routing_algorithm,
-            intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id,
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
-            payment_link_config,
+            payment_link_config: None,
         })
     }
     .await
@@ -429,6 +431,8 @@ pub async fn update_business_profile_cascade(
             frm_routing_algorithm: None,
             payout_routing_algorithm: None,
             applepay_verified_domains: None,
+            payment_link_config: None,
+            session_expiry: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -581,10 +585,10 @@ pub async fn merchant_account_update(
         publishable_key: None,
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
-        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        intent_fulfillment_time: None,
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
-        payment_link_config: req.payment_link_config,
+        payment_link_config: None,
     };
 
     let response = db
@@ -762,7 +766,7 @@ pub async fn create_payment_connector(
     )
     .await?;
 
-    let routable_connector =
+    let mut routable_connector =
         api_enums::RoutableConnectors::from_str(&req.connector_name.to_string()).ok();
 
     let business_profile = state
@@ -772,6 +776,28 @@ pub async fn create_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
+
+    let pm_auth_connector =
+        api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+
+    if pm_auth_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            })
+            .into_report();
+        }
+    } else {
+        let routable_connector_option = req
+            .connector_name
+            .to_string()
+            .parse()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector name given".to_string(),
+            })?;
+        routable_connector = Some(routable_connector_option);
+    };
 
     // If connector label is not passed in the request, generate one
     let connector_label = req
@@ -839,34 +865,39 @@ pub async fn create_payment_connector(
 
     // The purpose of this merchant account update is just to update the
     // merchant account `modified_at` field for KGraph cache invalidation
-    let merchant_account_update = storage::MerchantAccountUpdate::Update {
-        merchant_name: None,
-        merchant_details: None,
-        return_url: None,
-        webhook_details: None,
-        sub_merchants_enabled: None,
-        parent_merchant_id: None,
-        enable_payment_response_hash: None,
-        locker_id: None,
-        payment_response_hash_key: None,
-        primary_business_details: None,
-        metadata: None,
-        publishable_key: None,
-        redirect_to_merchant_with_http_post: None,
-        routing_algorithm: None,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
-        default_profile: None,
-        payment_link_config: None,
-    };
-
     state
         .store
-        .update_specific_fields_in_merchant(merchant_id, merchant_account_update, &key_store)
+        .update_specific_fields_in_merchant(
+            merchant_id,
+            storage::MerchantAccountUpdate::ModifiedAtUpdate,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
+
+    let (connector_status, disabled) = validate_status_and_disabled(
+        req.status,
+        req.disabled,
+        auth,
+        // The validate_status_and_disabled function will use this value only
+        // when the status can be active. So we are passing this as fallback.
+        api_enums::ConnectorStatus::Active,
+    )?;
+
+    if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+        if let Some(val) = req.pm_auth_config.clone() {
+            validate_pm_auth(
+                val,
+                &*state.clone().store,
+                merchant_id.clone().as_str(),
+                &key_store,
+                merchant_account,
+                &Some(profile_id.clone()),
+            )
+            .await?;
+        }
+    }
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -886,7 +917,7 @@ pub async fn create_payment_connector(
         .attach_printable("Unable to encrypt connector account details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         metadata: req.metadata,
         frm_configs,
         connector_label: Some(connector_label),
@@ -911,6 +942,7 @@ pub async fn create_payment_connector(
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config.clone(),
+        status: connector_status,
     };
 
     let mut default_routing_config =
@@ -938,7 +970,7 @@ pub async fn create_payment_connector(
             #[cfg(feature = "connector_choice_mca_id")]
             merchant_connector_id: Some(mca.merchant_connector_id.clone()),
             #[cfg(not(feature = "connector_choice_mca_id"))]
-            sub_label: req.business_sub_label,
+            sub_label: req.business_sub_label.clone(),
         };
 
         if !default_routing_config.contains(&choice) {
@@ -946,7 +978,7 @@ pub async fn create_payment_connector(
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 merchant_id,
-                default_routing_config,
+                default_routing_config.clone(),
             )
             .await?;
         }
@@ -955,7 +987,7 @@ pub async fn create_payment_connector(
             routing_helpers::update_merchant_default_config(
                 &*state.store,
                 &profile_id.clone(),
-                default_routing_config_for_profile,
+                default_routing_config_for_profile.clone(),
             )
             .await?;
         }
@@ -972,6 +1004,54 @@ pub async fn create_payment_connector(
 
     let mca_response = mca.try_into()?;
     Ok(service_api::ApplicationResponse::Json(mca_response))
+}
+
+async fn validate_pm_auth(
+    val: serde_json::Value,
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    key_store: &domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    profile_id: &Option<String>,
+) -> RouterResponse<()> {
+    let config = serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "invalid data received for payment method auth config".to_string(),
+        })
+        .attach_printable("Failed to deserialize Payment Method Auth config")?;
+
+    let all_mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_account.merchant_id.clone(),
+        })?;
+
+    for conn_choice in config.enabled_payment_methods {
+        let pm_auth_mca = all_mcas
+            .clone()
+            .into_iter()
+            .find(|mca| mca.merchant_connector_id == conn_choice.mca_id)
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment method auth connector account not found".to_string(),
+            })
+            .into_report()?;
+
+        if &pm_auth_mca.profile_id != profile_id {
+            return Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "payment method auth profile_id differs from connector profile_id"
+                    .to_string(),
+            })
+            .into_report();
+        }
+    }
+
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
 pub async fn retrieve_payment_connector(
@@ -1056,7 +1136,7 @@ pub async fn update_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let _merchant_account = db
+    let merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -1083,6 +1163,72 @@ pub async fn update_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    let auth: types::ConnectorAuthType = req
+        .connector_account_details
+        .clone()
+        .unwrap_or(mca.connector_account_details.clone().into_inner())
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "auth_type and api_key".to_string(),
+        })?;
+    let connector_name = mca.connector_name.as_ref();
+    let connector_enum = api_models::enums::Connector::from_str(connector_name)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
+        |err| match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The connector name is invalid".to_string(),
+                })
+            }
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("The {} is invalid", field_name),
+                }),
+            errors::ConnectorError::FailedToObtainAuthType => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The auth type is invalid for the connector".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The request body is invalid".to_string(),
+            }),
+        },
+    )?;
+
+    let (connector_status, disabled) =
+        validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
+
+    if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+        if let Some(val) = req.pm_auth_config.clone() {
+            validate_pm_auth(
+                val,
+                db,
+                merchant_id,
+                &key_store,
+                merchant_account,
+                &mca.profile_id,
+            )
+            .await?;
+        }
+    }
+
+    // The purpose of this merchant account update is just to update the
+    // merchant account `modified_at` field for KGraph cache invalidation
+    db.update_specific_fields_in_merchant(
+        merchant_id,
+        storage::MerchantAccountUpdate::ModifiedAtUpdate,
+        &key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error updating the merchant account when updating payment connector")?;
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
         connector_type: Some(req.connector_type),
@@ -1098,7 +1244,7 @@ pub async fn update_payment_connector(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
         test_mode: req.test_mode,
-        disabled: req.disabled,
+        disabled,
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
@@ -1115,6 +1261,7 @@ pub async fn update_payment_connector(
         },
         applepay_verified_domains: None,
         pm_auth_config: req.pm_auth_config,
+        status: Some(connector_status),
     };
 
     let updated_mca = db
@@ -1311,6 +1458,9 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -1424,6 +1574,10 @@ pub async fn update_business_profile(
         })?
     }
 
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
+
     let webhook_details = request
         .webhook_details
         .as_ref()
@@ -1446,6 +1600,17 @@ pub async fn update_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let payment_link_config = request
+        .payment_link_config
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::BusinessPaymentLinkConfig>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()?;
+
     let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
         profile_name: request.profile_name,
         modified_at: Some(date_time::now()),
@@ -1461,6 +1626,8 @@ pub async fn update_business_profile(
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
         applepay_verified_domains: request.applepay_verified_domains,
+        payment_link_config,
+        session_expiry: request.session_expiry.map(i64::from),
     };
 
     let updated_business_profile = db
@@ -1546,9 +1713,9 @@ pub(crate) fn validate_auth_and_metadata_type(
             checkout::transformers::CheckoutAuthType::try_from(val)?;
             Ok(())
         }
-
         api_enums::Connector::Coinbase => {
             coinbase::transformers::CoinbaseAuthType::try_from(val)?;
+            coinbase::transformers::CoinbaseConnectorMeta::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Cryptopay => {
@@ -1565,6 +1732,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Fiserv => {
             fiserv::transformers::FiservAuthType::try_from(val)?;
+            fiserv::transformers::FiservSessionObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Forte => {
@@ -1635,6 +1803,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             payu::transformers::PayuAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Placetopay => {
+            placetopay::transformers::PlacetopayAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Powertranz => {
             powertranz::transformers::PowertranzAuthType::try_from(val)?;
             Ok(())
@@ -1691,9 +1863,17 @@ pub(crate) fn validate_auth_and_metadata_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Signifyd | api_enums::Connector::Plaid => {
-            Err(report!(errors::ConnectorError::InvalidConnectorName)
-                .attach_printable(format!("invalid connector name: {connector_name}")))
+        api_enums::Connector::Signifyd => {
+            signifyd::transformers::SignifydAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Riskified => {
+            riskified::transformers::RiskifiedAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Plaid => {
+            PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
         }
     }
 }
@@ -1721,4 +1901,38 @@ pub async fn validate_dummy_connector_enabled(
     } else {
         Ok(())
     }
+}
+
+pub fn validate_status_and_disabled(
+    status: Option<api_enums::ConnectorStatus>,
+    disabled: Option<bool>,
+    auth: types::ConnectorAuthType,
+    current_status: api_enums::ConnectorStatus,
+) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
+    let connector_status = match (status, auth) {
+        (Some(common_enums::ConnectorStatus::Active), types::ConnectorAuthType::TemporaryAuth) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector status cannot be active when using TemporaryAuth".to_string(),
+            }
+            .into());
+        }
+        (Some(status), _) => status,
+        (None, types::ConnectorAuthType::TemporaryAuth) => common_enums::ConnectorStatus::Inactive,
+        (None, _) => current_status,
+    };
+
+    let disabled = match (disabled, connector_status) {
+        (Some(false), common_enums::ConnectorStatus::Inactive) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Connector cannot be enabled when connector_status is inactive or when using TemporaryAuth"
+                    .to_string(),
+            }
+            .into());
+        }
+        (Some(disabled), _) => Some(disabled),
+        (None, common_enums::ConnectorStatus::Inactive) => Some(true),
+        (None, _) => None,
+    };
+
+    Ok((connector_status, disabled))
 }

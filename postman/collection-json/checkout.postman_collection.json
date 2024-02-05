@@ -424,7 +424,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"checkout\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"AmericanExpress\",\"Discover\",\"Interac\",\"JCB\",\"Mastercard\",\"Visa\",\"DinersClub\",\"UnionPay\",\"RuPay\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"paypal\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":false,\"installment_payment_enabled\":false}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -560,6 +560,17 @@
               "name": "Payments - Retrieve",
               "event": [
                 {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "setTimeout(function(){",
+                      "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                      "}, 3000);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
                   "listen": "test",
                   "script": {
                     "exec": [
@@ -639,13 +650,19 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/payments/:id",
+                  "raw": "{{baseUrl}}/payments/:id?force_sync=true",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "payments",
                     ":id"
+                  ],
+                  "query": [
+                    {
+                      "key": "force_sync",
+                      "value": "true"
+                    }
                   ],
                   "variable": [
                     {
@@ -730,7 +747,9 @@
                   "listen": "prerequest",
                   "script": {
                     "exec": [
-                      ""
+                      "setTimeout(function(){",
+                      "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                      "}, 3000);"
                     ],
                     "type": "text/javascript"
                   }
@@ -942,12 +961,12 @@
                           "   console.log('INFO - Unable to assign variable {{customer_id}}, as jsonData.customer_id is undefined.');",
                           "};",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}"
@@ -993,6 +1012,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -1416,12 +1446,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -1508,6 +1538,17 @@
                 {
                   "name": "Payments - Retrieve-copy",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -1662,6 +1703,17 @@
                 {
                   "name": "Refunds - Create Copy",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -2226,16 +2278,16 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
-                          "// Response body should have value \"adyen\" for \"connector\"",
+                          "// Response body should have value \"checkout\" for \"connector\"",
                           "if (jsonData?.connector) {",
                           "  pm.test(",
                           "    \"[POST]::/payments/:id/confirm - Content check if value for 'connector' matches 'checkout'\",",
@@ -2317,6 +2369,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -2951,6 +3014,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -3164,12 +3238,12 @@
                           "   console.log('INFO - Unable to assign variable {{customer_id}}, as jsonData.customer_id is undefined.');",
                           "};",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}"
@@ -3215,6 +3289,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -3896,6 +3981,17 @@
                   "name": "Payments - Retrieve-copy",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -4045,200 +4141,6 @@
                     "description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
                   },
                   "response": []
-                },
-                {
-                  "name": "Refunds - Create Copy",
-                  "event": [
-                    {
-                      "listen": "test",
-                      "script": {
-                        "exec": [
-                          "// Validate status 2xx",
-                          "pm.test(\"[POST]::/refunds - Status code is 2xx\", function () {",
-                          "  pm.response.to.be.success;",
-                          "});",
-                          "",
-                          "// Validate if response header has matching content-type",
-                          "pm.test(\"[POST]::/refunds - Content-Type is application/json\", function () {",
-                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-                          "    \"application/json\",",
-                          "  );",
-                          "});",
-                          "",
-                          "// Set response object as internal variable",
-                          "let jsonData = {};",
-                          "try {",
-                          "  jsonData = pm.response.json();",
-                          "} catch (e) {}",
-                          "",
-                          "// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
-                          "if (jsonData?.refund_id) {",
-                          "  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
-                          "  console.log(",
-                          "    \"- use {{refund_id}} as collection variable for value\",",
-                          "    jsonData.refund_id,",
-                          "  );",
-                          "} else {",
-                          "  console.log(",
-                          "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
-                          "  );",
-                          "}",
-                          "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
-                          "if (jsonData?.status) {",
-                          "  pm.test(",
-                          "    \"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\",",
-                          "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
-                          "    },",
-                          "  );",
-                          "}",
-                          "",
-                          "// Response body should have value \"540\" for \"amount\"",
-                          "if (jsonData?.status) {",
-                          "  pm.test(",
-                          "    \"[POST]::/refunds - Content check if value for 'amount' matches '540'\",",
-                          "    function () {",
-                          "      pm.expect(jsonData.amount).to.eql(540);",
-                          "    },",
-                          "  );",
-                          "}",
-                          "",
-                          "// Validate the connector",
-                          "pm.test(\"[POST]::/payments - connector\", function () {",
-                          "  pm.expect(jsonData.connector).to.eql(\"checkout\");",
-                          "});",
-                          ""
-                        ],
-                        "type": "text/javascript"
-                      }
-                    }
-                  ],
-                  "request": {
-                    "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      },
-                      {
-                        "key": "Accept",
-                        "value": "application/json"
-                      }
-                    ],
-                    "body": {
-                      "mode": "raw",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      },
-                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":540,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
-                    },
-                    "url": {
-                      "raw": "{{baseUrl}}/refunds",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds"
-                      ]
-                    },
-                    "description": "To create a refund against an already processed payment"
-                  },
-                  "response": []
-                },
-                {
-                  "name": "Refunds - Retrieve Copy",
-                  "event": [
-                    {
-                      "listen": "test",
-                      "script": {
-                        "exec": [
-                          "// Validate status 2xx",
-                          "pm.test(\"[GET]::/refunds/:id - Status code is 2xx\", function () {",
-                          "  pm.response.to.be.success;",
-                          "});",
-                          "",
-                          "// Validate if response header has matching content-type",
-                          "pm.test(\"[GET]::/refunds/:id - Content-Type is application/json\", function () {",
-                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-                          "    \"application/json\",",
-                          "  );",
-                          "});",
-                          "",
-                          "// Set response object as internal variable",
-                          "let jsonData = {};",
-                          "try {",
-                          "  jsonData = pm.response.json();",
-                          "} catch (e) {}",
-                          "",
-                          "// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
-                          "if (jsonData?.refund_id) {",
-                          "  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
-                          "  console.log(",
-                          "    \"- use {{refund_id}} as collection variable for value\",",
-                          "    jsonData.refund_id,",
-                          "  );",
-                          "} else {",
-                          "  console.log(",
-                          "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
-                          "  );",
-                          "}",
-                          "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
-                          "if (jsonData?.status) {",
-                          "  pm.test(",
-                          "    \"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\",",
-                          "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
-                          "    },",
-                          "  );",
-                          "}",
-                          "",
-                          "// Response body should have value \"6540\" for \"amount\"",
-                          "if (jsonData?.status) {",
-                          "  pm.test(",
-                          "    \"[POST]::/refunds - Content check if value for 'amount' matches '540'\",",
-                          "    function () {",
-                          "      pm.expect(jsonData.amount).to.eql(540);",
-                          "    },",
-                          "  );",
-                          "}",
-                          ""
-                        ],
-                        "type": "text/javascript"
-                      }
-                    }
-                  ],
-                  "request": {
-                    "method": "GET",
-                    "header": [
-                      {
-                        "key": "Accept",
-                        "value": "application/json"
-                      }
-                    ],
-                    "url": {
-                      "raw": "{{baseUrl}}/refunds/:id",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "refunds",
-                        ":id"
-                      ],
-                      "variable": [
-                        {
-                          "key": "id",
-                          "value": "{{refund_id}}",
-                          "description": "(Required) unique refund id"
-                        }
-                      ]
-                    },
-                    "description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-                  },
-                  "response": []
                 }
               ]
             },
@@ -4314,12 +4216,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -4379,7 +4281,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4005519200000004\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4485040371536584\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -4397,6 +4299,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -4671,7 +4584,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4005519200000004\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4005519200000004\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -4758,12 +4671,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -4874,6 +4787,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -5250,12 +5174,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments:id/confirm - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments:id/confirm - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -5366,6 +5290,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -6023,6 +5958,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -6499,6 +6445,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -6977,6 +6934,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -7406,6 +7374,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -7595,12 +7574,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -7682,6 +7661,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -7904,7 +7894,9 @@
                       "listen": "prerequest",
                       "script": {
                         "exec": [
-                          ""
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
                         ],
                         "type": "text/javascript"
                       }
@@ -8115,12 +8107,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -8202,6 +8194,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -8356,6 +8359,17 @@
                 {
                   "name": "Refunds - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -8551,6 +8565,17 @@
                   "name": "Refunds - Create-copy",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -8739,6 +8764,17 @@
                 {
                   "name": "Payments - Retrieve-copy",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -9494,7 +9530,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -9610,7 +9648,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -9965,7 +10005,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -10210,7 +10252,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -10454,7 +10498,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -11071,7 +11117,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -11320,7 +11368,9 @@
                           "listen": "prerequest",
                           "script": {
                             "exec": [
-                              ""
+                              "setTimeout(function(){",
+                              "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                              "}, 3000);"
                             ],
                             "type": "text/javascript"
                           }
@@ -12505,6 +12555,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -12694,12 +12755,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -12964,12 +13025,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -13212,12 +13273,12 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"succeeded\" for \"status\"",
+                          "// Response body should have value \"processing\" for \"status\"",
                           "if (jsonData?.status) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments - Content check if value for 'status' matches 'succeeded'\",",
+                          "    \"[POST]::/payments - Content check if value for 'status' matches 'processing'\",",
                           "    function () {",
-                          "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
+                          "      pm.expect(jsonData.status).to.eql(\"processing\");",
                           "    },",
                           "  );",
                           "}",
@@ -13299,6 +13360,17 @@
                 {
                   "name": "Payments - Retrieve",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -13454,6 +13526,17 @@
                   "name": "Refunds - Create",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -13506,13 +13589,13 @@
                           "  );",
                           "}",
                           "",
-                          "// Response body should have value \"Refund amount exceeds the payment amount\" for \"message\"",
+                          "// Response body should have value \"The refund amount exceeds the amount captured\" for \"message\"",
                           "if (jsonData?.error?.message) {",
                           "  pm.test(",
-                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'Refund amount exceeds the payment amount'\",",
+                          "    \"[POST]::/payments/:id/confirm - Content check if value for 'error.message' matches 'The refund amount exceeds the amount captured'\",",
                           "    function () {",
                           "      pm.expect(jsonData.error.message).to.eql(",
-                          "        \"Refund amount exceeds the payment amount\",",
+                          "        \"The refund amount exceeds the amount captured\",",
                           "      );",
                           "    },",
                           "  );",
@@ -13684,6 +13767,17 @@
                   "name": "Payments - Retrieve",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "exec": [
@@ -13802,6 +13896,17 @@
                 {
                   "name": "Refunds - Create",
                   "event": [
+                    {
+                      "listen": "prerequest",
+                      "script": {
+                        "exec": [
+                          "setTimeout(function(){",
+                          "    console.log(\"Sleeping for 3 seconds before next request.\");",
+                          "}, 3000);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    },
                     {
                       "listen": "test",
                       "script": {
@@ -13922,11 +14027,12 @@
     ]
   },
   "info": {
-    "_postman_id": "0da8c3be-4466-413e-9e72-81b21533423e",
+    "_postman_id": "9ab8f157-6b4b-430a-9ca8-34931682f988",
     "name": "Checkout Collection",
     "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "25737662"
+    "_exporter_id": "25180378",
+    "_collection_link": "https://galactic-desert-365744.postman.co/workspace/postman-tests-for-all-connector~f274d40a-132c-47e3-8240-6793392ee4d1/collection/25180378-9ab8f157-6b4b-430a-9ca8-34931682f988?action=share&creator=25180378&source=collection_link"
   },
   "variable": [
     {

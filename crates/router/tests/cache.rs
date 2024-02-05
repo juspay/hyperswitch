@@ -50,8 +50,8 @@ async fn invalidate_existing_cache_success() {
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
-    assert!(cache::CONFIG_CACHE.get(&cache_key).is_none());
-    assert!(cache::ACCOUNTS_CACHE.get(&cache_key).is_none());
+    assert!(cache::CONFIG_CACHE.get(&cache_key).await.is_none());
+    assert!(cache::ACCOUNTS_CACHE.get(&cache_key).await.is_none());
 }
 
 #[actix_web::test]

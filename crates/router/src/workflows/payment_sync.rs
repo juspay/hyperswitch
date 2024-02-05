@@ -124,7 +124,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -136,6 +136,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             )),
                             amount_capturable: Some(0),
                             updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
+                            connector_transaction_id: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -298,7 +301,10 @@ mod tests {
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
-            vec![cpt_default.start_after, cpt_default.frequency[0]]
+            vec![
+                cpt_default.start_after,
+                *cpt_default.frequency.first().unwrap()
+            ]
         );
     }
 }

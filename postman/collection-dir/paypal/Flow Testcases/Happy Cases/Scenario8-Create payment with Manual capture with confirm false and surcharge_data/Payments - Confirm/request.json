@@ -39,10 +39,6 @@
     },
     "raw_json_formatted": {
       "client_secret": "{{client_secret}}",
-      "surcharge_details": {
-        "surcharge_amount": 5,
-        "tax_amount": 5
-      },
       "payment_method": "card",
       "payment_method_data": {
         "card": {

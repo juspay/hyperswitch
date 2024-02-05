@@ -1,15 +1,22 @@
 use std::collections::HashSet;
 
-use common_utils::events::ApiEventMetric;
-use time::PrimitiveDateTime;
+use common_utils::pii::EmailStrategy;
+use masking::Secret;
 
 use self::{
-    payments::{PaymentDimensions, PaymentMetrics},
+    api_event::{ApiEventDimensions, ApiEventMetrics},
+    payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
+    sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
+pub use crate::payments::TimeRange;
 
+pub mod api_event;
+pub mod connector_events;
+pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
+pub mod sdk_events;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -25,23 +32,12 @@ pub struct GetInfoResponse {
     pub dimensions: Vec<NameDescription>,
 }
 
-impl ApiEventMetric for GetInfoResponse {}
-
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
-pub struct TimeRange {
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub start_time: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub end_time: Option<PrimitiveDateTime>,
-}
-
-#[derive(Clone, Copy, Debug, serde::Deserialize, masking::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 pub struct TimeSeries {
     pub granularity: Granularity,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize, masking::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 pub enum Granularity {
     #[serde(rename = "G_ONEMIN")]
     OneMin,
@@ -57,7 +53,7 @@ pub enum Granularity {
     OneDay,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
     pub time_series: Option<TimeSeries>,
@@ -67,13 +63,51 @@ pub struct GetPaymentMetricRequest {
     #[serde(default)]
     pub filters: payments::PaymentFilters,
     pub metrics: HashSet<PaymentMetrics>,
+    pub distribution: Option<Distribution>,
     #[serde(default)]
     pub delta: bool,
 }
 
-impl ApiEventMetric for GetPaymentMetricRequest {}
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
+pub enum QueryLimit {
+    #[serde(rename = "TOP_5")]
+    Top5,
+    #[serde(rename = "TOP_10")]
+    Top10,
+}
 
-#[derive(Clone, Debug, serde::Deserialize, masking::Serialize)]
+#[allow(clippy::from_over_into)]
+impl Into<u64> for QueryLimit {
+    fn into(self) -> u64 {
+        match self {
+            Self::Top5 => 5,
+            Self::Top10 => 10,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Distribution {
+    pub distribution_for: PaymentDistributions,
+    pub distribution_cardinality: QueryLimit,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportRequest {
+    pub time_range: TimeRange,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateReportRequest {
+    pub request: ReportRequest,
+    pub merchant_id: String,
+    pub email: Secret<String, EmailStrategy>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetRefundMetricRequest {
     pub time_series: Option<TimeSeries>,
@@ -87,14 +121,26 @@ pub struct GetRefundMetricRequest {
     pub delta: bool,
 }
 
-impl ApiEventMetric for GetRefundMetricRequest {}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSdkEventMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<SdkEventDimensions>,
+    #[serde(default)]
+    pub filters: sdk_events::SdkEventFilters,
+    pub metrics: HashSet<SdkEventMetrics>,
+    #[serde(default)]
+    pub delta: bool,
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
 }
 
-#[derive(Debug, serde::Deserialize, masking::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
     pub time_range: TimeRange,
@@ -102,15 +148,11 @@ pub struct GetPaymentFiltersRequest {
     pub group_by_names: Vec<PaymentDimensions>,
 }
 
-impl ApiEventMetric for GetPaymentFiltersRequest {}
-
 #[derive(Debug, Default, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentFiltersResponse {
     pub query_data: Vec<FilterValue>,
 }
-
-impl ApiEventMetric for PaymentFiltersResponse {}
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -119,15 +161,14 @@ pub struct FilterValue {
     pub values: Vec<String>,
 }
 
-#[derive(Debug, serde::Deserialize, masking::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+
 pub struct GetRefundFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]
     pub group_by_names: Vec<RefundDimensions>,
 }
-
-impl ApiEventMetric for GetRefundFilterRequest {}
 
 #[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -135,12 +176,32 @@ pub struct RefundFiltersResponse {
     pub query_data: Vec<RefundFilterValue>,
 }
 
-impl ApiEventMetric for RefundFiltersResponse {}
-
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+
 pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSdkEventFiltersRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<SdkEventDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdkEventFiltersResponse {
+    pub query_data: Vec<SdkEventFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdkEventFilterValue {
+    pub dimension: SdkEventDimensions,
     pub values: Vec<String>,
 }
 
@@ -149,4 +210,39 @@ pub struct RefundFilterValue {
 pub struct MetricsResponse<T> {
     pub query_data: Vec<T>,
     pub meta_data: [AnalyticsMetadata; 1],
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetApiEventFiltersRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<ApiEventDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiEventFiltersResponse {
+    pub query_data: Vec<ApiEventFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiEventFilterValue {
+    pub dimension: ApiEventDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetApiEventMetricRequest {
+    pub time_series: Option<TimeSeries>,
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<ApiEventDimensions>,
+    #[serde(default)]
+    pub filters: api_event::ApiEventFilters,
+    pub metrics: HashSet<ApiEventMetrics>,
+    #[serde(default)]
+    pub delta: bool,
 }

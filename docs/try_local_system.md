@@ -1,23 +1,20 @@
 # Try out hyperswitch on your system
 
-**NOTE:**
-This guide is aimed at users and developers who wish to set up hyperswitch on
-their local systems and requires quite some time and effort.
-If you'd prefer trying out hyperswitch quickly without the hassle of setting up
-all dependencies, you can [try out hyperswitch sandbox environment][try-sandbox].
-
-There are two options to set up hyperswitch on your system:
-
-1. Use Docker Compose
-2. Set up a Rust environment and other dependencies on your system
+The simplest way to run hyperswitch locally is
+[with Docker Compose](#run-hyperswitch-using-docker-compose) by pulling the
+latest images from Docker Hub.
+However, if you're willing to modify the code and run it, or are a developer
+contributing to hyperswitch, then you can either
+[set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose),
+or [set up a Rust environment on your system](#set-up-a-rust-environment-and-other-dependencies).
 
 Check the Table Of Contents to jump to the relevant section.
 
-[try-sandbox]: ./try_sandbox.md
-
 **Table Of Contents:**
 
-- [Set up hyperswitch using Docker Compose](#set-up-hyperswitch-using-docker-compose)
+- [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
+  - [Run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+- [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -33,7 +30,7 @@ Check the Table Of Contents to jump to the relevant section.
   - [Create a Payment](#create-a-payment)
   - [Create a Refund](#create-a-refund)
 
-## Set up hyperswitch using Docker Compose
+## Run hyperswitch using Docker Compose
 
 1. Install [Docker Compose][docker-compose-install].
 2. Clone the repository and switch to the project directory:
@@ -54,13 +51,94 @@ Check the Table Of Contents to jump to the relevant section.
    docker compose up -d
    ```
 
-5. Run database migrations:
+   This should run the hyperswitch payments router, the primary component within
+   hyperswitch.
+   Wait for the `migration_runner` container to finish installing `diesel_cli`
+   and running migrations (approximately 2 minutes) before proceeding further.
+   You can also choose to
+   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+   in addition to the payments router.
+
+5. Verify that the server is up and running by hitting the health endpoint:
 
    ```shell
-   docker compose run hyperswitch-server bash -c \
-      "cargo install diesel_cli && \
-      diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run"
+   curl --head --request GET 'http://localhost:8080/health'
    ```
+
+   If the command returned a `200 OK` status code, proceed with
+   [trying out our APIs](#try-out-our-apis).
+
+### Run the scheduler and monitoring services
+
+You can run the scheduler and monitoring services by specifying suitable profile
+names to the above Docker Compose command.
+To understand more about the hyperswitch architecture and the components
+involved, check out the [architecture document][architecture].
+
+- To run the scheduler components (consumer and producer), you can specify
+  `--profile scheduler`:
+
+  ```shell
+  docker compose --profile scheduler up -d
+  ```
+
+- To run the monitoring services (Grafana, Promtail, Loki, Prometheus and Tempo),
+  you can specify `--profile monitoring`:
+
+  ```shell
+  docker compose --profile monitoring up -d
+  ```
+
+  You can then access Grafana at `http://localhost:3000` and view application
+  logs using the "Explore" tab, select Loki as the data source, and select the
+  container to query logs from.
+
+- You can also specify multiple profile names by specifying the `--profile` flag
+  multiple times.
+  To run both the scheduler components and monitoring services, the Docker
+  Compose command would be:
+
+  ```shell
+  docker compose --profile scheduler --profile monitoring up -d
+  ```
+
+Once the services have been confirmed to be up and running, you can proceed with
+[trying out our APIs](#try-out-our-apis)
+
+[docker-compose-install]: https://docs.docker.com/compose/install/
+[docker-compose-config]: /config/docker_compose.toml
+[docker-compose-yml]: /docker-compose.yml
+[architecture]: /docs/architecture.md
+
+## Set up a development environment using Docker Compose
+
+1. Install [Docker Compose][docker-compose-install].
+2. Clone the repository and switch to the project directory:
+
+   ```shell
+   git clone https://github.com/juspay/hyperswitch
+   cd hyperswitch
+   ```
+
+3. (Optional) Configure the application using the
+   [`config/docker_compose.toml`][docker-compose-config] file.
+   The provided configuration should work as is.
+   If you do update the `docker_compose.toml` file, ensure to also update the
+   corresponding values in the [`docker-compose.yml`][docker-compose-yml] file.
+4. Start all the services using Docker Compose:
+
+   ```shell
+   docker compose --file docker-compose-development.yml up -d
+   ```
+
+   This will compile the payments router, the primary component within
+   hyperswitch and then start it.
+   Depending on the specifications of your machine, compilation can take
+   around 15 minutes.
+
+5. (Optional) You can also choose to
+   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:
 
@@ -70,10 +148,6 @@ Check the Table Of Contents to jump to the relevant section.
 
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
-
-[docker-compose-install]: https://docs.docker.com/compose/install/
-[docker-compose-config]: /config/docker_compose.toml
-[docker-compose-yml]: /docker-compose.yml
 
 ## Set up a Rust environment and other dependencies
 
@@ -134,7 +208,7 @@ for your distribution and follow along.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
 5. Make sure your system has the `pkg-config` package and OpenSSL installed:
@@ -224,7 +298,7 @@ packages for your distribution and follow along.
 6. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
 7. Make sure your system has the `pkg-config` package and OpenSSL installed:
@@ -260,7 +334,7 @@ You can opt to use your favorite package manager instead.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
 5. Install OpenSSL with `winget`:
@@ -322,7 +396,7 @@ You can opt to use your favorite package manager instead.
 4. Install `diesel_cli` using `cargo`:
 
    ```shell
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
    If linking `diesel_cli` fails due to missing `libpq` (if the error message is
@@ -333,7 +407,7 @@ You can opt to use your favorite package manager instead.
    brew install libpq
    export PQ_LIB_DIR="$(brew --prefix libpq)/lib"
 
-   cargo install diesel_cli --no-default-features --features "postgres"
+   cargo install diesel_cli --no-default-features --features postgres
    ```
 
    You may also choose to persist the value of `PQ_LIB_DIR` in your shell

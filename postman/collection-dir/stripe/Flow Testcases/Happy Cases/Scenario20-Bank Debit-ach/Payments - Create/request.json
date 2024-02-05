@@ -1,0 +1,96 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1800,
+      "currency": "USD",
+      "confirm": true,
+      "business_label": "default",
+      "capture_method": "automatic",
+      "connector": [
+        "stripe"
+      ],
+      "customer_id": "klarna",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "authentication_type": "three_ds",
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payment request",
+      "return_url": "https://google.com",
+      "statement_descriptor_name": "Juspay",
+      "statement_descriptor_suffix": "Router",
+      "setup_future_usage": "off_session",
+      "business_country": "US",
+      "mandate_data": {
+        "customer_acceptance": {
+          "acceptance_type": "online",
+          "accepted_at": "2022-09-10T10:11:12Z",
+          "online": {
+            "ip_address": "123.32.25.123",
+            "user_agent": "Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/80.0.3987.119 Mobile Safari/537.36"
+          }
+        },
+        "mandate_type": {
+          "single_use": {
+            "amount": 6540,
+            "currency": "USD"
+          }
+        }
+      },
+      "payment_method": "bank_debit",
+      "payment_method_type": "ach",
+      "payment_method_data": {
+        "bank_debit": {
+          "ach_bank_debit": {
+            "billing_details": {
+              "name": "John Doe",
+              "email": "johndoe@example.com"
+            },
+            "account_number": "000123456789",
+            "routing_number": "110000000"
+          }
+        }
+      },
+      "metadata": {
+        "order_details": {
+          "product_name": "Apple iphone 15",
+          "quantity": 1,
+          "amount": 1800,
+          "account_name": "transaction_processing"
+        }
+      },
+      "routing": {
+        "type": "single",
+        "data": "stripe"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

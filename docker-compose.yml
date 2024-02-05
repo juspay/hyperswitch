@@ -1,19 +1,201 @@
-version: "3.7"
+version: "3.8"
 
 volumes:
-  cargo_cache:
   pg_data:
-  cargo_build_cache:
-  p_cargo_build_cache:
-  c_cargo_build_cache:
   redisinsight_store:
-
 
 networks:
   router_net:
 
-
 services:
+  ### Dependencies
+  pg:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    networks:
+      - router_net
+    volumes:
+      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=hyperswitch_db
+
+  redis-standalone:
+    image: redis:7
+    networks:
+      - router_net
+    ports:
+      - "6379:6379"
+
+  migration_runner:
+    image: rust:latest
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && diesel migration --database-url postgres://$${DATABASE_USER}:$${DATABASE_PASSWORD}@$${DATABASE_HOST}:$${DATABASE_PORT}/$${DATABASE_NAME} run'"
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+    environment:
+      - DATABASE_USER=db_user
+      - DATABASE_PASSWORD=db_pass
+      - DATABASE_HOST=pg
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=hyperswitch_db
+
+  ### Application services
+  hyperswitch-server:
+    image: juspaydotin/hyperswitch-router:standalone
+    command: /local/bin/router -f /local/config/docker_compose.toml
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
+    volumes:
+      - ./config:/local/config
+      - ./files:/local/bin/files
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: curl --fail http://localhost:8080/health || exit 1
+      interval: 10s
+      retries: 3
+      start_period: 5s
+      timeout: 10s
+
+  hyperswitch-producer:
+    image: juspaydotin/hyperswitch-producer:standalone
+    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    networks:
+      - router_net
+    profiles:
+      - scheduler
+    volumes:
+      - ./config:/local/config
+    environment:
+      - SCHEDULER_FLOW=producer
+    depends_on:
+      hyperswitch-consumer:
+        condition: service_healthy
+    labels:
+      logs: "promtail"
+
+  hyperswitch-consumer:
+    image: juspaydotin/hyperswitch-consumer:standalone
+    command: /local/bin/scheduler -f /local/config/docker_compose.toml
+    networks:
+      - router_net
+    profiles:
+      - scheduler
+    volumes:
+      - ./config:/local/config
+    environment:
+      - SCHEDULER_FLOW=consumer
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: (ps -e | grep scheduler) || exit 1
+      interval: 10s
+      retries: 3
+      start_period: 5s
+      timeout: 10s
+
+  hyperswitch-drainer:
+    image: juspaydotin/hyperswitch-drainer:standalone
+    command: /local/bin/drainer -f /local/config/docker_compose.toml
+    deploy:
+      replicas: ${DRAINER_INSTANCE_COUNT:-1}
+    networks:
+      - router_net
+    profiles:
+      - full_kv
+    volumes:
+      - ./config:/local/config
+    restart: unless-stopped
+    depends_on:
+      hyperswitch-server:
+        condition: service_started
+    labels:
+      logs: "promtail"
+
+  ### Clustered Redis setup
+  redis-cluster:
+    image: redis:7
+    deploy:
+      replicas: ${REDIS_CLUSTER_COUNT:-3}
+    command: redis-server /usr/local/etc/redis/redis.conf
+    profiles:
+      - clustered_redis
+    volumes:
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - router_net
+    ports:
+      - "6379"
+      - "16379"
+
+  redis-init:
+    image: redis:7
+    profiles:
+      - clustered_redis
+    depends_on:
+      - redis-cluster
+    networks:
+      - router_net
+    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
+
+      \ if [ $$COUNT -lt 3 ]
+
+      \ then
+
+      \ echo \"Minimum 3 nodes are needed for redis cluster\"
+
+      \ exit 1
+
+      \ fi
+
+      \ HOSTS=\"\"
+
+      \ for ((c=1; c<=$$COUNT;c++))
+
+      \ do
+
+      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
+
+      \ echo $$NODE
+
+      \ HOSTS=\"$$HOSTS $$NODE\"
+
+      \ done
+
+      \ echo Creating a cluster with $$HOSTS
+
+      \ redis-cli --cluster create $$HOSTS --cluster-yes
+
+      \ '"
+
+  ### Monitoring
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - router_net
+    profiles:
+      - monitoring
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./config/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
+
   promtail:
     image: grafana/promtail:latest
     volumes:
@@ -52,190 +234,6 @@ services:
       - "8888"
       - "8889"
 
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    networks:
-      - router_net
-    profiles:
-      - monitoring
-    restart: unless-stopped
-    environment:
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_BASIC_ENABLED=false
-    volumes:
-      - ./config/grafana.ini:/etc/grafana/grafana.ini
-      - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
-
-  pg:
-    image: postgres:14.5
-    ports:
-      - "5432:5432"
-    networks:
-      - router_net
-    volumes:
-      - pg_data:/VAR/LIB/POSTGRESQL/DATA
-    environment:
-      - POSTGRES_USER=db_user
-      - POSTGRES_PASSWORD=db_pass
-      - POSTGRES_DB=hyperswitch_db
-
-  migration_runner:
-    image: rust:1.70
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
-    working_dir: /app
-    networks:
-      - router_net
-    volumes:
-      - ./:/app
-
-  hyperswitch-server:
-    image: rust:1.70
-    command: cargo run -- -f ./config/docker_compose.toml
-    working_dir: /app
-    ports:
-      - "8080:8080"
-    networks:
-      - router_net
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
-    labels:
-      logs: "promtail"
-    healthcheck:
-      test: curl --fail http://localhost:8080/health || exit 1
-      interval: 100s
-      retries: 3
-      start_period: 20s
-      timeout: 10s
-
-  hyperswitch-producer:
-    image: rust:1.70
-    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
-    working_dir: /app
-    networks:
-      - router_net
-    profiles:
-      - scheduler
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - p_cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
-      - SCHEDULER_FLOW=producer
-    depends_on:
-      hyperswitch-consumer:
-        condition: service_healthy
-    labels:
-      logs: "promtail"
-
-  hyperswitch-consumer:
-    image: rust:1.70
-    command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
-    working_dir: /app
-    networks:
-      - router_net
-    profiles:
-      - scheduler
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - c_cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
-      - SCHEDULER_FLOW=consumer
-    depends_on:
-      hyperswitch-server:
-        condition: service_started
-
-    labels:
-      logs: "promtail"
-
-    healthcheck:
-      test: (ps -e | grep scheduler) || exit 1
-      interval: 120s
-      retries: 3
-      start_period: 30s
-      timeout: 10s
-
-  redis-cluster:
-    image: redis:7
-    deploy:
-      replicas: ${REDIS_CLUSTER_COUNT:-3}
-    command: redis-server /usr/local/etc/redis/redis.conf
-    volumes:
-      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-    labels:
-      - redis
-    networks:
-      - router_net
-    ports:
-      - "6379"
-      - "16379"
-
-  redis-standalone:
-    image: redis:7
-    labels:
-      - redis
-    networks:
-      - router_net
-    ports:
-      - "6379"
-
-  redis-init:
-    image: redis:7
-    depends_on:
-      - redis-cluster
-    networks:
-      - router_net
-    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
-
-      \ if [ $$COUNT -lt 3 ]
-
-      \ then
-
-      \ echo \"Minimum 3 nodes are needed for redis cluster\"
-
-      \ exit 1
-
-      \ fi
-
-      \ HOSTS=\"\"
-
-      \ for ((c=1; c<=$$COUNT;c++))
-
-      \ do
-
-      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
-
-      \ echo $$NODE
-
-      \ HOSTS=\"$$HOSTS $$NODE\"
-
-      \ done
-
-      \ echo Creating a cluster with $$HOSTS
-
-      \ redis-cli --cluster create $$HOSTS --cluster-yes
-
-      \ '"
-
-  redis-insight:
-    image: redislabs/redisinsight:latest
-    networks:
-      - router_net
-    profiles:
-      - full_kv
-    ports:
-      - "8001:8001"
-    volumes:
-      - redisinsight_store:/db
   prometheus:
     image: prom/prometheus:latest
     networks:
@@ -261,25 +259,77 @@ services:
       - "3200" # tempo
       - "4317" # otlp grpc
     restart: unless-stopped
-  hyperswitch-drainer:
-    image: rust:1.70
-    command: cargo run --bin drainer -- -f ./config/docker_compose.toml
-    working_dir: /app
-    deploy:
-      replicas: ${DRAINER_INSTANCE_COUNT:-1}
+
+  redis-insight:
+    image: redislabs/redisinsight:latest
     networks:
       - router_net
     profiles:
       - full_kv
+    ports:
+      - "8001:8001"
     volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - cargo_build_cache:/cargo_build_cache
+      - redisinsight_store:/db
+
+  kafka0:
+    image: confluentinc/cp-kafka:7.0.5
+    hostname: kafka0
+    networks:
+      - router_net
+    ports:
+      - 9092:9092
+      - 9093
+      - 9997
+      - 29092
     environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
-    restart: unless-stopped
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka0:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka0:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka0:29092,CONTROLLER://kafka0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      JMX_PORT: 9997
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
+    profiles:
+      - analytics
+    volumes:
+      - ./monitoring/kafka-script.sh:/tmp/update_run.sh
+    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
+
+  # Kafka UI for debugging kafka queues
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8090:8080
+    networks:
+      - router_net
     depends_on:
-      hyperswitch-server:
-        condition: service_started
-    labels:
-      logs: "promtail"
+      - kafka0
+    profiles:
+      - analytics
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
+      KAFKA_CLUSTERS_0_JMXPORT: 9997
+
+  clickhouse-server:
+    image: clickhouse/clickhouse-server:23.5
+    networks:
+      - router_net
+    ports:
+      - "9000"
+      - "8123:8123"
+    profiles:
+      - analytics
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
