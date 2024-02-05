@@ -5,7 +5,7 @@ use std::{collections::HashMap, future::Future, pin::Pin};
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{Report, ResultExt};
 use masking::{ExposeInterface, Secret};
-use secrets_interface::secrets_management::{SecretManagementInterface, SecretsManagementError};
+use secrets_interface::{SecretManagementInterface, SecretsManagementError};
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 
 /// Utilities for supporting decryption of data
@@ -33,11 +33,11 @@ pub struct HashiCorpVaultConfig {
 impl HashiCorpVaultConfig {
     pub(super) fn validate(&self) -> Result<(), &'static str> {
         when(self.url.is_default_or_empty(), || {
-            Err("HashiCorp url must not be empty")
+            Err("HashiCorp vault url must not be empty")
         })?;
 
         when(self.token.is_default_or_empty(), || {
-            Err("HashiCorp token must not be empty")
+            Err("HashiCorp vault token must not be empty")
         })
     }
 }
@@ -231,27 +231,14 @@ pub enum HashiCorpError {
 
 #[async_trait::async_trait]
 impl SecretManagementInterface for HashiCorpVault {
-    #[allow(clippy::todo)]
-    async fn store_secret(
-        &self,
-        _: Secret<String>,
-    ) -> CustomResult<String, SecretsManagementError> {
-        todo!()
-    }
-
     async fn get_secret(
         &self,
         input: Secret<String>,
-    ) -> CustomResult<String, SecretsManagementError> {
+    ) -> CustomResult<Secret<String>, SecretsManagementError> {
         self.fetch::<Kv2, Secret<String>>(input.expose())
             .await
             .map(|val| val.expose().to_owned())
             .change_context(SecretsManagementError::DecryptionFailed)
-    }
-}
-
-impl From<Box<HashiCorpVault>> for Box<dyn SecretManagementInterface> {
-    fn from(vault_box: Box<HashiCorpVault>) -> Self {
-        vault_box
+            .map(Into::into)
     }
 }

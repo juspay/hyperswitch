@@ -6,7 +6,7 @@ use actix_web::{web, Scope};
     any(feature = "hashicorp-vault", feature = "aws_kms")
 ))]
 use analytics::AnalyticsConfig;
-use encryption_interface::encryption_management::EncryptionManagementInterface;
+use encryption_interface::EncryptionManagementInterface;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]

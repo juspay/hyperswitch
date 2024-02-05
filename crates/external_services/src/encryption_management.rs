@@ -3,7 +3,7 @@
 //!
 
 use common_utils::errors::CustomResult;
-use encryption_interface::encryption_management::{EncryptionError, EncryptionManagementInterface};
+use encryption_interface::{EncryptionError, EncryptionManagementInterface};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
@@ -41,12 +41,11 @@ impl EncryptionManagementConfig {
     pub async fn get_encryption_management_client(
         &self,
     ) -> CustomResult<Box<dyn EncryptionManagementInterface>, EncryptionError> {
-        let client: Box<dyn EncryptionManagementInterface> = match self {
+        Ok(match self {
             #[cfg(feature = "aws_kms")]
             Self::AwsKms { aws_kms } => Box::new(aws_kms::AwsKmsClient::new(aws_kms).await),
 
             Self::NoEncryption => Box::new(NoEncryption),
-        };
-        Ok(client)
+        })
     }
 }

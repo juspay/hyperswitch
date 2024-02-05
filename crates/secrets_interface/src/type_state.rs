@@ -1,29 +1,31 @@
+//! Module to manage encrypted and decrypted states for a given type.
+
 use std::marker::PhantomData;
 
 use serde::{Deserialize, Deserializer};
 
 /// Trait defining encryption states
-pub trait EncryptionState {}
+pub trait SecretState {}
 
 /// Decrypted state
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct Decrypted {}
+#[derive(Debug, Clone, Deserialize)]
+pub enum RawSecret {}
 
 /// Encrypted state
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct Encrypted {}
+#[derive(Debug, Clone, Deserialize)]
+pub enum SecuredSecret {}
 
-impl EncryptionState for Decrypted {}
-impl EncryptionState for Encrypted {}
+impl SecretState for RawSecret {}
+impl SecretState for SecuredSecret {}
 
 /// Struct for managing the encrypted and decrypted states of a given type
 #[derive(Debug, Clone, Default)]
-pub struct Decryptable<T, S: EncryptionState> {
+pub struct SecretStateContainer<T, S: SecretState> {
     inner: T,
     marker: PhantomData<S>,
 }
 
-impl<T: Clone, S: EncryptionState> Decryptable<T, S> {
+impl<T: Clone, S: SecretState> SecretStateContainer<T, S> {
     ///
     /// Get the inner data while consuming self
     ///
@@ -41,7 +43,7 @@ impl<T: Clone, S: EncryptionState> Decryptable<T, S> {
     }
 }
 
-impl<'de, T: Deserialize<'de>, S: EncryptionState> Deserialize<'de> for Decryptable<T, S> {
+impl<'de, T: Deserialize<'de>, S: SecretState> Deserialize<'de> for SecretStateContainer<T, S> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -54,11 +56,14 @@ impl<'de, T: Deserialize<'de>, S: EncryptionState> Deserialize<'de> for Decrypta
     }
 }
 
-impl<T> Decryptable<T, Encrypted> {
+impl<T> SecretStateContainer<T, SecuredSecret> {
     /// Decrypts the inner value using the provided decryption function
-    pub fn decrypt(mut self, decryptor_fn: impl FnOnce(T) -> T) -> Decryptable<T, Decrypted> {
+    pub fn decrypt(
+        mut self,
+        decryptor_fn: impl FnOnce(T) -> T,
+    ) -> SecretStateContainer<T, RawSecret> {
         self.inner = decryptor_fn(self.inner);
-        Decryptable {
+        SecretStateContainer {
             inner: self.inner,
             marker: PhantomData,
         }
