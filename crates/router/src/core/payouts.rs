@@ -67,19 +67,19 @@ pub async fn get_connector_data(
         }
 
         api::ConnectorChoice::StraightThrough(straight_through) => {
-            let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
-                Some(straight_through)
-                    .map(|val| val.parse_value("StraightThroughAlgorithm"))
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Invalid straight through routing rules format")?;
+            let request_straight_through: api::routing::StraightThroughAlgorithm = straight_through
+                .clone()
+                .parse_value("StraightThroughAlgorithm")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid straight through routing rules format")?;
+            payout_data.payout_attempt.straight_through_algorithm = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
                 #[cfg(feature = "connector_choice_mca_id")]
                 merchant_connector_id: None,
                 #[cfg(not(feature = "connector_choice_mca_id"))]
                 business_sub_label: payout_data.payout_attempt.business_label.clone(),
-                algorithm: request_straight_through.clone(),
+                algorithm: Some(request_straight_through.clone()),
                 routing_info: PaymentRoutingInfo {
                     algorithm: None,
                     pre_routing_results: None,
@@ -89,7 +89,7 @@ pub async fn get_connector_data(
                 state,
                 merchant_account,
                 key_store,
-                request_straight_through,
+                Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
                 eligible_routable_connectors,
@@ -136,8 +136,24 @@ pub async fn get_connector_data(
         }
     };
 
-    // Update connector in payout_attempt
+    // Update connector in DB
     payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
+    let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
+        connector: connector_data.connector_name.to_string(),
+        straight_through_algorithm: payout_data
+            .payout_attempt
+            .straight_through_algorithm
+            .clone(),
+    };
+    let db = &*state.store;
+    db.update_payout_attempt_by_merchant_id_payout_id(
+        &payout_data.payout_attempt.merchant_id,
+        &payout_data.payout_attempt.payout_id,
+        updated_payout_attempt,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error updating routing info in payout_attempt")?;
     Ok(connector_data)
 }
 

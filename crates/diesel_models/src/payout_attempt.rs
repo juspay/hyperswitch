@@ -117,7 +117,7 @@ pub enum PayoutAttemptUpdate {
     },
     UpdateRouting {
         connector: String,
-        straight_through_algorithm: serde_json::Value,
+        straight_through_algorithm: Option<serde_json::Value>,
     },
 }
 
@@ -179,7 +179,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 straight_through_algorithm,
             } => Self {
                 connector: Some(connector),
-                straight_through_algorithm: Some(straight_through_algorithm),
+                straight_through_algorithm,
                 ..Default::default()
             },
         }
