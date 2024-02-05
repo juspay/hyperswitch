@@ -247,17 +247,8 @@ pub struct NmiCompleteRequest {
     cavv: Option<String>,
     xid: Option<String>,
     eci: Option<String>,
-    three_ds_version: Option<ThreeDsVersion>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ThreeDsVersion {
-    #[serde(rename = "2.0.0")]
-    VersionTwo,
-    #[serde(rename = "2.1.0")]
-    VersionTwoPointOne,
-    #[serde(rename = "2.2.0")]
-    VersionTwoPointTwo,
+    three_ds_version: Option<String>,
+    directory_server_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -267,8 +258,9 @@ pub struct NmiRedirectResponseData {
     xid: Option<String>,
     eci: Option<String>,
     card_holder_auth: Option<String>,
-    three_ds_version: Option<ThreeDsVersion>,
+    three_ds_version: Option<String>,
     order_id: Option<String>,
+    directory_server_id: Option<String>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
@@ -308,6 +300,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
             xid: three_ds_data.xid,
             eci: three_ds_data.eci,
             three_ds_version: three_ds_data.three_ds_version,
+            directory_server_id: three_ds_data.directory_server_id,
         })
     }
 }
