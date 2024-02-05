@@ -94,7 +94,7 @@ async fn deep_health_check_func(state: app::AppState) -> RouterResponse<RouterHe
     let response = RouterHealthCheckResponse {
         database: db_status.into(),
         redis: redis_status.into(),
-        locker: locker_status.into(),
+        vault: locker_status.into(),
         #[cfg(feature = "olap")]
         analytics: analytics_status.into(),
         outgoing_request: outgoing_check.into(),
