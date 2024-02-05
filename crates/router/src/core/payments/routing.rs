@@ -267,7 +267,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
     state: &AppState,
     merchant_id: &str,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
-    operation_data: &routing::TransactionData<F>,
+    operation_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     #[cfg(any(
         feature = "profile_specific_fallback_routing",
@@ -682,7 +682,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    operation_data: &routing::TransactionData<F>,
+    operation_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -709,7 +709,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
-    operation_data: &routing::TransactionData<F>,
+    operation_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -760,7 +760,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    operation_data: &routing::TransactionData<F>,
+    operation_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {

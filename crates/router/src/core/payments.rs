@@ -2632,7 +2632,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &TransactionData::Payment(payment_data.clone()),
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2693,7 +2693,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &TransactionData::Payment(payment_data.clone()),
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2744,7 +2744,7 @@ where
         merchant_account,
         business_profile,
         key_store,
-        &TransactionData::Payment(payment_data.clone()),
+        &TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
     )
@@ -2880,7 +2880,7 @@ pub async fn route_connector_v1<F>(
     merchant_account: &domain::MerchantAccount,
     business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    operation_data: &TransactionData<F>,
+    operation_data: &TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
 ) -> RouterResult<ConnectorCallType>
@@ -2889,7 +2889,7 @@ where
 {
     #[allow(unused_variables)]
     let (profile_id, routing_algorithm) = match operation_data {
-        TransactionData::Payment(payment_data) => {
+        TransactionData::Payment(&ref payment_data) => {
             if cfg!(feature = "business_profile_routing") {
                 (
                     payment_data.payment_intent.profile_id.clone(),
@@ -2900,7 +2900,7 @@ where
             }
         }
         #[cfg(feature = "payouts")]
-        TransactionData::Payout(payout_data) => {
+        TransactionData::Payout(&ref payout_data) => {
             if cfg!(feature = "business_profile_routing") {
                 (
                     Some(payout_data.payout_attempt.profile_id.clone()),

@@ -462,7 +462,7 @@ pub async fn decide_payout_connector(
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &TransactionData::<()>::Payout(payout_data.clone()),
+                &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
@@ -522,7 +522,7 @@ pub async fn decide_payout_connector(
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                &TransactionData::<()>::Payout(payout_data.clone()),
+                &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 Some(payout_attempt.profile_id.clone()),
@@ -574,7 +574,7 @@ pub async fn decide_payout_connector(
         merchant_account,
         &payout_data.business_profile,
         key_store,
-        &TransactionData::<()>::Payout(payout_data.clone()),
+        &TransactionData::<()>::Payout(payout_data),
         routing_data,
         eligible_connectors,
     )

@@ -1,12 +1,9 @@
 pub mod helpers;
 pub mod transformers;
 
+use api_models::routing::{self as routing_types, RoutingAlgorithmId};
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
-use api_models::{
-    enums as api_enums,
-    routing::{self as routing_types, RoutingAlgorithmId},
-};
 #[cfg(not(feature = "business_profile_routing"))]
 use common_utils::ext_traits::{Encode, StringExt};
 #[cfg(not(feature = "business_profile_routing"))]
@@ -37,13 +34,13 @@ use crate::{core::errors, services::api as service_api, types::storage};
 use crate::{errors, services::api as service_api};
 
 #[derive(Clone)]
-pub enum TransactionData<F>
+pub enum TransactionData<'a, F>
 where
     F: Clone,
 {
-    Payment(payments::PaymentData<F>),
+    Payment(&'a payments::PaymentData<F>),
     #[cfg(feature = "payouts")]
-    Payout(payouts::PayoutData),
+    Payout(&'a payouts::PayoutData),
 }
 
 #[derive(Clone)]
