@@ -44,6 +44,6 @@ impl SecretManagementInterface for NoEncryption {
         String::from_utf8(self.decrypt(input.expose()))
             .map(Into::into)
             .into_report()
-            .change_context(SecretsManagementError::DecryptionFailed)
+            .change_context(SecretsManagementError::FetchSecretFailed)
     }
 }

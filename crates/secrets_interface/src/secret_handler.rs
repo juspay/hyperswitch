@@ -3,7 +3,7 @@
 use common_utils::errors::CustomResult;
 
 use crate::{
-    type_state::{RawSecret, SecretStateContainer, SecuredSecret},
+    secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
 
@@ -13,8 +13,8 @@ pub trait SecretsHandler
 where
     Self: Sized,
 {
-    /// Retrieve the raw value and transitions its type to `Decrypted`
-    async fn decrypt(
+    /// Construct `Self` with raw secret value and transitions its type from `SecuredSecret` to `RawSecret`
+    async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         kms_client: Box<dyn SecretManagementInterface>,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError>;

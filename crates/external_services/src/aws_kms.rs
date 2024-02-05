@@ -163,7 +163,7 @@ impl SecretManagementInterface for AwsKmsClient {
     ) -> CustomResult<Secret<String>, SecretsManagementError> {
         self.decrypt(input.peek())
             .await
-            .change_context(SecretsManagementError::DecryptionFailed)
+            .change_context(SecretsManagementError::FetchSecretFailed)
             .map(Into::into)
     }
 }

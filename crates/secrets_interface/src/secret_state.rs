@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Deserializer};
 
-/// Trait defining encryption states
+/// Trait defining the states of a secret
 pub trait SecretState {}
 
 /// Decrypted state
@@ -57,8 +57,8 @@ impl<'de, T: Deserialize<'de>, S: SecretState> Deserialize<'de> for SecretStateC
 }
 
 impl<T> SecretStateContainer<T, SecuredSecret> {
-    /// Decrypts the inner value using the provided decryption function
-    pub fn decrypt(
+    /// Transition the secret state from `SecuredSecret` to `RawSecret`
+    pub fn transition_state(
         mut self,
         decryptor_fn: impl FnOnce(T) -> T,
     ) -> SecretStateContainer<T, RawSecret> {
