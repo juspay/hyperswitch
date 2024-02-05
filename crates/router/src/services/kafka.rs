@@ -329,7 +329,7 @@ impl KafkaProducer {
                 &KafkaEvent::old(&KafkaDispute::from_storage(&negative_event)),
             )
             .attach_printable_lazy(|| {
-                format!("Failed to add negative intent event {negative_event:?}")
+                format!("Failed to add negative dispute event {negative_event:?}")
             })?;
         };
         self.log_kafka_event(
