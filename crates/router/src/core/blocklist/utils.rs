@@ -93,28 +93,38 @@ pub async fn toggle_blocklist_guard_for_merchant(
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = get_blocklist_guard_key(merchant_id.as_str());
     let maybe_guard = state.store.find_config_by_key(&key).await;
-    let new_config = configs::ConfigNew { key: key.clone(), config: query.status.to_string() };
+    let new_config = configs::ConfigNew {
+        key: key.clone(),
+        config: query.status.to_string(),
+    };
     match maybe_guard {
         Ok(_config) => {
-            let updated_config = configs::ConfigUpdate::Update { config: Some(query.status.to_string()) };
-            state.store.update_config_by_key(&key, updated_config)
+            let updated_config = configs::ConfigUpdate::Update {
+                config: Some(query.status.to_string()),
+            };
+            state
+                .store
+                .update_config_by_key(&key, updated_config)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
-        },
+        }
         Err(e) if e.current_context().is_db_not_found() => {
-            state.store.insert_config(new_config).await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error enabling the blocklist guard")?;
-        },
+            state
+                .store
+                .insert_config(new_config)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error enabling the blocklist guard")?;
+        }
         Err(e) => {
             logger::error!(error=?e);
-            return Err(errors::ApiErrorResponse::InternalServerError.into())
-        } 
+            return Err(errors::ApiErrorResponse::InternalServerError.into());
+        }
     };
     let guard_status = if query.status { "enabled" } else { "disabled" };
-    Ok(api_blocklist::ToggleBlocklistResponse{
-        blocklist_guard_status: format!("{} {}", "blocklist guard is", guard_status)
+    Ok(api_blocklist::ToggleBlocklistResponse {
+        blocklist_guard_status: format!("{} {}", "blocklist guard is", guard_status),
     })
 }
 
