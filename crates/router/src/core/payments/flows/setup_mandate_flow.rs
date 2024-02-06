@@ -76,6 +76,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         )
         .await
         .to_setup_mandate_failed_response()?;
+
+        let is_mandate = resp.request.setup_mandate_details.is_some();
+
         let pm_id = Box::pin(tokenization::save_payment_method(
             state,
             connector,
@@ -84,6 +87,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             merchant_account,
             self.request.payment_method_type,
             key_store,
+            is_mandate,
         ))
         .await?;
 
@@ -280,6 +284,8 @@ impl types::SetupMandateRouterData {
 
                 let payment_method_type = self.request.payment_method_type;
 
+                let is_mandate = resp.request.setup_mandate_details.is_some();
+
                 let pm_id = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
@@ -288,6 +294,7 @@ impl types::SetupMandateRouterData {
                     merchant_account,
                     payment_method_type,
                     key_store,
+                    is_mandate,
                 ))
                 .await?;
 

@@ -30,6 +30,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
+    is_mandate: bool,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -62,8 +63,13 @@ where
             } else {
                 None
             };
-
-            let pm_id = if resp.request.get_setup_future_usage().is_some() {
+            let mandate_customer_acceptance = resp
+                .request
+                .get_setup_mandate_details()
+                .map(|mandate_data| mandate_data.customer_acceptance.is_some());
+            let pm_id = if resp.request.get_setup_future_usage().is_some()
+                && (is_mandate && mandate_customer_acceptance.is_some() || !is_mandate)
+            {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
