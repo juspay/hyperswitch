@@ -33,19 +33,19 @@ CREATE TABLE connector_events_dist (
     `error` Nullable(String),
     `status_code` UInt32,
     `created_at` DateTime64(3),
-    `inserted_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `latency` UInt128,
     `method` LowCardinality(String),
     `refund_id` Nullable(String),
     `dispute_id` Nullable(String),
-    INDEX flowIndex flowTYPE bloom_filter GRANULARITY 1,
+    INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree
 PARTITION BY toStartOfDay(created_at)
 ORDER BY
-	(created_at, merchant_id, flow_type, status_code, api_flow)
-TTL created_at + toIntervalMonth(6)
+	(created_at, merchant_id, connector_name, flow)
+TTL inserted_at + toIntervalMonth(6)
 ;
 
 CREATE MATERIALIZED VIEW connector_events_mv TO connector_events_dist (
