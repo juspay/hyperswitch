@@ -380,7 +380,7 @@ impl DisputeInterface for KafkaStore {
         let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
 
         if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
-            logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute:?}", error_message=?er);
         };
 
         Ok(dispute)
