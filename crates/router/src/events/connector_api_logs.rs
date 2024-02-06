@@ -11,7 +11,7 @@ pub struct ConnectorEvent {
     connector_name: String,
     flow: String,
     request: String,
-    response: Option<String>,
+    masked_response: Option<String>,
     error: Option<String>,
     url: String,
     method: String,
@@ -49,7 +49,7 @@ impl ConnectorEvent {
                 .unwrap_or(flow)
                 .to_string(),
             request: request.to_string(),
-            response: None,
+            masked_response: None,
             error: None,
             url,
             method: method.to_string(),
@@ -69,7 +69,7 @@ impl ConnectorEvent {
     pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
         match masking::masked_serialize(response) {
             Ok(masked) => {
-                self.response = Some(masked.to_string());
+                self.masked_response = Some(masked.to_string());
             }
             Err(er) => self.set_error(json!({"error": er.to_string()})),
         }
