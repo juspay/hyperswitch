@@ -521,7 +521,7 @@ pub async fn get_payment_link_status(
             })?;
 
     let amount = currency
-        .to_currency_base_unit(payment_attempt.net_amount)
+        .to_currency_base_unit(payment_attempt.amount.get_authorize_amount())
         .into_report()
         .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
 

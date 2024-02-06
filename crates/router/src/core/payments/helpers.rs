@@ -479,11 +479,11 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
-    let original_payment_intent = mandate
+    let original_payment_attempt = mandate
         .original_payment_id
         .as_ref()
         .async_map(|payment_id| async {
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
                 merchant_account.storage_scheme,
@@ -495,10 +495,11 @@ pub async fn get_token_for_recurring_mandate(
         })
         .await
         .flatten();
-
-    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_amount = original_payment_attempt
+        .clone()
+        .map(|pa| pa.amount.get_authorize_amount());
     let original_payment_authorized_currency =
-        original_payment_intent.clone().and_then(|pi| pi.currency);
+        original_payment_attempt.clone().and_then(|pi| pi.currency);
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
