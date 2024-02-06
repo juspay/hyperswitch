@@ -225,6 +225,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     .change_context(RedisError::JsonSerializationFailed)?,
             )
             .await
+            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]))
+            .map_err(|err| {
+                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]);
+                err
+            })
             .change_context(RedisError::StreamAppendFailed)
     }
 }

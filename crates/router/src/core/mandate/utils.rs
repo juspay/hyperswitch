@@ -70,6 +70,8 @@ pub async fn construct_mandate_revoke_router_data(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        refund_id: None,
+        dispute_id: None,
     };
 
     Ok(router_data)
