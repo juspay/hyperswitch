@@ -24,6 +24,7 @@ impl VerifyConnectorData {
         types::PaymentsAuthorizeData {
             payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
+            customer_name: None,
             amount: 1000,
             confirm: true,
             currency: storage_enums::Currency::USD,
@@ -102,6 +103,8 @@ impl VerifyConnectorData {
             external_latency: None,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

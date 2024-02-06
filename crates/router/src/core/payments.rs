@@ -68,7 +68,7 @@ use crate::{
     workflows::payment_sync,
 };
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id, connector_name))]
 
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
@@ -133,6 +133,7 @@ where
             &merchant_account,
             &key_store,
             auth_flow,
+            header_payload.payment_confirm_source,
         )
         .await?;
 
@@ -163,6 +164,7 @@ where
     .await?;
     logger::debug!("connector response");
     logger::debug!(stringify!(connector));
+    tracing::Span::current().record("connector_name", "dummy_test");
     // tracing::Span::current().record("connector_info", &format!("{:?}", connector));
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -372,7 +374,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -605,7 +606,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -649,10 +649,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -2051,6 +2047,8 @@ pub struct IncrementalAuthorizationDetails {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]

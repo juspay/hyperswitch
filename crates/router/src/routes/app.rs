@@ -1,13 +1,19 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(all(feature = "kms", feature = "olap"))]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "hashicorp-vault", feature = "aws_kms")
+))]
 use analytics::AnalyticsConfig;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
-#[cfg(all(feature = "olap", feature = "kms"))]
+use external_services::file_storage::FileStorageInterface;
+#[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
@@ -26,7 +32,7 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
@@ -60,12 +66,13 @@ pub struct AppState {
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -137,15 +144,21 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        #[cfg_attr(not(all(feature = "olap", feature = "kms")), allow(unused_mut))]
+        #[cfg_attr(not(all(feature = "olap", feature = "aws_kms")), allow(unused_mut))]
         mut conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         Box::pin(async move {
-            #[cfg(feature = "kms")]
-            let kms_client = kms::get_kms_client(&conf.kms).await;
+            #[cfg(feature = "aws_kms")]
+            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            let hc_client =
+                external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                    .await
+                    .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -153,6 +166,7 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -180,14 +194,30 @@ impl AppState {
                 ),
             };
 
-            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
             #[allow(clippy::expect_used)]
             match conf.analytics {
                 AnalyticsConfig::Clickhouse { .. } => {}
                 AnalyticsConfig::Sqlx { ref mut sqlx }
                 | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
                 | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = kms_client
+                    sqlx.password = sqlx
+                        .password
+                        .clone()
+                        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                        .await
+                        .expect("Failed while fetching from hashicorp vault");
+                }
+            };
+
+            #[cfg(all(feature = "aws_kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            match conf.analytics {
+                AnalyticsConfig::Clickhouse { .. } => {}
+                AnalyticsConfig::Sqlx { ref mut sqlx }
+                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
+                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
+                    sqlx.password = aws_kms_client
                         .decrypt(&sqlx.password.peek())
                         .await
                         .expect("Failed to decrypt password")
@@ -195,12 +225,22 @@ impl AppState {
                 }
             };
 
-            #[cfg(all(feature = "kms", feature = "olap"))]
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
             #[allow(clippy::expect_used)]
             {
                 conf.connector_onboarding = conf
                     .connector_onboarding
-                    .decrypt_inner(kms_client)
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
+            #[cfg(all(feature = "aws_kms", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.connector_onboarding = conf
+                    .connector_onboarding
+                    .decrypt_inner(aws_kms_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -208,17 +248,30 @@ impl AppState {
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 
-            #[cfg(feature = "kms")]
+            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
+            #[allow(clippy::expect_used)]
+            {
+                conf.jwekey = conf
+                    .jwekey
+                    .clone()
+                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .await
+                    .expect("Failed to decrypt connector onboarding credentials");
+            }
+
+            #[cfg(feature = "aws_kms")]
             #[allow(clippy::expect_used)]
             let kms_secrets = settings::ActiveKmsSecrets {
                 jwekey: conf.jwekey.clone().into(),
             }
-            .decrypt_inner(kms_client)
+            .decrypt_inner(aws_kms_client)
             .await
-            .expect("Failed while performing KMS decryption");
+            .expect("Failed while performing AWS KMS decryption");
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
+
+            let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
             Self {
                 flow_name: String::from("default"),
@@ -226,13 +279,14 @@ impl AppState {
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
-                #[cfg(feature = "kms")]
+                #[cfg(feature = "aws_kms")]
                 kms_secrets: Arc::new(kms_secrets),
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
                 request_id: None,
+                file_storage_client,
             }
         })
         .await
@@ -260,7 +314,7 @@ impl Health {
         web::scope("health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
@@ -412,7 +466,7 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
+                    .route(web::get().to(cloud_routing::list_routing_configs))
                     .route(web::post().to(cloud_routing::routing_create_config)),
             )
             .service(
@@ -841,6 +895,10 @@ impl PaymentLink {
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
             )
+            .service(
+                web::resource("status/{merchant_id}/{payment_id}")
+                    .route(web::get().to(payment_link_status)),
+            )
     }
 }
 
@@ -879,10 +937,10 @@ impl Gsm {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 pub struct Verify;
 
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")
@@ -906,7 +964,11 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(web::resource("/signin").route(web::post().to(user_signin)))
+            .service(
+                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
+            )
+            .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -915,14 +977,7 @@ impl User {
                     .route(web::post().to(user_merchant_account_create)),
             )
             .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
-            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
-            .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
-            .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role").route(web::get().to(get_role_from_token)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
-            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
-            .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
@@ -930,14 +985,6 @@ impl User {
                     .route(web::post().to(set_dashboard_metadata)),
             );
 
-        #[cfg(feature = "dummy_connector")]
-        {
-            route = route.service(
-                web::resource("/sample_data")
-                    .route(web::post().to(generate_sample_data))
-                    .route(web::delete().to(delete_sample_data)),
-            )
-        }
         #[cfg(feature = "email")]
         {
             route = route
@@ -950,15 +997,50 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+                .service(
+                    web::resource("/verify_email")
+                        .route(web::post().to(verify_email_without_invite_checks)),
+                )
+                .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
-                );
+                )
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)));
         }
         #[cfg(not(feature = "email"))]
         {
             route = route.service(web::resource("/signup").route(web::post().to(user_signup)))
+        }
+
+        // User management
+        route = route.service(
+            web::scope("/user")
+                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("/invite").route(web::post().to(invite_user)))
+                .service(
+                    web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
+                )
+                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(web::resource("/update_role").route(web::post().to(update_user_role)))
+                .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
+        );
+
+        // Role information
+        route = route.service(
+            web::scope("/role")
+                .service(web::resource("").route(web::get().to(get_role_from_token)))
+                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(web::resource("/{role_id}").route(web::get().to(get_role))),
+        );
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
+            )
         }
         route
     }

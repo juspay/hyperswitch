@@ -319,6 +319,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 
     pub frm_metadata: Option<serde_json::Value>,
+
+    pub dispute_id: Option<String>,
+    pub refund_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -392,6 +395,7 @@ pub struct PaymentsAuthorizeData {
     /// ```
     pub amount: i64,
     pub email: Option<Email>,
+    pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -461,7 +465,7 @@ pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: payments::PaymentMethodData,
 }
@@ -586,9 +590,11 @@ pub struct SetupMandateRequestData {
     pub router_return_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_name: Option<Secret<String>>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -1342,19 +1348,6 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
-impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
-    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
-        Self {
-            email: data.request.email.to_owned(),
-            preprocessing_id: data.preprocessing_id.to_owned(),
-            payment_method_data: data.request.payment_method_data.to_owned(),
-            description: None,
-            phone: None,
-            name: None,
-        }
-    }
-}
-
 impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
     for PaymentMethodTokenizationData
 {
@@ -1411,6 +1404,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             setup_mandate_details: data.request.setup_mandate_details.clone(),
             router_return_url: data.request.router_return_url.clone(),
             email: data.request.email.clone(),
+            customer_name: data.request.customer_name.clone(),
             amount: 0,
             statement_descriptor: None,
             capture_method: None,
@@ -1476,6 +1470,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
             frm_metadata: data.frm_metadata.clone(),
+            dispute_id: data.dispute_id.clone(),
+            refund_id: data.refund_id.clone(),
         }
     }
 }
@@ -1532,6 +1528,8 @@ impl<F1, F2>
             external_latency: data.external_latency,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

@@ -524,6 +524,8 @@ pub trait ConnectorActions: Connector {
             apple_pay_flow: None,
             external_latency: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 
@@ -900,6 +902,7 @@ impl Default for PaymentAuthorizeType {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
