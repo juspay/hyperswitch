@@ -1234,7 +1234,7 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
-        connector_label: req.connector_label,
+        connector_label: req.connector_label.clone(),
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
@@ -1264,10 +1264,25 @@ pub async fn update_payment_connector(
         status: Some(connector_status),
     };
 
+    // Profile id should always be present
+    let profile_id = mca
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Missing `profile_id` in merchant connector account")?;
+
+    let request_connector_label = req.connector_label;
+
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector.into(), &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name: request_connector_label.unwrap_or_default(),
+            },
+        )
         .attach_printable_lazy(|| {
             format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
         })?;
