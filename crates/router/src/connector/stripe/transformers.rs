@@ -3744,6 +3744,49 @@ fn get_transaction_metadata(
     meta_data
 }
 
+impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
+    type Error = types::ErrorResponse;
+    fn try_from(
+        (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
+    ) -> Result<Self, Self::Error> {
+        let (code, error_message) = match response {
+            Some(error_details) => (
+                error_details
+                    .code
+                    .to_owned()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                error_details
+                    .message
+                    .to_owned()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            ),
+            None => (
+                consts::NO_ERROR_CODE.to_string(),
+                consts::NO_ERROR_MESSAGE.to_string(),
+            ),
+        };
+
+        Err(types::ErrorResponse {
+            code,
+            message: error_message.clone(),
+            reason: response.clone().and_then(|res| {
+                res.decline_code
+                    .clone()
+                    .map(|decline_code| {
+                        format!(
+                            "message - {}, decline_code - {}",
+                            error_message, decline_code
+                        )
+                    })
+                    .or(Some(error_message.clone()))
+            }),
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response_id),
+        })
+    }
+}
+
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     #![allow(clippy::unwrap_used)]
@@ -3933,48 +3976,5 @@ mod test_validate_shipping_address_against_payment_method {
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
         }
-    }
-}
-
-impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
-    type Error = types::ErrorResponse;
-    fn try_from(
-        (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
-    ) -> Result<Self, Self::Error> {
-        let (code, error_message) = match response {
-            Some(error_details) => (
-                error_details
-                    .code
-                    .to_owned()
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                error_details
-                    .message
-                    .to_owned()
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            ),
-            None => (
-                consts::NO_ERROR_CODE.to_string(),
-                consts::NO_ERROR_MESSAGE.to_string(),
-            ),
-        };
-
-        Err(types::ErrorResponse {
-            code,
-            message: error_message.clone(),
-            reason: response.clone().and_then(|res| {
-                res.decline_code
-                    .clone()
-                    .map(|decline_code| {
-                        format!(
-                            "message - {}, decline_code - {}",
-                            error_message, decline_code
-                        )
-                    })
-                    .or(Some(error_message.clone()))
-            }),
-            status_code: http_code,
-            attempt_status: None,
-            connector_transaction_id: Some(response_id),
-        })
     }
 }
