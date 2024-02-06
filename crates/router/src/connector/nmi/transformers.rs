@@ -719,7 +719,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -775,7 +775,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
@@ -825,7 +825,7 @@ impl<T>
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transactionid.to_owned(),
+                        item.response.transactionid.clone(),
                     ),
                     redirection_data: None,
                     mandate_reference: None,
