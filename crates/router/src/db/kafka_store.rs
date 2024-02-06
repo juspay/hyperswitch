@@ -376,7 +376,6 @@ impl DisputeInterface for KafkaStore {
         &self,
         dispute_new: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        logger::debug!("Inserting Dispute Via KafkaStore");
         let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
 
         if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
