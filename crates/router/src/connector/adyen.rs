@@ -627,6 +627,7 @@ impl
             },
             data.request.capture_method,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
