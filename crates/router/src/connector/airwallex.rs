@@ -215,6 +215,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("airwallex AirwallexAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -301,7 +304,10 @@ impl
             .response
             .parse_struct("airwallex AirwallexPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(nuvei_session_response=?response);
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -430,7 +436,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("AirwallexPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(airwallexpayments_create_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -508,6 +515,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("airwallex AirwallexPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -684,7 +693,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Airwallex PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(airwallexpayments_create_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -759,7 +769,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("Airwallex PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(airwallexpayments_create_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -871,6 +882,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("airwallex RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -942,6 +955,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("airwallex RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),

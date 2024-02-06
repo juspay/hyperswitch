@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref};
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::ByteSliceExt,
     pii::{self, Email},
     request::RequestContent,
 };
@@ -2630,15 +2630,30 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 impl Serialize for StripeNextActionResponse {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         match *self {
-            StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::RedirectToUrl(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::AlipayHandleRedirect(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::VerifyWithMicrodeposits(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::WechatPayDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::DisplayBankTransferInstructions(ref i) => serde::Serialize::serialize(i, serializer),
-            StripeNextActionResponse::NoNextActionBody => serde::Serialize::serialize("NoNextActionBody", serializer),
+            StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::RedirectToUrl(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::AlipayHandleRedirect(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::VerifyWithMicrodeposits(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::WechatPayDisplayQrCode(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::DisplayBankTransferInstructions(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            StripeNextActionResponse::NoNextActionBody => {
+                serde::Serialize::serialize("NoNextActionBody", serializer)
+            }
         }
     }
 }
@@ -3497,7 +3512,7 @@ pub fn construct_file_upload_request(
     Ok(multipart)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileUploadResponse {
     #[serde(rename = "id")]
     pub file_id: String,
@@ -3629,7 +3644,7 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,

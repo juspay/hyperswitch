@@ -259,7 +259,7 @@ fn get_wallet_details(
     Ok(wallet_details)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
@@ -443,7 +443,7 @@ pub struct AirwallexPaymentsResponse {
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent

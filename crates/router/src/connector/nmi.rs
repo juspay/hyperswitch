@@ -804,9 +804,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
+        router_env::logger::info!(connector_response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response: res.clone(),
             data: data.clone(),

@@ -432,7 +432,7 @@ impl
     fn handle_response(
         &self,
         data: &types::MandateRevokeRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
         if matches!(res.status_code, 204) {

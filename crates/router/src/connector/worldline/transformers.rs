@@ -687,7 +687,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Cancelled,
@@ -707,7 +707,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,

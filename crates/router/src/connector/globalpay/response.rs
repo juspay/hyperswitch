@@ -70,7 +70,7 @@ pub struct Action {
     pub action_type: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobalpayRefreshTokenResponse {
     pub token: Secret<String>,
     pub seconds_to_expire: i64,

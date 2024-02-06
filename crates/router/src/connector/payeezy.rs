@@ -553,6 +553,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .parse_struct("payeezy RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         // Create a new instance of types::RefundsRouterData based on the response, input data, and HTTP code
         let response_data = types::ResponseRouterData {
             response,

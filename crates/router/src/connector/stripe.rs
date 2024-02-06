@@ -18,7 +18,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers, logger,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -1574,7 +1574,8 @@ impl
             .response
             .parse_struct("Stripe FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
                 provider_file_id: response.file_id,
@@ -1669,7 +1670,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RetrieveFileRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1680,6 +1681,7 @@ impl
         errors::ConnectorError,
     > {
         let response = res.response;
+        router_env::logger::info!(connector_response=?response);
         Ok(types::RetrieveFileRouterData {
             response: Ok(types::RetrieveFileResponse {
                 file_data: response.to_vec(),
@@ -1804,7 +1806,8 @@ impl
             .response
             .parse_struct("Stripe DisputeObj")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         Ok(types::SubmitEvidenceRouterData {
             response: Ok(types::SubmitEvidenceResponse {
                 dispute_status: api_models::enums::DisputeStatus::DisputeChallenged,

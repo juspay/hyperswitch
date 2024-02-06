@@ -502,7 +502,7 @@ impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRef
 
 // Type definition for Refund Response
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Approved,
@@ -522,7 +522,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     pub correlation_id: String,
     pub transaction_status: RefundStatus,

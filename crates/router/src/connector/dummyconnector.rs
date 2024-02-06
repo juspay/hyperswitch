@@ -243,7 +243,8 @@ impl<const T: u8>
             .response
             .parse_struct("DummyConnector PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        println!("handle_response: {:#?}", response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

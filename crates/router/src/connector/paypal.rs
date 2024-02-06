@@ -581,6 +581,9 @@ impl
             .parse_struct("paypal PaypalPreProcessingResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         match response {
             // if card supports 3DS check for liability
             paypal::PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {

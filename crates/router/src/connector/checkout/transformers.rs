@@ -885,7 +885,7 @@ impl<F> TryFrom<&CheckoutRouterData<&types::RefundsRouterData<F>>> for RefundReq
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -1278,7 +1278,7 @@ pub fn construct_file_upload_request(
     Ok(multipart)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileUploadResponse {
     #[serde(rename = "id")]
     pub file_id: String,

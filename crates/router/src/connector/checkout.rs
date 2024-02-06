@@ -736,6 +736,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("checkout::RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let response = checkout::CheckoutRefundResponse {
             response,
@@ -807,6 +808,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("checkout::CheckoutRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         let response = response
@@ -884,7 +887,7 @@ impl
     fn handle_response(
         &self,
         data: &types::AcceptDisputeRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
         Ok(types::AcceptDisputeRouterData {
@@ -1008,6 +1011,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             .response
             .parse_struct("Checkout FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
@@ -1093,7 +1097,7 @@ impl
     fn handle_response(
         &self,
         data: &types::SubmitEvidenceRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
         Ok(types::SubmitEvidenceRouterData {
@@ -1165,7 +1169,7 @@ impl
     fn handle_response(
         &self,
         data: &types::DefendDisputeRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
         Ok(types::DefendDisputeRouterData {

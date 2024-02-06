@@ -285,6 +285,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::PaymentsCancelRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
