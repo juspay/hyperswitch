@@ -2331,6 +2331,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 name = "drainer"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "async-bb8-diesel",
  "async-trait",
  "bb8",
@@ -2342,8 +2343,10 @@ dependencies = [
  "error-stack",
  "external_services",
  "masking",
+ "mime",
  "once_cell",
  "redis_interface",
+ "reqwest",
  "router_env",
  "serde",
  "serde_json",
@@ -2435,6 +2438,7 @@ dependencies = [
  "serde_json",
  "strum 0.25.0",
  "thiserror",
+ "utoipa",
 ]
 
 [[package]]
@@ -2480,6 +2484,7 @@ dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-kms",
+ "aws-sdk-s3",
  "aws-sdk-sesv2",
  "aws-sdk-sts",
  "aws-smithy-client",
@@ -4044,6 +4049,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "openapi"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "serde_json",
+ "utoipa",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5145,8 +5159,6 @@ dependencies = [
  "async-bb8-diesel",
  "async-trait",
  "awc",
- "aws-config",
- "aws-sdk-s3",
  "base64 0.21.5",
  "bb8",
  "bigdecimal",
@@ -5185,6 +5197,7 @@ dependencies = [
  "nanoid",
  "num_cpus",
  "once_cell",
+ "openapi",
  "openssl",
  "pm_auth",
  "qrcode",
@@ -5222,7 +5235,6 @@ dependencies = [
  "unicode-segmentation",
  "url",
  "utoipa",
- "utoipa-swagger-ui",
  "uuid",
  "validator",
  "wiremock",
@@ -5280,41 +5292,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-embed"
-version = "6.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a36224c3276f8c4ebc8c20f158eca7ca4359c8db89991c4925132aaaf6702661"
-dependencies = [
- "rust-embed-impl",
- "rust-embed-utils",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-impl"
-version = "6.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49b94b81e5b2c284684141a2fb9e2a31be90638caf040bf9afbc5a0416afe1ac"
-dependencies = [
- "proc-macro2",
- "quote",
- "rust-embed-utils",
- "shellexpand",
- "syn 2.0.48",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-utils"
-version = "7.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d38ff6bf570dc3bb7100fce9f7b60c33fa71d80e88da3f2580df4ff2bdded74"
-dependencies = [
- "sha2",
- "walkdir",
-]
-
-[[package]]
 name = "rust-ini"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5338,16 +5315,6 @@ dependencies = [
  "rkyv",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "rust_decimal_macros"
-version = "1.33.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e43721f4ef7060ebc2c3ede757733209564ca8207f47674181bcd425dd76945"
-dependencies = [
- "quote",
- "rust_decimal",
 ]
 
 [[package]]
@@ -5512,11 +5479,9 @@ dependencies = [
 [[package]]
 name = "rusty-money"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b28f881005eac7ad8d46b6f075da5f322bd7f4f83a38720fc069694ddadd683"
+source = "git+https://github.com/varunsrin/rusty_money?rev=bbc0150742a0fff905225ff11ee09388e9babdcc#bbc0150742a0fff905225ff11ee09388e9babdcc"
 dependencies = [
  "rust_decimal",
- "rust_decimal_macros",
 ]
 
 [[package]]
@@ -5563,6 +5528,7 @@ dependencies = [
  "external_services",
  "futures 0.3.28",
  "masking",
+ "num_cpus",
  "once_cell",
  "rand 0.8.5",
  "redis_interface",
@@ -5864,15 +5830,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shellexpand"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
-dependencies = [
- "dirs",
 ]
 
 [[package]]
@@ -7238,22 +7195,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "utoipa-swagger-ui"
-version = "3.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84614caa239fb25b2bb373a52859ffd94605ceb256eeb1d63436325cf81e3653"
-dependencies = [
- "actix-web",
- "mime_guess",
- "regex",
- "rust-embed",
- "serde",
- "serde_json",
- "utoipa",
- "zip",
-]
-
-[[package]]
 name = "uuid"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7819,18 +7760,6 @@ name = "zeroize"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
-
-[[package]]
-name = "zip"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "760394e246e4c28189f19d488c058bf16f564016aefac5d32bb1f3b51d5e9261"
-dependencies = [
- "byteorder",
- "crc32fast",
- "crossbeam-utils 0.8.16",
- "flate2",
-]
 
 [[package]]
 name = "zstd"
