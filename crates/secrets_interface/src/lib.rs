@@ -2,9 +2,9 @@
 
 #![warn(missing_docs, missing_debug_implementations)]
 
-pub mod decryption;
+pub mod secret_handler;
 
-pub mod type_state;
+pub mod secret_state;
 
 use common_utils::errors::CustomResult;
 use masking::Secret;
@@ -28,15 +28,11 @@ pub trait SecretManagementInterface: Send + Sync {
 /// Errors that may occur during secret management
 #[derive(Debug, thiserror::Error)]
 pub enum SecretsManagementError {
-    /// An error occurred when decrypting input data.
-    #[error("Failed to decrypt input data")]
-    DecryptionFailed,
-
-    /// An error occurred when encrypting input data.
-    #[error("Failed to encrypt input data")]
-    EncryptionFailed,
+    /// An error occurred when retrieving raw data.
+    #[error("Failed to fetch the raw data")]
+    FetchSecretFailed,
 
     /// Failed while creating kms client
-    #[error("Failed while creating a new client")]
+    #[error("Failed while creating a secrets management client")]
     ClientCreationFailed,
 }
