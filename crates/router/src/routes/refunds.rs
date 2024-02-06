@@ -63,7 +63,7 @@ pub async fn refunds_create(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -76,7 +76,10 @@ pub async fn refunds_retrieve(
         force_sync: query_params.force_sync,
         merchant_connector_details: None,
     };
-    let flow = Flow::RefundsRetrieve;
+    let flow = match query_params.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
 
     Box::pin(api::server_wrap(
         flow,
