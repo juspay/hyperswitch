@@ -11648,6 +11648,14 @@
             "example": "https://www.google.com",
             "nullable": true
           },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.Currency"
+              }
+            ],
+            "nullable": true
+          },
           "payment_methods": {
             "type": "array",
             "items": {
