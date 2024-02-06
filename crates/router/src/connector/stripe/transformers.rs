@@ -2627,6 +2627,22 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
     }
 }
 
+impl Serialize for StripeNextActionResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        match *self {
+            StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::RedirectToUrl(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::AlipayHandleRedirect(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::VerifyWithMicrodeposits(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::WechatPayDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::DisplayBankTransferInstructions(ref i) => serde::Serialize::serialize(i, serializer),
+            StripeNextActionResponse::NoNextActionBody => serde::Serialize::serialize("NoNextActionBody", serializer),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
