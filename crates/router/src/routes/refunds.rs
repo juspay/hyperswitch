@@ -81,6 +81,8 @@ pub async fn refunds_retrieve(
         _ => Flow::RefundsRetrieve,
     };
 
+    tracing::Span::current().record("flow", &flow.to_string());
+
     Box::pin(api::server_wrap(
         flow,
         state,
