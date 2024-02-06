@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
     mandates::{MandateData, MandateDetails, MandateTypeDetails},
