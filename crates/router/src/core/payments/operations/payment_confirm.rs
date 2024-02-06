@@ -1073,7 +1073,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
             && request
                 .setup_future_usage
                 .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
-                .is_some()
+                .unwrap_or(false)
         {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
