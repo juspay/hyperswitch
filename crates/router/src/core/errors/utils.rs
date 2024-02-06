@@ -510,6 +510,7 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
     }
 }
 
+#[cfg(feature = "olap")]
 impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors::StorageError> {
     #[track_caller]
     fn to_not_found_response(
