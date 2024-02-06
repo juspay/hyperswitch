@@ -119,17 +119,17 @@ pub async fn list_blocked_payment_methods(
 }
 
 #[utoipa::path(
-    get,
-    path = "/blocklist",
+    post,
+    path = "/blocklist/enable",
     params (
-        ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("status" = Boolean, Query, description = "Boolean value to enable/disable blocklist"),
     ),
     responses(
-        (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
+        (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
-    operation_id = "List Blocked fingerprints of a particular kind",
+    operation_id = "Toggle blocklist guard for a particular merchant",
     security(("api_key" = []))
 )]
 pub async fn toggle_blocklist_guard(
