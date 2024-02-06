@@ -11637,6 +11637,7 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
+          "currency",
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen"
@@ -11647,6 +11648,9 @@
             "description": "Redirect URL of the merchant",
             "example": "https://www.google.com",
             "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           },
           "payment_methods": {
             "type": "array",
