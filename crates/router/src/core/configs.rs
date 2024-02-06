@@ -42,9 +42,9 @@ pub async fn update_config(
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
-pub async fn delete_config(
+pub async fn config_delete(
     state: AppState,
-    config_delete: &api::ConfigDelete,
+    key: String
 ) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
