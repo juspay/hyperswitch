@@ -3957,10 +3957,9 @@ impl utils::MultipleCaptureSyncResponse for Response {
 pub struct AdyenPayoutCreateRequest {
     amount: Amount,
     recurring: RecurringContract,
-    selected_brand: Option<PayoutBrand>,
     merchant_account: Secret<String>,
-    bank: Option<PayoutBankDetails>,
-    additional_data: Option<PayoutAdditionalData>,
+    #[serde(flatten)]
+    payment_data: PayoutPaymentMethodData,
     reference: String,
     shopper_reference: String,
     shopper_email: Option<Email>,
@@ -3969,6 +3968,29 @@ pub struct AdyenPayoutCreateRequest {
     entity_type: Option<storage_enums::PayoutEntityType>,
     nationality: Option<storage_enums::CountryAlpha2>,
     billing_address: Option<Address>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PayoutPaymentMethodData {
+    PayoutBankData(PayoutBankData),
+    PayoutWalletData(PayoutWalletData),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutBankData {
+    bank: PayoutBankDetails,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutWalletData {
+    selected_brand: PayoutBrand,
+    additional_data: PayoutAdditionalData,
 }
 
 #[cfg(feature = "payouts")]
@@ -4222,6 +4244,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         connector: "Adyen",
                     })?,
                 };
+                let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
@@ -4231,16 +4254,14 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     recurring: RecurringContract {
                         contract: Contract::Payout,
                     },
-                    selected_brand: None,
                     merchant_account,
-                    additional_data: None,
-                    bank: Some(bank_details),
+                    payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
                     reference: item.router_data.request.payout_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
-                        first_name: address.get_first_name().ok().cloned(),
-                        last_name: address.get_last_name().ok().cloned(),
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
@@ -4250,18 +4271,20 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
             }
             PayoutMethodData::Wallet(wallet_data) => {
                 let additional_data = match wallet_data {
-                    api_models::payouts::Wallet::Paypal(paypal_data) => {
-                        Some(PayoutAdditionalData {
-                            token_data_type: PayoutTokenDataType::PayPal,
-                            email_id: paypal_data.email.clone().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "email_address",
-                                },
-                            )?,
-                        })
-                    }
+                    api_models::payouts::Wallet::Paypal(paypal_data) => PayoutAdditionalData {
+                        token_data_type: PayoutTokenDataType::PayPal,
+                        email_id: paypal_data.email.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "email_address",
+                            },
+                        )?,
+                    },
                 };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let payout_wallet = PayoutWalletData {
+                    selected_brand: PayoutBrand::Paypal,
+                    additional_data,
+                };
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
@@ -4270,16 +4293,14 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     recurring: RecurringContract {
                         contract: Contract::Payout,
                     },
-                    selected_brand: Some(PayoutBrand::Paypal),
                     merchant_account,
-                    additional_data,
-                    bank: None,
+                    payment_data: PayoutPaymentMethodData::PayoutWalletData(payout_wallet),
                     reference: item.router_data.request.payout_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
-                        first_name: address.get_first_name().ok().cloned(),
-                        last_name: address.get_last_name().ok().cloned(),
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
@@ -4325,8 +4346,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                     merchant_account,
                     reference: item.router_data.request.payout_id.clone(),
                     shopper_name: ShopperName {
-                        first_name: address.get_first_name().ok().cloned(),
-                        last_name: address.get_last_name().ok().cloned(),
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
                     nationality: get_country_code(item.router_data.address.billing.as_ref()),
                     entity_type: Some(item.router_data.request.entity_type),
