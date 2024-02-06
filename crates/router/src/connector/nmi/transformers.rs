@@ -905,8 +905,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
     fn try_from(
         item: types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response = SyncResponse::try_from(item.response.response.to_vec())?;
-        match response.transaction {
+        match item.response.transaction {
             Some(trn) => Ok(Self {
                 status: enums::AttemptStatus::from(NmiStatus::from(trn.condition)),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
