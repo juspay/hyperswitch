@@ -47,6 +47,12 @@ where
                         Flow::PaymentsCreate,
                         Flow::PaymentsStart,
                         Flow::PaymentsUpdate,
+                        Flow::RefundsCreate,
+                        Flow::RefundsUpdate,
+                        Flow::DisputesEvidenceSubmit,
+                        Flow::AttachDisputeEvidence,
+                        Flow::RetrieveDisputeEvidence,
+                        Flow::IncomingWebhookReceive,
                     ],
                 )
                 .switch()?;
