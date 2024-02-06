@@ -333,7 +333,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 },
             });
 
-        let subscription = item
+        let subscription: Option<NoonSubscriptionData> = item
             .request
             .get_setup_mandate_details()
             .map(|mandate_data| {
@@ -342,7 +342,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | Some(data_models::mandates::MandateDataType::MultiUse(Some(mandate))) => {
                         conn_utils::to_currency_base_unit(mandate.amount, mandate.currency)
                     }
-                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                    Some(data_models::mandates::MandateDataType::MultiUse(None)) => {
+                        Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "setup_future_usage.mandate_data.mandate_type",
+                        })
+                        .into_report()
+                    }
+                    None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "setup_future_usage.mandate_data.mandate_type",
                     })
                     .into_report(),
