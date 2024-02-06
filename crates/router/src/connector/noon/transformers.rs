@@ -275,10 +275,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         | api_models::payments::WalletData::WeChatPayQr(_)
                         | api_models::payments::WalletData::CashappQr(_)
                         | api_models::payments::WalletData::SwishQr(_) => {
-                            Err(errors::ConnectorError::NotSupported {
-                                message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
-                                connector: "Noon",
-                            })
+                            Err(errors::ConnectorError::NotImplemented(
+                                conn_utils::get_unimplemented_payment_method_error_message("Noon"),
+                            ))
                         }
                     },
                     api::PaymentMethodData::CardRedirect(_)
@@ -293,10 +292,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     | api::PaymentMethodData::Voucher(_)
                     | api::PaymentMethodData::GiftCard(_)
                     | api::PaymentMethodData::CardToken(_) => {
-                        Err(errors::ConnectorError::NotSupported {
-                            message: conn_utils::SELECTED_PAYMENT_METHOD.to_string(),
-                            connector: "Noon",
-                        })
+                        Err(errors::ConnectorError::NotImplemented(
+                            conn_utils::get_unimplemented_payment_method_error_message("Noon"),
+                        ))
                     }
                 }?,
                 Some(item.request.currency),
