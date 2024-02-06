@@ -27,6 +27,7 @@ pub enum QueryType {
         refund_id: String,
     },
     Dispute {
+        payment_id: String,
         dispute_id: String,
     },
 }

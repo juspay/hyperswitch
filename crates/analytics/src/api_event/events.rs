@@ -65,7 +65,13 @@ where
                 .add_filter_in_range_clause("api_flow", &[Flow::RefundsCreate, Flow::RefundsUpdate])
                 .switch()?;
         }
-        QueryType::Dispute { dispute_id } => {
+        QueryType::Dispute {
+            payment_id,
+            dispute_id,
+        } => {
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
             query_builder
                 .add_filter_clause("dispute_id", dispute_id)
                 .switch()?;
