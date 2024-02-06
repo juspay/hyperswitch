@@ -282,6 +282,7 @@ stripe.payment_method = "bank_transfer"
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
+payme.payment_method = "card"
 
 [tokenization]
 braintree = { long_lived_token = false, payment_method = "card" }
