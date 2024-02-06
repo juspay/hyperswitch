@@ -13,12 +13,12 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(feature = "kms")]
-use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -479,6 +479,27 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
+    let original_payment_intent = mandate
+        .original_payment_id
+        .as_ref()
+        .async_map(|payment_id| async {
+            db.find_payment_intent_by_payment_id_merchant_id(
+                payment_id,
+                &mandate.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .map_err(|err| logger::error!(mandate_original_payment_not_found=?err))
+            .ok()
+        })
+        .await
+        .flatten();
+
+    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_currency =
+        original_payment_intent.clone().and_then(|pi| pi.currency);
+
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
@@ -540,6 +561,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
@@ -550,6 +573,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
@@ -820,7 +845,7 @@ fn validate_new_mandate_request(
     let mandate_details = match mandate_data.mandate_type {
         Some(api_models::payments::MandateType::SingleUse(details)) => Some(details),
         Some(api_models::payments::MandateType::MultiUse(details)) => details,
-        None => None,
+        _ => None,
     };
     mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
         utils::when (start_date >= end_date, || {
@@ -2868,7 +2893,7 @@ pub async fn get_merchant_connector_account(
                     },
                 )?;
 
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             let private_key = state
                 .kms_secrets
                 .jwekey
@@ -2876,7 +2901,7 @@ pub async fn get_merchant_connector_account(
                 .tunnel_private_key
                 .as_bytes();
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
@@ -2977,6 +3002,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         external_latency: router_data.external_latency,
         apple_pay_flow: router_data.apple_pay_flow,
         frm_metadata: router_data.frm_metadata,
+        refund_id: router_data.refund_id,
+        dispute_id: router_data.dispute_id,
     }
 }
 
@@ -3534,14 +3561,14 @@ impl ApplePayData {
         }
         .await?;
 
-        #[cfg(feature = "kms")]
-        let cert_data = kms::get_kms_client(&state.conf.kms)
+        #[cfg(feature = "aws_kms")]
+        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        #[cfg(not(feature = "kms"))]
+        #[cfg(not(feature = "aws_kms"))]
         let cert_data = &apple_pay_ppc;
 
         let base64_decode_cert_data = BASE64_ENGINE
@@ -3618,14 +3645,14 @@ impl ApplePayData {
         }
         .await?;
 
-        #[cfg(feature = "kms")]
-        let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
+        #[cfg(feature = "aws_kms")]
+        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        #[cfg(not(feature = "kms"))]
+        #[cfg(not(feature = "aws_kms"))]
         let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())

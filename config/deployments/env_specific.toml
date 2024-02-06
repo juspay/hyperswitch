@@ -70,9 +70,13 @@ api_logs_topic = "topic"              # Kafka topic to be used for incoming api 
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
 
-[file_upload_config]
-bucket_name = "bucket"
-region = "bucket_region"
+# File storage configuration
+[file_storage]
+file_storage_backend = "aws_s3" # File storage backend to be used
+
+[file_storage.aws_s3]
+region = "bucket_region" # The AWS region used by AWS S3 for file storage
+bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 
 # This section provides configs for currency conversion api
 [forex_api]

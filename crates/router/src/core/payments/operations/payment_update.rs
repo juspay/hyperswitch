@@ -44,6 +44,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
@@ -255,10 +256,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             api_models::payments::MandateIds {
                                 mandate_id: mandate_obj.mandate_id,
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: connector_id.connector_mandate_id,
-                                        payment_method_id: connector_id.payment_method_id,
-                                    },
+                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None },
                                 ))
                             }
                          }),

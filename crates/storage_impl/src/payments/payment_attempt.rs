@@ -2,7 +2,7 @@ use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMet
 use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
 use data_models::{
     errors,
-    mandates::{MandateAmountData, MandateDataType},
+    mandates::{MandateAmountData, MandateDataType, MandateDetails, MandateTypeDetails},
     payments::{
         payment_attempt::{
             GetAttemptAmount, PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew,
@@ -14,6 +14,7 @@ use data_models::{
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
+        MandateDetails as DieselMandateDetails, MandateTypeDetails as DieselMandateTypeOrDetails,
         MerchantStorageScheme,
     },
     kv,
@@ -929,12 +930,23 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
-
-                kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_scan()
-                    .change_context(errors::StorageError::KVError)
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
+                            .await?
+                            .try_into_scan()
+                    },
+                    || async {
+                        self.router_store
+                            .find_attempts_by_merchant_id_payment_id(
+                                merchant_id,
+                                payment_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
+                ))
+                .await
             }
         }
     }
@@ -994,6 +1006,50 @@ impl DataModelExt for MandateAmountData {
             start_date: storage_model.start_date,
             end_date: storage_model.end_date,
             metadata: storage_model.metadata,
+        }
+    }
+}
+impl DataModelExt for MandateDetails {
+    type StorageModel = DieselMandateDetails;
+    fn to_storage_model(self) -> Self::StorageModel {
+        DieselMandateDetails {
+            update_mandate_id: self.update_mandate_id,
+            mandate_type: self
+                .mandate_type
+                .map(|mand_type| mand_type.to_storage_model()),
+        }
+    }
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        Self {
+            update_mandate_id: storage_model.update_mandate_id,
+            mandate_type: storage_model
+                .mandate_type
+                .map(MandateDataType::from_storage_model),
+        }
+    }
+}
+impl DataModelExt for MandateTypeDetails {
+    type StorageModel = DieselMandateTypeOrDetails;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        match self {
+            Self::MandateType(mandate_type) => {
+                DieselMandateTypeOrDetails::MandateType(mandate_type.to_storage_model())
+            }
+            Self::MandateDetails(mandate_details) => {
+                DieselMandateTypeOrDetails::MandateDetails(mandate_details.to_storage_model())
+            }
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        match storage_model {
+            DieselMandateTypeOrDetails::MandateType(data) => {
+                Self::MandateType(MandateDataType::from_storage_model(data))
+            }
+            DieselMandateTypeOrDetails::MandateDetails(data) => {
+                Self::MandateDetails(MandateDetails::from_storage_model(data))
+            }
         }
     }
 }
@@ -1118,7 +1174,7 @@ impl DataModelExt for PaymentAttempt {
             preprocessing_step_id: storage_model.preprocessing_step_id,
             mandate_details: storage_model
                 .mandate_details
-                .map(MandateDataType::from_storage_model),
+                .map(MandateTypeDetails::from_storage_model),
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
@@ -1226,7 +1282,7 @@ impl DataModelExt for PaymentAttemptNew {
             preprocessing_step_id: storage_model.preprocessing_step_id,
             mandate_details: storage_model
                 .mandate_details
-                .map(MandateDataType::from_storage_model),
+                .map(MandateTypeDetails::from_storage_model),
             error_reason: storage_model.error_reason,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,

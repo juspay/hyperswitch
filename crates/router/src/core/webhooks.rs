@@ -340,6 +340,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
@@ -347,6 +348,7 @@ pub async fn get_or_update_dispute_object(
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    business_profile: &diesel_models::business_profile::BusinessProfile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -375,7 +377,7 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
-                profile_id: None,
+                profile_id: Some(business_profile.profile_id.clone()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
             };
@@ -534,6 +536,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             &merchant_account.merchant_id,
             &payment_attempt,
             event_type,
+            &business_profile,
             connector.id(),
         )
         .await?;
@@ -603,7 +606,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
             None,
-            HeaderPayload::default(),
+            HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))
         .await
     } else {

@@ -319,6 +319,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 
     pub frm_metadata: Option<serde_json::Value>,
+
+    pub dispute_id: Option<String>,
+    pub refund_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -591,6 +594,7 @@ pub struct SetupMandateRequestData {
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -1466,6 +1470,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
             frm_metadata: data.frm_metadata.clone(),
+            dispute_id: data.dispute_id.clone(),
+            refund_id: data.refund_id.clone(),
         }
     }
 }
@@ -1522,6 +1528,8 @@ impl<F1, F2>
             external_latency: data.external_latency,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }

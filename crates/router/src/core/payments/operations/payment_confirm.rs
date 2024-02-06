@@ -7,8 +7,8 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
@@ -56,6 +56,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
+        payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -117,17 +118,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
-            &[
-                storage_enums::IntentStatus::Cancelled,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::Processing,
-                storage_enums::IntentStatus::RequiresCapture,
-                storage_enums::IntentStatus::RequiresMerchantAction,
-            ],
-            "confirm",
-        )?;
+        if let Some(common_enums::PaymentSource::Webhook) = payment_confirm_source {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                &payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                ],
+                "confirm",
+            )?;
+        } else {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                &payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::RequiresCustomerAction,
+                ],
+                "confirm",
+            )?;
+        }
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
@@ -431,7 +447,29 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         setup_mandate = setup_mandate.map(|mut sm| {
-            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm.mandate_type = payment_attempt
+                .mandate_details
+                .clone()
+                .and_then(|mandate| match mandate {
+                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
+                        Some(mandate_type)
+                    }
+                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
+                        mandate_details.mandate_type
+                    }
+                })
+                .or(sm.mandate_type);
+            sm.update_mandate_id = payment_attempt
+                .mandate_details
+                .clone()
+                .and_then(|mandate| match mandate {
+                    data_models::mandates::MandateTypeDetails::MandateType(_) => None,
+                    data_models::mandates::MandateTypeDetails::MandateDetails(update_id) => {
+                        Some(update_id.update_mandate_id)
+                    }
+                })
+                .flatten()
+                .or(sm.update_mandate_id);
             sm
         });
 
@@ -831,8 +869,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         }
 
         if let Some(encoded_hash) = card_number_fingerprint {
-            #[cfg(feature = "kms")]
-            let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
+            #[cfg(feature = "aws_kms")]
+            let encrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
                 .await
                 .encrypt(encoded_hash)
                 .await
@@ -844,7 +882,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     Some,
                 );
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let encrypted_fingerprint = Some(encoded_hash);
 
             if let Some(encrypted_fingerprint) = encrypted_fingerprint {

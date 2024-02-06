@@ -186,14 +186,14 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 }
 
 pub async fn get_decrypted_response_payload(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => {
@@ -201,16 +201,16 @@ pub async fn get_decrypted_response_payload(
         }
     };
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let public_key = match target_locker {
         api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
     };
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
@@ -237,8 +237,8 @@ pub async fn get_decrypted_response_payload(
 }
 
 pub async fn mk_basilisk_req(
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -257,7 +257,7 @@ pub async fn mk_basilisk_req(
     let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
         .change_context(errors::VaultError::SaveCardFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => {
@@ -265,7 +265,7 @@ pub async fn mk_basilisk_req(
         }
     };
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let public_key = match locker_choice {
         api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
         api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
@@ -293,8 +293,8 @@ pub async fn mk_basilisk_req(
 }
 
 pub async fn mk_add_locker_request_hs<'a>(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     payload: &StoreLockerReq<'a>,
     locker_choice: api_enums::LockerChoice,
@@ -302,10 +302,10 @@ pub async fn mk_add_locker_request_hs<'a>(
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
@@ -463,8 +463,8 @@ pub fn mk_add_card_request(
 }
 
 pub async fn mk_get_card_request_hs(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
@@ -480,10 +480,10 @@ pub async fn mk_get_card_request_hs(
     let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
@@ -540,8 +540,8 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 }
 
 pub async fn mk_delete_card_request_hs(
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
@@ -556,10 +556,10 @@ pub async fn mk_delete_card_request_hs(
     let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, ForeignIDRef};
+use crate::{errors, mandates::MandateTypeDetails, ForeignIDRef};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -141,7 +141,7 @@ pub struct PaymentAttempt {
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
-    pub mandate_details: Option<MandateDataType>,
+    pub mandate_details: Option<MandateTypeDetails>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
@@ -229,7 +229,7 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
-    /// amount + surcharge_amount + tax_amount  
+    /// amount + surcharge_amount + tax_amount
     /// This field will always be derived before updating in the Database
     pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
@@ -266,7 +266,7 @@ pub struct PaymentAttemptNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<MandateDataType>,
+    pub mandate_details: Option<MandateTypeDetails>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
