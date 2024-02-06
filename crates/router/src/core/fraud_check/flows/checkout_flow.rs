@@ -119,6 +119,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             connector_api_version: None,
             apple_pay_flow: None,
             frm_metadata: self.frm_metadata.clone(),
+            refund_id: None,
+            dispute_id: None,
         };
 
         Ok(router_data)

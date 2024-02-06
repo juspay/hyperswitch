@@ -769,6 +769,7 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                         user_agent: online.user_agent,
                     }),
             }),
+            update_mandate_id: None,
         });
         Ok(mandate_data)
     }

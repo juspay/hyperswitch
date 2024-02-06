@@ -641,6 +641,10 @@ pub struct PaymentMethodListResponse {
     #[schema(example = "https://www.google.com")]
     pub redirect_url: Option<String>,
 
+    /// currency of the Payment to be done
+    #[schema(example = "USD")]
+    pub currency: Option<api_enums::Currency>,
+
     /// Information about the payment method
     #[schema(value_type = Vec<PaymentMethodList>,example = json!(
     [
