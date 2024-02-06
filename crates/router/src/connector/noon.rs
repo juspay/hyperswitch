@@ -5,8 +5,9 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
+use router_env::logger;
 use transformers as noon;
 
 use crate::{
@@ -29,7 +30,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -128,19 +129,23 @@ impl ConnectorCommon for Noon {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: noon::NoonErrorResponse = res
-            .response
-            .parse_struct("NoonErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<noon::NoonErrorResponse, Report<common_utils::errors::ParsingError>> =
+            res.response.parse_struct("NoonErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.result_code.to_string(),
-            message: response.class_description,
-            reason: Some(response.message),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            Ok(noon_error_response) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: noon_error_response.class_description,
+                reason: Some(noon_error_response.message),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            Err(error_message) => {
+                logger::error!(deserialization_error =? error_message);
+                utils::handle_json_response_deserialization_failure(res, "noon".to_owned())
+            }
+        }
     }
 }
 
