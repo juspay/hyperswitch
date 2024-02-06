@@ -1319,8 +1319,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Payment",
-        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
+        "summary": "List customer saved payment methods for a Payment",
+        "description": "List customer saved payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
