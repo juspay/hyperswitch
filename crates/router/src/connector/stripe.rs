@@ -186,7 +186,9 @@ impl
             .parse_struct("StripeSourceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -314,7 +316,9 @@ impl
             .parse_struct("StripeCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -439,7 +443,9 @@ impl
             .parse_struct("StripeTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -573,7 +579,9 @@ impl
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -702,7 +710,9 @@ impl
                     .parse_struct("SetupIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                event_builder.map(|i| i.set_response_body(&response));
+                if let Some(i) = event_builder {
+                    i.set_response_body(&response)
+                };
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -717,7 +727,9 @@ impl
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                event_builder.map(|i| i.set_response_body(&response));
+                if let Some(i) = event_builder {
+                    i.set_response_body(&response)
+                };
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -879,7 +891,9 @@ impl
                                 errors::ConnectorError::ResponseDeserializationFailed,
                             )?;
 
-                        event_builder.map(|i| i.set_response_body(&response));
+                        if let Some(i) = event_builder {
+                            i.set_response_body(&response)
+                        };
                         router_env::logger::info!(connector_response=?response);
 
                         types::RouterData::try_from(types::ResponseRouterData {
@@ -896,7 +910,9 @@ impl
                                 errors::ConnectorError::ResponseDeserializationFailed,
                             )?;
 
-                        event_builder.map(|i| i.set_response_body(&response));
+                        if let Some(i) = event_builder {
+                            i.set_response_body(&response)
+                        };
                         router_env::logger::info!(connector_response=?response);
 
                         types::RouterData::try_from(types::ResponseRouterData {
@@ -913,7 +929,9 @@ impl
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                event_builder.map(|i| i.set_response_body(&response));
+                if let Some(i) = event_builder {
+                    i.set_response_body(&response)
+                };
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -1038,7 +1056,9 @@ impl
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -1194,7 +1214,9 @@ impl
             .parse_struct("SetupIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -1315,7 +1337,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -1423,7 +1447,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -1574,7 +1600,9 @@ impl
             .response
             .parse_struct("Stripe FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
@@ -1806,7 +1834,9 @@ impl
             .response
             .parse_struct("Stripe DisputeObj")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         Ok(types::SubmitEvidenceRouterData {
             response: Ok(types::SubmitEvidenceResponse {

@@ -580,7 +580,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
           .response
           .parse_struct("PaymentIntentResponse")
           .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder { i.set_response_body(&response) };
             router_env::logger::info!(connector_response=?response);
       types::RouterData::try_from(types::ResponseRouterData {
           response,

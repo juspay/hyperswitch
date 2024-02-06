@@ -260,7 +260,9 @@ impl
             .parse_struct("SignifydPaymentsResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         <frm_types::FrmSaleRouterData>::try_from(types::ResponseRouterData {
@@ -348,7 +350,9 @@ impl
             .response
             .parse_struct("SignifydPaymentsResponse Checkout")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         <frm_types::FrmCheckoutRouterData>::try_from(types::ResponseRouterData {
             response,
@@ -437,7 +441,9 @@ impl
             .response
             .parse_struct("SignifydPaymentsResponse Transaction")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         <frm_types::FrmTransactionRouterData>::try_from(types::ResponseRouterData {
             response,
@@ -526,7 +532,9 @@ impl
             .response
             .parse_struct("FrmFullfillmentSignifydApiResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         frm_types::FrmFulfillmentRouterData::try_from(types::ResponseRouterData {
             response,
@@ -615,7 +623,9 @@ impl
             .response
             .parse_struct("SignifydPaymentsResponse Transaction")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         <frm_types::FrmRecordReturnRouterData>::try_from(types::ResponseRouterData {
             response,

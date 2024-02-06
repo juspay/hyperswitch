@@ -192,7 +192,9 @@ impl
             .response
             .parse_struct("RiskifiedPaymentsResponse Checkout")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         <frm_types::FrmCheckoutRouterData>::try_from(types::ResponseRouterData {
             response,
@@ -324,7 +326,9 @@ impl
             .parse_struct("RiskifiedPaymentsResponse Transaction")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         match response {
@@ -422,7 +426,9 @@ impl
             .parse_struct("RiskifiedFulfilmentResponse fulfilment")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         frm_types::FrmFulfillmentRouterData::try_from(types::ResponseRouterData {

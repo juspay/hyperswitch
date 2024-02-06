@@ -2633,27 +2633,17 @@ impl Serialize for StripeNextActionResponse {
         S: serde::Serializer,
     {
         match *self {
-            StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(ref i) => {
+            Self::CashappHandleRedirectOrDisplayQrCode(ref i) => {
                 serde::Serialize::serialize(i, serializer)
             }
-            StripeNextActionResponse::RedirectToUrl(ref i) => {
+            Self::RedirectToUrl(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::AlipayHandleRedirect(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::VerifyWithMicrodeposits(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::WechatPayDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::DisplayBankTransferInstructions(ref i) => {
                 serde::Serialize::serialize(i, serializer)
             }
-            StripeNextActionResponse::AlipayHandleRedirect(ref i) => {
-                serde::Serialize::serialize(i, serializer)
-            }
-            StripeNextActionResponse::VerifyWithMicrodeposits(ref i) => {
-                serde::Serialize::serialize(i, serializer)
-            }
-            StripeNextActionResponse::WechatPayDisplayQrCode(ref i) => {
-                serde::Serialize::serialize(i, serializer)
-            }
-            StripeNextActionResponse::DisplayBankTransferInstructions(ref i) => {
-                serde::Serialize::serialize(i, serializer)
-            }
-            StripeNextActionResponse::NoNextActionBody => {
-                serde::Serialize::serialize("NoNextActionBody", serializer)
-            }
+            Self::NoNextActionBody => serde::Serialize::serialize("NoNextActionBody", serializer),
         }
     }
 }

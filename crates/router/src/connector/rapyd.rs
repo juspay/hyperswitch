@@ -247,7 +247,9 @@ impl
             .response
             .parse_struct("Rapyd PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -369,7 +371,9 @@ impl
             .response
             .parse_struct("Rapyd PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -475,7 +479,9 @@ impl
             .response
             .parse_struct("Rapyd PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -576,7 +582,9 @@ impl
             .parse_struct("RapydPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -708,7 +716,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("rapyd RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -741,7 +751,9 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             .response
             .parse_struct("rapyd RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
