@@ -250,12 +250,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating refund: refund_id: {}",
-                refund_id.to_owned()
-            )
-        })?
+        .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     } else {
         refunds::refund_retrieve_core(
             state.clone(),
@@ -268,12 +263,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             },
         )
         .await
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating refund: refund_id: {}",
-                refund_id.to_owned()
-            )
-        })?
+        .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     };
     let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
 
@@ -711,7 +701,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    let event_id = format!("{primary_object_id}_{}", event_type);
+    let event_id = format!("{primary_object_id}_{event_type}");
     let new_event = storage::EventNew {
         event_id: event_id.clone(),
         event_type,
