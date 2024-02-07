@@ -1595,7 +1595,6 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
 )> {
-    println!("THISCALLED");
     let request = &payment_data.payment_method_data.clone();
 
     let mut card_token_data = payment_data

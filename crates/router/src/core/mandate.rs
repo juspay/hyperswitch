@@ -165,7 +165,7 @@ pub async fn update_connector_mandate_id(
         .clone()
         .map(|md| {
             Encode::<types::MandateReference>::encode_to_value(&md)
-                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .map(masking::Secret::new)
         })
         .transpose()?;
