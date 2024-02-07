@@ -2,7 +2,7 @@ pub mod types;
 pub mod utils;
 
 use std::{str::FromStr, time::Instant};
-
+use tracing_futures::Instrument;
 use actix_web::FromRequest;
 use api_models::{
     payments::HeaderPayload,
@@ -783,7 +783,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
                     logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
                 }
             }
-        });
+        }
+        .in_current_span(),
+    );
     }
 
     Ok(())
