@@ -12,8 +12,11 @@ use crate::core::errors::{UserErrors, UserResult};
 pub struct RoleInfo {
     permissions: Vec<Permission>,
     name: Option<&'static str>,
+    #[cfg(feature = "olap")]
     is_invitable: bool,
+    #[cfg(feature = "olap")]
     is_deletable: bool,
+    #[cfg(feature = "olap")]
     is_updatable_to: bool,
 }
 
