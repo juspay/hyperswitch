@@ -456,7 +456,8 @@ pub struct Routing;
 #[cfg(feature = "olap")]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/routing")
+        use api_models::routing as routing_types;
+        let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/active")
@@ -472,23 +473,14 @@ impl Routing {
                     .route(web::get().to(cloud_routing::routing_retrieve_default_config))
                     .route(web::post().to(cloud_routing::routing_update_default_config)),
             )
-            .service(
-                web::resource("/deactivate").route(web::post().to(|state, req, payload| {
+            .service(web::resource("/deactivate").route(web::post().to(
+                |state, req, payload: web::Json<routing_types::RoutingConfigRequest>| {
                     cloud_routing::routing_unlink_config(
                         state,
                         req,
+                        #[cfg(feature = "business_profile_routing")]
                         payload,
                         &routing::TransactionType::Payment,
-                    )
-                })),
-            )
-            .service(web::resource("/deactivate/payouts").route(web::post().to(
-                |state, req, payload| {
-                    cloud_routing::routing_unlink_config(
-                        state,
-                        req,
-                        payload,
-                        &routing::TransactionType::Payout,
                     )
                 },
             )))
@@ -523,18 +515,6 @@ impl Routing {
                 )),
             )
             .service(
-                web::resource("/{algorithm_id}/activate/payouts").route(web::post().to(
-                    |state, req, path| {
-                        cloud_routing::routing_link_config(
-                            state,
-                            req,
-                            path,
-                            &routing::TransactionType::Payout,
-                        )
-                    },
-                )),
-            )
-            .service(
                 web::resource("/default/profile/{profile_id}").route(
                     web::post().to(cloud_routing::routing_update_default_config_for_profile),
                 ),
@@ -543,7 +523,34 @@ impl Routing {
                 web::resource("/default/profile").route(
                     web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
                 ),
-            )
+            );
+
+        #[cfg(feature = "payouts")]
+        {
+            route =
+                route
+                    .service(web::resource("/{algorithm_id}/activate/payouts").route(
+                        web::post().to(|state, req, path| {
+                            cloud_routing::routing_link_config(
+                                state,
+                                req,
+                                path,
+                                &routing::TransactionType::Payout,
+                            )
+                        }),
+                    ))
+                    .service(web::resource("/deactivate/payouts").route(web::post().to(
+                        |state, req, payload| {
+                            cloud_routing::routing_unlink_config(
+                                state,
+                                req,
+                                payload,
+                                &routing::TransactionType::Payout,
+                            )
+                        },
+                    )));
+        }
+        route
     }
 }
 

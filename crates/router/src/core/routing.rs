@@ -316,14 +316,16 @@ pub async fn link_routing_config(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let mut routing_ref: routing_types::RoutingAlgorithmRef = merchant_account
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let mut routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            #[cfg(feature = "payouts")]
+            TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+        }
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
 
         utils::when(
             routing_ref.algorithm_id == Some(algorithm_id.clone()),
@@ -464,6 +466,7 @@ pub async fn unlink_routing_config(
             Some(business_profile) => {
                 let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
                     TransactionType::Payment => business_profile.routing_algorithm.clone(),
+                    #[cfg(feature = "payouts")]
                     TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
                 }
                 .map(|val| val.parse_value("RoutingAlgorithmRef"))
@@ -527,14 +530,16 @@ pub async fn unlink_routing_config(
         let mut merchant_dictionary =
             helpers::get_merchant_routing_dictionary(db, &merchant_account.merchant_id).await?;
 
-        let routing_algo_ref: routing_types::RoutingAlgorithmRef = merchant_account
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            #[cfg(feature = "payouts")]
+            TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+        }
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
         let timestamp = common_utils::date_time::now_unix_timestamp();
 
         utils::when(routing_algo_ref.algorithm_id.is_none(), || {
