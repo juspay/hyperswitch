@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
@@ -80,16 +80,141 @@ impl ConnectorCommon for Adyen {
 impl ConnectorValidation for Adyen {
     fn validate_capture_method(
         &self,
-        capture_method: Option<storage_enums::CaptureMethod>,
+        data: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+        let capture_method = data.request.capture_method.unwrap_or_default();
+        let pmt = data.request.payment_method_type;
+        match pmt {
+            Some(payment_method_type) => match payment_method_type {
+                PaymentMethodType::Affirm
+                | PaymentMethodType::AfterpayClearpay
+                | PaymentMethodType::ApplePay
+                | PaymentMethodType::Credit
+                | PaymentMethodType::Debit
+                | PaymentMethodType::GooglePay
+                | PaymentMethodType::MobilePay
+                | PaymentMethodType::PayBright
+                | PaymentMethodType::Sepa
+                | PaymentMethodType::Vipps
+                | PaymentMethodType::Paypal => match capture_method {
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::ManualMultiple => Ok(()),
+                    enums::CaptureMethod::Scheduled => Err(
+                        connector_utils::construct_not_supported_error_for_pmt_report(
+                            format!("{} for {}", capture_method, payment_method_type,),
+                            self.id(),
+                        ),
+                    ),
+                },
+                PaymentMethodType::Ach
+                | PaymentMethodType::Alma
+                | PaymentMethodType::Bacs
+                | PaymentMethodType::Givex
+                | PaymentMethodType::Klarna
+                | PaymentMethodType::Twint
+                | PaymentMethodType::Walley => match capture_method {
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                        connector_utils::construct_not_supported_error_for_pmt_report(
+                            format!("{} for {}", capture_method, payment_method_type,),
+                            self.id(),
+                        ),
+                    ),
+                },
+
+                PaymentMethodType::AliPay
+                | PaymentMethodType::AliPayHk
+                | PaymentMethodType::Atome
+                | PaymentMethodType::BancontactCard
+                | PaymentMethodType::Benefit
+                | PaymentMethodType::Bizum
+                | PaymentMethodType::Blik
+                | PaymentMethodType::Boleto
+                | PaymentMethodType::Dana
+                | PaymentMethodType::Eps
+                | PaymentMethodType::OnlineBankingFpx
+                | PaymentMethodType::Gcash
+                | PaymentMethodType::GoPay
+                | PaymentMethodType::Ideal
+                | PaymentMethodType::KakaoPay
+                | PaymentMethodType::Knet
+                | PaymentMethodType::MbWay
+                | PaymentMethodType::Momo
+                | PaymentMethodType::MomoAtm
+                | PaymentMethodType::OnlineBankingFinland
+                | PaymentMethodType::OnlineBankingPoland
+                | PaymentMethodType::OnlineBankingSlovakia
+                | PaymentMethodType::OnlineBankingThailand
+                | PaymentMethodType::Oxxo
+                | PaymentMethodType::PaySafeCard
+                | PaymentMethodType::Pix
+                | PaymentMethodType::Swish
+                | PaymentMethodType::TouchNGo
+                | PaymentMethodType::Trustly
+                | PaymentMethodType::WeChatPay
+                | PaymentMethodType::DanamonVa
+                | PaymentMethodType::BcaBankTransfer
+                | PaymentMethodType::BriVa
+                | PaymentMethodType::BniVa
+                | PaymentMethodType::CimbVa
+                | PaymentMethodType::MandiriVa
+                | PaymentMethodType::Alfamart
+                | PaymentMethodType::Indomaret
+                | PaymentMethodType::FamilyMart
+                | PaymentMethodType::Sofort
+                | PaymentMethodType::Giropay
+                | PaymentMethodType::Seicomart
+                | PaymentMethodType::PayEasy
+                | PaymentMethodType::MiniStop
+                | PaymentMethodType::Lawson
+                | PaymentMethodType::SevenEleven
+                | PaymentMethodType::OpenBankingUk
+                | PaymentMethodType::OnlineBankingCzechRepublic
+                | PaymentMethodType::PermataBankTransfer => match capture_method {
+                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::ManualMultiple
+                    | enums::CaptureMethod::Scheduled => Err(
+                        connector_utils::construct_not_supported_error_for_pmt_report(
+                            format!("{} for {}", capture_method, payment_method_type,),
+                            self.id(),
+                        ),
+                    ),
+                },
+                PaymentMethodType::CardRedirect
+                | PaymentMethodType::Interac
+                | PaymentMethodType::Multibanco
+                | PaymentMethodType::Przelewy24
+                | PaymentMethodType::Becs
+                | PaymentMethodType::ClassicReward
+                | PaymentMethodType::Pse
+                | PaymentMethodType::Efecty
+                | PaymentMethodType::PagoEfectivo
+                | PaymentMethodType::RedCompra
+                | PaymentMethodType::RedPagos
+                | PaymentMethodType::CryptoCurrency
+                | PaymentMethodType::SamsungPay
+                | PaymentMethodType::Evoucher
+                | PaymentMethodType::Cashapp
+                | PaymentMethodType::UpiCollect => {
+                    Err(connector_utils::construct_not_implemented_error_report(
+                        capture_method,
+                        self.id(),
+                    ))
+                }
+            },
+            None => match capture_method {
+                enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::Manual
+                | enums::CaptureMethod::ManualMultiple => Ok(()),
+                enums::CaptureMethod::Scheduled => {
+                    Err(connector_utils::construct_not_implemented_error_report(
+                        capture_method,
+                        self.id(),
+                    ))
+                }
+            },
         }
     }
     fn validate_psync_reference_id(

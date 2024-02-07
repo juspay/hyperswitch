@@ -121,9 +121,9 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
 impl<const T: u8> ConnectorValidation for DummyConnector<T> {
     fn validate_capture_method(
         &self,
-        capture_method: Option<enums::CaptureMethod>,
+        data: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
+        let capture_method = data.request.capture_method.unwrap_or_default();
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(

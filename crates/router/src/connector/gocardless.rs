@@ -312,9 +312,9 @@ impl
 impl ConnectorValidation for Gocardless {
     fn validate_capture_method(
         &self,
-        capture_method: Option<api_models::enums::CaptureMethod>,
+        data: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
+        let capture_method = data.request.capture_method.unwrap_or_default();
         match capture_method {
             enums::CaptureMethod::Automatic => Ok(()),
             enums::CaptureMethod::Manual
