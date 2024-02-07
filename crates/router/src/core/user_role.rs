@@ -33,9 +33,7 @@ pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRol
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
         predefined_permissions::PREDEFINED_PERMISSIONS
             .iter()
-            .filter(|(role_id, _)| {
-                predefined_permissions::is_role_invitable(role_id).unwrap_or(false)
-            })
+            .filter(|(_, role_info)| role_info.is_invitable())
             .filter_map(|(role_id, role_info)| {
                 utils::user_role::get_role_name_and_permission_response(role_info).map(
                     |(permissions, role_name)| user_role_api::RoleInfoResponse {

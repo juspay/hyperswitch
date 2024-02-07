@@ -26,6 +26,10 @@ impl RoleInfo {
     pub fn get_name(&self) -> Option<&'static str> {
         self.name
     }
+
+    pub fn is_invitable(&self) -> bool {
+        self.is_invitable
+    }
 }
 
 pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
