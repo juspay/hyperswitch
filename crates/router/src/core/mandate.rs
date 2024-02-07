@@ -1,7 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
-use common_utils::{ext_traits::Encode, pii};
+use common_utils::ext_traits::Encode;
 use diesel_models::{enums as storage_enums, Mandate};
 use error_stack::{report, IntoReport, ResultExt};
 use futures::future;
@@ -24,7 +24,7 @@ use crate::{
             ConnectorData, GetToken,
         },
         domain, storage,
-        transformers::ForeignTryFrom,
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -157,8 +157,19 @@ pub async fn update_connector_mandate_id(
     merchant_account: String,
     mandate_ids_opt: Option<api_models::payments::MandateIds>,
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    payment_method_id: Option<String>,
 ) -> RouterResponse<mandates::MandateResponse> {
-    let connector_mandate_id = Option::foreign_try_from(resp)?;
+    let mandate_details = Option::foreign_from(resp);
+
+    let connector_mandate_id = mandate_details
+        .clone()
+        .map(|md| {
+            Encode::<types::MandateReference>::encode_to_value(&md)
+                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                .map(masking::Secret::new)
+        })
+        .transpose()?;
+
     //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
     if let Some((mandate_ids, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
         let mandate_id = &mandate_ids.mandate_id;
@@ -168,15 +179,34 @@ pub async fn update_connector_mandate_id(
             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
         // only update the connector_mandate_id if existing is none
         if mandate.connector_mandate_id.is_none() {
-            db.update_mandate_by_merchant_id_mandate_id(
-                &merchant_account,
-                mandate_id,
-                storage::MandateUpdate::ConnectorReferenceUpdate {
-                    connector_mandate_ids: Some(connector_id),
-                },
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+            match payment_method_id {
+                Some(pmd_id) => {
+                    db.update_mandate_by_merchant_id_mandate_id(
+                        &merchant_account,
+                        mandate_id,
+                        storage::MandateUpdate::ConnectorMandateIdUpdate {
+                            connector_mandate_ids: Some(connector_id),
+                            connector_mandate_id: mandate_details
+                                .and_then(|mandate_details| mandate_details.connector_mandate_id),
+                            payment_method_id: pmd_id,
+                            original_payment_id: None,
+                        },
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+                }
+                None => {
+                    db.update_mandate_by_merchant_id_mandate_id(
+                        &merchant_account,
+                        mandate_id,
+                        storage::MandateUpdate::ConnectorReferenceUpdate {
+                            connector_mandate_ids: Some(connector_id),
+                        },
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+                }
+            }
         }
     }
     Ok(services::ApplicationResponse::StatusOk)
@@ -455,27 +485,16 @@ pub async fn retrieve_mandates_list(
     Ok(services::ApplicationResponse::Json(mandates_list))
 }
 
-impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
-    for Option<pii::SecretSerdeValue>
+impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
+    for Option<types::MandateReference>
 {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(
-        resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
-    ) -> errors::RouterResult<Self> {
-        let mandate_details = match resp {
+    fn foreign_from(resp: Result<types::PaymentsResponseData, types::ErrorResponse>) -> Self {
+        match resp {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 mandate_reference, ..
             }) => mandate_reference,
             _ => None,
-        };
-
-        mandate_details
-            .map(|md| {
-                Encode::<types::MandateReference>::encode_to_value(&md)
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)
-                    .map(masking::Secret::new)
-            })
-            .transpose()
+        }
     }
 }
 

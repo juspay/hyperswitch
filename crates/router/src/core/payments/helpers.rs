@@ -41,7 +41,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault, PaymentMethodRetrieve},
-        payments,
+        payments::{self, is_operation_complete_authorize},
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
@@ -1595,6 +1595,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
 )> {
+    println!("THISCALLED");
     let request = &payment_data.payment_method_data.clone();
 
     let mut card_token_data = payment_data
@@ -1614,63 +1615,63 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
     let token = payment_data.token.clone();
 
-    let hyperswitch_token = match payment_data.mandate_id {
-        Some(_) => token.map(storage::PaymentTokenData::temporary_generic),
-        None => {
-            if let Some(token) = token {
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
+    let hyperswitch_token =
+        match payment_data.mandate_id.is_some() && !is_operation_complete_authorize(&operation) {
+            true => token.map(storage::PaymentTokenData::temporary_generic),
+            false => {
+                if let Some(token) = token {
+                    let redis_conn = state
+                        .store
+                        .get_redis_conn()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get redis connection")?;
 
-                let key = format!(
-                    "pm_token_{}_{}_hyperswitch",
-                    token,
-                    payment_data
-                        .payment_attempt
-                        .payment_method
-                        .to_owned()
-                        .get_required_value("payment_method")?,
-                );
+                    let key = format!(
+                        "pm_token_{}_{}_hyperswitch",
+                        token,
+                        payment_data
+                            .payment_attempt
+                            .payment_method
+                            .to_owned()
+                            .get_required_value("payment_method")?,
+                    );
 
-                let token_data_string = redis_conn
-                    .get_key::<Option<String>>(&key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch the token from redis")?
-                    .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity {
-                            message: "Token is invalid or expired".to_owned(),
-                        },
-                    ))?;
+                    let token_data_string = redis_conn
+                        .get_key::<Option<String>>(&key)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch the token from redis")?
+                        .ok_or(error_stack::Report::new(
+                            errors::ApiErrorResponse::UnprocessableEntity {
+                                message: "Token is invalid or expired".to_owned(),
+                            },
+                        ))?;
 
-                let token_data_result = token_data_string
-                    .clone()
-                    .parse_struct("PaymentTokenData")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to deserialize hyperswitch token data");
+                    let token_data_result = token_data_string
+                        .clone()
+                        .parse_struct("PaymentTokenData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed to deserialize hyperswitch token data");
 
-                let token_data = match token_data_result {
-                    Ok(data) => data,
-                    Err(e) => {
-                        // The purpose of this logic is backwards compatibility to support tokens
-                        // in redis that might be following the old format.
-                        if token_data_string.starts_with('{') {
-                            return Err(e);
-                        } else {
-                            storage::PaymentTokenData::temporary_generic(token_data_string)
+                    let token_data = match token_data_result {
+                        Ok(data) => data,
+                        Err(e) => {
+                            // The purpose of this logic is backwards compatibility to support tokens
+                            // in redis that might be following the old format.
+                            if token_data_string.starts_with('{') {
+                                return Err(e);
+                            } else {
+                                storage::PaymentTokenData::temporary_generic(token_data_string)
+                            }
                         }
-                    }
-                };
+                    };
 
-                Some(token_data)
-            } else {
-                None
+                    Some(token_data)
+                } else {
+                    None
+                }
             }
-        }
-    };
-
+        };
     // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
