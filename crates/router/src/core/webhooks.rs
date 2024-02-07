@@ -808,7 +808,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 
     let mut header = vec![(
         reqwest::header::CONTENT_TYPE.to_string(),
-        "application/json".into(),
+        mime::APPLICATION_JSON.essence_str().into(),
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
