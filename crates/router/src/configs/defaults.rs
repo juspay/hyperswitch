@@ -36,7 +36,6 @@ impl Default for super::settings::Database {
     }
 }
 
-
 impl Default for super::settings::Locker {
     fn default() -> Self {
         Self {
