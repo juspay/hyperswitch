@@ -36,15 +36,14 @@ impl Default for super::settings::Database {
     }
 }
 
-impl Default for super::settings::Proxy {
-    fn default() -> Self {
-        Self {
-            http_url: Default::default(),
-            https_url: Default::default(),
-            idle_pool_connection_timeout: Some(90),
-        }
-    }
-}
+// impl Default for super::settings::Proxy {
+//     fn default() -> Self {
+//         Self {
+//             http_url: Default::default(),
+//             https_url: Default::default(),
+//         }
+//     }
+// }
 
 impl Default for super::settings::Locker {
     fn default() -> Self {

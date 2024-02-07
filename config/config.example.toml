@@ -16,7 +16,6 @@ request_body_limit = 32_768
 [proxy]
 # http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
 # https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
-idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults to 90s)
 
 
 # Main SQL data store credentials
