@@ -126,7 +126,7 @@ pub async fn toggle_blocklist_guard_for_merchant(
     };
     let guard_status = if query.status { "enabled" } else { "disabled" };
     Ok(api_blocklist::ToggleBlocklistResponse {
-        blocklist_guard_status: guard_status,
+        blocklist_guard_status: guard_status.to_string(),
     })
 }
 
