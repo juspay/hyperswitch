@@ -15,7 +15,7 @@ pub struct RoleInfo {
     name: Option<&'static str>,
     is_invitable: bool,
     is_deletable: bool,
-    is_updatable_to: bool,
+    is_updatable: bool,
 }
 
 impl RoleInfo {
@@ -67,7 +67,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: None,
             is_invitable: false,
             is_deletable: false,
-            is_updatable_to: false,
+            is_updatable: false,
         },
     );
     roles.insert(
@@ -93,7 +93,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: None,
             is_invitable: false,
             is_deletable: false,
-            is_updatable_to: false,
+            is_updatable: false,
         },
     );
 
@@ -134,7 +134,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("Organization Admin"),
             is_invitable: false,
             is_deletable: false,
-            is_updatable_to: false,
+            is_updatable: false,
         },
     );
 
@@ -175,7 +175,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("Admin"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles.insert(
@@ -201,7 +201,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("View Only"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles.insert(
@@ -228,7 +228,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("IAM"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles.insert(
@@ -255,7 +255,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("Developer"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles.insert(
@@ -287,7 +287,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("Operator"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles.insert(
@@ -311,7 +311,7 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
             name: Some("Customer Support"),
             is_invitable: true,
             is_deletable: true,
-            is_updatable_to: true,
+            is_updatable: true,
         },
     );
     roles
@@ -342,10 +342,10 @@ pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
 }
 
 #[cfg(feature = "olap")]
-pub fn is_role_updatable_to(role_id: &str) -> UserResult<bool> {
+pub fn is_role_updatable(role_id: &str) -> UserResult<bool> {
     PREDEFINED_PERMISSIONS
         .get(role_id)
-        .map(|role_info| role_info.is_updatable_to)
+        .map(|role_info| role_info.is_updatable)
         .ok_or(UserErrors::InvalidRoleId.into())
         .attach_printable(format!("role_id = {} doesn't exist", role_id))
 }

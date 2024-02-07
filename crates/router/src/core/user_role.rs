@@ -90,9 +90,14 @@ pub async fn update_user_role(
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
-    if !predefined_permissions::is_role_updatable_to(&req.role_id)? {
+    if !predefined_permissions::is_role_updatable(&req.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable(format!("role cannot be updated to {}", req.role_id));
+    }
+
+    if !predefined_permissions::is_role_updatable(&user_from_token.role_id)? {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable(format!("role cannot be updated from {}", req.role_id));
     }
 
     let user_to_be_updated =
