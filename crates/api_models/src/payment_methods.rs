@@ -642,7 +642,7 @@ pub struct PaymentMethodListResponse {
     pub redirect_url: Option<String>,
 
     /// currency of the Payment to be done
-    #[schema(example = "USD")]
+    #[schema(example = "USD", value_type = Currency)]
     pub currency: Option<api_enums::Currency>,
 
     /// Information about the payment method
