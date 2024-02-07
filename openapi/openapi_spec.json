@@ -9059,6 +9059,11 @@
             "type": "string",
             "description": "The type of the payment card",
             "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The nick_name of the card holder",
+            "nullable": true
           }
         }
       },
