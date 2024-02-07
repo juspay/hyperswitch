@@ -1233,7 +1233,7 @@
         ]
       }
     },
-    "/blocklist/enable": {
+    "/blocklist/toggle": {
       "post": {
         "tags": [
           "Blocklist"

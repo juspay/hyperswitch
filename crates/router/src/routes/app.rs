@@ -659,7 +659,7 @@ impl Blocklist {
                     .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
             )
             .service(
-                web::resource("/enable").route(web::post().to(blocklist::toggle_blocklist_guard)),
+                web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
             )
     }
 }

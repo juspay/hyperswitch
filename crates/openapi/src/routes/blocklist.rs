@@ -1,6 +1,6 @@
 #[utoipa::path(
     post,
-    path = "/blocklist/enable",
+    path = "/blocklist/toggle",
     params (
         ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
     ),
