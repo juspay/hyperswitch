@@ -731,9 +731,8 @@ pub async fn resend_invite(
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation(
-                    "User not found in our records",
-                ))
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User not found in the records")
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
@@ -745,16 +744,20 @@ pub async fn resend_invite(
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation(
-                    "User with given email is not found in the organization".to_string(),
-                ))
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable(format!(
+                        "User role with user_id = {} and org_id = {} is not found",
+                        user.get_user_id(),
+                        user_from_token.merchant_id
+                    ))
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
         })?;
 
     if !matches!(user_role.status, UserStatus::InvitationSent) {
-        return Err(UserErrors::InvalidRoleOperation("User is already active".to_string()).into());
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("User status is not InvitationSent".to_string());
     }
 
     let email_contents = email_types::InviteUser {
