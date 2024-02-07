@@ -148,7 +148,7 @@ pub async fn toggle_blocklist_guard(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

@@ -119,7 +119,9 @@ pub async fn toggle_blocklist_guard_for_merchant(
         }
         Err(e) => {
             logger::error!(error=?e);
-            return Err(errors::ApiErrorResponse::InternalServerError.into());
+            Err(e)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error enabling the blocklist guard")?;
         }
     };
     let guard_status = if query.status { "enabled" } else { "disabled" };
