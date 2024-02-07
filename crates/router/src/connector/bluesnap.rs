@@ -710,6 +710,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .last()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
+
+                let response = serde_json::json!({"payment_fields_token": payment_fields_token.clone()});
+                
+                if let Some(i) = event_builder {
+                    i.set_response_body(&response);
+                }
+                router_env::logger::info!(connector_response=?response);
+
                 Ok(types::RouterData {
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {

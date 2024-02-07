@@ -1049,19 +1049,26 @@ impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, types::Response>>
+// impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
+//     for types::RefundsRouterData<api::RSync>
+// {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>,
+//     ) -> Result<Self, Self::Error> {
+        
+    impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = Error;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, types::Response>,
+        item: types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = NmiRefundSyncResponse::try_from(item.response.response.to_vec())?;
         let refund_status =
-            enums::RefundStatus::from(NmiStatus::from(response.transaction.condition));
+            enums::RefundStatus::from(NmiStatus::from(item.response.transaction.condition));
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: response.transaction.order_id,
+                connector_refund_id: item.response.transaction.order_id,
                 refund_status,
             }),
             ..item.data
@@ -1109,14 +1116,14 @@ pub struct SyncResponse {
     pub transaction: Option<SyncTransactionResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncBody {
     order_id: String,
     condition: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct NmiRefundSyncResponse {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiRefundSyncResponse {
     transaction: RefundSyncBody,
 }
 

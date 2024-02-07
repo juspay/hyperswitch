@@ -434,10 +434,13 @@ impl
     fn handle_response(
         &self,
         data: &types::MandateRevokeRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
         if matches!(res.status_code, 204) {
+            if let Some(i) = event_builder {
+                i.set_response_body(&serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()}));
+            }
             Ok(types::MandateRevokeRouterData {
                 response: Ok(types::MandateRevokeResponseData {
                     mandate_status: common_enums::MandateStatus::Revoked,
@@ -450,6 +453,12 @@ impl
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             let response_string = response_value.to_string();
+
+            if let Some(i) = event_builder {
+                i.set_response_body(&serde_json::json!({"response_string": response_string.clone()}));
+            }
+            router_env::logger::info!(connector_response=?response_string);
+
 
             Ok(types::MandateRevokeRouterData {
                 response: Err(types::ErrorResponse {

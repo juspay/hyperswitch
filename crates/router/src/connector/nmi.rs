@@ -820,12 +820,18 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::RSync>,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
-        router_env::logger::info!(connector_response=?res);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response: res.clone(),
+        let response = nmi::NmiRefundSyncResponse::try_from(res.response.to_vec())?;
+
+        if let Some(i) = event_builder {
+            i.set_response_body(&response)
+        };
+        router_env::logger::info!(connector_response=?response);
+
+          types::RouterData::try_from(types::ResponseRouterData {
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
