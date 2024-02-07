@@ -149,9 +149,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Prophetpay,
     Rapyd,
-    Riskified,
     Shift4,
-    Signifyd,
     Square,
     Stax,
     Stripe,
@@ -159,7 +157,6 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
-    Wise,
     Worldline,
     Worldpay,
     Zen,
@@ -364,6 +361,8 @@ pub enum ConnectorType {
     PayoutProcessor,
     /// PaymentMethods Auth Services
     PaymentMethodAuth,
+    /// 3DS Authentication Service Providers
+    AuthenticationProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]

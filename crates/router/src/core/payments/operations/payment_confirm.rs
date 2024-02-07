@@ -637,6 +637,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        // if authentication has already happened, then payment_data.authentication will be Some.
+        // We should do post authn call to fetch the authentication data from 3ds connector
         let is_pre_authn_call = payment_data.authentication.is_none();
         let separate_authentication_requested = payment_data
             .payment_attempt
@@ -675,7 +677,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         .store
                         .find_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
-                            &authentication_provider,
+                            authentication_provider,
                             key_store,
                         )
                         .await
@@ -713,7 +715,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .store
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     profile_id,
-                    &authentication_provider,
+                    authentication_provider,
                     key_store,
                 )
                 .await

@@ -526,6 +526,7 @@ pub async fn refresh_kgraph_cache(
     merchant_connector_accounts.retain(|mca| {
         mca.connector_type != storage_enums::ConnectorType::PaymentVas
             && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
+            && mca.connector_type != storage_enums::ConnectorType::AuthenticationProcessor
     });
 
     #[cfg(feature = "business_profile_routing")]

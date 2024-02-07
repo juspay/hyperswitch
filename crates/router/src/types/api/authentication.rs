@@ -1,3 +1,11 @@
+use super::BoxedConnector;
+use api_models::enums;
+use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
+use crate::core::errors;
+use std::str::FromStr;
+use error_stack::ResultExt;
+
 #[derive(Debug, Clone)]
 pub struct PreAuthentication;
 
@@ -6,7 +14,7 @@ pub struct Authentication;
 
 #[derive(Debug, Clone)]
 pub struct PostAuthentication;
-use crate::{services, types};
+use crate::{connector, services, types};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -71,4 +79,35 @@ pub trait ExternalAuthentication:
     + ConnectorPreAuthentication
     + ConnectorPostAuthentication
 {
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationConnectorData {
+    pub connector: BoxedConnector,
+    pub connector_name: enums::AuthenticationConnectors,
+}
+
+impl AuthenticationConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::AuthenticationConnectors::from_str(name)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector: {:?}", name.to_string())
+            })?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::AuthenticationConnectors,
+    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::AuthenticationConnectors::Tokenex => Ok(Box::new(&connector::Tokenex)),
+            enums::AuthenticationConnectors::Threedsecureio => Ok(Box::new(&connector::Threedsecureio)),
+        }
+    }
 }

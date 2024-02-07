@@ -44,7 +44,6 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             > = do_pre_auth_connector_call(
                 state,
                 card_number,
-                three_ds_connector_account.connector_name.clone(),
                 three_ds_connector_account,
             )
             .await?;
@@ -115,7 +114,6 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             let _router_data = do_pre_auth_connector_call(
                 state,
                 card_number,
-                three_ds_connector_account.connector_name.clone(),
                 three_ds_connector_account,
             )
             .await?;
@@ -128,7 +126,6 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
 async fn do_pre_auth_connector_call(
     state: &AppState,
     card_holder_account_number: CardNumber,
-    merchant_connector_account: String,
     three_ds_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>>
 {
@@ -153,11 +150,8 @@ async fn do_pre_auth_connector_call(
         temp_response_data,
         three_ds_connector_account,
     )?;
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &merchant_connector_account,
-        api::GetToken::Connector,
-        Some(three_ds_connector_account.merchant_connector_id.clone()),
+    let connector_data = api::AuthenticationConnectorData::get_connector_by_name(
+        &three_ds_connector_account.connector_name
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,

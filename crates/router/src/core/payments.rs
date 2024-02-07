@@ -1003,7 +1003,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
             }
             _ => {
                 super::webhooks::get_payment_attempt_from_object_reference_id(
-                    &state,
+                    state,
                     api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::PaymentIntentId(
                             req.resource_id.to_string(),
@@ -3174,7 +3174,6 @@ pub async fn payment_external_authentication(
             token,
             payment_attempt
                 .payment_method
-                .clone()
                 .unwrap_or(storage_enums::PaymentMethod::Card),
         );
         let token_data_string = redis_conn

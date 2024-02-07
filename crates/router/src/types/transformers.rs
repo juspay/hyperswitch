@@ -243,7 +243,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
-            api_enums::Connector::Wise => Self::Wise,
+            api_enums::Connector::Wise => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Wise is not a routable connector".to_string(),
+                })
+                .into_report()?
+            },
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Zen => Self::Zen,

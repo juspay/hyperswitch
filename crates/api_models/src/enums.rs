@@ -169,19 +169,30 @@ impl Connector {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PayoutConnectors {
-    Adyen,
-    Wise,
+pub enum AuthenticationConnectors{
+    Tokenex,
+    Threedsecureio
 }
 
 #[cfg(feature = "payouts")]
-impl From<PayoutConnectors> for RoutableConnectors {
-    fn from(value: PayoutConnectors) -> Self {
-        match value {
-            PayoutConnectors::Adyen => Self::Adyen,
-            PayoutConnectors::Wise => Self::Wise,
-        }
-    }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectors {
+    Adyen,
+    Wise,
 }
 
 #[cfg(feature = "frm")]
@@ -204,16 +215,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-}
-
-#[cfg(feature = "frm")]
-impl From<FrmConnectors> for RoutableConnectors {
-    fn from(value: FrmConnectors) -> Self {
-        match value {
-            FrmConnectors::Signifyd => Self::Signifyd,
-            FrmConnectors::Riskified => Self::Riskified,
-        }
-    }
 }
 
 #[derive(

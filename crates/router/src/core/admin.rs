@@ -981,6 +981,9 @@ pub async fn create_payment_connector(
                 connector_name: req.connector_name.to_string(),
             },
         )?;
+    if mca.connector_type == common_enums::ConnectorType::AuthenticationProcessor{
+        
+    }
 
     if let Some(routable_connector_val) = routable_connector {
         let choice = routing_types::RoutableConnectorChoice {
