@@ -11452,6 +11452,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11929,6 +11937,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
               }
             ],
             "nullable": true
@@ -14524,6 +14540,7 @@
           "Company",
           "NonProfit",
           "PublicSector",
+          "NaturalPerson",
           "lowercase",
           "Personal"
         ]
@@ -14549,6 +14566,17 @@
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/Wallet"
               }
             }
           }
@@ -14639,11 +14667,34 @@
         "type": "string",
         "enum": [
           "card",
-          "bank"
+          "bank",
+          "wallet"
         ]
       },
+      "Paypal": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with paypal account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "PaypalRedirection": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "paypal's email address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
       },
       "PaypalSessionTokenResponse": {
         "type": "object",
@@ -16433,6 +16484,21 @@
             "properties": {
               "pay_easy": {
                 "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          }
+        ]
+      },
+      "Wallet": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/Paypal"
               }
             }
           }
