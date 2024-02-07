@@ -1011,7 +1011,7 @@ impl PaymentMethodData {
             self.to_owned()
         }
     }
-    pub fn get_payment_method_for_payment_method_data(&self) -> Option<api_enums::PaymentMethod> {
+    pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
             Self::Card(_) => Some(api_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(api_enums::PaymentMethod::CardRedirect),

@@ -269,10 +269,7 @@ impl types::SetupMandateRouterData {
     ) -> RouterResult<Self> {
         let payment_method_type = self.request.payment_method_type;
 
-        let payment_method = self
-            .request
-            .payment_method_data
-            .get_payment_method_for_payment_method_data();
+        let payment_method = self.request.payment_method_data.get_payment_method();
         let supported_connectors_config =
             payment_method
                 .zip(payment_method_type)
