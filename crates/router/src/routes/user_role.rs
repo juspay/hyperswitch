@@ -29,7 +29,7 @@ pub async fn get_authorization_info(
     .await
 }
 
-pub async fn list_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
     Box::pin(api::server_wrap(
         flow,
@@ -121,7 +121,7 @@ pub async fn delete_user_role(
     req: HttpRequest,
     payload: web::Json<user_role_api::DeleteUserRoleRequest>,
 ) -> HttpResponse {
-    let flow = Flow::DeleteUser;
+    let flow = Flow::DeleteUserRole;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

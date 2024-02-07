@@ -389,6 +389,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::PayoutCreateRequest,
         api_models::payments::Address,
         api_models::payouts::Card,
+        api_models::payouts::Wallet,
+        api_models::payouts::Paypal,
         api_models::payouts::AchBankTransfer,
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,

@@ -370,7 +370,12 @@ pub struct AdyenPtsAction {
     reference: String,
     download_url: Option<Url>,
     payment_method_type: PaymentType,
-    expires_at: Option<String>,
+    #[serde(rename = "expiresAt")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option_without_timezone"
+    )]
+    expires_at: Option<PrimitiveDateTime>,
     initial_amount: Option<Amount>,
     pass_creation_token: Option<String>,
     total_amount: Option<Amount>,
@@ -2536,7 +2541,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info,
             shopper_interaction,
@@ -2583,7 +2588,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2630,7 +2635,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2715,10 +2720,7 @@ fn get_redirect_extra_details(
                     country,
                     preferred_language,
                     ..
-                } => Ok((
-                    Some(preferred_language.to_string()),
-                    Some(country.to_owned()),
-                )),
+                } => Ok((preferred_language.clone(), *country)),
                 api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
                     let country = country.ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "country",
@@ -2892,7 +2894,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             shopper_interaction,
             recurring_processing_model: None,
@@ -3437,6 +3439,10 @@ pub fn get_present_to_shopper_metadata(
     response: &PresentToShopperResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let reference = response.action.reference.clone();
+    let expires_at = response
+        .action
+        .expires_at
+        .map(|time| utils::get_timestamp_in_milliseconds(&time));
 
     match response.action.payment_method_type {
         PaymentType::Alfamart
@@ -3449,7 +3455,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Seicomart
         | PaymentType::PayEasy => {
             let voucher_data = payments::VoucherNextStepData {
-                expires_at: response.action.expires_at.clone(),
+                expires_at,
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
@@ -3473,7 +3479,7 @@ pub fn get_present_to_shopper_metadata(
                 Box::new(payments::DokuBankTransferInstructions {
                     reference: Secret::new(response.action.reference.clone()),
                     instructions_url: response.action.instructions_url.clone(),
-                    expires_at: response.action.expires_at.clone(),
+                    expires_at,
                 }),
             );
 
@@ -3961,7 +3967,8 @@ pub struct AdyenPayoutCreateRequest {
     amount: Amount,
     recurring: RecurringContract,
     merchant_account: Secret<String>,
-    bank: PayoutBankDetails,
+    #[serde(flatten)]
+    payment_data: PayoutPaymentMethodData,
     reference: String,
     shopper_reference: String,
     shopper_email: Option<Email>,
@@ -3970,6 +3977,50 @@ pub struct AdyenPayoutCreateRequest {
     entity_type: Option<storage_enums::PayoutEntityType>,
     nationality: Option<storage_enums::CountryAlpha2>,
     billing_address: Option<Address>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PayoutPaymentMethodData {
+    PayoutBankData(PayoutBankData),
+    PayoutWalletData(PayoutWalletData),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutBankData {
+    bank: PayoutBankDetails,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayoutWalletData {
+    selected_brand: PayoutBrand,
+    additional_data: PayoutAdditionalData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PayoutBrand {
+    Paypal,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PayoutAdditionalData {
+    token_data_type: PayoutTokenDataType,
+    email_id: Email,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum PayoutTokenDataType {
+    PayPal,
 }
 
 #[cfg(feature = "payouts")]
@@ -4057,14 +4108,14 @@ pub enum PayoutEligibility {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPayoutFulfillRequest {
-    Bank(PayoutFulfillBankRequest),
+    GenericFulfillRequest(PayoutFulfillGenericRequest),
     Card(Box<PayoutFulfillCardRequest>),
 }
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PayoutFulfillBankRequest {
+pub struct PayoutFulfillGenericRequest {
     merchant_account: Secret<String>,
     original_reference: String,
 }
@@ -4202,6 +4253,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         connector: "Adyen",
                     })?,
                 };
+                let bank_data = PayoutBankData { bank: bank_details };
                 let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
@@ -4212,13 +4264,52 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         contract: Contract::Payout,
                     },
                     merchant_account,
-                    bank: bank_details,
+                    payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
                     reference: item.router_data.request.payout_id.to_owned(),
                     shopper_reference: item.router_data.merchant_id.to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
-                        first_name: address.get_first_name().ok().cloned(),
-                        last_name: address.get_last_name().ok().cloned(),
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
+                    },
+                    date_of_birth: None,
+                    entity_type: Some(item.router_data.request.entity_type),
+                    nationality: get_country_code(item.router_data.address.billing.as_ref()),
+                    billing_address: get_address_info(item.router_data.address.billing.as_ref()),
+                })
+            }
+            PayoutMethodData::Wallet(wallet_data) => {
+                let additional_data = match wallet_data {
+                    api_models::payouts::Wallet::Paypal(paypal_data) => PayoutAdditionalData {
+                        token_data_type: PayoutTokenDataType::PayPal,
+                        email_id: paypal_data.email.clone().ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "email_address",
+                            },
+                        )?,
+                    },
+                };
+                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let payout_wallet = PayoutWalletData {
+                    selected_brand: PayoutBrand::Paypal,
+                    additional_data,
+                };
+                Ok(Self {
+                    amount: Amount {
+                        value: item.amount.to_owned(),
+                        currency: item.router_data.request.destination_currency,
+                    },
+                    recurring: RecurringContract {
+                        contract: Contract::Payout,
+                    },
+                    merchant_account,
+                    payment_data: PayoutPaymentMethodData::PayoutWalletData(payout_wallet),
+                    reference: item.router_data.request.payout_id.to_owned(),
+                    shopper_reference: item.router_data.merchant_id.to_owned(),
+                    shopper_email: customer_email,
+                    shopper_name: ShopperName {
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
@@ -4239,15 +4330,19 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
         let payout_type = item.router_data.request.payout_type.to_owned();
         let merchant_account = auth_type.merchant_account;
         match payout_type {
-            storage_enums::PayoutType::Bank => Ok(Self::Bank(PayoutFulfillBankRequest {
-                merchant_account,
-                original_reference: item
-                    .router_data
-                    .request
-                    .connector_payout_id
-                    .clone()
-                    .unwrap_or("".to_string()),
-            })),
+            storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
+                Ok(Self::GenericFulfillRequest(PayoutFulfillGenericRequest {
+                    merchant_account,
+                    original_reference: item
+                        .router_data
+                        .request
+                        .connector_payout_id
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_payout_id",
+                        })?,
+                }))
+            }
             storage_enums::PayoutType::Card => {
                 let address = item.router_data.get_billing_address()?;
                 Ok(Self::Card(Box::new(PayoutFulfillCardRequest {
@@ -4260,8 +4355,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                     merchant_account,
                     reference: item.router_data.request.payout_id.clone(),
                     shopper_name: ShopperName {
-                        first_name: address.get_first_name().ok().cloned(),
-                        last_name: address.get_last_name().ok().cloned(),
+                        first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
+                        last_name: Some(address.get_last_name()?.to_owned()), // it is a required field for payouts
                     },
                     nationality: get_country_code(item.router_data.address.billing.as_ref()),
                     entity_type: Some(item.router_data.request.entity_type),

@@ -58,6 +58,25 @@ pub async fn user_signup(
     .await
 }
 
+pub async fn user_signin_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SignInRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserSignInWithoutInviteChecks;
+    let req_payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        req_payload.clone(),
+        |state, _, req_body| user_core::signin_without_invite_checks(state, req_body),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn user_signin(
     state: web::Data<AppState>,
     http_req: HttpRequest,
@@ -92,6 +111,20 @@ pub async fn user_connect_account(
         req_payload.clone(),
         |state, _, req_body| user_core::connect_account(state, req_body),
         &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::Signout;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user, _| user_core::signout(state, user),
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -238,7 +271,7 @@ pub async fn generate_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::generate_sample_data_for_user,
-        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        &auth::JWTAuth(Permission::PaymentWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -258,7 +291,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::MerchantAccountWrite),
+        &auth::JWTAuth(Permission::PaymentWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -363,6 +396,44 @@ pub async fn invite_multiple_user(
         payload.into_inner(),
         user_core::invite_multiple_user,
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn resend_invite(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ReInviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::ReInviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::resend_invite,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn verify_email_without_invite_checks(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::VerifyEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::VerifyEmailWithoutInviteChecks;
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req_payload| user_core::verify_email_without_invite_checks(state, req_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

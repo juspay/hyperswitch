@@ -1319,8 +1319,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Payment",
-        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
+        "summary": "List customer saved payment methods for a Payment",
+        "description": "List customer saved payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -5367,13 +5367,16 @@
               "sofort": {
                 "type": "object",
                 "required": [
-                  "billing_details",
-                  "country",
-                  "preferred_language"
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
@@ -5381,7 +5384,8 @@
                   "preferred_language": {
                     "type": "string",
                     "description": "The preferred language",
-                    "example": "en"
+                    "example": "en",
+                    "nullable": true
                   }
                 }
               }
@@ -7048,12 +7052,15 @@
           "ALL",
           "AMD",
           "ANG",
+          "AOA",
           "ARS",
           "AUD",
           "AWG",
           "AZN",
+          "BAM",
           "BBD",
           "BDT",
+          "BGN",
           "BHD",
           "BIF",
           "BMD",
@@ -7062,6 +7069,7 @@
           "BRL",
           "BSD",
           "BWP",
+          "BYN",
           "BZD",
           "CAD",
           "CHF",
@@ -7070,6 +7078,7 @@
           "COP",
           "CRC",
           "CUP",
+          "CVE",
           "CZK",
           "DJF",
           "DKK",
@@ -7079,7 +7088,9 @@
           "ETB",
           "EUR",
           "FJD",
+          "FKP",
           "GBP",
+          "GEL",
           "GHS",
           "GIP",
           "GMD",
@@ -7094,6 +7105,7 @@
           "IDR",
           "ILS",
           "INR",
+          "IQD",
           "JMD",
           "JOD",
           "JPY",
@@ -7110,6 +7122,7 @@
           "LKR",
           "LRD",
           "LSL",
+          "LYD",
           "MAD",
           "MDL",
           "MGA",
@@ -7117,11 +7130,13 @@
           "MMK",
           "MNT",
           "MOP",
+          "MRU",
           "MUR",
           "MVR",
           "MWK",
           "MXN",
           "MYR",
+          "MZN",
           "NAD",
           "NGN",
           "NIO",
@@ -7129,6 +7144,7 @@
           "NPR",
           "NZD",
           "OMR",
+          "PAB",
           "PEN",
           "PGK",
           "PHP",
@@ -7137,33 +7153,46 @@
           "PYG",
           "QAR",
           "RON",
+          "RSD",
           "RUB",
           "RWF",
           "SAR",
+          "SBD",
           "SCR",
           "SEK",
           "SGD",
+          "SHP",
+          "SLE",
           "SLL",
           "SOS",
+          "SRD",
           "SSP",
+          "STN",
           "SVC",
           "SZL",
           "THB",
+          "TND",
+          "TOP",
           "TRY",
           "TTD",
           "TWD",
           "TZS",
+          "UAH",
           "UGX",
           "USD",
           "UYU",
           "UZS",
+          "VES",
           "VND",
           "VUV",
+          "WST",
           "XAF",
+          "XCD",
           "XOF",
           "XPF",
           "YER",
-          "ZAR"
+          "ZAR",
+          "ZMW"
         ]
       },
       "CustomerAcceptance": {
@@ -7612,6 +7641,16 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The `profile_id` associated with the dispute",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "The `merchant_connector_id` of the connector / processor through which the dispute was processed",
+            "nullable": true
           }
         }
       },
@@ -7709,7 +7748,7 @@
         "properties": {
           "expires_at": {
             "type": "string",
-            "example": "2023-07-26T17:33:00-07-21"
+            "example": "1707091200000"
           },
           "reference": {
             "type": "string",
@@ -9026,6 +9065,11 @@
       "MandateData": {
         "type": "object",
         "properties": {
+          "update_mandate_id": {
+            "type": "string",
+            "description": "A way to update the mandate's payment method details",
+            "nullable": true
+          },
           "customer_acceptance": {
             "allOf": [
               {
@@ -11369,6 +11413,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11593,6 +11645,7 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
+          "currency",
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen"
@@ -11603,6 +11656,9 @@
             "description": "Redirect URL of the merchant",
             "example": "https://www.google.com",
             "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           },
           "payment_methods": {
             "type": "array",
@@ -11842,6 +11898,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
               }
             ],
             "nullable": true
@@ -14437,6 +14501,7 @@
           "Company",
           "NonProfit",
           "PublicSector",
+          "NaturalPerson",
           "lowercase",
           "Personal"
         ]
@@ -14462,6 +14527,17 @@
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/Wallet"
               }
             }
           }
@@ -14552,11 +14628,34 @@
         "type": "string",
         "enum": [
           "card",
-          "bank"
+          "bank",
+          "wallet"
         ]
       },
+      "Paypal": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with paypal account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "PaypalRedirection": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "paypal's email address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
       },
       "PaypalSessionTokenResponse": {
         "type": "object",
@@ -16335,6 +16434,21 @@
             "properties": {
               "pay_easy": {
                 "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          }
+        ]
+      },
+      "Wallet": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/Paypal"
               }
             }
           }

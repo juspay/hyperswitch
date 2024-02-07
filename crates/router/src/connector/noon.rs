@@ -5,8 +5,9 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
+use router_env::logger;
 use transformers as noon;
 
 use crate::{
@@ -28,7 +29,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -46,6 +47,7 @@ impl api::Refund for Noon {}
 impl api::RefundExecute for Noon {}
 impl api::RefundSync for Noon {}
 impl api::PaymentToken for Noon {}
+impl api::ConnectorMandateRevoke for Noon {}
 
 impl
     ConnectorIntegration<
@@ -126,19 +128,23 @@ impl ConnectorCommon for Noon {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: noon::NoonErrorResponse = res
-            .response
-            .parse_struct("NoonErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<noon::NoonErrorResponse, Report<common_utils::errors::ParsingError>> =
+            res.response.parse_struct("NoonErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.result_code.to_string(),
-            message: response.class_description,
-            reason: Some(response.message),
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            Ok(noon_error_response) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: noon_error_response.class_description,
+                reason: Some(noon_error_response.message),
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            Err(error_message) => {
+                logger::error!(deserialization_error =? error_message);
+                utils::handle_json_response_deserialization_failure(res, "noon".to_owned())
+            }
+        }
     }
 }
 
@@ -484,6 +490,81 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         })
     }
 
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::MandateRevoke,
+        types::MandateRevokeRequestData,
+        types::MandateRevokeResponseData,
+    > for Noon
+{
+    fn get_headers(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+    }
+    fn build_request(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::MandateRevokeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::MandateRevokeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::MandateRevokeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::MandateRevokeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = noon::NoonRevokeMandateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::MandateRevokeRouterData,
+        res: Response,
+    ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
+        let response: noon::NoonRevokeMandateResponse = res
+            .response
+            .parse_struct("Noon NoonRevokeMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
     fn get_error_response(
         &self,
         res: Response,

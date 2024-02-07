@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{collections::HashMap, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
@@ -9,17 +9,18 @@ use common_utils::{
 };
 use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
         self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
     },
+    consts,
     core::errors,
     services,
     types::{
@@ -105,7 +106,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
-    pub meta_data: StripeMetadata,
+    pub meta_data: HashMap<String, String>,
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<Secret<String>>,
@@ -145,12 +146,6 @@ pub struct StripeMetadata {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct SetupIntentRequest {
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
     pub customer: Option<Secret<String>>,
@@ -159,6 +154,8 @@ pub struct SetupIntentRequest {
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
+    #[serde(flatten)]
+    pub meta_data: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -218,6 +215,8 @@ pub struct ChargesRequest {
     pub currency: String,
     pub customer: Secret<String>,
     pub source: Secret<String>,
+    #[serde(flatten)]
+    pub meta_data: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -228,6 +227,8 @@ pub struct ChargesResponse {
     pub currency: String,
     pub status: StripePaymentStatus,
     pub source: StripeSourceResponse,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -290,7 +291,7 @@ pub struct StripeSofort {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_options[sofort][preferred_language]")]
-    preferred_language: String,
+    preferred_language: Option<String>,
     #[serde(rename = "payment_method_data[sofort][country]")]
     country: api_enums::CountryAlpha2,
 }
@@ -1115,36 +1116,10 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
-            } => {
-                let billing_name = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.billing_name.clone());
-
-                let billing_email = billing_details
-                    .clone()
-                    .and_then(|billing_data| billing_data.email.clone());
-                match is_customer_initiated_mandate_payment {
-                    Some(true) => Ok(Self {
-                        name: Some(billing_name.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_name",
-                            },
-                        )?),
-
-                        email: Some(billing_email.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "billing_email",
-                            },
-                        )?),
-                        ..Self::default()
-                    }),
-                    Some(false) | None => Ok(Self {
-                        name: billing_name,
-                        email: billing_email,
-                        ..Self::default()
-                    }),
-                }
-            }
+            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment,
+            )?),
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
@@ -1183,11 +1158,11 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             }
             payments::BankRedirectData::Sofort {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details.billing_name.clone(),
-                email: billing_details.email.clone(),
-                ..Self::default()
-            }),
+            } => Ok(get_stripe_sepa_dd_mandate_billing_details(
+                billing_details,
+                is_customer_initiated_mandate_payment,
+            )?),
+
             payments::BankRedirectData::Bizum {}
             | payments::BankRedirectData::Blik { .. }
             | payments::BankRedirectData::Interac { .. }
@@ -1674,8 +1649,10 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             } => Ok(Self::BankRedirect(StripeBankRedirectData::StripeSofort(
                 Box::new(StripeSofort {
                     payment_method_data_type,
-                    country: country.to_owned(),
-                    preferred_language: preferred_language.to_owned(),
+                    country: country.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "sofort.country",
+                    })?,
+                    preferred_language: preferred_language.clone(),
                 }),
             ))),
             payments::BankRedirectData::OnlineBankingFpx { .. } => {
@@ -1901,15 +1878,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     None
                 }
             });
+
+        let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
-            meta_data: StripeMetadata {
-                order_id: Some(order_id),
-                is_refund_id_as_reference: None,
-            },
+            meta_data,
             return_url: item
                 .request
                 .router_return_url
@@ -1969,10 +1946,6 @@ fn get_payment_method_type_for_saved_payment_method_payment(
 impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let metadata_order_id = item.connector_request_reference_id.clone();
-        let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
-        let metadata_txn_uuid = Uuid::new_v4().to_string();
-
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
         let payment_data = StripePaymentMethodData::try_from((
@@ -1981,17 +1954,20 @@ impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
             pm_type,
         ))?;
 
+        let meta_data = Some(get_transaction_metadata(
+            item.request.metadata.clone(),
+            item.connector_request_reference_id.clone(),
+        ));
+
         Ok(Self {
             confirm: true,
-            metadata_order_id,
-            metadata_txn_id,
-            metadata_txn_uuid,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,
             customer: item.connector_customer.to_owned().map(Secret::new),
+            meta_data,
         })
     }
 }
@@ -2293,6 +2269,7 @@ pub struct SetupIntentResponse {
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub latest_attempt: Option<LatestAttempt>,
+    pub last_setup_error: Option<ErrorDetails>,
 }
 
 impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::MandateReference {
@@ -2355,13 +2332,16 @@ impl<F, T>
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            // client_secret: Some(item.response.client_secret.clone().as_str()),
-            // description: item.response.description.map(|x| x.as_str()),
-            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
-            // three_ds_form,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::from(item.response.status);
+
+        let response = if connector_util::is_payment_failure(status) {
+            types::PaymentsResponseData::try_from((
+                &item.response.last_payment_error,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
+            Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
@@ -2369,7 +2349,16 @@ impl<F, T>
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            // client_secret: Some(item.response.client_secret.clone().as_str()),
+            // description: item.response.description.map(|x| x.as_str()),
+            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
+            // three_ds_form,
+            response,
             amount_captured: item.response.amount_received,
             ..item.data
         })
@@ -2379,7 +2368,7 @@ impl<F, T>
 pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
     amount: i64,
-) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+) -> CustomResult<Option<Value>, errors::ConnectorError> {
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
@@ -2496,32 +2485,19 @@ impl<F, T>
                 },
             ))
         });
-        let error_res =
-            item.response
-                .last_payment_error
-                .as_ref()
-                .map(|error| types::ErrorResponse {
-                    code: error.code.to_owned(),
-                    message: error.code.to_owned(),
-                    reason: error
-                        .decline_code
-                        .clone()
-                        .map(|decline_code| {
-                            format!(
-                                "message - {}, decline_code - {}",
-                                error.message, decline_code
-                            )
-                        })
-                        .or(Some(error.message.clone())),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                });
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
-        let response = error_res.map_or(
+        let status = enums::AttemptStatus::from(item.response.status.to_owned());
+
+        let response = if connector_util::is_payment_failure(status) {
+            types::PaymentsResponseData::try_from((
+                &item.response.payment_intent_fields.last_payment_error,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
@@ -2530,9 +2506,8 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
-            }),
-            Err,
-        );
+            })
+        };
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
@@ -2561,10 +2536,15 @@ impl<F, T>
         let mandate_reference = item.response.payment_method.map(|pm| {
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
         });
-
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::from(item.response.status);
+        let response = if connector_util::is_payment_failure(status) {
+            types::PaymentsResponseData::try_from((
+                &item.response.last_setup_error,
+                item.http_code,
+                item.response.id.clone(),
+            ))
+        } else {
+            Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
@@ -2572,7 +2552,12 @@ impl<F, T>
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -2782,6 +2767,7 @@ pub struct RefundResponse {
     pub metadata: StripeMetadata,
     pub payment_intent: String,
     pub status: RefundStatus,
+    pub failure_reason: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -2791,11 +2777,29 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: item
+                    .response
+                    .failure_reason
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_reason,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -2808,17 +2812,35 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: item
+                    .response
+                    .failure_reason
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_reason,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ErrorDetails {
     pub code: Option<String>,
     #[serde(rename = "type")]
@@ -2829,7 +2851,7 @@ pub struct ErrorDetails {
     pub payment_intent: Option<PaymentIntentErrorResponse>,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentErrorResponse {
     pub id: String,
 }
@@ -3082,12 +3104,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: value.request.amount.to_string(),
-            currency: value.request.currency.to_string(),
-            customer: Secret::new(value.get_connector_customer_id()?),
-            source: Secret::new(value.get_preprocessing_id()?),
-        })
+        {
+            let order_id = value.connector_request_reference_id.clone();
+            let meta_data = Some(get_transaction_metadata(
+                value.request.metadata.clone(),
+                order_id,
+            ));
+            Ok(Self {
+                amount: value.request.amount.to_string(),
+                currency: value.request.currency.to_string(),
+                customer: Secret::new(value.get_connector_customer_id()?),
+                source: Secret::new(value.get_preprocessing_id()?),
+                meta_data,
+            })
+        }
     }
 }
 
@@ -3104,9 +3134,25 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 &connector_source_response.source,
             )
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+        let status = enums::AttemptStatus::from(item.response.status);
+        let response = if connector_util::is_payment_failure(status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| crate::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message,
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id),
+            })
+        } else {
+            Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -3114,7 +3160,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -3193,7 +3244,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct WebhookEventDataResource {
-    pub object: serde_json::Value,
+    pub object: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3593,6 +3644,41 @@ pub struct Evidence {
     pub submit: bool,
 }
 
+// Mandates for bank redirects - ideal and sofort happens through sepa direct debit in stripe
+fn get_stripe_sepa_dd_mandate_billing_details(
+    billing_details: &Option<payments::BankRedirectBilling>,
+    is_customer_initiated_mandate_payment: Option<bool>,
+) -> Result<StripeBillingAddress, errors::ConnectorError> {
+    let billing_name = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.billing_name.clone());
+
+    let billing_email = billing_details
+        .clone()
+        .and_then(|billing_data| billing_data.email.clone());
+    match is_customer_initiated_mandate_payment {
+        Some(true) => Ok(StripeBillingAddress {
+            name: Some(
+                billing_name.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                })?,
+            ),
+
+            email: Some(
+                billing_email.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_email",
+                })?,
+            ),
+            ..StripeBillingAddress::default()
+        }),
+        Some(false) | None => Ok(StripeBillingAddress {
+            name: billing_name,
+            email: billing_email,
+            ..StripeBillingAddress::default()
+        }),
+    }
+}
+
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
@@ -3636,6 +3722,69 @@ pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,
     pub status: String,
+}
+
+fn get_transaction_metadata(
+    merchant_metadata: Option<Secret<Value>>,
+    order_id: String,
+) -> HashMap<String, String> {
+    let mut meta_data = HashMap::from([("metadata[order_id]".to_string(), order_id)]);
+    let mut request_hash_map = HashMap::new();
+
+    if let Some(metadata) = merchant_metadata {
+        let hashmap: HashMap<String, Value> =
+            serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
+
+        for (key, value) in hashmap {
+            request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
+        }
+
+        meta_data.extend(request_hash_map)
+    };
+    meta_data
+}
+
+impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseData {
+    type Error = types::ErrorResponse;
+    fn try_from(
+        (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
+    ) -> Result<Self, Self::Error> {
+        let (code, error_message) = match response {
+            Some(error_details) => (
+                error_details
+                    .code
+                    .to_owned()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                error_details
+                    .message
+                    .to_owned()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            ),
+            None => (
+                consts::NO_ERROR_CODE.to_string(),
+                consts::NO_ERROR_MESSAGE.to_string(),
+            ),
+        };
+
+        Err(types::ErrorResponse {
+            code,
+            message: error_message.clone(),
+            reason: response.clone().and_then(|res| {
+                res.decline_code
+                    .clone()
+                    .map(|decline_code| {
+                        format!(
+                            "message - {}, decline_code - {}",
+                            error_message, decline_code
+                        )
+                    })
+                    .or(Some(error_message.clone()))
+            }),
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response_id),
+        })
+    }
 }
 
 #[cfg(test)]
