@@ -238,6 +238,7 @@ pub async fn update_customer_payment_method(
         payment_method_issuer_code: pm.payment_method_issuer_code,
         bank_transfer: req.bank_transfer,
         card: req.card,
+        wallet: req.wallet,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
         card_network: req
@@ -2960,6 +2961,10 @@ pub async fn get_bank_from_hs_locker(
         }
         api::PayoutMethodData::Card(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Expected bank details, found card details instead".to_string(),
+        }
+        .into()),
+        api::PayoutMethodData::Wallet(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
     }
