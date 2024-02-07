@@ -93,13 +93,6 @@ pub async fn update_user_role(
             .attach_printable(format!("User role cannot be updated to {}", req.role_id));
     }
 
-    if !predefined_permissions::is_role_updatable(&user_from_token.role_id)? {
-        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
-            "User role cannot be updated from {}",
-            user_from_token.role_id
-        ));
-    }
-
     let user_to_be_updated =
         utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
             .await
@@ -111,11 +104,23 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
+    let user_role_to_be_updated = user_to_be_updated
+        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    if !predefined_permissions::is_role_updatable(&user_role_to_be_updated.role_id)? {
+        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
+            "User role cannot be updated from {}",
+            user_role_to_be_updated.role_id
+        ));
+    }
+
     state
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            user_from_token.merchant_id.as_str(),
+            user_role_to_be_updated.merchant_id.as_str(),
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
