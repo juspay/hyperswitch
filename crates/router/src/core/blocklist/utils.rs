@@ -4,6 +4,7 @@ use common_utils::{
     crypto::{self, SignMessage},
     errors::CustomResult,
 };
+use diesel_models::configs;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
@@ -83,6 +84,56 @@ pub async fn delete_entry_from_blocklist(
     };
 
     Ok(blocklist_entry.foreign_into())
+}
+
+pub async fn toggle_blocklist_guard_for_merchant(
+    state: &AppState,
+    merchant_id: String,
+    query: api_blocklist::ToggleBlocklistQuery,
+) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
+    let key = get_blocklist_guard_key(merchant_id.as_str());
+    let maybe_guard = state.store.find_config_by_key(&key).await;
+    let new_config = configs::ConfigNew {
+        key: key.clone(),
+        config: query.status.to_string(),
+    };
+    match maybe_guard {
+        Ok(_config) => {
+            let updated_config = configs::ConfigUpdate::Update {
+                config: Some(query.status.to_string()),
+            };
+            state
+                .store
+                .update_config_by_key(&key, updated_config)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error enabling the blocklist guard")?;
+        }
+        Err(e) if e.current_context().is_db_not_found() => {
+            state
+                .store
+                .insert_config(new_config)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error enabling the blocklist guard")?;
+        }
+        Err(e) => {
+            logger::error!(error=?e);
+            Err(e)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error enabling the blocklist guard")?;
+        }
+    };
+    let guard_status = if query.status { "enabled" } else { "disabled" };
+    Ok(api_blocklist::ToggleBlocklistResponse {
+        blocklist_guard_status: guard_status.to_string(),
+    })
+}
+
+/// Provides the identifier for the specific merchant's blocklist guard config
+#[inline(always)]
+pub fn get_blocklist_guard_key(merchant_id: &str) -> String {
+    format!("guard_blocklist_for_{merchant_id}")
 }
 
 pub async fn list_blocklist_entries_for_merchant(
