@@ -63,6 +63,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
+            Flow::ToggleBlocklistGuard => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve

@@ -201,6 +201,8 @@ pub enum Flow {
     DeleteFromBlocklist,
     /// List entries from blocklist
     ListBlocklist,
+    /// Toggle blocklist for merchant
+    ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
