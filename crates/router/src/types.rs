@@ -1066,7 +1066,6 @@ pub struct ConnectorAuthenticationRequestData {
     pub billing_address: api_models::payments::Address,
     pub shipping_address: api_models::payments::Address,
     pub browser_details: BrowserInformation,
-    pub acquirer_details: Option<api_authentication::AcquirerDetails>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,
     pub message_category: api_authentication::MessageCategory,

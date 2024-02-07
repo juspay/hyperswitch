@@ -217,6 +217,7 @@ pub async fn update_merchant_active_algorithm_ref(
         payout_routing_algorithm: None,
         default_profile: None,
         payment_link_config: None,
+        authentication_details: None,
     };
 
     db.update_specific_fields_in_merchant(

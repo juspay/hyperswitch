@@ -330,7 +330,7 @@ pub struct PaymentsRequest {
 
     /// flag to request separate authentication
     #[schema(example = true)]
-    pub request_separate_authentication: Option<bool>,
+    pub request_external_authentication: Option<bool>,
 }
 
 impl PaymentsRequest {

@@ -732,7 +732,7 @@ impl PaymentCreate {
                     .mandate_data
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
-                external_3ds_authentication_requested: request.request_separate_authentication,
+                external_3ds_authentication_requested: request.request_external_authentication,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
