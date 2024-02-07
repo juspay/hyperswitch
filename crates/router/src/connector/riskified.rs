@@ -10,7 +10,6 @@ use transformers as riskified;
 
 #[cfg(feature = "frm")]
 use super::utils::FrmTransactionRouterDataRequest;
-
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -23,8 +22,8 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     events::connector_api_logs::ConnectorEvent,
+    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
 

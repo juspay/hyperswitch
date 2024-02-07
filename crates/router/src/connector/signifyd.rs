@@ -19,8 +19,8 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
-    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     events::connector_api_logs::ConnectorEvent,
+    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
 
