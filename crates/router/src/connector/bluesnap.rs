@@ -711,8 +711,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
 
-                let response = serde_json::json!({"payment_fields_token": payment_fields_token.clone()});
-                
+                let response =
+                    serde_json::json!({"payment_fields_token": payment_fields_token.clone()});
+
                 if let Some(i) = event_builder {
                     i.set_response_body(&response);
                 }

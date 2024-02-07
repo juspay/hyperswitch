@@ -830,7 +830,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         };
         router_env::logger::info!(connector_response=?response);
 
-          types::RouterData::try_from(types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

@@ -455,10 +455,11 @@ impl
             let response_string = response_value.to_string();
 
             if let Some(i) = event_builder {
-                i.set_response_body(&serde_json::json!({"response_string": response_string.clone()}));
+                i.set_response_body(
+                    &serde_json::json!({"response_string": response_string.clone()}),
+                );
             }
             router_env::logger::info!(connector_response=?response_string);
-
 
             Ok(types::MandateRevokeRouterData {
                 response: Err(types::ErrorResponse {

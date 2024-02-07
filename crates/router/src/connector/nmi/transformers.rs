@@ -1056,8 +1056,8 @@ impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
 //     fn try_from(
 //         item: types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>,
 //     ) -> Result<Self, Self::Error> {
-        
-    impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = Report<errors::ConnectorError>;
