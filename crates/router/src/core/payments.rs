@@ -69,7 +69,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-#[instrument(skip_all, fields(payment_id, merchant_id, connector_name))]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
@@ -114,7 +114,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-    tracing::Span::current().record("merchant_connector", "dummy_test");
+    // tracing::Span::current().record("merchant_connector", "dummy_test");
     // tracing::Span::current().record("connector_name", &format!("{}",));
     logger::debug!("-------------Test line------------asas-");
 
@@ -164,7 +164,7 @@ where
     .await?;
     logger::debug!("connector response");
     logger::debug!(stringify!(connector));
-    tracing::Span::current().record("connector_name", "dummy_test");
+    // tracing::Span::current().record("connector_name", "dummy_test");
     // tracing::Span::current().record("connector_info", &format!("{:?}", connector));
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
