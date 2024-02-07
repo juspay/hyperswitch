@@ -821,7 +821,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
-    let m_payment_method_id = payment_data.clone().payment_attempt.payment_method_id;
+    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_router_data_merchant_id = router_data.merchant_id.clone();
     let m_payment_data_mandate_id = payment_data.mandate_id.clone();
     let m_router_data_response = router_data.response.clone();
