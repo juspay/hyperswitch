@@ -897,6 +897,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        attempt_count -> Int2,
     }
 }
 

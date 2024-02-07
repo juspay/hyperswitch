@@ -29,6 +29,7 @@ pub struct Payouts {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
+    pub attempt_count: i16,
 }
 
 impl Default for Payouts {
@@ -53,6 +54,7 @@ impl Default for Payouts {
             metadata: Option::default(),
             created_at: now,
             last_modified_at: now,
+            attempt_count: i16::default(),
         }
     }
 }
@@ -90,6 +92,7 @@ pub struct PayoutsNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub attempt_count: i16,
 }
 
 #[derive(Debug)]
@@ -105,6 +108,7 @@ pub enum PayoutsUpdate {
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
         last_modified_at: Option<PrimitiveDateTime>,
+        attempt_count: i16,
     },
     PayoutMethodIdUpdate {
         payout_method_id: Option<String>,
@@ -130,6 +134,7 @@ pub struct PayoutsUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub payout_method_id: Option<String>,
+    pub attempt_count: Option<i16>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -146,6 +151,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type,
                 metadata,
                 last_modified_at,
+                attempt_count,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -157,6 +163,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type: Some(entity_type),
                 metadata,
                 last_modified_at,
+                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate {
