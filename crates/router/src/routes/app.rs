@@ -456,7 +456,7 @@ pub struct Routing;
 #[cfg(feature = "olap")]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        use api_models::routing as routing_types;
+        #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(
@@ -474,7 +474,7 @@ impl Routing {
                     .route(web::post().to(cloud_routing::routing_update_default_config)),
             )
             .service(web::resource("/deactivate").route(web::post().to(
-                |state, req, payload: web::Json<routing_types::RoutingConfigRequest>| {
+                |state, req, #[cfg(feature = "business_profile_routing")] payload| {
                     cloud_routing::routing_unlink_config(
                         state,
                         req,
@@ -540,10 +540,11 @@ impl Routing {
                         }),
                     ))
                     .service(web::resource("/deactivate/payouts").route(web::post().to(
-                        |state, req, payload| {
+                        |state, req, #[cfg(feature = "business_profile_routing")] payload| {
                             cloud_routing::routing_unlink_config(
                                 state,
                                 req,
+                                #[cfg(feature = "business_profile_routing")]
                                 payload,
                                 &routing::TransactionType::Payout,
                             )
