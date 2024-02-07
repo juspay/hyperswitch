@@ -511,4 +511,5 @@ pub enum DashboardMetadata {
     ConfigureWoocom,
     SetupWoocomWebhook,
     IsMultipleConfiguration,
+    IsChangePasswordRequired,
 }

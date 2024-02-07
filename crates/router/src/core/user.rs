@@ -1,7 +1,9 @@
-use api_models::user::{self as user_api, InviteMultipleUserResponse};
+use api_models::user::{
+    self as user_api, dashboard_metadata::SetMetaDataRequest, InviteMultipleUserResponse,
+};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
-use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
+use diesel_models::{enums, enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
 use error_stack::ResultExt;
@@ -11,6 +13,7 @@ use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
 
+use self::dashboard_metadata::set_metadata;
 use super::errors::{UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
@@ -308,6 +311,19 @@ pub async fn change_password(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    #[cfg(not(feature = "email"))]
+    {
+        state
+            .store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+                &user_from_token.user_id,
+                &user_from_token.merchant_id,
+                enums::DashboardMetadata::IsChangePasswordRequired,
+            )
+            .await
+            .ok();
+    }
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -475,11 +491,11 @@ pub async fn invite_user(
             .insert_user_role(UserRoleNew {
                 user_id: new_user.get_user_id().to_owned(),
                 merchant_id: user_from_token.merchant_id.clone(),
-                role_id: request.role_id,
-                org_id: user_from_token.org_id,
+                role_id: request.role_id.clone(),
+                org_id: user_from_token.org_id.clone(),
                 status: invitation_status,
                 created_by: user_from_token.user_id.clone(),
-                last_modified_by: user_from_token.user_id,
+                last_modified_by: user_from_token.user_id.clone(),
                 created_at: now,
                 last_modified: now,
             })
@@ -515,6 +531,16 @@ pub async fn invite_user(
         #[cfg(not(feature = "email"))]
         {
             is_email_sent = false;
+            let invited_user_token = auth::UserFromToken {
+                user_id: new_user.get_user_id(),
+                merchant_id: user_from_token.merchant_id.clone(),
+                org_id: user_from_token.org_id.clone(),
+                role_id: request.role_id.clone(),
+            };
+
+            let r_request = SetMetaDataRequest::IsChangePasswordRequired;
+
+            set_metadata(state.clone(), invited_user_token, r_request).await?;
         }
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
@@ -692,6 +718,17 @@ async fn handle_new_user_invitation(
     #[cfg(not(feature = "email"))]
     {
         is_email_sent = false;
+
+        let invited_user_token = auth::UserFromToken {
+            user_id: new_user.get_user_id(),
+            merchant_id: user_from_token.merchant_id.clone(),
+            org_id: user_from_token.org_id.clone(),
+            role_id: request.role_id.clone(),
+        };
+
+        let r_request = SetMetaDataRequest::IsChangePasswordRequired;
+
+        set_metadata(state.clone(), invited_user_token, r_request).await?;
     }
 
     Ok(InviteMultipleUserResponse {

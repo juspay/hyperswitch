@@ -14,6 +14,7 @@ pub trait DashboardMetadataInterface {
         &self,
         metadata: storage::DashboardMetadataNew,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
+
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -30,6 +31,7 @@ pub trait DashboardMetadataInterface {
         org_id: &str,
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -41,6 +43,13 @@ pub trait DashboardMetadataInterface {
         &self,
         user_id: &str,
         merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -127,6 +136,24 @@ impl DashboardMetadataInterface for Store {
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+            &conn,
+            user_id.to_owned(),
+            merchant_id.to_owned(),
+            data_key,
         )
         .await
         .map_err(Into::into)
@@ -291,6 +318,34 @@ impl DashboardMetadataInterface for MockDb {
             ))
             .into());
         }
+
+        Ok(true)
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+        let dashboard_metadata_index = dashboard_metadata
+            .iter()
+            .position(|metadata_inner| {
+                metadata_inner
+                    .user_id
+                    .clone()
+                    .map(|user_id_inner| user_id_inner == user_id)
+                    .unwrap_or(false)
+                    && metadata_inner.merchant_id == merchant_id
+                    && metadata_inner.data_key == data_key
+            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "No data found"
+            )))?;
+
+        dashboard_metadata.remove(dashboard_metadata_index);
 
         Ok(true)
     }

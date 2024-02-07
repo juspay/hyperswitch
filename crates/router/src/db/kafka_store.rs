@@ -1964,6 +1964,7 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
+
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -2021,6 +2022,7 @@ impl DashboardMetadataInterface for KafkaStore {
             .find_user_scoped_dashboard_metadata(user_id, merchant_id, org_id, data_keys)
             .await
     }
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -2039,6 +2041,21 @@ impl DashboardMetadataInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+                user_id,
+                merchant_id,
+                data_key,
+            )
             .await
     }
 }
