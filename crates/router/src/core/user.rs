@@ -2,10 +2,9 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
-use error_stack::IntoReport;
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::env;
