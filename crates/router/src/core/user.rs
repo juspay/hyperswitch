@@ -912,7 +912,7 @@ pub async fn switch_merchant_id(
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)
             .ok_or(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("User doesn't have access to switch".to_string())?;
+            .attach_printable("User doesn't have access to switch")?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
         (token, user_role.role_id.clone())
