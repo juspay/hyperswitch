@@ -192,7 +192,9 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Req: Clone,
         Resp: Clone,
     {
-        event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
+        if let Some(e) = event_builder {
+            e.set_error(json!({"error": "Not Implemented"}))
+        }
         Ok(data.clone())
     }
 
