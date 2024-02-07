@@ -214,7 +214,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable_lazy(|| "Failed fetching the refund")?,
+                .attach_printable("Failed to fetch the refund")?,
             api_models::webhooks::RefundIdType::ConnectorRefundId(id) => db
                 .find_refund_by_merchant_id_connector_refund_id_connector(
                     &merchant_account.merchant_id,
@@ -224,7 +224,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-                .attach_printable_lazy(|| "Failed fetching the refund")?,
+                .attach_printable("Failed to fetch the refund")?,
         },
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -1165,9 +1165,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             resource_object: serde_json::to_vec(&event_object)
                 .into_report()
                 .change_context(errors::ParsingError::EncodeError("byte-vec"))
-                .attach_printable_lazy(|| {
-                    "Unable to convert webhook paylaod to a value".to_string()
-                })
+                .attach_printable("Unable to convert webhook payload to a value")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "There was an issue when encoding the incoming webhook body to bytes",
