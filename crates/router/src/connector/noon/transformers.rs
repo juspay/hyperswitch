@@ -1,6 +1,6 @@
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -67,7 +67,44 @@ pub struct NoonOrder {
     reference: String,
     //Short description of the order.
     name: String,
+    nvp: Option<NoonOrderNvp>,
     ip_address: Option<Secret<String, pii::IpAddress>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NoonOrderNvp {
+    #[serde(flatten)]
+    inner: std::collections::BTreeMap<String, Secret<String>>,
+}
+
+fn get_value_as_string(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(string) => string.to_owned(),
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Array(_)
+        | serde_json::Value::Object(_) => value.to_string(),
+    }
+}
+
+impl NoonOrderNvp {
+    pub fn new(metadata: &pii::SecretSerdeValue) -> Self {
+        let metadata_as_string = metadata.peek().to_string();
+        let hash_map: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&metadata_as_string).unwrap_or(std::collections::BTreeMap::new());
+        let inner = hash_map
+            .into_iter()
+            .enumerate()
+            .map(|(index, (hs_key, hs_value))| {
+                let noon_key = format!("{}", index + 1);
+                // to_string() function on serde_json::Value returns a string with "" quotes. Noon doesn't allow this. Hence get_value_as_string function
+                let noon_value = format!("{hs_key}={}", get_value_as_string(&hs_value));
+                (noon_key, Secret::new(noon_value))
+            })
+            .collect();
+        Self { inner }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -373,6 +410,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             category,
             reference: item.connector_request_reference_id.clone(),
             name,
+            nvp: item.request.metadata.as_ref().map(NoonOrderNvp::new),
             ip_address,
         };
         let payment_action = if item.request.is_auto_capture()? {

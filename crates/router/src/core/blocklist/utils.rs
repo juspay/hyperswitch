@@ -1,5 +1,9 @@
 use api_models::blocklist as api_blocklist;
-use common_utils::crypto::{self, SignMessage};
+use common_enums::MerchantDecision;
+use common_utils::{
+    crypto::{self, SignMessage},
+    errors::CustomResult,
+};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
@@ -7,8 +11,12 @@ use external_services::aws_kms;
 use super::{errors, AppState};
 use crate::{
     consts,
-    core::errors::{RouterResult, StorageErrorExt},
-    types::{storage, transformers::ForeignInto},
+    core::{
+        errors::{RouterResult, StorageErrorExt},
+        payments::PaymentData,
+    },
+    logger,
+    types::{domain, storage, transformers::ForeignInto},
     utils,
 };
 
@@ -261,7 +269,7 @@ pub async fn get_merchant_fingerprint_secret(
     }
 }
 
-pub fn get_merchant_fingerprint_secret_key(merchant_id: &str) -> String {
+fn get_merchant_fingerprint_secret_key(merchant_id: &str) -> String {
     format!("fingerprint_secret_{merchant_id}")
 }
 
@@ -356,4 +364,251 @@ async fn delete_card_bin_blocklist_entry(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "could not find a blocklist entry for the given bin".to_string(),
         })
+}
+
+pub async fn validate_data_for_blocklist<F>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<bool, errors::ApiErrorResponse>
+where
+    F: Send + Clone,
+{
+    let db = &state.store;
+    let merchant_id = &merchant_account.merchant_id;
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, merchant_id.as_str()).await?;
+
+    // Hashed Fingerprint to check whether or not this payment should be blocked.
+    let card_number_fingerprint = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            api_models::payments::PaymentMethodData::Card(card) => {
+                crypto::HmacSha512::sign_message(
+                    &crypto::HmacSha512,
+                    merchant_fingerprint_secret.as_bytes(),
+                    card.card_number.clone().get_card_no().as_bytes(),
+                )
+                .attach_printable("error in pm fingerprint creation")
+                .map_or_else(
+                    |err| {
+                        logger::error!(error=?err);
+                        None
+                    },
+                    Some,
+                )
+            }
+            _ => None,
+        })
+        .map(hex::encode);
+
+    // Hashed Cardbin to check whether or not this payment should be blocked.
+    let card_bin_fingerprint = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            api_models::payments::PaymentMethodData::Card(card) => {
+                crypto::HmacSha512::sign_message(
+                    &crypto::HmacSha512,
+                    merchant_fingerprint_secret.as_bytes(),
+                    card.card_number.clone().get_card_isin().as_bytes(),
+                )
+                .attach_printable("error in card bin hash creation")
+                .map_or_else(
+                    |err| {
+                        logger::error!(error=?err);
+                        None
+                    },
+                    Some,
+                )
+            }
+            _ => None,
+        })
+        .map(hex::encode);
+
+    // Hashed Extended Cardbin to check whether or not this payment should be blocked.
+    let extended_card_bin_fingerprint = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            api_models::payments::PaymentMethodData::Card(card) => {
+                crypto::HmacSha512::sign_message(
+                    &crypto::HmacSha512,
+                    merchant_fingerprint_secret.as_bytes(),
+                    card.card_number.clone().get_extended_card_bin().as_bytes(),
+                )
+                .attach_printable("error in extended card bin hash creation")
+                .map_or_else(
+                    |err| {
+                        logger::error!(error=?err);
+                        None
+                    },
+                    Some,
+                )
+            }
+            _ => None,
+        })
+        .map(hex::encode);
+
+    //validating the payment method.
+    let mut blocklist_futures = Vec::new();
+    if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
+        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+            merchant_id,
+            card_number_fingerprint,
+        ));
+    }
+
+    if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
+        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+            merchant_id,
+            card_bin_fingerprint,
+        ));
+    }
+
+    if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
+        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+            merchant_id,
+            extended_card_bin_fingerprint,
+        ));
+    }
+
+    let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
+
+    let mut should_payment_be_blocked = false;
+    for lookup in blocklist_lookups {
+        match lookup {
+            Ok(_) => {
+                should_payment_be_blocked = true;
+            }
+            Err(e) => {
+                logger::error!(blocklist_db_error=?e, "failed db operations for blocklist");
+            }
+        }
+    }
+
+    if should_payment_be_blocked {
+        // Update db for attempt and intent status.
+        db.update_payment_intent(
+            payment_data.payment_intent.clone(),
+            storage::PaymentIntentUpdate::RejectUpdate {
+                status: common_enums::IntentStatus::Failed,
+                merchant_decision: Some(MerchantDecision::Rejected.to_string()),
+                updated_by: merchant_account.storage_scheme.to_string(),
+            },
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Failed to update status in Payment Intent to failed due to it being blocklisted",
+        )?;
+
+        // If payment is blocked not showing connector details
+        let attempt_update = storage::PaymentAttemptUpdate::BlocklistUpdate {
+            status: common_enums::AttemptStatus::Failure,
+            error_code: Some(Some("HE-03".to_string())),
+            error_message: Some(Some("This payment method is blocked".to_string())),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        };
+        db.update_payment_attempt_with_attempt_id(
+            payment_data.payment_attempt.clone(),
+            attempt_update,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Failed to update status in Payment Attempt to failed, due to it being blocklisted",
+        )?;
+
+        Err(errors::ApiErrorResponse::PaymentBlockedError {
+            code: 200,
+            message: "This payment method is blocked".to_string(),
+            status: "Failed".to_string(),
+            reason: "Blocked".to_string(),
+        }
+        .into())
+    } else {
+        payment_data.payment_intent.fingerprint_id = generate_payment_fingerprint(
+            state,
+            payment_data.payment_attempt.merchant_id.clone(),
+            payment_data.payment_method_data.clone(),
+        )
+        .await?;
+
+        Ok(false)
+    }
+}
+
+pub async fn generate_payment_fingerprint(
+    state: &AppState,
+    merchant_id: String,
+    payment_method_data: Option<crate::types::api::PaymentMethodData>,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let db = &state.store;
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
+    let card_number_fingerprint = payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            api_models::payments::PaymentMethodData::Card(card) => {
+                crypto::HmacSha512::sign_message(
+                    &crypto::HmacSha512,
+                    merchant_fingerprint_secret.as_bytes(),
+                    card.card_number.clone().get_card_no().as_bytes(),
+                )
+                .attach_printable("error in pm fingerprint creation")
+                .map_or_else(
+                    |err| {
+                        logger::error!(error=?err);
+                        None
+                    },
+                    Some,
+                )
+            }
+            _ => None,
+        })
+        .map(hex::encode);
+
+    let mut fingerprint_id = None;
+    if let Some(encoded_hash) = card_number_fingerprint {
+        #[cfg(feature = "kms")]
+        let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
+            .await
+            .encrypt(encoded_hash)
+            .await
+            .map_or_else(
+                |e| {
+                    logger::error!(error=?e, "failed kms encryption of card fingerprint");
+                    None
+                },
+                Some,
+            );
+
+        #[cfg(not(feature = "kms"))]
+        let encrypted_fingerprint = Some(encoded_hash);
+
+        if let Some(encrypted_fingerprint) = encrypted_fingerprint {
+            fingerprint_id = db
+                .insert_blocklist_fingerprint_entry(
+                    diesel_models::blocklist_fingerprint::BlocklistFingerprintNew {
+                        merchant_id,
+                        fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
+                        encrypted_fingerprint,
+                        data_kind: common_enums::BlocklistDataKind::PaymentMethod,
+                        created_at: common_utils::date_time::now(),
+                    },
+                )
+                .await
+                .map_or_else(
+                    |e| {
+                        logger::error!(error=?e, "failed storing card fingerprint in db");
+                        None
+                    },
+                    |fp| Some(fp.fingerprint_id),
+                );
+        }
+    }
+    Ok(fingerprint_id)
 }
