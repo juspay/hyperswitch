@@ -90,7 +90,7 @@ strum = { version = "0.25", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
@@ -134,7 +134,7 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.35.1"
+tokio = "1.36.0"
 wiremock = "0.5.18"
 
 
