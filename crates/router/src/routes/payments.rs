@@ -304,7 +304,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve, payment_id))]
+#[instrument(skip(state, req), fields(flow, payment_id))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
@@ -324,9 +324,13 @@ pub async fn payments_retrieve_with_gateway_creds(
         merchant_connector_details: json_payload.merchant_connector_details.clone(),
         ..Default::default()
     };
-    let flow = Flow::PaymentsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::PaymentsRetrieveForceSync,
+        _ => Flow::PaymentsRetrieve,
+    };
 
     tracing::Span::current().record("payment_id", &json_payload.payment_id);
+    tracing::Span::current().record("flow", &flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
 
