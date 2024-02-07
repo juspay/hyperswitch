@@ -1,11 +1,8 @@
 use api_models::user_role as user_role_api;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::ResultExt;
 
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    routes::AppState,
     services::authorization::{
         permissions::Permission,
         predefined_permissions::{self, RoleInfo},
