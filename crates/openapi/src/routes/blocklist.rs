@@ -1,5 +1,21 @@
 #[utoipa::path(
     post,
+    path = "/blocklist/enable",
+    params (
+        ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
+    ),
+    responses(
+        (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
+        (status = 400, description = "Invalid Data")
+    ),
+    tag = "Blocklist",
+    operation_id = "Toggle blocklist guard for a particular merchant",
+    security(("api_key" = []))
+)]
+pub async fn toggle_blocklist_guard() {}
+
+#[utoipa::path(
+    post,
     path = "/blocklist",
     request_body = BlocklistRequest,
     responses(
@@ -41,3 +57,4 @@ pub async fn remove_entry_from_blocklist() {}
     security(("api_key" = []))
 )]
 pub async fn list_blocked_payment_methods() {}
+

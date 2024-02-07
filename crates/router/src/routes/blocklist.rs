@@ -122,7 +122,7 @@ pub async fn list_blocked_payment_methods(
     post,
     path = "/blocklist/enable",
     params (
-        ("status" = Boolean, Query, description = "Boolean value to enable/disable blocklist"),
+        ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
     ),
     responses(
         (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
