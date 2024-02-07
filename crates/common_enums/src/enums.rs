@@ -2012,6 +2012,7 @@ pub enum PayoutType {
     #[default]
     Card,
     Bank,
+    Wallet,
 }
 
 #[derive(
@@ -2038,6 +2039,7 @@ pub enum PayoutEntityType {
     Company,
     NonProfit,
     PublicSector,
+    NaturalPerson,
 
     /// Wise
     #[strum(serialize = "lowercase")]
