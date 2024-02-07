@@ -120,14 +120,20 @@ pub async fn refunds_retrieve(
     operation_id = "Retrieve a Refund",
     security(("api_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 // #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundsRetrieveRequest>,
 ) -> HttpResponse {
-    let flow = Flow::RefundsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
+
     Box::pin(api::server_wrap(
         flow,
         state,
