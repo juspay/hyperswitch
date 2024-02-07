@@ -2093,7 +2093,7 @@ pub async fn filter_payment_methods(
                                     connector_variant,
                                 )
                             } else if update_mandate_id_present {
-                                filter_pm_based_on_supported_payments_for_update_mandate(
+                                filter_pm_based_on_update_mandate_support_for_connector(
                                     supported_payment_methods_for_update_mandate,
                                     &payment_method,
                                     &payment_method_object.payment_method_type,
@@ -2122,7 +2122,7 @@ pub async fn filter_payment_methods(
     }
     Ok(())
 }
-pub fn filter_pm_based_on_supported_payments_for_update_mandate(
+pub fn filter_pm_based_on_update_mandate_support_for_connector(
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
     payment_method: &api_enums::PaymentMethod,
     payment_method_type: &api_enums::PaymentMethodType,

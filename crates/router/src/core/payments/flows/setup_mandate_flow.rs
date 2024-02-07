@@ -273,17 +273,18 @@ impl types::SetupMandateRouterData {
             .request
             .payment_method_data
             .get_payment_method_for_payment_method_data();
-
-        if payment_method_type.map_or(false, |pmt| {
-            payment_method.map_or(false, |pm| {
-                cards::filter_pm_based_on_supported_payments_for_update_mandate(
-                    &supported_connectors_for_update_mandate,
-                    &pm,
-                    &pmt,
-                    connector.connector_name,
-                )
-            })
-        }) {
+        let supported_connectors_config =
+            payment_method
+                .zip(payment_method_type)
+                .map_or(false, |(pm, pmt)| {
+                    cards::filter_pm_based_on_update_mandate_support_for_connector(
+                        supported_connectors_for_update_mandate,
+                        &pm,
+                        &pmt,
+                        connector.connector_name,
+                    )
+                });
+        if supported_connectors_config {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::SetupMandate,

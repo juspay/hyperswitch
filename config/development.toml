@@ -491,7 +491,6 @@ bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
 
-
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
 
