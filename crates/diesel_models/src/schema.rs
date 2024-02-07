@@ -788,6 +788,7 @@ diesel::table! {
         session_expiry -> Nullable<Timestamp>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        request_external_authentication -> Nullable<Bool>,
     }
 }
 
