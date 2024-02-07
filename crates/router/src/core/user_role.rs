@@ -91,23 +91,32 @@ pub async fn update_user_role(
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
     if !predefined_permissions::is_role_updatable(&req.role_id)? {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable(format!("role cannot be updated to {}", req.role_id));
+        return Err(UserErrors::InvalidRoleOperation(format!(
+            "User role cannot be updated to {}",
+            req.role_id
+        ))
+        .into());
     }
 
     if !predefined_permissions::is_role_updatable(&user_from_token.role_id)? {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable(format!("role cannot be updated from {}", req.role_id));
+        return Err(UserErrors::InvalidRoleOperation(format!(
+            "User role cannot be updated from {}",
+            user_from_token.role_id
+        ))
+        .into());
     }
 
     let user_to_be_updated =
         utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
             .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+            .to_not_found_response(UserErrors::InvalidRoleOperation(
+                "User not found in our records".to_string(),
+            ))?;
 
     if user_from_token.user_id == user_to_be_updated.get_user_id() {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Admin User Changing their role");
+        return Err(
+            UserErrors::InvalidRoleOperation("User Changing their own role".to_string()).into(),
+        );
     }
 
     state
@@ -121,8 +130,9 @@ pub async fn update_user_role(
             },
         )
         .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)
-        .attach_printable("UserId MerchantId not found")?;
+        .to_not_found_response(UserErrors::InvalidRoleOperation(
+            "User with given email is not found in the organization".to_string(),
+        ))?;
 
     auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
@@ -190,8 +200,9 @@ pub async fn delete_user_role(
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("User not found in records")
+                e.change_context(UserErrors::InvalidRoleOperation(
+                    "User not found in our records".to_string(),
+                ))
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }

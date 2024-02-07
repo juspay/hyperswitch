@@ -48,7 +48,7 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)

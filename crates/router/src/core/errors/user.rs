@@ -45,7 +45,7 @@ pub enum UserErrors {
     #[error("InvalidRoleId")]
     InvalidRoleId,
     #[error("InvalidRoleOperation")]
-    InvalidRoleOperation,
+    InvalidRoleOperation(String),
     #[error("IpAddressParsingFailed")]
     IpAddressParsingFailed,
     #[error("InvalidMetadataRequest")]
@@ -103,9 +103,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::CompanyNameParsingError => {
                 AER::BadRequest(ApiError::new(sub_code, 14, self.get_error_message(), None))
             }
-            Self::MerchantAccountCreationError(error_message) => {
-                AER::InternalServerError(ApiError::new(sub_code, 15, error_message, None))
-            }
+            Self::MerchantAccountCreationError(_) => AER::InternalServerError(ApiError::new(
+                sub_code,
+                15,
+                self.get_error_message(),
+                None,
+            )),
             Self::InvalidEmailError => {
                 AER::BadRequest(ApiError::new(sub_code, 16, self.get_error_message(), None))
             }
@@ -124,7 +127,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidRoleId => {
                 AER::BadRequest(ApiError::new(sub_code, 22, self.get_error_message(), None))
             }
-            Self::InvalidRoleOperation => {
+            Self::InvalidRoleOperation(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 23, self.get_error_message(), None))
             }
             Self::IpAddressParsingFailed => AER::InternalServerError(ApiError::new(
@@ -176,7 +179,7 @@ impl UserErrors {
             Self::MetadataAlreadySet => "Metadata already set",
             Self::DuplicateOrganizationId => "An Organization with the id already exists",
             Self::InvalidRoleId => "Invalid Role ID",
-            Self::InvalidRoleOperation => "User Role Operation Not Supported",
+            Self::InvalidRoleOperation(error_message) => error_message,
             Self::IpAddressParsingFailed => "Something went wrong",
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
