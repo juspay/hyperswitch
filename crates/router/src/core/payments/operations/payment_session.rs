@@ -446,6 +446,16 @@ where
             session_connector_data,
         ))
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
 }
 
 impl From<api_models::enums::PaymentMethodType> for api::GetToken {

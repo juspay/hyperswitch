@@ -353,6 +353,12 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         updated_by: String,
     },
+    BlocklistUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,

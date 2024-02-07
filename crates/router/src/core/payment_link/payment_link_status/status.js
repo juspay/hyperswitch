@@ -336,44 +336,8 @@ function initializeEventListeners(paymentDetails) {
     "hyper-checkout-status-redirect-message"
   );
 
-  if (window.innerWidth <= 1400) {
-    if (statusRedirectTextNode instanceof HTMLDivElement) {
-      statusRedirectTextNode.style.color = "#333333";
-    }
-  } else if (window.innerWidth > 1400) {
-    if (statusRedirectTextNode instanceof HTMLDivElement) {
-      statusRedirectTextNode.style.color = contrastBWColor;
-    }
+  if (statusRedirectTextNode instanceof HTMLDivElement) {
+    statusRedirectTextNode.style.color = contrastBWColor;
   }
+  };
 
-  window.addEventListener("resize", function (event) {
-    var currentHeight = window.innerHeight;
-    var currentWidth = window.innerWidth;
-    // @ts-ignore
-    if (currentWidth <= 1400 && window.state.prevWidth > 1400) {
-      try {
-        if (statusRedirectTextNode instanceof HTMLDivElement) {
-          statusRedirectTextNode.style.color = "#333333";
-        }
-      } catch (error) {
-        console.error("Failed to fetch primary-color, using default", error);
-      }
-      // @ts-ignore
-    } else if (currentWidth > 1400 && window.state.prevWidth <= 1400) {
-      try {
-        if (statusRedirectTextNode instanceof HTMLDivElement) {
-          statusRedirectTextNode.style.color = contrastBWColor;
-        }
-      } catch (error) {
-        console.error("Failed to revert back to default colors", error);
-      }
-    }
-
-    // @ts-ignore
-    window.state.prevHeight = currentHeight;
-    // @ts-ignore
-    window.state.prevWidth = currentWidth;
-    // @ts-ignore
-    window.state.isMobileView = currentWidth <= 1400;
-  });
-}
