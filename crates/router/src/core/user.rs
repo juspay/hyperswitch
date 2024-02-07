@@ -1,9 +1,7 @@
-use api_models::user::{
-    self as user_api, dashboard_metadata::SetMetaDataRequest, InviteMultipleUserResponse,
-};
+use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
-use diesel_models::{enums, enums::UserStatus, user as storage_user, user_role::UserRoleNew};
+use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
 #[cfg(feature = "email")]
 use error_stack::IntoReport;
 use error_stack::ResultExt;
@@ -12,8 +10,9 @@ use masking::ExposeInterface;
 use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
+#[cfg(not(feature = "email"))]
+use user_api::dashboard_metadata::SetMetaDataRequest;
 
-use self::dashboard_metadata::set_metadata;
 use super::errors::{UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
@@ -318,7 +317,7 @@ pub async fn change_password(
             .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
                 &user_from_token.user_id,
                 &user_from_token.merchant_id,
-                enums::DashboardMetadata::IsChangePasswordRequired,
+                diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
             )
             .await
             .ok();
@@ -533,14 +532,18 @@ pub async fn invite_user(
             is_email_sent = false;
             let invited_user_token = auth::UserFromToken {
                 user_id: new_user.get_user_id(),
-                merchant_id: user_from_token.merchant_id.clone(),
-                org_id: user_from_token.org_id.clone(),
-                role_id: request.role_id.clone(),
+                merchant_id: user_from_token.merchant_id,
+                org_id: user_from_token.org_id,
+                role_id: request.role_id,
             };
 
-            let r_request = SetMetaDataRequest::IsChangePasswordRequired;
-
-            set_metadata(state.clone(), invited_user_token, r_request).await?;
+            let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
+            dashboard_metadata::set_metadata(
+                state.clone(),
+                invited_user_token,
+                set_metadata_request,
+            )
+            .await?;
         }
 
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
@@ -726,9 +729,9 @@ async fn handle_new_user_invitation(
             role_id: request.role_id.clone(),
         };
 
-        let r_request = SetMetaDataRequest::IsChangePasswordRequired;
-
-        set_metadata(state.clone(), invited_user_token, r_request).await?;
+        let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
+        dashboard_metadata::set_metadata(state.clone(), invited_user_token, set_metadata_request)
+            .await?;
     }
 
     Ok(InviteMultipleUserResponse {

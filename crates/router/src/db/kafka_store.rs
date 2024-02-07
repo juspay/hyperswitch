@@ -2049,7 +2049,7 @@ impl DashboardMetadataInterface for KafkaStore {
         user_id: &str,
         merchant_id: &str,
         data_key: enums::DashboardMetadata,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         self.diesel_store
             .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
                 user_id,

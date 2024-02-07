@@ -50,7 +50,7 @@ pub trait DashboardMetadataInterface {
         user_id: &str,
         merchant_id: &str,
         data_key: enums::DashboardMetadata,
-    ) -> CustomResult<bool, errors::StorageError>;
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -147,7 +147,7 @@ impl DashboardMetadataInterface for Store {
         user_id: &str,
         merchant_id: &str,
         data_key: enums::DashboardMetadata,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
             &conn,
@@ -327,26 +327,25 @@ impl DashboardMetadataInterface for MockDb {
         user_id: &str,
         merchant_id: &str,
         data_key: enums::DashboardMetadata,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let mut dashboard_metadata = self.dashboard_metadata.lock().await;
 
-        let dashboard_metadata_index = dashboard_metadata
+        let index_to_remove = dashboard_metadata
             .iter()
             .position(|metadata_inner| {
                 metadata_inner
                     .user_id
-                    .clone()
-                    .map(|user_id_inner| user_id_inner == user_id)
-                    .unwrap_or(false)
+                    .as_deref()
+                    .map_or(false, |user_id_inner| user_id_inner == user_id)
                     && metadata_inner.merchant_id == merchant_id
                     && metadata_inner.data_key == data_key
             })
-            .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No data found"
-            )))?;
+            .ok_or(errors::StorageError::ValueNotFound(
+                "No data found".to_string(),
+            ))?;
 
-        dashboard_metadata.remove(dashboard_metadata_index);
+        let deleted_value = dashboard_metadata.swap_remove(index_to_remove);
 
-        Ok(true)
+        Ok(deleted_value)
     }
 }

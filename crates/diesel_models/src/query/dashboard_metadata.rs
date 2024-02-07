@@ -124,8 +124,8 @@ impl DashboardMetadata {
         user_id: String,
         merchant_id: String,
         data_key: enums::DashboardMetadata,
-    ) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::user_id
                 .eq(user_id)
