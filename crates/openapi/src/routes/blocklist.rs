@@ -57,4 +57,3 @@ pub async fn remove_entry_from_blocklist() {}
     security(("api_key" = []))
 )]
 pub async fn list_blocked_payment_methods() {}
-
