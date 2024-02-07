@@ -47,7 +47,6 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Multisafepay
         | api_models::enums::Connector::Nexinets
         | api_models::enums::Connector::Nmi
-        | api_models::enums::Connector::Noon
         | api_models::enums::Connector::Nuvei
         | api_models::enums::Connector::Opennode
         | api_models::enums::Connector::Payme
@@ -74,7 +73,8 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Tokenex => false,
         api_models::enums::Connector::Stripe
         | api_models::enums::Connector::Checkout
-        | api_models::enums::Connector::Cybersource => true,
+        | api_models::enums::Connector::Cybersource
+        | api_models::enums::Connector::Noon => true,
     }
 }
 

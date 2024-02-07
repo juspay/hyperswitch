@@ -93,6 +93,19 @@ pub async fn create_merchant_account(
             })
             .transpose()?;
 
+    let authentication_details = req
+        .authentication_details
+        .as_ref()
+        .map(|authentication_details| {
+            utils::Encode::<admin_types::AuthenticationDetails>::encode_to_value(
+                authentication_details,
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "authentication details",
+            })
+        })
+        .transpose()?;
+
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api_models::routing::RoutingAlgorithm = routing_algorithm
             .clone()
@@ -210,6 +223,7 @@ pub async fn create_merchant_account(
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
             payment_link_config: None,
+            authentication_details,
         })
     }
     .await
@@ -589,6 +603,12 @@ pub async fn merchant_account_update(
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
         payment_link_config: None,
+        authentication_details: req
+            .authentication_details
+            .as_ref()
+            .map(utils::Encode::<admin_types::AuthenticationDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
 
     let response = db

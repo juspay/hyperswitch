@@ -97,6 +97,15 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+
+    // External 3DS Authentication Details
+    pub authentication_details: Option<AuthenticationDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthenticationDetails {
+    // Authenticatin provider
+    pub authentication_providers: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -182,6 +191,9 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
+
+    // External 3DS Authentication Details
+    pub authentication_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -275,6 +287,9 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
+
+    // External 3DS Authentication Details
+    pub authentication_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
