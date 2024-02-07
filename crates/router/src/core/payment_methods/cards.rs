@@ -764,7 +764,6 @@ pub async fn get_card_from_hs_locker<'a>(
             .change_context(errors::VaultError::FetchCardFailed)
     } else {
         let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
-        println!("getcardres{:?}", get_card_resp);
         payment_methods::mk_get_card_response(get_card_resp)
             .change_context(errors::VaultError::ResponseDeserializationFailed)
     }
