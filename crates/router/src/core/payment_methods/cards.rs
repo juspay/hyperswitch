@@ -224,7 +224,7 @@ pub async fn add_payment_method(
                     )
                     .await?;
 
-                    add_card_hs(
+                    let add_card_resp = add_card_hs(
                         &state,
                         req.clone(),
                         &card,
@@ -233,9 +233,20 @@ pub async fn add_payment_method(
                         api::enums::LockerChoice::Tartarus,
                         Some(&resp.payment_method_id),
                     )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Add Card Failed")?;
+                    .await;
+
+                    if let Err(err) = add_card_resp {
+                        logger::error!(vault_err=?err);
+                        db.delete_payment_method_by_merchant_id_payment_method_id(
+                            merchant_id,
+                            &resp.payment_method_id,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+                        Err(report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while updating card metadata changes"))?
+                    };
 
                     let existing_pm = db.find_payment_method(&resp.payment_method_id).await;
                     match existing_pm {

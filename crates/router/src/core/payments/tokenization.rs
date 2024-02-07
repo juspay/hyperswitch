@@ -7,7 +7,7 @@ use router_env::{instrument, tracing};
 use super::helpers;
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate, payment_methods, payments,
     },
     logger,
@@ -176,7 +176,7 @@ where
                                 )
                                 .await?;
 
-                                payment_methods::cards::add_card_hs(
+                                let add_card_resp = payment_methods::cards::add_card_hs(
                                     state,
                                     payment_method_create_request.clone(),
                                     &card,
@@ -185,9 +185,24 @@ where
                                     api::enums::LockerChoice::Tartarus,
                                     Some(&locker_response.0.payment_method_id),
                                 )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Add Card Failed")?;
+                                .await;
+
+                                if let Err(err) = add_card_resp {
+                                    logger::error!(vault_err=?err);
+                                    db.delete_payment_method_by_merchant_id_payment_method_id(
+                                        merchant_id,
+                                        &locker_response.0.payment_method_id,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )?;
+
+                                    Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable(
+                                            "Failed while updating card metadata changes",
+                                        ))?
+                                };
 
                                 let existing_pm = db
                                     .find_payment_method(&locker_response.0.payment_method_id)
