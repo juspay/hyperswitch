@@ -1213,6 +1213,7 @@ pub async fn list_payment_methods(
             mca.connector_name.clone(),
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
+            &state.conf.mandates.update_mandate_supported,
         )
         .await?;
     }
@@ -1977,6 +1978,7 @@ pub async fn filter_payment_methods(
     connector: String,
     config: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -2092,7 +2094,8 @@ pub async fn filter_payment_methods(
                                 )
                             } else if update_mandate_id_present {
                                 filter_pm_based_on_supported_payments_for_update_mandate(
-                                    supported_payment_methods_for_mandate,
+                                    supported_payment_methods_for_update_mandate,
+                                    &payment_method,
                                     &payment_method_object.payment_method_type,
                                     connector_variant,
                                 )
@@ -2119,14 +2122,15 @@ pub async fn filter_payment_methods(
     }
     Ok(())
 }
-fn filter_pm_based_on_supported_payments_for_update_mandate(
+pub fn filter_pm_based_on_supported_payments_for_update_mandate(
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    payment_method: &api_enums::PaymentMethod,
     payment_method_type: &api_enums::PaymentMethodType,
     connector: api_enums::Connector,
 ) -> bool {
     supported_payment_methods_for_mandate
         .0
-        .get(&api_enums::PaymentMethod::Card)
+        .get(payment_method)
         .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
         .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
         .unwrap_or(false)

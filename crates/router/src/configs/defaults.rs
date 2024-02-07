@@ -209,9 +209,7 @@ impl Default for Mandates {
                     ])),
                 ),
             ])),
-            update_mandate_supported: SupportedConnectorsForMandate {
-                connector_list: HashSet::default(),
-            },
+            update_mandate_supported: SupportedPaymentMethodsForMandate(HashMap::default()),
         }
     }
 }

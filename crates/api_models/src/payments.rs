@@ -1011,6 +1011,23 @@ impl PaymentMethodData {
             self.to_owned()
         }
     }
+    pub fn get_payment_method_for_payment_method_data(&self) -> Option<api_enums::PaymentMethod> {
+        match self {
+            Self::Card(_) => Some(api_enums::PaymentMethod::Card),
+            Self::CardRedirect(_) => Some(api_enums::PaymentMethod::CardRedirect),
+            Self::Wallet(_) => Some(api_enums::PaymentMethod::Wallet),
+            Self::PayLater(_) => Some(api_enums::PaymentMethod::PayLater),
+            Self::BankRedirect(_) => Some(api_enums::PaymentMethod::BankRedirect),
+            Self::BankDebit(_) => Some(api_enums::PaymentMethod::BankDebit),
+            Self::BankTransfer(_) => Some(api_enums::PaymentMethod::BankTransfer),
+            Self::Crypto(_) => Some(api_enums::PaymentMethod::Crypto),
+            Self::Reward => Some(api_enums::PaymentMethod::Reward),
+            Self::Upi(_) => Some(api_enums::PaymentMethod::Upi),
+            Self::Voucher(_) => Some(api_enums::PaymentMethod::Voucher),
+            Self::GiftCard(_) => Some(api_enums::PaymentMethod::GiftCard),
+            Self::CardToken(_) | Self::MandatePayment => None,
+        }
+    }
 }
 
 pub trait GetPaymentMethodType {

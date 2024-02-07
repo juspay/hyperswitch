@@ -7,6 +7,7 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
+        payment_methods::cards,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
@@ -262,14 +263,27 @@ impl types::SetupMandateRouterData {
         connector: &api::ConnectorData,
         key_store: &domain::MerchantKeyStore,
         call_connector_action: payments::CallConnectorAction,
-        supported_connectors_for_update_mandate: &settings::SupportedConnectorsForMandate,
+        supported_connectors_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
         connector_request: Option<services::Request>,
         maybe_customer: &Option<domain::Customer>,
     ) -> RouterResult<Self> {
-        if helpers::update_supported_connectors(
-            connector.connector_name,
-            supported_connectors_for_update_mandate.clone(),
-        ) {
+        let payment_method_type = self.request.payment_method_type;
+
+        let payment_method = self
+            .request
+            .payment_method_data
+            .get_payment_method_for_payment_method_data();
+
+        if payment_method_type.map_or(false, |pmt| {
+            payment_method.map_or(false, |pm| {
+                cards::filter_pm_based_on_supported_payments_for_update_mandate(
+                    &supported_connectors_for_update_mandate,
+                    &pm,
+                    &pmt,
+                    connector.connector_name,
+                )
+            })
+        }) {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::SetupMandate,
