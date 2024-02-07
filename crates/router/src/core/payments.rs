@@ -147,7 +147,7 @@ where
         .attach_printable("Failed while fetching/creating customer")?;
 
     call_decision_manager(state, &merchant_account, &mut payment_data).await?;
-    
+
     let connector = get_connector_choice(
         &operation,
         state,
@@ -1038,7 +1038,10 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
-    tracing::Span::current().record("connector_info", &format!("{}", &connector.connector_name.to_string()));
+    tracing::Span::current().record(
+        "connector_info",
+        &format!("{}", &connector.connector_name.to_string()),
+    );
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         merchant_account,
@@ -2100,8 +2103,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
-
-    
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
@@ -2399,7 +2400,7 @@ pub async fn get_connector_choice<F, Req, Ctx>(
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
-{   
+{
     let connector_choice = operation
         .to_domain()?
         .get_connector(
@@ -2514,7 +2515,6 @@ where
         eligible_connectors,
     )
     .await?;
-
 
     let encoded_info =
         Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
