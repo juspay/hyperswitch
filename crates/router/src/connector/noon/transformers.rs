@@ -381,7 +381,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     }
                     Some(data_models::mandates::MandateDataType::MultiUse(None)) => {
                         Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                            field_name:
+                                "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
                         })
                         .into_report()
                     }
