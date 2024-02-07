@@ -635,15 +635,20 @@ pub async fn get_payment_method_from_hs_locker<'a>(
                 .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed to parse struct to RetrieveCardResp")?;
         let retrieve_card_resp = get_card_resp
             .payload
             .get_required_value("RetrieveCardRespPayload")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed to retrieve field - payload from RetrieveCardResp")?;
         let enc_card_data = retrieve_card_resp
             .enc_card_data
             .get_required_value("enc_card_data")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable(
+                "Failed to retrieve field - enc_card_data from RetrieveCardRespPayload",
+            )?;
         decode_and_decrypt_locker_data(key_store, enc_card_data.peek().to_string()).await?
     } else {
         mock_get_payment_method(&*state.store, key_store, payment_method_reference)
@@ -2571,7 +2576,7 @@ pub async fn list_customer_payment_method(
                             &key_store,
                             &token,
                             &pm.customer_id,
-                            &pm.customer_id,
+                            &pm.merchant_id,
                             &pm.payment_method_id,
                         )
                         .await?,
