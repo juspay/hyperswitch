@@ -241,9 +241,7 @@ pub async fn modify_trackers(
     payout_data.payout_attempt = db
         .insert_payout_attempt(new_payout_attempt_req)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id,
-        })
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })
         .attach_printable("Error inserting payouts in db")?;
 
     payout_data.merchant_connector_account = None;

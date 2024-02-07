@@ -1100,7 +1100,7 @@ pub async fn create_payout(
                     last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
-                .update_payout_attempt_by_merchant_id_payout_id(
+                .update_payout_attempt_by_merchant_id_payout_attempt_id(
                     merchant_id,
                     payout_attempt_id,
                     updated_payout_attempt,

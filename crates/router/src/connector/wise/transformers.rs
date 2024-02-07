@@ -57,7 +57,6 @@ pub struct SubError {
     pub message: String,
     pub path: Option<String>,
     pub field: Option<String>,
-    pub arguments: Option<Vec<String>>,
 }
 
 // Payouts
