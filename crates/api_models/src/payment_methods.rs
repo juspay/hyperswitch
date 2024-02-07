@@ -475,6 +475,13 @@ impl ResponsePaymentMethodIntermediate {
     }
 }
 
+/// This function is required for cases when we want to have a serde(default) annotation over a
+/// mandatory bool field in a struct but want the default value to be 'true' as opposed to the
+/// Default::default() value of bool which is 'false'
+fn bool_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
     #[schema(value_type = PaymentMethodType)]
@@ -517,6 +524,11 @@ pub struct RequestPaymentMethodTypes {
     /// Boolean to enable installment / EMI / BNPL payments. Default is true.
     #[schema(default = true, example = false)]
     pub installment_payment_enabled: bool,
+
+    /// Whether a mandate can be set up using this payment method
+    #[serde(default = "bool_true")]
+    #[schema(default = true, example = false)]
+    pub setup_mandate_enabled: bool,
 }
 
 //List Payment Method

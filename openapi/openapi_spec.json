@@ -15143,6 +15143,12 @@
             "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
             "default": true,
             "example": false
+          },
+          "setup_mandate_enabled": {
+            "type": "boolean",
+            "description": "Whether a mandate can be set up using this payment method",
+            "default": true,
+            "example": false
           }
         }
       },

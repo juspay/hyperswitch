@@ -392,6 +392,9 @@ bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
 
 
+[mandates.setup_mandate_support]
+bank_debit.ach = { connector_list = "gocardless" } # Setup Mandate supported payment method and connectors for bank debits
+
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
 afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_clearpay, connector = "stripe"

@@ -382,6 +382,7 @@ mod tests {
                         maximum_amount: Some(1000),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
+                        setup_mandate_enabled: true,
                     },
                     RequestPaymentMethodTypes {
                         payment_method_type: api_enums::PaymentMethodType::Debit,
@@ -399,6 +400,7 @@ mod tests {
                         maximum_amount: Some(1000),
                         recurring_enabled: true,
                         installment_payment_enabled: true,
+                        setup_mandate_enabled: true,
                     },
                 ]),
             }]),

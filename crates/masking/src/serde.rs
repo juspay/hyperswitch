@@ -24,6 +24,7 @@ pub trait SerializableSecret: Serialize {}
 // #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 // pub trait NonSerializableSecret: Serialize {}
 
+impl SerializableSecret for String {}
 impl SerializableSecret for Value {}
 impl SerializableSecret for u8 {}
 impl SerializableSecret for u16 {}

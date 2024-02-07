@@ -38,6 +38,7 @@ fn build_test_data<'a>(total_enabled: usize, total_pm_types: usize) -> graph::Kn
                 maximum_amount: Some(1000),
                 recurring_enabled: true,
                 installment_payment_enabled: true,
+                setup_mandate_enabled: true,
             });
         }
 
