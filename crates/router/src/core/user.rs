@@ -732,7 +732,7 @@ pub async fn resend_invite(
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation(
-                    "User not found in our records".to_string(),
+                    "User not found in our records",
                 ))
             } else {
                 e.change_context(UserErrors::InternalServerError)
