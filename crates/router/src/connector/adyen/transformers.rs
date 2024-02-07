@@ -3563,28 +3563,18 @@ pub fn get_present_to_shopper_metadata(
     }
 }
 
-impl<Req>
+impl<F, Req>
     TryFrom<(
-        types::ResponseRouterData<
-            api::Authorize,
-            AdyenPaymentResponse,
-            Req,
-            types::PaymentsResponseData,
-        >,
+        types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
         Option<storage_enums::CaptureMethod>,
         bool,
         Option<enums::PaymentMethodType>,
-    )> for types::RouterData<api::Authorize, Req, types::PaymentsResponseData>
+    )> for types::RouterData<F, Req, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
         (item, capture_method, is_multiple_capture_psync_flow, pmt): (
-            types::ResponseRouterData<
-                api::Authorize,
-                AdyenPaymentResponse,
-                Req,
-                types::PaymentsResponseData,
-            >,
+            types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
             Option<storage_enums::CaptureMethod>,
             bool,
             Option<enums::PaymentMethodType>,
@@ -3610,56 +3600,6 @@ impl<Req>
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-        };
-
-        Ok(Self {
-            status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
-            ..item.data
-        })
-    }
-}
-
-impl<F, Req>
-    TryFrom<(
-        types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
-        Option<storage_enums::CaptureMethod>,
-        bool,
-    )> for types::RouterData<F, Req, types::PaymentsResponseData>
-{
-    type Error = Error;
-    fn try_from(
-        (item, capture_method, is_multiple_capture_psync_flow): (
-            types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
-            Option<storage_enums::CaptureMethod>,
-            bool,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let is_manual_capture = utils::is_manual_capture(capture_method);
-        let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::Response(response) => {
-                if is_multiple_capture_psync_flow {
-                    get_adyen_response_for_multiple_partial_capture(
-                        *response,
-                        item.http_code,
-                        None,
-                    )?
-                } else {
-                    get_adyen_response(*response, is_manual_capture, item.http_code, None)?
-                }
-            }
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, None)?
-            }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, None)?
-            }
-            AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, None)?
-            }
-            AdyenPaymentResponse::RedirectionErrorResponse(response) => {
-                get_redirection_error_response(*response, is_manual_capture, item.http_code, None)?
             }
         };
 
