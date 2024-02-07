@@ -45,7 +45,7 @@ pub enum UserErrors {
     #[error("InvalidRoleId")]
     InvalidRoleId,
     #[error("InvalidRoleOperation")]
-    InvalidRoleOperation(String),
+    InvalidRoleOperation,
     #[error("IpAddressParsingFailed")]
     IpAddressParsingFailed,
     #[error("InvalidMetadataRequest")]
@@ -60,6 +60,8 @@ pub enum UserErrors {
     MaxInvitationsError,
     #[error("RoleNotFound")]
     RoleNotFound,
+    #[error("InvalidRoleOperationWithMessage")]
+    InvalidRoleOperationWithMessage(String),
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -127,7 +129,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidRoleId => {
                 AER::BadRequest(ApiError::new(sub_code, 22, self.get_error_message(), None))
             }
-            Self::InvalidRoleOperation(_) => {
+            Self::InvalidRoleOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 23, self.get_error_message(), None))
             }
             Self::IpAddressParsingFailed => AER::InternalServerError(ApiError::new(
@@ -154,6 +156,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RoleNotFound => {
                 AER::BadRequest(ApiError::new(sub_code, 32, self.get_error_message(), None))
             }
+            Self::InvalidRoleOperationWithMessage(_) => {
+                AER::BadRequest(ApiError::new(sub_code, 33, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -179,7 +184,7 @@ impl UserErrors {
             Self::MetadataAlreadySet => "Metadata already set",
             Self::DuplicateOrganizationId => "An Organization with the id already exists",
             Self::InvalidRoleId => "Invalid Role ID",
-            Self::InvalidRoleOperation(error_message) => error_message,
+            Self::InvalidRoleOperation => "User Role Operation Not Supported",
             Self::IpAddressParsingFailed => "Something went wrong",
             Self::InvalidMetadataRequest => "Invalid Metadata Request",
             Self::MerchantIdParsingError => "Invalid Merchant Id",
@@ -187,6 +192,7 @@ impl UserErrors {
             Self::InvalidDeleteOperation => "Delete Operation Not Supported",
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
             Self::RoleNotFound => "Role Not Found",
+            Self::InvalidRoleOperationWithMessage(error_message) => error_message,
         }
     }
 }

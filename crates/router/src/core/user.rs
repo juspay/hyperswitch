@@ -408,7 +408,10 @@ pub async fn invite_user(
         .change_context(UserErrors::InternalServerError)?;
 
     if inviter_user.email == request.email {
-        return Err(UserErrors::InvalidRoleOperation("User Inviting themself".to_string()).into());
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User Inviting themselves".to_string(),
+        )
+        .into());
     }
 
     if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
@@ -567,9 +570,10 @@ async fn handle_invitation(
     let inviter_user = user_from_token.get_user(&state).await?;
 
     if inviter_user.email == request.email {
-        return Err(
-            UserErrors::InvalidRoleOperation("User Inviting themselves".to_string()).into(),
-        );
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User Inviting themselves".to_string(),
+        )
+        .into());
     }
 
     if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
@@ -841,7 +845,7 @@ pub async fn switch_merchant_id(
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::SwitchMerchantResponse> {
     if user_from_token.merchant_id == request.merchant_id {
-        return Err(UserErrors::InvalidRoleOperation(
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same merchant id".to_string(),
         )
         .into());
@@ -902,10 +906,9 @@ pub async fn switch_merchant_id(
         let user_role = active_user_roles
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)
-            .ok_or(UserErrors::InvalidRoleOperation(
-                "User doesn't have access to switch".to_string(),
-            ))
-            .into_report()?;
+            .ok_or(UserErrors::InvalidRoleOperation)
+            .into_report()
+            .attach_printable("User doesn't have access to switch".to_string())?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
         (token, user_role.role_id.clone())
