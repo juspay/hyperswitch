@@ -238,6 +238,7 @@ pub async fn update_customer_payment_method(
         payment_method_issuer_code: pm.payment_method_issuer_code,
         bank_transfer: req.bank_transfer,
         card: req.card,
+        wallet: req.wallet,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
         card_network: req
@@ -1803,6 +1804,7 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
+    let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
@@ -1865,6 +1867,7 @@ pub async fn list_payment_methods(
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
+            currency,
         },
     ))
 }
@@ -2475,6 +2478,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 cloned_secret,
             )
             .await?;
+
         let customer_id = payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
@@ -2498,6 +2502,15 @@ pub async fn list_customer_payment_method(
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
+
+    if let Some(ref payment_intent) = payment_intent {
+        if payment_intent.payment_link_id.is_some() {
+            Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "saved payment methods".to_string(),
+            })?
+        }
+    };
+
     db.find_customer_by_customer_id_merchant_id(
         customer_id,
         &merchant_account.merchant_id,
@@ -2948,6 +2961,10 @@ pub async fn get_bank_from_hs_locker(
         }
         api::PayoutMethodData::Card(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Expected bank details, found card details instead".to_string(),
+        }
+        .into()),
+        api::PayoutMethodData::Wallet(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
     }

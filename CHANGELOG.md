@@ -4,6 +4,46 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.07.0
+
+### Features
+
+- **connect:** [NMI] Use connector_response_reference_id as reference to merchant ([#2702](https://github.com/juspay/hyperswitch/pull/2702)) ([`683c1b8`](https://github.com/juspay/hyperswitch/commit/683c1b81c5a30ac0df93664805b78a8e44d49acc))
+- **connector:** Send metadata in payment authorize request for noon nmi cryptopay ([#3325](https://github.com/juspay/hyperswitch/pull/3325)) ([`ebe4ac3`](https://github.com/juspay/hyperswitch/commit/ebe4ac30a8f8f8dda7f052cb4a3788d70417aa17))
+- **router:** Block list spm customer for payment link flow ([#3500](https://github.com/juspay/hyperswitch/pull/3500)) ([`6304bda`](https://github.com/juspay/hyperswitch/commit/6304bda442be68226097fd8dcc28426b74264ab0))
+
+### Bug Fixes
+
+- **connector:** [Stripe] capture error message and error code for failed payment, capture, void and refunds ([#3237](https://github.com/juspay/hyperswitch/pull/3237)) ([`2c52b37`](https://github.com/juspay/hyperswitch/commit/2c52b377e05b6e6296958078dd0464a49c4981a9))
+- **merchant_connector_account:** Change error to DuplicateMerchantAccount ([#3496](https://github.com/juspay/hyperswitch/pull/3496)) ([`c0d910f`](https://github.com/juspay/hyperswitch/commit/c0d910f50ebe9cf387b08ecbdb86f2f60346c0cb))
+- Auto retry once for connection closed ([#3426](https://github.com/juspay/hyperswitch/pull/3426)) ([`94e9b26`](https://github.com/juspay/hyperswitch/commit/94e9b26854948fe3ff7b0d96b754b5f0c9cac31a))
+
+### Refactors
+
+- **blocklist:** Separate utility function & kill switch for validating data in blocklist ([#3360](https://github.com/juspay/hyperswitch/pull/3360)) ([`0a97a1e`](https://github.com/juspay/hyperswitch/commit/0a97a1eb6382a1aa465ac5a1dc792ea4e763511a))
+- **configs:** [Payme] Development config for 3DS ([#3555](https://github.com/juspay/hyperswitch/pull/3555)) ([`3705f77`](https://github.com/juspay/hyperswitch/commit/3705f77ee445acd5ce555a370b375b19d20ce3d4))
+
+**Full Changelog:** [`2024.02.06.0...2024.02.07.0`](https://github.com/juspay/hyperswitch/compare/2024.02.06.0...2024.02.07.0)
+
+- - -
+
+## 2024.02.06.0
+
+### Features
+
+- **connector:** [Adyen] Use connector_request_reference_id as reference to Payments ([#3547](https://github.com/juspay/hyperswitch/pull/3547)) ([`c2eecce`](https://github.com/juspay/hyperswitch/commit/c2eecce1e803de308dcfcf774aa8aa2323cc96ec))
+
+### Bug Fixes
+
+- **connector:** [NMI] Handle empty response in psync and error response in complete authorize ([#3548](https://github.com/juspay/hyperswitch/pull/3548)) ([`a0fcef3`](https://github.com/juspay/hyperswitch/commit/a0fcef3f04cab75cf05154ef16fd26ab5a3783b9))
+- **router:** Handle empty body parse failures in bad request logger middleware ([#3541](https://github.com/juspay/hyperswitch/pull/3541)) ([`be22d60`](https://github.com/juspay/hyperswitch/commit/be22d60ddac18d9fb3032f72247634799e8f4ceb))
+- Add `profile_id` in dispute ([#3486](https://github.com/juspay/hyperswitch/pull/3486)) ([`0d5cd71`](https://github.com/juspay/hyperswitch/commit/0d5cd711b245fb69d0f35830aa1ba2f0b8a297cc))
+- Return currency in payment methods list response ([#3516](https://github.com/juspay/hyperswitch/pull/3516)) ([`a9c0d0c`](https://github.com/juspay/hyperswitch/commit/a9c0d0c55492c14a4a10283ffd8deae04c8ea853))
+
+**Full Changelog:** [`2024.02.05.0...2024.02.06.0`](https://github.com/juspay/hyperswitch/compare/2024.02.05.0...2024.02.06.0)
+
+- - -
+
 ## 2024.02.05.0
 
 ### Features

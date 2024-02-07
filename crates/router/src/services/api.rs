@@ -561,8 +561,7 @@ pub async fn send_request(
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
     };
-
-    let send_request = async {
+    let request = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -616,32 +615,92 @@ pub async fn send_request(
         .timeout(Duration::from_secs(
             option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
         ))
-        .send()
-        .await
-        .map_err(|error| match error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::RequestTimeoutReceived
-            }
-            error if is_connection_closed(&error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::ConnectionClosed
-            }
-            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-        })
-        .into_report()
-        .attach_printable("Unable to send request to connector")
     };
 
-    metrics_request::record_operation_time(
+    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    let cloned_send_request = request.try_clone().map(|cloned_request| async {
+        cloned_request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+    });
+
+    let send_request = async {
+        request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+    };
+
+    let response = metrics_request::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &[metrics_tag],
+        &[metrics_tag.clone()],
     )
-    .await
+    .await;
+    // Retry once if the response is connection closed.
+    //
+    // This is just due to the racy nature of networking.
+    // hyper has a connection pool of idle connections, and it selected one to send your request.
+    // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
+    // But occasionally, a connection will be selected from the pool
+    // and written to at the same time the server is deciding to close the connection.
+    // Since hyper already wrote some of the request,
+    // it can’t really retry it automatically on a new connection, since the server may have acted already
+    match response {
+        Ok(response) => Ok(response),
+        Err(error)
+            if error.current_context()
+                == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
+        {
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+            match cloned_send_request {
+                Some(cloned_request) => {
+                    logger::info!(
+                        "Retrying request due to connection closed before message could complete"
+                    );
+                    metrics_request::record_operation_time(
+                        cloned_request,
+                        &metrics::EXTERNAL_REQUEST_TIME,
+                        &[metrics_tag],
+                    )
+                    .await
+                }
+                None => {
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    Err(error)
+                }
+            }
+        }
+        err @ Err(_) => err,
+    }
 }
 
-fn is_connection_closed(error: &reqwest::Error) -> bool {
+fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
         if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
@@ -1714,6 +1773,18 @@ pub fn build_redirection_form(
                         item2.name='xid';
                         item2.value=e.xid;
                         responseForm.appendChild(item2);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='eci';
+                        item6.value=e.eci;
+                        responseForm.appendChild(item6);
+
+                        var item7=document.createElement('input');
+                        item7.type='hidden';
+                        item7.name='directoryServerId';
+                        item7.value=e.directoryServerId;
+                        responseForm.appendChild(item7);
 
                         var item3=document.createElement('input');
                         item3.type='hidden';
