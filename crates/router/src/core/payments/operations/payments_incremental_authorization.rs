@@ -93,7 +93,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         }
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
-        let previously_amount = payment_attempt.amount.get_authorize_amount();
+        let previously_authorized_amount = payment_attempt.amount.get_authorize_amount();
 
         let profile_id = payment_intent
             .profile_id
@@ -115,7 +115,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_intent,
             payment_attempt,
             currency,
-            amount: previously_amount.into(),
+            amount: previously_authorized_amount.into(),
             email: None,
             mandate_id: None,
             mandate_connector: None,
@@ -144,7 +144,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: Some(IncrementalAuthorizationDetails {
-                additional_amount: request.amount - previously_amount,
+                additional_amount: request.amount - previously_authorized_amount,
                 total_amount: request.amount,
                 reason: request.reason.clone(),
                 authorization_id: None,
