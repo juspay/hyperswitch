@@ -945,10 +945,13 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchant_ids_for_user(
     state: AppState,
-    user: auth::UserFromToken,
+    user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
-    let user_roles =
-        utils::user_role::get_active_user_roles_for_user(&state, &user.user_id).await?;
+    let user_roles = state
+        .store
+        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let merchant_accounts = state
         .store
