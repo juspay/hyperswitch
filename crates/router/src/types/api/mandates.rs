@@ -112,6 +112,7 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             card_issuer: card_details_from_locker.card_issuer,
             card_network: card_details_from_locker.card_network,
             card_type: card_details_from_locker.card_type,
+            nick_name: card_details_from_locker.nick_name,
         }
         .into()
     }
