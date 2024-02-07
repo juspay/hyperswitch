@@ -15,6 +15,7 @@ use crate::{
         storage::enums,
         transformers::ForeignTryFrom,
     },
+    utils::OptionExt,
 };
 
 //TODO: Fill the struct with respective fields
@@ -312,6 +313,13 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Error parsing billing country type2")?;
+        let connector_meta_data: ThreeDSecureIoMetaData = item
+            .router_data
+            .connector_meta_data
+            .clone()
+            .parse_value("ThreeDSecureIoMetaData")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("connector_meta_data {:?}", connector_meta_data);
         Ok(Self {
             ds_start_protocol_version: item
                 .router_data
@@ -352,20 +360,8 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             three_dscomp_ind: "Y".to_string(),
             three_dsrequestor_url: "https::/google.com".to_string(),
-            acquirer_bin: item
-                .router_data
-                .request
-                .acquirer_details
-                .clone()
-                .map(|acquirer| acquirer.acquirer_bin)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-            acquirer_merchant_id: item
-                .router_data
-                .request
-                .acquirer_details
-                .clone()
-                .map(|acquirer| acquirer.acquirer_merchant_mid)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            acquirer_bin: connector_meta_data.acquirer_bin,
+            acquirer_merchant_id: connector_meta_data.acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
             bill_addr_city: item
                 .router_data
@@ -457,9 +453,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .user_agent
                 .clone()
                 .map(|a| a.to_string()),
-            mcc: "5411".to_string(),
-            merchant_country_code: "840".to_string(),
-            merchant_name: "Dummy Merchant".to_string(),
+            mcc: connector_meta_data.mcc,
+            merchant_country_code: connector_meta_data.merchant_country_code,
+            merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
             message_version: item
                 .router_data
@@ -618,6 +614,15 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub trans_type: String,
     pub sdk_max_timeout: Option<String>,
     pub device_render_options: Option<DeviceRenderOptions>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreeDSecureIoMetaData {
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub mcc: String,
+    pub merchant_country_code: String,
+    pub merchant_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

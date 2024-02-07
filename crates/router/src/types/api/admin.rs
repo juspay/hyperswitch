@@ -47,6 +47,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
+            authentication_details: item.authentication_details,
         })
     }
 }

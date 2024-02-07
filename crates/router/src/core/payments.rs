@@ -3132,15 +3132,20 @@ pub async fn payment_external_authentication(
     )
     .await?;
 
+    let authentication_provider = payment_attempt
+        .authentication_provider
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
     let merchant_connector_account = db
         .find_merchant_connector_account_by_profile_id_connector_name(
             profile_id,
-            "threedsecureio",
+            &authentication_provider,
             &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: format!("profile id {profile_id} and connector name threedsecureio"),
+            id: format!("profile id {profile_id} and connector name {authentication_provider}"),
         })?;
 
     let authentication = db
@@ -3275,7 +3280,7 @@ pub async fn payment_external_authentication(
     let return_url = Some(helpers::create_redirect_url(
         &state.conf.server.base_url,
         &payment_attempt.clone(),
-        &"threedsecureio".to_string(),
+        &authentication_provider,
         None,
     ));
     let device_channel = if req.sdk_information.is_some() {
@@ -3285,7 +3290,7 @@ pub async fn payment_external_authentication(
     };
     let authentication_response = authentication_core::perform_authentication(
         &state,
-        "threedsecureio".to_string(),
+        authentication_provider,
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,
@@ -3303,10 +3308,6 @@ pub async fn payment_external_authentication(
         browser_info.ok_or(errors::ApiErrorResponse::InternalServerError)?,
         merchant_account,
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
-        Some(authentication::AcquirerDetails {
-            acquirer_bin: "438309".to_string(),
-            acquirer_merchant_mid: "00002000000".to_string(),
-        }),
         amount,
         Some(currency),
         authentication::MessageCategory::Payment,

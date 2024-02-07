@@ -374,7 +374,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
         payment_attempt.external_3ds_authentication_requested = request
-            .request_separate_authentication
+            .request_external_authentication
             .or(payment_attempt.external_3ds_authentication_requested);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -652,6 +652,15 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
         });
         print!("is_pre_authn_call {:?}", is_pre_authn_call);
+        let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
+            .authentication_details
+            .clone()
+            .parse_value("authentication details")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let authentication_provider = authentication_details
+            .authentication_providers
+            .first()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
         if is_pre_authn_call {
             if separate_authentication_requested && connector_supports_separate_authn {
                 if let Some(card_number) = card_number {
@@ -666,14 +675,14 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         .store
                         .find_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
-                            "threedsecureio",
+                            &authentication_provider,
                             key_store,
                         )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                 id: format!(
-                                    "profile id {profile_id} and connector name threedsecureio"
+                                    "profile id {profile_id} and connector name {authentication_provider}"
                                 ),
                             },
                         )?;
@@ -692,7 +701,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
             Ok(())
         } else {
-            print!("eneted");
             // call post authn service
             let profile_id = payment_data
                 .payment_intent
@@ -705,13 +713,15 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .store
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     profile_id,
-                    "threedsecureio",
+                    &authentication_provider,
                     key_store,
                 )
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile id {profile_id} and connector name threedsecureio"),
+                        id: format!(
+                            "profile id {profile_id} and connector name {authentication_provider}"
+                        ),
                     },
                 )?;
             let authentication = payment_data

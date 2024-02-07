@@ -580,6 +580,7 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
+        authentication_details -> Nullable<Jsonb>,
     }
 }
 
