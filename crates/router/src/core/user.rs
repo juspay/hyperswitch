@@ -2,7 +2,9 @@ use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
-use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "email")]
+use error_stack::IntoReport;
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::env;
@@ -567,7 +569,7 @@ async fn handle_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
 ) -> UserResult<InviteMultipleUserResponse> {
-    let inviter_user = user_from_token.get_user(&state).await?;
+    let inviter_user = user_from_token.get_user(state).await?;
 
     if inviter_user.email == request.email {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
@@ -909,8 +911,7 @@ pub async fn switch_merchant_id(
         let user_role = active_user_roles
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)
-            .ok_or(UserErrors::InvalidRoleOperation)
-            .into_report()
+            .ok_or(UserErrors::InvalidRoleOperation.into())
             .attach_printable("User doesn't have access to switch".to_string())?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
