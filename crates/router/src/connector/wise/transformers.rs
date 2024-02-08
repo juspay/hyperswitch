@@ -369,9 +369,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             }),
         }?;
         match request.payout_type.to_owned() {
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -429,9 +431,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
                 target_currency: request.destination_currency.to_string(),
                 pay_out: WisePayOutOption::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -485,9 +489,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
                     details: wise_transfer_details,
                 })
             }
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -528,9 +534,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             storage_enums::PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -577,7 +585,8 @@ impl ForeignFrom<PayoutEntityType> for LegalType {
         match entity_type {
             PayoutEntityType::Individual
             | PayoutEntityType::Personal
-            | PayoutEntityType::NonProfit => Self::Private,
+            | PayoutEntityType::NonProfit
+            | PayoutEntityType::NaturalPerson => Self::Private,
             PayoutEntityType::Company
             | PayoutEntityType::PublicSector
             | PayoutEntityType::Business => Self::Business,

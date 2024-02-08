@@ -233,6 +233,7 @@ impl
             },
             None,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -506,6 +507,7 @@ impl
             },
             data.request.capture_method,
             is_multiple_capture_sync,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -627,6 +629,7 @@ impl
             },
             data.request.capture_method,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -1164,7 +1167,8 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             "{}pal/servlet/Payout/v68/{}",
             connectors.adyen.secondary_base_url,
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => "confirmThirdParty".to_string(),
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
+                    "confirmThirdParty".to_string(),
                 storage_enums::PayoutType::Card => "payout".to_string(),
             }
         ))
@@ -1186,7 +1190,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => {
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
                 storage_enums::PayoutType::Card => auth.api_key.into_masked(),

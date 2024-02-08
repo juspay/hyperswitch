@@ -201,6 +201,8 @@ pub enum Flow {
     DeleteFromBlocklist,
     /// List entries from blocklist
     ListBlocklist,
+    /// Toggle blocklist for merchant
+    ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -331,6 +333,8 @@ pub enum Flow {
     InviteUser,
     /// Invite multiple users
     InviteMultipleUser,
+    /// Reinvite user
+    ReInviteUser,
     /// Delete user role
     DeleteUserRole,
     /// Incremental Authorization flow
