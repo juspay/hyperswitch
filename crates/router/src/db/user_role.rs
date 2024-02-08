@@ -212,8 +212,8 @@ impl UserRoleInterface for Store {
                 old_org_admin_user_roles
                     .into_iter()
                     .filter_map(|old_roles| {
-                        if !new_org_admin_merchant_ids.contains(&old_roles.merchant_id) {
-                            Some(storage::UserRoleNew {
+                        (!new_org_admin_merchant_ids.contains(&old_roles.merchant_id)).then_some({
+                            storage::UserRoleNew {
                                 user_id: to_user_id.to_string(),
                                 merchant_id: old_roles.merchant_id,
                                 role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
@@ -223,10 +223,8 @@ impl UserRoleInterface for Store {
                                 last_modified_by: from_user_id.to_string(),
                                 created_at: now,
                                 last_modified: now,
-                            })
-                        } else {
-                            None
-                        }
+                            }
+                        })
                     });
 
             futures::future::try_join_all(missing_new_user_roles.map(|user_role| async {
