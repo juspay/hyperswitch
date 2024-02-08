@@ -1,3 +1,7 @@
+use api_models::enums::{PaymentMethod, PaymentMethodType};
+use async_trait::async_trait;
+use error_stack::{report, IntoReport, ResultExt};
+
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     configs::settings,
@@ -13,9 +17,6 @@ use crate::{
     services,
     types::{self, api, domain},
 };
-use api_models::enums::{PaymentMethod, PaymentMethodType};
-use async_trait::async_trait;
-use error_stack::{report, IntoReport, ResultExt};
 
 #[async_trait]
 impl
