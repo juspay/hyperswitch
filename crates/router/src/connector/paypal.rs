@@ -67,31 +67,45 @@ impl Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = response.details.map(|order_errors| {
-            order_errors
-                .iter()
-                .map(|error| {
-                    let mut reason = format!("description - {}", error.description);
-                    if let Some(value) = &error.value {
-                        reason.push_str(&format!(", value - {value}"));
-                    }
-                    if let Some(field) = error
-                        .field
-                        .as_ref()
-                        .and_then(|field| field.split('/').last())
-                    {
-                        reason.push_str(&format!(", field - {field}"));
-                    }
-                    reason.push(';');
-                    reason
-                })
-                .collect::<String>()
-        });
+        let (code, message, reason) = match response {
+            transformers::PaypalOrderErrorResponse::OrderError(response) => {
+                let error_reason = response.details.map(|order_errors| {
+                    order_errors
+                        .iter()
+                        .map(|error| {
+                            let mut reason = format!("description - {}", error.description);
+                            if let Some(value) = &error.value {
+                                reason.push_str(&format!(", value - {value}"));
+                            }
+                            if let Some(field) = error
+                                .field
+                                .as_ref()
+                                .and_then(|field| field.split('/').last())
+                            {
+                                reason.push_str(&format!(", field - {field}"));
+                            }
+                            reason.push(';');
+                            reason
+                        })
+                        .collect::<String>()
+                });
+                (
+                    response.name,
+                    response.message.clone(),
+                    error_reason.or(Some(response.message)),
+                )
+            }
+            transformers::PaypalOrderErrorResponse::ValidationError(validation_error_response) => (
+                validation_error_response.error.clone(),
+                validation_error_response.error,
+                validation_error_response.error_description,
+            ),
+        };
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.name,
-            message: response.message.clone(),
-            reason: error_reason.or(Some(response.message)),
+            code,
+            message,
+            reason,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -208,43 +222,52 @@ impl ConnectorCommon for Paypal {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalPaymentErrorResponse = res
+        let response: paypal::PaypalErrorResponse = res
             .response
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let error_reason = response
-            .details
-            .map(|error_details| {
-                error_details
-                    .iter()
-                    .try_fold(String::new(), |mut acc, error| {
-                        if let Some(description) = &error.description {
-                            write!(acc, "description - {} ;", description)
-                                .into_report()
-                                .change_context(
-                                    errors::ConnectorError::ResponseDeserializationFailed,
-                                )
-                                .attach_printable("Failed to concatenate error details")
-                                .map(|_| acc)
-                        } else {
-                            Ok(acc)
-                        }
+        let (code, message, reason) = match response {
+            transformers::PaypalErrorResponse::PaymentError(response) => {
+                let error_reason = response
+                    .details
+                    .map(|error_details| {
+                        error_details
+                            .iter()
+                            .try_fold(String::new(), |mut acc, error| {
+                                if let Some(description) = &error.description {
+                                    write!(acc, "description - {} ;", description)
+                                        .into_report()
+                                        .change_context(
+                                            errors::ConnectorError::ResponseDeserializationFailed,
+                                        )
+                                        .attach_printable("Failed to concatenate error details")
+                                        .map(|_| acc)
+                                } else {
+                                    Ok(acc)
+                                }
+                            })
                     })
-            })
-            .transpose()?;
-        let reason = match error_reason {
-            Some(err_reason) => err_reason
-                .is_empty()
-                .then(|| response.message.to_owned())
-                .or(Some(err_reason)),
-            None => Some(response.message.to_owned()),
+                    .transpose()?;
+                let reason = match error_reason.to_owned() {
+                    Some(err_reason) => err_reason
+                        .is_empty()
+                        .then(|| response.message.to_owned())
+                        .or(Some(err_reason)),
+                    None => Some(response.message.to_owned()),
+                };
+                (response.name, response.message, reason)
+            }
+            transformers::PaypalErrorResponse::ValidationError(validation_error_response) => (
+                validation_error_response.error.clone(),
+                validation_error_response.error,
+                validation_error_response.error_description,
+            ),
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.name,
-            message: response.message.clone(),
+            code,
+            message,
             reason,
             attempt_status: None,
             connector_transaction_id: None,
@@ -363,16 +386,19 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalAccessTokenErrorResponse = res
+        let response: paypal::PaypalValidationErrorResponse = res
             .response
-            .parse_struct("Paypal AccessTokenErrorResponse")
+            .parse_struct("Paypal ValidationErrorRespons")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
-            message: response.error_description.clone(),
-            reason: Some(response.error_description),
+            message: response
+                .error_description
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: None,
         })

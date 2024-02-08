@@ -1707,6 +1707,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalOrderErrorResponse {
+    OrderError(PaypalOrderError),
+    ValidationError(PaypalValidationErrorResponse),
+}
+
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct OrderErrorDetails {
     pub issue: String,
@@ -1716,7 +1723,7 @@ pub struct OrderErrorDetails {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PaypalOrderErrorResponse {
+pub struct PaypalOrderError {
     pub name: String,
     pub message: String,
     pub debug_id: Option<String>,
@@ -1729,6 +1736,13 @@ pub struct ErrorDetails {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalErrorResponse {
+    PaymentError(PaypalPaymentErrorResponse),
+    ValidationError(PaypalValidationErrorResponse),
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalPaymentErrorResponse {
     pub name: String,
@@ -1737,10 +1751,10 @@ pub struct PaypalPaymentErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct PaypalAccessTokenErrorResponse {
+#[derive(Debug, Deserialize)]
+pub struct PaypalValidationErrorResponse {
     pub error: String,
-    pub error_description: String,
+    pub error_description: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
