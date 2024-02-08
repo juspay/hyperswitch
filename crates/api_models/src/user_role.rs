@@ -86,7 +86,7 @@ pub struct PermissionInfo {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserRoleRequest {
-    pub user_id: String,
+    pub email: pii::Email,
     pub role_id: String,
 }
 
