@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.08.0
+
+### Features
+
+- **core:**
+  - Routes to toggle blocklist ([#3568](https://github.com/juspay/hyperswitch/pull/3568)) ([`fbe84b2`](https://github.com/juspay/hyperswitch/commit/fbe84b2a334cfb744ae4f27b1eadc892c7f9b164))
+  - Decide flow based on setup_future_usage ([#3569](https://github.com/juspay/hyperswitch/pull/3569)) ([`ef302dd`](https://github.com/juspay/hyperswitch/commit/ef302dd3983674c9df47812d3c398a7e7b423257))
+  - Add config for update_mandate_flow ([#3542](https://github.com/juspay/hyperswitch/pull/3542)) ([`14c0a2b`](https://github.com/juspay/hyperswitch/commit/14c0a2b03f34ae4359ee6a3918b76466eda25320))
+- **payouts:** Add Wallet to Payouts ([#3502](https://github.com/juspay/hyperswitch/pull/3502)) ([`3af6aaf`](https://github.com/juspay/hyperswitch/commit/3af6aaf28e92780679eb0314eb3e95803b9c3113))
+
+### Bug Fixes
+
+- **payouts:** Saved payment methods list for bank details ([#3507](https://github.com/juspay/hyperswitch/pull/3507)) ([`a15e7ae`](https://github.com/juspay/hyperswitch/commit/a15e7ae9b156659e61de752ca94b6f43932d9de5))
+- **router:** Added validation check to number of workers in config ([#3533](https://github.com/juspay/hyperswitch/pull/3533)) ([`c0e31ed`](https://github.com/juspay/hyperswitch/commit/c0e31ed1df6cd1f17727c9ebf9d308ede02f2228))
+
+### Refactors
+
+- **connector:** [Adyen] Status mapping based on Payment method Type ([#3567](https://github.com/juspay/hyperswitch/pull/3567)) ([`ab6b5ab`](https://github.com/juspay/hyperswitch/commit/ab6b5ab7b4cc95ec4f691eda865ed64472cb1f4a))
+- **users:** Change list roles api to also send inactive merchants ([#3583](https://github.com/juspay/hyperswitch/pull/3583)) ([`cef1643`](https://github.com/juspay/hyperswitch/commit/cef1643af54f128e68abbf4cdc9654df3b9a69e5))
+- [Noon] add new field max_amount to mandate request ([#3481](https://github.com/juspay/hyperswitch/pull/3481)) ([`926d084`](https://github.com/juspay/hyperswitch/commit/926d084e44ed6f7c83e94e60ea9da35167e499b0))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`f10b65e`](https://github.com/juspay/hyperswitch/commit/f10b65e88ee5b0fc929a717eacdbbf2fc1f0848b))
+
+**Full Changelog:** [`2024.02.07.0...2024.02.08.0`](https://github.com/juspay/hyperswitch/compare/2024.02.07.0...2024.02.08.0)
+
+- - -
+
 ## 2024.02.07.0
 
 ### Features
