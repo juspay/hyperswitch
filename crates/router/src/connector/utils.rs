@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, AddressDetails, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -18,7 +18,6 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 use time::PrimitiveDateTime;
-use api_models::payments::AddressDetails;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -187,9 +186,10 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn get_optional_billing_address(&self) -> Option<AddressDetails> {
         self.address
             .billing
-            .as_ref().and_then(|a| a.address.as_ref()).cloned()
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .cloned()
     }
-
 
     fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
         self.address
