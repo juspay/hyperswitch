@@ -11,8 +11,7 @@ use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-use super::errors::StorageErrorExt;
-use super::errors::{UserErrors, UserResponse, UserResult};
+use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 use crate::{
