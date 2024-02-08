@@ -314,7 +314,7 @@ impl From<(&SaleQuery, u16)> for types::ErrorResponse {
             reason: sale_query_response.sale_error_text.clone(),
             status_code: http_code,
             attempt_status: None,
-            connector_transaction_id: sale_query_response.sale_error_code.clone(),
+            connector_transaction_id: Some(sale_query_response.sale_payme_id.clone()),
         }
     }
 }
@@ -1000,7 +1000,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
             Err(types::ErrorResponse {
                 code: payme_response.status_error_code.to_string(),
                 message: payme_response.status_error_code.to_string(),
-                reason: None,
+                reason: Some(payme_response.status_error_code.to_string()),
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),

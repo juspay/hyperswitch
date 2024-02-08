@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, is_payment_failure, CryptoData},
+    consts,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -159,8 +160,14 @@ impl<F, T>
         let response = if is_payment_failure(status) {
             let payment_response = &item.response.data;
             Err(types::ErrorResponse {
-                code: payment_response.name.clone().unwrap_or_default(),
-                message: payment_response.status_context.clone().unwrap_or_default(),
+                code: payment_response
+                    .name
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: payment_response
+                    .status_context
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                 reason: payment_response.status_context.clone(),
                 status_code: item.http_code,
                 attempt_status: None,
