@@ -494,7 +494,7 @@ pub async fn invite_user(
                 org_id: user_from_token.org_id.clone(),
                 status: invitation_status,
                 created_by: user_from_token.user_id.clone(),
-                last_modified_by: user_from_token.user_id.clone(),
+                last_modified_by: user_from_token.user_id,
                 created_at: now,
                 last_modified: now,
             })

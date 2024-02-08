@@ -2034,13 +2034,13 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 
-    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .delete_all_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
             .await
     }
 

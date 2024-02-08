@@ -39,7 +39,7 @@ pub trait DashboardMetadataInterface {
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
 
-    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
@@ -126,13 +126,13 @@ impl DashboardMetadataInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
-    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::DashboardMetadata::delete_user_scoped_dashboard_metadata_by_merchant_id(
+        storage::DashboardMetadata::delete_all_user_scoped_dashboard_metadata_by_merchant_id(
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
@@ -294,7 +294,7 @@ impl DashboardMetadataInterface for MockDb {
         }
         Ok(query_result)
     }
-    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
