@@ -209,6 +209,7 @@ impl Default for Mandates {
                     ])),
                 ),
             ])),
+            update_mandate_supported: SupportedPaymentMethodsForMandate(HashMap::default()),
         }
     }
 }
