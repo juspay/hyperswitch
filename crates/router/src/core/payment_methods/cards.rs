@@ -2136,12 +2136,33 @@ pub fn filter_pm_based_on_update_mandate_support_for_connector(
     payment_method_type: &api_enums::PaymentMethodType,
     connector: api_enums::Connector,
 ) -> bool {
-    supported_payment_methods_for_mandate
-        .0
-        .get(payment_method)
-        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
-        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
-        .unwrap_or(false)
+    if payment_method == &api_enums::PaymentMethod::Card {
+        supported_payment_methods_for_mandate
+            .0
+            .get(payment_method)
+            .and_then(|payment_method_type_hm| {
+                let pm_credit = payment_method_type_hm
+                    .0
+                    .get(&api_enums::PaymentMethodType::Credit)
+                    .map(|conn| conn.connector_list.clone())
+                    .unwrap_or_default();
+                let pm_debit = payment_method_type_hm
+                    .0
+                    .get(&api_enums::PaymentMethodType::Debit)
+                    .map(|conn| conn.connector_list.clone())
+                    .unwrap_or_default();
+                Some(&pm_credit | &pm_debit)
+            })
+            .map(|supported_connectors| supported_connectors.contains(&connector))
+            .unwrap_or(false)
+    } else {
+        supported_payment_methods_for_mandate
+            .0
+            .get(payment_method)
+            .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+            .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+            .unwrap_or(false)
+    }
 }
 
 fn filter_pm_based_on_supported_payments_for_mandate(
