@@ -711,7 +711,12 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     let name = address
         .as_ref()
-        .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()));
+        .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()))
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "billing_first_name not found".to_string(),
+        })
+        .into_report()
+        .attach_printable("billing_first_name not found")?;
 
     let address_details = address.clone().map(|addr| {
         let line1 = addr.line1.map(|line1| line1.into_inner());
@@ -742,7 +747,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         .get_required_value("email")?;
 
     let billing_details = BankDebitBilling {
-        name: name.unwrap_or_default(),
+        name,
         email,
         address: address_details,
     };

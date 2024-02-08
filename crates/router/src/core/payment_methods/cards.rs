@@ -2834,8 +2834,7 @@ async fn get_bank_account_connector_details(
 
                 let pm_type = pm
                     .payment_method_type
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
+                    .get_required_value("payment_method_type")
                     .attach_printable("PaymentMethodType not found")?;
 
                 let token_data = BankAccountTokenData {
