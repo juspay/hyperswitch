@@ -205,9 +205,7 @@ impl
             .parse_struct("Globalpay PaymentsResponse")
             .switch()?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -297,9 +295,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::ResponseRouterData {
@@ -435,9 +431,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -520,9 +514,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         let is_multiple_capture_sync = match data.request.sync_type {
@@ -613,9 +605,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -707,9 +697,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
@@ -798,9 +786,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -872,9 +858,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,

@@ -199,7 +199,7 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
         let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder { i.set_response_body(&response) };
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -262,7 +262,8 @@ impl
             .response
             .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder { i.set_response_body(&response) };
+        event_builder.map(|i| i.set_response_body(&response));
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -342,7 +343,7 @@ impl
             .response
             .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder { i.set_response_body(&response) };
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -415,7 +416,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
         let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder { i.set_response_body(&response) };
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -466,7 +467,7 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
         let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder { i.set_response_body(&response) };
+        event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,

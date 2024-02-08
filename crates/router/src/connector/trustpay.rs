@@ -288,9 +288,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("trustpay TrustpayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -394,9 +392,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -503,9 +499,7 @@ impl
             .parse_struct("TrustpayCreateIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -620,9 +614,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -727,9 +719,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -811,9 +801,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {

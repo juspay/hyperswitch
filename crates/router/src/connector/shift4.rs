@@ -278,9 +278,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -369,9 +367,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -426,9 +422,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::ResponseRouterData {
@@ -544,9 +538,7 @@ impl
             .parse_struct("Shift4ThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -633,9 +625,7 @@ impl
             .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -714,9 +704,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .parse_struct("RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::ResponseRouterData {
@@ -787,9 +775,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             res.response
                 .parse_struct("shift4 RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
