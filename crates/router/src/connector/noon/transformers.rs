@@ -1,6 +1,6 @@
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,6 +30,7 @@ pub enum NoonSubscriptionType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
     subscription_type: NoonSubscriptionType,
