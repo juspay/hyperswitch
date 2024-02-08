@@ -69,7 +69,10 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-#[instrument(skip_all, fields(payment_id, merchant_id, connector_name, payment_method))]
+#[instrument(
+    skip_all,
+    fields(payment_id, merchant_id, connector_name, payment_method)
+)]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
@@ -470,8 +473,15 @@ where
     .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
     .ok();
 
-    let connector_name = payment_data.payment_attempt.connector.clone().unwrap_or_default();
-    let pmt = payment_data.payment_attempt.payment_method.unwrap_or_default();
+    let connector_name = payment_data
+        .payment_attempt
+        .connector
+        .clone()
+        .unwrap_or_default();
+    let pmt = payment_data
+        .payment_attempt
+        .payment_method
+        .unwrap_or_default();
 
     tracing::Span::current().record("connector_name", connector_name);
     tracing::Span::current().record("payment_method", pmt.to_string());

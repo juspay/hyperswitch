@@ -2,7 +2,7 @@ pub mod types;
 pub mod utils;
 
 use std::{str::FromStr, time::Instant};
-use tracing_futures::Instrument;
+
 use actix_web::FromRequest;
 use api_models::{
     payments::HeaderPayload,
@@ -12,6 +12,7 @@ use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, request::Requ
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use tracing_futures::Instrument;
 
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
