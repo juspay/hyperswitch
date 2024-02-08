@@ -1077,25 +1077,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
     logger::info!(process_webhook=?process_webhook_further);
 
-    let object_reference_id = connector
-        .get_webhook_object_reference_id(&request_details)
-        .switch()
-        .attach_printable("Could not find object reference id in incoming webhook body")?;
-
-    let merchant_connector_account = match merchant_connector_account {
-        Some(merchant_connector_account) => merchant_connector_account,
-        None => {
-            helper_utils::get_mca_from_object_reference_id(
-                &*state.clone().store,
-                object_reference_id,
-                &merchant_account,
-                &connector_name,
-                &key_store,
-            )
-            .await?
-        }
-    };
-
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
     let webhook_effect = if process_webhook_further
@@ -1114,6 +1095,20 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 format!("unable to parse connector name {connector_name:?}")
             })?;
         let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+
+        let merchant_connector_account = match merchant_connector_account {
+            Some(merchant_connector_account) => merchant_connector_account,
+            None => {
+                helper_utils::get_mca_from_object_reference_id(
+                    &*state.clone().store,
+                    object_ref_id.clone(),
+                    &merchant_account,
+                    &connector_name,
+                    &key_store,
+                )
+                .await?
+            }
+        };
 
         let source_verified = if connectors_with_source_verification_call
             .connectors_with_webhook_source_verification_call
