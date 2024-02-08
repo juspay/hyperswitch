@@ -70,7 +70,6 @@ use crate::{
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
@@ -159,8 +158,6 @@ where
         eligible_connectors,
     )
     .await?;
-    logger::debug!("connector response");
-    logger::debug!(stringify!(connector));
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     payment_data = tokenize_in_router_when_confirm_false(
@@ -1038,10 +1035,6 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
-    tracing::Span::current().record(
-        "connector_info",
-        &format!("{}", &connector.connector_name.to_string()),
-    );
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         merchant_account,
