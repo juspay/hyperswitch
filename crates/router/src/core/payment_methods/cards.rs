@@ -189,29 +189,24 @@ pub async fn add_payment_method(
             payment_methods::DataDuplicationCheck::Duplicated => {
                 let existing_pm = db.find_payment_method(&resp.payment_method_id).await;
 
-                if let Err(error) = existing_pm {
-                    match error.current_context() {
-                        errors::StorageError::DatabaseError(err) => match err.current_context() {
-                            diesel_models::errors::DatabaseError::NotFound => {
-                                insert_payment_method(
-                                    db,
-                                    &resp,
-                                    req,
-                                    key_store,
-                                    merchant_id,
-                                    &customer_id,
-                                    None,
-                                )
-                                .await
-                            }
-
-                            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Database Error while finding payment method")),
-                        },
-                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error while finding payment method")),
-                    }?;
-                }
+                if let Err(err) = existing_pm {
+                    if err.current_context().is_db_not_found() {
+                        insert_payment_method(
+                            db,
+                            &resp,
+                            req,
+                            key_store,
+                            merchant_id,
+                            &customer_id,
+                            None,
+                        )
+                        .await
+                    } else {
+                        Err(err)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error while finding payment method")
+                    }?
+                };
             }
 
             payment_methods::DataDuplicationCheck::MetaDataChanged => {
@@ -290,33 +285,22 @@ pub async fn add_payment_method(
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to add payment method in db")?;
                         }
-                        Err(error) => {
-                            match error.current_context() {
-                                errors::StorageError::DatabaseError(err) => {
-                                    match err.current_context() {
-                                        diesel_models::errors::DatabaseError::NotFound => {
-                                            insert_payment_method(
-                                                db,
-                                                &resp,
-                                                req,
-                                                key_store,
-                                                merchant_id,
-                                                &customer_id,
-                                                None,
-                                            )
-                                            .await
-                                        }
-
-                                        _ => Err(report!(
-                                            errors::ApiErrorResponse::InternalServerError
-                                        )
-                                        .attach_printable(
-                                            "Database Error while finding payment method",
-                                        )),
-                                    }
-                                }
-                                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Error while finding payment method")),
+                        Err(err) => {
+                            if err.current_context().is_db_not_found() {
+                                insert_payment_method(
+                                    db,
+                                    &resp,
+                                    req,
+                                    key_store,
+                                    merchant_id,
+                                    &customer_id,
+                                    None,
+                                )
+                                .await
+                            } else {
+                                Err(err)
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Error while finding payment method")
                             }?;
                         }
                     }
