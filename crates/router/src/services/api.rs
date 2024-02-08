@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
@@ -72,9 +72,10 @@ where
 pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = data.request.capture_method.unwrap_or_default();
+        let capture_method = capture_method.unwrap_or_default();
         match capture_method {
             CaptureMethod::Automatic => Ok(()),
             CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {

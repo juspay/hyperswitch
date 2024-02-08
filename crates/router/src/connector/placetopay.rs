@@ -109,9 +109,10 @@ impl ConnectorCommon for Placetopay {
 impl ConnectorValidation for Placetopay {
     fn validate_capture_method(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = data.request.capture_method.unwrap_or_default();
+        let capture_method = capture_method.unwrap_or_default();
         match capture_method {
             enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::Automatic

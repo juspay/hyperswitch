@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::request::RequestContent;
-use diesel_models::enums;
+use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -80,10 +80,10 @@ impl ConnectorCommon for Adyen {
 impl ConnectorValidation for Adyen {
     fn validate_capture_method(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        capture_method: Option<storage_enums::CaptureMethod>,
+        pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = data.request.capture_method.unwrap_or_default();
-        let pmt = data.request.payment_method_type;
+        let capture_method = capture_method.unwrap_or_default();
         match pmt {
             Some(payment_method_type) => match payment_method_type {
                 PaymentMethodType::Affirm
@@ -1292,9 +1292,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             "{}pal/servlet/Payout/v68/{}",
             connectors.adyen.secondary_base_url,
             match req.request.payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet =>
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
                     "confirmThirdParty".to_string(),
-                enums::PayoutType::Card => "payout".to_string(),
+                storage_enums::PayoutType::Card => "payout".to_string(),
             }
         ))
     }
@@ -1315,10 +1315,10 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match req.request.payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet => {
+                storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
-                enums::PayoutType::Card => auth.api_key.into_masked(),
+                storage_enums::PayoutType::Card => auth.api_key.into_masked(),
             },
         )];
         header.append(&mut api_key);
