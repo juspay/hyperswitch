@@ -12,6 +12,7 @@ use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, request::Requ
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use tracing_futures::Instrument;
 
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
@@ -783,7 +784,8 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
                     logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
                 }
             }
-        });
+        }.in_current_span(),
+    );
     }
 
     Ok(())
