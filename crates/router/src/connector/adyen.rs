@@ -358,6 +358,7 @@ impl
             },
             None,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -631,6 +632,7 @@ impl
             },
             data.request.capture_method,
             is_multiple_capture_sync,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -752,6 +754,7 @@ impl
             },
             data.request.capture_method,
             false,
+            data.request.payment_method_type,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }

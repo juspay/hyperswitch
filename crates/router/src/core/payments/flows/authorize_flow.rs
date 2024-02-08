@@ -103,6 +103,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     merchant_account,
                     self.request.payment_method_type,
                     key_store,
+                    is_mandate,
                 ))
                 .await?;
                 Ok(mandate::mandate_procedure(
@@ -134,6 +135,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
+                        is_mandate,
                     ))
                     .await;
 
