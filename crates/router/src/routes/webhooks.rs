@@ -6,7 +6,7 @@ use crate::{
     core::{
         api_locking,
         payment_methods::Oss,
-        webhooks::{self, types},
+        webhooks::{self, types, utils::fetch_merchant_id_for_unified_webhooks},
     },
     services::{api, authentication as auth},
 };
@@ -19,7 +19,33 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
-    let (merchant_id, connector_id_or_name) = path.into_inner();
+    let (merchant_id_or_unified, connector_id_or_name) = path.into_inner();
+    //merchant_id will either be unified or a merchant id.
+    let merchant_id = if merchant_id_or_unified == "unified" {
+        let mid = fetch_merchant_id_for_unified_webhooks(
+            state.to_owned(),
+            req.to_owned(),
+            body.to_owned(),
+            &connector_id_or_name,
+        )
+        .await;
+        match mid {
+            Ok(merchant_id) => merchant_id,
+            Err(_) => {
+                return actix_web::HttpResponse::BadRequest()
+                    .content_type(mime::APPLICATION_JSON)
+                    .body(
+                        r#"{
+                            "error": {
+                                "message": "Error serializing response from connector"
+                            }
+                        }"#,
+                    )
+            }
+        }
+    } else {
+        merchant_id_or_unified
+    };
 
     Box::pin(api::server_wrap(
         flow.clone(),

@@ -158,6 +158,25 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    async fn find_payment_attempt_by_attempt_id_connector_txn_id(
+        &self,
+        attempt_id: &str,
+        connector_txn_id: &str,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_attempt_id_connector_txn_id(
+            &conn,
+            attempt_id,
+            connector_txn_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })
+        .map(PaymentAttempt::from_storage_model)
+    }
+
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -756,6 +775,17 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .await
             }
         }
+    }
+
+    async fn find_payment_attempt_by_attempt_id_connector_txn_id(
+        &self,
+        attempt_id: &str,
+        connector_txn_id: &str,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        self.router_store
+            .find_payment_attempt_by_attempt_id_connector_txn_id(attempt_id, connector_txn_id)
+            .await
+        //Handle this monstrosity
     }
 
     #[instrument(skip_all)]

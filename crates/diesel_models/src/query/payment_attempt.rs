@@ -172,6 +172,21 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+    pub async fn find_by_attempt_id_connector_txn_id(
+        conn: &PgPooledConn,
+        attempt_id: &str,
+        connector_txn_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::attempt_id
+                .eq(attempt_id.to_owned())
+                .and(dsl::connector_transaction_id.eq(connector_txn_id.to_owned())),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &str,

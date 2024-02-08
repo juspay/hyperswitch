@@ -982,6 +982,16 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_attempt_by_attempt_id_connector_txn_id(
+        &self,
+        attempt_id: &str,
+        connector_txn_id: &str,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_attempt_by_attempt_id_connector_txn_id(attempt_id, connector_txn_id)
+            .await
+    }
+
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,

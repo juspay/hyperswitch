@@ -256,6 +256,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
+    fn get_webhook_payment_id(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("get_webhook_payment_id method".to_string())
+                .into(),
+        )
+    }
+
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,

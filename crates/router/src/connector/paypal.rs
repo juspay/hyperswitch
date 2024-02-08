@@ -1423,6 +1423,27 @@ impl api::IncomingWebhook for Paypal {
             updated_at: payload.update_time,
         })
     }
+
+    fn get_webhook_payment_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payload: paypal::PaypalWebhooksBody =
+            request
+                .body
+                .parse_struct("PaypalWebhooksBody")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        match payload.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => Ok(resource
+                .invoice_id
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "get_webhook_payment_id method".to_string(),
+            )
+            .into()),
+        }
+    }
 }
 
 impl services::ConnectorRedirectResponse for Paypal {

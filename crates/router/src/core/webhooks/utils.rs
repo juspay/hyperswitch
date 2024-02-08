@@ -1,11 +1,14 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::{CustomResult, ReportSwitchExt},
+    ext_traits::ValueExt,
+};
 use error_stack::ResultExt;
 
 use crate::{
     core::{
-        errors::{self},
+        errors::{self, StorageErrorExt},
         payments::helpers,
     },
     db::{get_and_deserialize_key, StorageInterface},
@@ -118,4 +121,66 @@ pub async fn construct_webhook_router_data<'a>(
         dispute_id: None,
     };
     Ok(router_data)
+}
+
+pub async fn fetch_merchant_id_for_unified_webhooks(
+    state: actix_web::web::Data<crate::routes::AppState>,
+    req: actix_web::HttpRequest,
+    body: actix_web::web::Bytes,
+    connector_name: &str,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let request_details = api::IncomingWebhookRequestDetails {
+        method: req.method().clone(),
+        uri: req.uri().clone(),
+        headers: req.headers(),
+        query_params: req.query_string().to_string(),
+        body: &body,
+    };
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "invalid connector name received".to_string(),
+    })
+    .attach_printable("Failed construction of ConnectorData")?;
+    let object_ref_id = connector
+        .connector
+        .get_webhook_object_reference_id(&request_details)
+        .switch()
+        .attach_printable("Could not find object reference id in incoming webhook body")?;
+
+    let connector_payment_id = connector
+        .connector
+        .get_webhook_payment_id(&request_details)
+        .switch()
+        .attach_printable("Could not find connector payment id in incoming webhook body")?;
+
+    let id1 = match object_ref_id {
+        api_models::webhooks::ObjectReferenceId::PaymentId(payment_id) => match payment_id {
+            api_models::payments::PaymentIdType::PaymentAttemptId(x) => x,
+            api_models::payments::PaymentIdType::ConnectorTransactionId(x) => x,
+            api_models::payments::PaymentIdType::PaymentIntentId(x) => x,
+            api_models::payments::PaymentIdType::PreprocessingId(x) => x,
+        },
+        api_models::webhooks::ObjectReferenceId::RefundId(refund_id) => match refund_id {
+            api_models::webhooks::RefundIdType::RefundId(x) => x,
+            api_models::webhooks::RefundIdType::ConnectorRefundId(x) => x,
+        },
+        api_models::webhooks::ObjectReferenceId::MandateId(mandate_id) => match mandate_id {
+            api_models::webhooks::MandateIdType::MandateId(x) => x,
+            api_models::webhooks::MandateIdType::ConnectorMandateId(x) => x,
+        },
+    };
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_attempt_id_connector_txn_id(&connector_payment_id, &id1)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: connector_name.to_string(),
+        })
+        .attach_printable("error while fetching merchant_connector_account from connector_id")?;
+    Ok(payment_attempt.merchant_id)
 }
