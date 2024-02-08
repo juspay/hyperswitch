@@ -9,6 +9,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use api_models::payments::AddressDetails;
 
 use crate::{
     connector::utils::{
@@ -754,6 +755,26 @@ impl<F>
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
+            | payments::PaymentMethodData::MandatePayment  => {
+                let connector_mandate_id = &item.request.connector_mandate_id();
+                let related_transaction_id = if item.is_three_ds() {
+                    item.request.related_transaction_id.clone()
+                } else {
+                    None
+                };
+                let device_details = get_device_details(&item.request.get_optional_browser_info())?;
+                Ok(NuveiPaymentsRequest {
+                    related_transaction_id,
+                    device_details,
+                    is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                    user_token_id: Some(item.request.get_email()?),
+                    payment_option: PaymentOption {
+                        user_payment_option_id: connector_mandate_id.clone(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+            },
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
                 payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
@@ -853,7 +874,6 @@ impl<F>
             payments::PaymentMethodData::BankDebit(_)
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
@@ -903,19 +923,18 @@ fn get_card_info<F>(
     } else {
         None
     };
-    let connector_mandate_id = &item.request.connector_mandate_id();
-    if connector_mandate_id.is_some() {
-        Ok(NuveiPaymentsRequest {
-            related_transaction_id,
-            is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
-            user_token_id: Some(item.request.get_email()?),
-            payment_option: PaymentOption {
-                user_payment_option_id: connector_mandate_id.clone(),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-    } else {
+
+    let address = item.get_optional_billing_address();
+
+    let billing_address = match address {
+        Some(address) => Some(BillingAddress {
+            first_name: Some(address.get_first_name()?.clone()),
+            last_name: Some(address.get_last_name()?.clone()),
+            email: item.request.get_email()?,
+            country: item.get_billing_country()?,
+        }),
+        None => None,
+    };
         let (is_rebilling, additional_params, user_token_id) =
             match item.request.setup_mandate_details.clone() {
                 Some(mandate_data) => {
@@ -994,9 +1013,9 @@ fn get_card_info<F>(
                 card: card_details.clone(),
                 three_d,
             }),
+            billing_address,
             ..Default::default()
         })
-    }
 }
 impl From<NuveiCardDetails> for PaymentOption {
     fn from(card_details: NuveiCardDetails) -> Self {

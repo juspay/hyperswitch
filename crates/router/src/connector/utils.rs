@@ -18,6 +18,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 use time::PrimitiveDateTime;
+use api_models::payments::AddressDetails;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -86,6 +87,7 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+    fn get_optional_billing_address(&self) -> Option<AddressDetails>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -181,6 +183,13 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
+
+    fn get_optional_billing_address(&self) -> Option<AddressDetails> {
+        self.address
+            .billing
+            .as_ref().and_then(|a| a.address.as_ref()).map(|address| address.clone())
+    }
+
 
     fn get_billing_address_with_phone_number(&self) -> Result<&api::Address, Error> {
         self.address
