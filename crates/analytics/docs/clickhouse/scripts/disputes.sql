@@ -22,7 +22,7 @@ CREATE TABLE dispute_queue (
     `merchant_connector_id` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
-kafka_topic_list = 'hyperswitch-payment-attempt-events',
+kafka_topic_list = 'hyperswitch-dispute-events',
 kafka_group_name = 'hyper-c1',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
