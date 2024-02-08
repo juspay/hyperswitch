@@ -870,6 +870,9 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
                 api_models::payouts::Bank::Sepa(_) => Self::Sepa,
             },
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
+                api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
+            },
         }
     }
 }

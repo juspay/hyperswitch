@@ -834,7 +834,7 @@ pub async fn call_connector_payout(
                 merchant_account,
                 key_store,
                 req,
-                &connector_data,
+                connector_data,
                 payout_data,
             )
             .await
