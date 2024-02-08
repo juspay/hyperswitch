@@ -23,6 +23,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -31,6 +32,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
+    is_mandate: bool,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -63,8 +65,16 @@ where
             } else {
                 None
             };
+            let future_usage_validation = resp
+                .request
+                .get_setup_future_usage()
+                .map(|future_usage| {
+                    (future_usage == storage_enums::FutureUsage::OffSession && is_mandate)
+                        || (future_usage == storage_enums::FutureUsage::OnSession && !is_mandate)
+                })
+                .unwrap_or(false);
 
-            let pm_id = if resp.request.get_setup_future_usage().is_some() {
+            let pm_id = if future_usage_validation {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),

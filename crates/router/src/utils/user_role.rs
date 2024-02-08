@@ -2,23 +2,12 @@ use api_models::user_role as user_role_api;
 
 use crate::{
     consts,
-    core::errors::{UserErrors, UserResult},
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
     role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
 }
 
 pub fn get_role_name_and_permission_response(
