@@ -2140,7 +2140,7 @@ pub fn filter_pm_based_on_update_mandate_support_for_connector(
         supported_payment_methods_for_mandate
             .0
             .get(payment_method)
-            .and_then(|payment_method_type_hm| {
+            .map(|payment_method_type_hm| {
                 let pm_credit = payment_method_type_hm
                     .0
                     .get(&api_enums::PaymentMethodType::Credit)
@@ -2151,7 +2151,7 @@ pub fn filter_pm_based_on_update_mandate_support_for_connector(
                     .get(&api_enums::PaymentMethodType::Debit)
                     .map(|conn| conn.connector_list.clone())
                     .unwrap_or_default();
-                Some(&pm_credit | &pm_debit)
+                &pm_credit | &pm_debit
             })
             .map(|supported_connectors| supported_connectors.contains(&connector))
             .unwrap_or(false)
