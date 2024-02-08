@@ -1,9 +1,11 @@
+use api_models::user as user_api;
 use api_models::user_role as user_role_api;
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::logger;
 
+use crate::consts;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
@@ -133,6 +135,55 @@ pub async fn update_user_role(
     auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn transfer_org_ownership(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+    req: user_role_api::TransferOrgOwnershipRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
+        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
+            "role_id = {} is not org_admin",
+            user_from_token.role_id
+        ));
+    }
+
+    let user_to_be_updated =
+        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleOperation)
+            .attach_printable("User not found in our records".to_string())?;
+
+    if user_from_token.user_id == user_to_be_updated.get_user_id() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("User transferring ownership to themselves".to_string());
+    }
+
+    state
+        .store
+        .transfer_org_ownership_between_users(
+            &user_from_token.user_id,
+            user_to_be_updated.get_user_id(),
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
+    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
+
+    let user_from_db = domain::UserFromStorage::from(user_from_token.get_user(&state).await?);
+    let user_role = user_from_db
+        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
 }
 
 pub async fn accept_invitation(
