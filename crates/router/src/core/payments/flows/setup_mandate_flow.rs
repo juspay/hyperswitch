@@ -1,6 +1,6 @@
 use api_models::enums::{PaymentMethod, PaymentMethodType};
 use async_trait::async_trait;
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{IntoReport, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -390,9 +390,14 @@ impl types::SetupMandateRouterData {
                 Err(_) => Ok(resp),
             }
         } else {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "The update mandate flow is not implemented for this connector ".into()
-            }))?
+            Err(errors::ApiErrorResponse::PreconditionFailed{
+                message : format!(
+                    "Update Mandate flow not implemented for the connector {:?}",
+                    connector.connector_name
+                )
+            })
+                .into_report()
+
         }
     }
 }
