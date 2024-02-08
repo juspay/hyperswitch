@@ -1396,6 +1396,17 @@ impl DataModelExt for PaymentAttemptUpdate {
                 authentication_type,
                 updated_by,
             },
+            Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            },
             Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1714,6 +1725,17 @@ impl DataModelExt for PaymentAttemptUpdate {
             } => Self::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {

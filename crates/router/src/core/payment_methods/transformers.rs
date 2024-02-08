@@ -299,7 +299,7 @@ pub async fn mk_add_locker_request_hs<'a>(
     payload: &StoreLockerReq<'a>,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
+    let payload = utils::Encode::<StoreLockerReq<'_>>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]

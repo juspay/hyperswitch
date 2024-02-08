@@ -238,6 +238,7 @@ pub async fn update_customer_payment_method(
         payment_method_issuer_code: pm.payment_method_issuer_code,
         bank_transfer: req.bank_transfer,
         card: req.card,
+        wallet: req.wallet,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
         card_network: req
@@ -634,15 +635,20 @@ pub async fn get_payment_method_from_hs_locker<'a>(
                 .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed to parse struct to RetrieveCardResp")?;
         let retrieve_card_resp = get_card_resp
             .payload
             .get_required_value("RetrieveCardRespPayload")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed to retrieve field - payload from RetrieveCardResp")?;
         let enc_card_data = retrieve_card_resp
             .enc_card_data
             .get_required_value("enc_card_data")
-            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable(
+                "Failed to retrieve field - enc_card_data from RetrieveCardRespPayload",
+            )?;
         decode_and_decrypt_locker_data(key_store, enc_card_data.peek().to_string()).await?
     } else {
         mock_get_payment_method(&*state.store, key_store, payment_method_reference)
@@ -1213,6 +1219,7 @@ pub async fn list_payment_methods(
             mca.connector_name.clone(),
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
+            &state.conf.mandates.update_mandate_supported,
         )
         .await?;
     }
@@ -1803,6 +1810,7 @@ pub async fn list_payment_methods(
             payment_method_types: bank_transfer_payment_method_types,
         });
     }
+    let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
     let merchant_surcharge_configs =
         if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
             .as_ref()
@@ -1865,6 +1873,7 @@ pub async fn list_payment_methods(
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
+            currency,
         },
     ))
 }
@@ -1977,6 +1986,7 @@ pub async fn filter_payment_methods(
     connector: String,
     config: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -2083,9 +2093,16 @@ pub async fn filter_payment_methods(
                                     ),
                                 };
 
-                            if mandate_type_present || update_mandate_id_present {
+                            if mandate_type_present {
                                 filter_pm_based_on_supported_payments_for_mandate(
                                     supported_payment_methods_for_mandate,
+                                    &payment_method,
+                                    &payment_method_object.payment_method_type,
+                                    connector_variant,
+                                )
+                            } else if update_mandate_id_present {
+                                filter_pm_based_on_update_mandate_support_for_connector(
+                                    supported_payment_methods_for_update_mandate,
                                     &payment_method,
                                     &payment_method_object.payment_method_type,
                                     connector_variant,
@@ -2112,6 +2129,19 @@ pub async fn filter_payment_methods(
         }
     }
     Ok(())
+}
+pub fn filter_pm_based_on_update_mandate_support_for_connector(
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    payment_method: &api_enums::PaymentMethod,
+    payment_method_type: &api_enums::PaymentMethodType,
+    connector: api_enums::Connector,
+) -> bool {
+    supported_payment_methods_for_mandate
+        .0
+        .get(payment_method)
+        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+        .unwrap_or(false)
 }
 
 fn filter_pm_based_on_supported_payments_for_mandate(
@@ -2475,6 +2505,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 cloned_secret,
             )
             .await?;
+
         let customer_id = payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
@@ -2498,6 +2529,15 @@ pub async fn list_customer_payment_method(
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
+
+    if let Some(ref payment_intent) = payment_intent {
+        if payment_intent.payment_link_id.is_some() {
+            Err(errors::ApiErrorResponse::AccessForbidden {
+                resource: "saved payment methods".to_string(),
+            })?
+        }
+    };
+
     db.find_customer_by_customer_id_merchant_id(
         customer_id,
         &merchant_account.merchant_id,
@@ -2558,7 +2598,7 @@ pub async fn list_customer_payment_method(
                             &key_store,
                             &token,
                             &pm.customer_id,
-                            &pm.customer_id,
+                            &pm.merchant_id,
                             &pm.payment_method_id,
                         )
                         .await?,
@@ -2948,6 +2988,10 @@ pub async fn get_bank_from_hs_locker(
         }
         api::PayoutMethodData::Card(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Expected bank details, found card details instead".to_string(),
+        }
+        .into()),
+        api::PayoutMethodData::Wallet(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
     }
