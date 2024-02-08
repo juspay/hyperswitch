@@ -5,7 +5,7 @@ use masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
-    core::errors::{UserErrors, UserResponse},
+    core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
     services::{
         authentication::{self as auth},
@@ -33,6 +33,7 @@ pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRol
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
         predefined_permissions::PREDEFINED_PERMISSIONS
             .iter()
+            .filter(|(_, role_info)| role_info.is_invitable())
             .filter_map(|(role_id, role_info)| {
                 utils::user_role::get_role_name_and_permission_response(role_info).map(
                     |(permissions, role_name)| user_role_api::RoleInfoResponse {
@@ -87,34 +88,49 @@ pub async fn update_user_role(
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
-    let merchant_id = user_from_token.merchant_id;
-    let role_id = req.role_id.clone();
-    utils::user_role::validate_role_id(role_id.as_str())?;
-
-    if user_from_token.user_id == req.user_id {
+    if !predefined_permissions::is_role_updatable(&req.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Admin User Changing their role");
+            .attach_printable(format!("User role cannot be updated to {}", req.role_id));
+    }
+
+    let user_to_be_updated =
+        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleOperation)
+            .attach_printable("User not found in our records".to_string())?;
+
+    if user_from_token.user_id == user_to_be_updated.get_user_id() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("User Changing their own role");
+    }
+
+    let user_role_to_be_updated = user_to_be_updated
+        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    if !predefined_permissions::is_role_updatable(&user_role_to_be_updated.role_id)? {
+        return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
+            "User role cannot be updated from {}",
+            user_role_to_be_updated.role_id
+        ));
     }
 
     state
         .store
         .update_user_role_by_user_id_merchant_id(
-            req.user_id.as_str(),
-            merchant_id.as_str(),
+            user_to_be_updated.get_user_id(),
+            user_role_to_be_updated.merchant_id.as_str(),
             UserRoleUpdate::UpdateRole {
-                role_id,
+                role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
             },
         )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                return e
-                    .change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("UserId MerchantId not found");
-            }
-            e.change_context(UserErrors::InternalServerError)
-        })?;
+        .to_not_found_response(UserErrors::InvalidRoleOperation)
+        .attach_printable("User with given email is not found in the organization")?;
+
+    auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -181,7 +197,7 @@ pub async fn delete_user_role(
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("User not found in records")
+                    .attach_printable("User not found in our records")
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
@@ -204,9 +220,9 @@ pub async fn delete_user_role(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            if !predefined_permissions::is_role_deletable(&user_role.role_id) {
-                return Err(UserErrors::InvalidRoleId.into())
-                    .attach_printable("Deletion not allowed for users with specific role id");
+            if !predefined_permissions::is_role_deletable(&user_role.role_id)? {
+                return Err(UserErrors::InvalidDeleteOperation.into())
+                    .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
             }
         }
         None => {

@@ -11,13 +11,15 @@ use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-use super::errors::{UserErrors, UserResponse, UserResult};
+use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::AppState,
-    services::{authentication as auth, ApplicationResponse},
+    services::{
+        authentication as auth, authorization::predefined_permissions, ApplicationResponse,
+    },
     types::domain,
     utils,
 };
@@ -150,7 +152,7 @@ pub async fn signin(
             let preferred_role = user_from_db
                 .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
                 .await
-                .change_context(UserErrors::InternalServerError)
+                .to_not_found_response(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
@@ -408,11 +410,17 @@ pub async fn invite_user(
         .change_context(UserErrors::InternalServerError)?;
 
     if inviter_user.email == request.email {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("User Inviting themself");
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User Inviting themselves".to_string(),
+        )
+        .into());
     }
 
-    utils::user_role::validate_role_id(request.role_id.as_str())?;
+    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+        return Err(UserErrors::InvalidRoleId.into())
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    }
+
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
 
     let invitee_user = state
@@ -561,14 +569,20 @@ async fn handle_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
 ) -> UserResult<InviteMultipleUserResponse> {
-    let inviter_user = user_from_token.get_user(state.clone()).await?;
+    let inviter_user = user_from_token.get_user(state).await?;
 
     if inviter_user.email == request.email {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("User Inviting themself");
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User Inviting themselves".to_string(),
+        )
+        .into());
     }
 
-    utils::user_role::validate_role_id(request.role_id.as_str())?;
+    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+        return Err(UserErrors::InvalidRoleId.into())
+            .attach_printable(format!("role_id = {} is not invitable", request.role_id));
+    }
+
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     let invitee_user = state
         .store
@@ -733,7 +747,11 @@ pub async fn resend_invite(
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("User role with given UserId MerchantId not found")
+                    .attach_printable(format!(
+                        "User role with user_id = {} and org_id = {} is not found",
+                        user.get_user_id(),
+                        user_from_token.merchant_id
+                    ))
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
@@ -741,7 +759,7 @@ pub async fn resend_invite(
 
     if !matches!(user_role.status, UserStatus::InvitationSent) {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Invalid Status for Reinvitation");
+            .attach_printable("User status is not InvitationSent".to_string());
     }
 
     let email_contents = email_types::InviteUser {
@@ -832,8 +850,10 @@ pub async fn switch_merchant_id(
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::SwitchMerchantResponse> {
     if user_from_token.merchant_id == request.merchant_id {
-        return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("User switch to same merchant id.");
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User switching to same merchant id".to_string(),
+        )
+        .into());
     }
 
     let user_roles = state
@@ -847,7 +867,7 @@ pub async fn switch_merchant_id(
         .filter(|role| role.status == UserStatus::Active)
         .collect::<Vec<_>>();
 
-    let user = user_from_token.get_user(state.clone()).await?.into();
+    let user = user_from_token.get_user(&state).await?.into();
 
     let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
         let key_store = state
@@ -916,8 +936,7 @@ pub async fn create_merchant_account(
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<()> {
-    let user_from_db: domain::UserFromStorage =
-        user_from_token.get_user(state.clone()).await?.into();
+    let user_from_db: domain::UserFromStorage = user_from_token.get_user(&state).await?.into();
 
     let new_user = domain::NewUser::try_from((user_from_db, req, user_from_token))?;
     let new_merchant = new_user.get_new_merchant();
