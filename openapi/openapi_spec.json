@@ -1319,8 +1319,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Payment",
-        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
+        "summary": "List customer saved payment methods for a Payment",
+        "description": "List customer saved payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -11637,6 +11637,7 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
+          "currency",
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen"
@@ -11647,6 +11648,9 @@
             "description": "Redirect URL of the merchant",
             "example": "https://www.google.com",
             "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           },
           "payment_methods": {
             "type": "array",
