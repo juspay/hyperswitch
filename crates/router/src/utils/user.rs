@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
 use api_models::user as user_api;
+use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
-    core::errors::{UserErrors, UserResult},
+    core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
-    types::domain::{MerchantAccount, UserFromStorage},
+    types::domain::{self, MerchantAccount, UserFromStorage},
 };
 
 pub mod dashboard_metadata;
@@ -47,7 +48,7 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
@@ -145,4 +146,15 @@ pub fn get_multiple_merchant_details_with_status(
             })
         })
         .collect()
+}
+
+pub async fn get_user_from_db_by_email(
+    state: &AppState,
+    email: domain::UserEmail,
+) -> CustomResult<UserFromStorage, StorageError> {
+    state
+        .store
+        .find_user_by_email(email.get_secret().expose().as_str())
+        .await
+        .map(UserFromStorage::from)
 }
