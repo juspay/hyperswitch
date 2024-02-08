@@ -753,7 +753,7 @@ impl<F>
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
-            | payments::PaymentMethodData::MandatePayment  => {
+            api::PaymentMethodData::MandatePayment  => {
                 let connector_mandate_id = &item.request.connector_mandate_id();
                 let related_transaction_id = if item.is_three_ds() {
                     item.request.related_transaction_id.clone()
