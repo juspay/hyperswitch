@@ -1083,7 +1083,7 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
-    let res = match metrics::request::record_request_time_metric(
+    let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
             &flow,
             state.clone(),
@@ -1099,7 +1099,9 @@ where
     .map(|response| {
         logger::info!(api_response =? response);
         response
-    }) {
+    });
+
+    let res = match server_wrap_util_res {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
