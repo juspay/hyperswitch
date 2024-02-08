@@ -693,6 +693,8 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
@@ -882,11 +884,20 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::Wallet) -> Self {
+        match value {
+            api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
         }
     }
 }
@@ -896,6 +907,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
         match value {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
+            api_models::enums::PayoutType::Wallet => Self::Wallet,
         }
     }
 }

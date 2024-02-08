@@ -971,6 +971,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_method_type: None,
         };
         Self(data)
     }

@@ -2506,6 +2506,8 @@ api_key="Api Key"
   payment_method_type = "bacs"
 [[adyen_payout.bank_transfer]]
   payment_method_type = "sepa"
+[[adyen_payout.wallet]]
+  payment_method_type = "paypal"
 [adyen_payout.connector_auth.SignatureKey]
 api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"

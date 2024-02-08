@@ -629,6 +629,22 @@ pub async fn call_connector_payout(
             .await
             .attach_printable("Payout creation failed for given Payout request")?;
         }
+
+        if payout_data.payouts.payout_type == storage_enums::PayoutType::Wallet
+            && payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation
+        {
+            // Create payout flow
+            *payout_data = create_payout(
+                state,
+                merchant_account,
+                key_store,
+                req,
+                &connector_data,
+                payout_data,
+            )
+            .await
+            .attach_printable("Payout creation failed for given Payout request")?;
+        }
     };
 
     // Auto fulfillment flow

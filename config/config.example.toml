@@ -322,7 +322,7 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
 
-# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+# AWS KMS configuration. Only applicable when the `aws_kms` feature flag is enabled.
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
@@ -391,6 +391,9 @@ bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supp
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
 
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
+card.debit = {connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -431,6 +434,9 @@ mini_stop = { country = "JP", currency = "JPY" }
 family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
+
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

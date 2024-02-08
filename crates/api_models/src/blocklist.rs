@@ -22,6 +22,11 @@ pub struct BlocklistResponse {
     pub created_at: time::PrimitiveDateTime,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleBlocklistResponse {
+    pub blocklist_guard_status: String,
+}
+
 pub type AddToBlocklistResponse = BlocklistResponse;
 pub type DeleteFromBlocklistResponse = BlocklistResponse;
 
@@ -39,6 +44,14 @@ fn default_list_limit() -> u16 {
     10
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleBlocklistQuery {
+    #[schema(value_type = BlocklistDataKind)]
+    pub status: bool,
+}
+
 impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}
+impl ApiEventMetric for ToggleBlocklistResponse {}
 impl ApiEventMetric for ListBlocklistQuery {}
+impl ApiEventMetric for ToggleBlocklistQuery {}

@@ -63,6 +63,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
+            Flow::ToggleBlocklistGuard => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
@@ -182,6 +183,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ResetPassword
             | Flow::InviteUser
             | Flow::InviteMultipleUser
+            | Flow::ReInviteUser
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
