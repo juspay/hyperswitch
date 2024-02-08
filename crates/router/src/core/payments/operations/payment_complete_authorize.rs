@@ -219,19 +219,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 id: profile_id.to_string(),
             })?;
 
-        let mandate_id = db
-            .find_mandate_by_merchant_id_original_payment_id(
-                &payment_intent.merchant_id.clone(),
-                payment_intent.payment_id.as_str(),
-            )
-            .await
-            .ok()
-            .map(|mandate| mandate.mandate_id)
-            .map(|mandate_id| api_models::payments::MandateIds {
-                mandate_id,
-                mandate_reference_id: None,
-            });
-
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -239,7 +226,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             currency,
             amount,
             email: request.email.clone(),
-            mandate_id,
+            mandate_id: None,
             mandate_connector,
             setup_mandate,
             token,
