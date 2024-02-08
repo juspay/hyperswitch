@@ -738,11 +738,13 @@ pub struct NoonPaymentsTransactionResponse {
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseResult {
     transaction: NoonPaymentsTransactionResponse,
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
     result_code: u32,
@@ -791,11 +793,13 @@ pub struct NoonRefundResponseTransactions {
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundSyncResponseResult {
     transactions: Vec<NoonRefundResponseTransactions>,
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
     result_code: u32,
