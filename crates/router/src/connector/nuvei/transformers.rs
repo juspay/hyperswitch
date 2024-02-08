@@ -9,8 +9,6 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use api_models::payments::AddressDetails;
-
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, PaymentsAuthorizeRequestData,
@@ -763,7 +761,7 @@ impl<F>
                     None
                 };
                 let device_details = get_device_details(&item.request.get_optional_browser_info())?;
-                Ok(NuveiPaymentsRequest {
+                Ok(Self {
                     related_transaction_id,
                     device_details,
                     is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1

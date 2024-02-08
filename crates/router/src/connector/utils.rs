@@ -187,7 +187,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn get_optional_billing_address(&self) -> Option<AddressDetails> {
         self.address
             .billing
-            .as_ref().and_then(|a| a.address.as_ref()).map(|address| address.clone())
+            .as_ref().and_then(|a| a.address.as_ref()).cloned()
     }
 
 
@@ -441,7 +441,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 
     fn get_optional_browser_info(&self) -> Option<BrowserInformation> {
-        self.browser_info.as_ref().map(|browser_info| browser_info.clone())
+        self.browser_info.as_ref().cloned()
     }
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
