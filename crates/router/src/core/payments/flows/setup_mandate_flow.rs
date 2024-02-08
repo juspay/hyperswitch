@@ -390,14 +390,13 @@ impl types::SetupMandateRouterData {
                 Err(_) => Ok(resp),
             }
         } else {
-            Err(errors::ApiErrorResponse::PreconditionFailed{
-                message : format!(
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
                     "Update Mandate flow not implemented for the connector {:?}",
                     connector.connector_name
-                )
+                ),
             })
-                .into_report()
-
+            .into_report()
         }
     }
 }
