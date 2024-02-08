@@ -1,12 +1,11 @@
-use api_models::user as user_api;
-use api_models::user_role as user_role_api;
+use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::logger;
 
-use crate::consts;
 use crate::{
+    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
     services::{
