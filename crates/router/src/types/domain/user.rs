@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_utils::pii;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::{
     enums::UserStatus,
     organization as diesel_org,
@@ -21,7 +21,7 @@ use crate::{
     consts,
     core::{
         admin,
-        errors::{UserErrors, UserResult},
+        errors::{self, UserErrors, UserResult},
     },
     db::StorageInterface,
     routes::AppState,
@@ -778,19 +778,11 @@ impl UserFromStorage {
         &self,
         state: &AppState,
         merchant_id: &str,
-    ) -> UserResult<UserRole> {
+    ) -> CustomResult<UserRole, errors::StorageError> {
         state
             .store
             .find_user_role_by_user_id_merchant_id(self.get_user_id(), merchant_id)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    UserErrors::RoleNotFound
-                } else {
-                    UserErrors::InternalServerError
-                }
-            })
-            .into_report()
     }
 }
 

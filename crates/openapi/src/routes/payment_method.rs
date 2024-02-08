@@ -86,7 +86,7 @@ pub async fn list_payment_method_api() {}
 )]
 pub async fn list_customer_payment_method_api() {}
 
-/// List payment methods for a Payment
+/// List customer saved payment methods for a Payment
 ///
 /// Lists all the applicable payment methods for a particular payment tied to the `client_secret`.
 #[utoipa::path(

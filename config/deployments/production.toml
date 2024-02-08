@@ -120,6 +120,10 @@ wallet.paypal.connector_list = "adyen"
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
+
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
 
@@ -282,6 +286,7 @@ stripe.payment_method = "bank_transfer"
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi.payment_method = "card"
+payme.payment_method = "card"
 
 [tokenization]
 braintree = { long_lived_token = false, payment_method = "card" }

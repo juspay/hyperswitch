@@ -11,6 +11,7 @@ use router_env::env;
 #[cfg(feature = "email")]
 use router_env::logger;
 
+use super::errors::StorageErrorExt;
 use super::errors::{UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
@@ -152,7 +153,7 @@ pub async fn signin(
             let preferred_role = user_from_db
                 .get_role_from_db_by_merchant_id(&state, preferred_merchant_id.as_str())
                 .await
-                .change_context(UserErrors::InternalServerError)
+                .to_not_found_response(UserErrors::InternalServerError)
                 .attach_printable("User role with preferred_merchant_id not found")?;
             domain::SignInWithRoleStrategyType::SingleRole(domain::SignInWithSingleRoleStrategy {
                 user: user_from_db,
@@ -964,10 +965,13 @@ pub async fn create_merchant_account(
 
 pub async fn list_merchant_ids_for_user(
     state: AppState,
-    user: auth::UserFromToken,
+    user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
-    let user_roles =
-        utils::user_role::get_active_user_roles_for_user(&state, &user.user_id).await?;
+    let user_roles = state
+        .store
+        .list_user_roles_by_user_id(user_from_token.user_id.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let merchant_accounts = state
         .store
