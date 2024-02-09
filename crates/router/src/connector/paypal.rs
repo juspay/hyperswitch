@@ -388,7 +388,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: paypal::PaypalValidationErrorResponse = res
             .response
-            .parse_struct("Paypal ValidationErrorRespons")
+            .parse_struct("Paypal ValidationErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
