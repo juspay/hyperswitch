@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Not};
 
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
@@ -210,19 +210,22 @@ impl UserRoleInterface for Store {
 
             let missing_new_user_roles =
                 old_org_admin_user_roles.into_iter().filter_map(|old_role| {
-                    (!new_org_admin_merchant_ids.contains(&old_role.merchant_id)).then_some({
-                        storage::UserRoleNew {
-                            user_id: to_user_id.to_string(),
-                            merchant_id: old_role.merchant_id,
-                            role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
-                            org_id: org_id.to_string(),
-                            status: enums::UserStatus::Active,
-                            created_by: from_user_id.to_string(),
-                            last_modified_by: from_user_id.to_string(),
-                            created_at: now,
-                            last_modified: now,
-                        }
-                    })
+                    new_org_admin_merchant_ids
+                        .contains(&old_role.merchant_id)
+                        .not()
+                        .then_some({
+                            storage::UserRoleNew {
+                                user_id: to_user_id.to_string(),
+                                merchant_id: old_role.merchant_id,
+                                role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+                                org_id: org_id.to_string(),
+                                status: enums::UserStatus::Active,
+                                created_by: from_user_id.to_string(),
+                                last_modified_by: from_user_id.to_string(),
+                                created_at: now,
+                                last_modified: now,
+                            }
+                        })
                 });
 
             futures::future::try_join_all(missing_new_user_roles.map(|user_role| async {
