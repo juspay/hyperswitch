@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.09.1
+
+### Bug Fixes
+
+- **core:** Add column mandate_data for storing the details of a mandate in PaymentAttempt ([#3606](https://github.com/juspay/hyperswitch/pull/3606)) ([`74f3721`](https://github.com/juspay/hyperswitch/commit/74f3721ccd0cceac6ae8e751cb83784d2f00a283))
+- **postman:** Fix failing postman tests and send a proper error message ([#3601](https://github.com/juspay/hyperswitch/pull/3601)) ([`3cef73b`](https://github.com/juspay/hyperswitch/commit/3cef73b9d8b35cb337757e29e78d22bcbe72faac))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`155aa9d`](https://github.com/juspay/hyperswitch/commit/155aa9d1192c3632c5678a958c4bb89f7861c636))
+
+**Full Changelog:** [`2024.02.09.0...2024.02.09.1`](https://github.com/juspay/hyperswitch/compare/2024.02.09.0...2024.02.09.1)
+
+- - -
+
 ## 2024.02.09.0
 
 ### Features
