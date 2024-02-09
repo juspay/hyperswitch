@@ -1965,6 +1965,17 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_roles_by_user_id_org_id(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        update: user_storage::UserRoleUpdate,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .update_user_roles_by_user_id_org_id(user_id, org_id, update)
+            .await
+    }
+
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1980,6 +1991,17 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
+    }
+
+    async fn transfer_org_ownership_between_users(
+        &self,
+        from_user_id: &str,
+        to_user_id: &str,
+        org_id: &str,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
+            .await
     }
 }
 

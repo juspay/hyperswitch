@@ -311,6 +311,8 @@ pub enum Flow {
     GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
+    /// Transfer organization ownership
+    TransferOrgOwnership,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
     /// Generate Sample Data
