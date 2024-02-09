@@ -284,6 +284,11 @@ impl types::SetupMandateRouterData {
                         &PaymentMethod::Card,
                         &PaymentMethodType::Credit,
                         connector.connector_name,
+                    ) && cards::filter_pm_based_on_update_mandate_support_for_connector(
+                        supported_connectors_for_update_mandate,
+                        &PaymentMethod::Card,
+                        &PaymentMethodType::Debit,
+                        connector.connector_name,
                     )
                 } else {
                     false
@@ -390,14 +395,13 @@ impl types::SetupMandateRouterData {
                 Err(_) => Ok(resp),
             }
         } else {
-            Err(errors::ApiErrorResponse::PreconditionFailed{
-                message : format!(
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
                     "Update Mandate flow not implemented for the connector {:?}",
                     connector.connector_name
-                )
+                ),
             })
-                .into_report()
-
+            .into_report()
         }
     }
 }
