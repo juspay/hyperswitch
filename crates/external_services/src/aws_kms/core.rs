@@ -12,7 +12,6 @@ use router_env::logger;
 
 #[cfg(feature = "hashicorp-vault")]
 use crate::hashicorp_vault;
-
 use crate::{aws_kms::decrypt::AwsKmsDecrypt, consts, metrics};
 
 pub(crate) static AWS_KMS_CLIENT: tokio::sync::OnceCell<AwsKmsClient> =
