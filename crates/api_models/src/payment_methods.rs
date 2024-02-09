@@ -359,6 +359,8 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_debits: Option<BankDebitTypes>,
     /// The Bank transfer payment method information, if applicable for a payment method type.
     pub bank_transfers: Option<BankTransferTypes>,
+    /// The Voucher payment method information, if applicable for a payment method type.
+    pub voucher: Option<VoucherTypes>,
 
     /// Required fields for the payment_method_type.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
@@ -447,6 +449,13 @@ pub struct ResponsePaymentMethodsEnabled {
 pub struct BankTransferTypes {
     /// The list of eligible connectors for a given payment experience
     #[schema(example = json!(["stripe", "adyen"]))]
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct VoucherTypes {
+    /// The list of eligible connectors for a given payment experience
+    #[schema(example = json!(["adyen", "zen"]))]
     pub eligible_connectors: Vec<String>,
 }
 

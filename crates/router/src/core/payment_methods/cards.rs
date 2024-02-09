@@ -1626,6 +1626,8 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    let mut voucher_consolidated_hm = HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
+
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
@@ -1800,6 +1802,17 @@ pub async fn list_payment_methods(
                 bank_transfer_consolidated_hm.insert(element.payment_method_type, vec![connector]);
             }
         }
+
+        if element.payment_method == api_enums::PaymentMethod::Voucher {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                voucher_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                voucher_consolidated_hm.insert(element.payment_method_type, vec![connector]);
+            }
+        }
     }
 
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
@@ -1821,6 +1834,7 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                voucher: None,
                 // Required fields for PayLater payment method
                 required_fields: required_fields_hm
                     .get(key.0)
@@ -1858,6 +1872,7 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                voucher: None,
                 // Required fields for Card payment method
                 required_fields: required_fields_hm
                     .get(key.0)
@@ -1890,6 +1905,7 @@ pub async fn list_payment_methods(
                 card_networks: None,
                 bank_debits: None,
                 bank_transfers: None,
+                voucher: None,
                 // Required fields for BankRedirect payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankRedirect)
@@ -1923,6 +1939,7 @@ pub async fn list_payment_methods(
                     eligible_connectors: connectors.clone(),
                 }),
                 bank_transfers: None,
+                voucher: None,
                 // Required fields for BankDebit payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankDebit)
@@ -1941,6 +1958,40 @@ pub async fn list_payment_methods(
         });
     }
 
+    let mut voucher_payment_method_types = vec![];
+
+    for key in voucher_consolidated_hm.iter() {
+        let payment_method_type = *key.0;
+        let connectors = key.1.clone();
+        voucher_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: None,
+                payment_experience: None,
+                card_networks: None,
+                bank_debits: None,
+                bank_transfers: None,
+                voucher: Some(api_models::payment_methods::VoucherTypes {
+                    eligible_connectors: connectors.clone(),
+                }),
+                // Required fields for Voucher payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::Voucher)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
+                surcharge_details: None,
+                pm_auth_connector: pmt_to_auth_connector.get(&payment_method_type).cloned(),
+            }
+        })
+    }
+
+    if !voucher_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::Voucher,
+            payment_method_types: voucher_payment_method_types,
+        });
+    }
+
     let mut bank_transfer_payment_method_types = vec![];
 
     for key in bank_transfer_consolidated_hm.iter() {
@@ -1956,6 +2007,7 @@ pub async fn list_payment_methods(
                 bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
                     eligible_connectors: connectors,
                 }),
+                voucher: None,
                 // Required fields for BankTransfer payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankTransfer)
