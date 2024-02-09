@@ -8,7 +8,6 @@ use error_stack::ResultExt;
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::env;
-#[cfg(feature = "email")]
 use router_env::logger;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
@@ -320,6 +319,7 @@ pub async fn change_password(
                 diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
             )
             .await
+            .map_err(|e| logger::error!("Error while deleting dashboard metadata {}", e))
             .ok();
     }
 
