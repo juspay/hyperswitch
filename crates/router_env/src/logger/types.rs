@@ -233,6 +233,8 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Delete Dispute Evidence flow
+    DeleteDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
