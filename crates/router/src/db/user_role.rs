@@ -187,7 +187,7 @@ impl UserRoleInterface for Store {
                 },
             )
             .await
-            .map_err(|e| e.current_context().clone())?;
+            .map_err(|e| *e.current_context())?;
 
             let new_org_admin_user_roles = storage::UserRole::update_by_user_id_org_id(
                 &conn,
@@ -199,7 +199,7 @@ impl UserRoleInterface for Store {
                 },
             )
             .await
-            .map_err(|e| e.current_context().clone())?;
+            .map_err(|e| *e.current_context())?;
 
             let new_org_admin_merchant_ids = new_org_admin_user_roles
                 .iter()
@@ -229,7 +229,7 @@ impl UserRoleInterface for Store {
                 user_role
                     .insert(&conn)
                     .await
-                    .map_err(|e| e.current_context().clone())
+                    .map_err(|e| *e.current_context())
             }))
             .await?;
 
