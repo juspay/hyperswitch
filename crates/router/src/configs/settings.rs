@@ -12,11 +12,11 @@ use config::{Environment, File};
 use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
+use external_services::file_storage::FileStorageConfig;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
-use external_services::{
-    encryption_management::EncryptionManagementConfig, file_storage::FileStorageConfig,
-    secrets_management::SecretsManagementConfig,
+use external_services::managers::{
+    encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -33,7 +33,7 @@ use crate::{
     events::EventsConfig,
 };
 #[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
+pub type Password = aws_kms::core::AwsKmsValue;
 #[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
@@ -92,12 +92,12 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
     #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: aws_kms::core::AwsKmsConfig,
     pub file_storage: FileStorageConfig,
     pub encryption_management: EncryptionManagementConfig,
     pub secrets_management: SecretsManagementConfig,
     #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]

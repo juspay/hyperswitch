@@ -5199,6 +5199,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
+ "hyperswitch_interface",
  "image",
  "infer 0.13.0",
  "josekit",

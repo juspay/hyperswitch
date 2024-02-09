@@ -216,16 +216,16 @@ impl From<Secret<String>> for AwsKmsValue {
 impl hashicorp_vault::decrypt::VaultFetch for AwsKmsValue {
     async fn fetch_inner<En>(
         self,
-        client: &hashicorp_vault::HashiCorpVault,
-    ) -> error_stack::Result<Self, hashicorp_vault::HashiCorpError>
+        client: &hashicorp_vault::core::HashiCorpVault,
+    ) -> error_stack::Result<Self, hashicorp_vault::core::HashiCorpError>
     where
-        for<'a> En: hashicorp_vault::Engine<
+        for<'a> En: hashicorp_vault::core::Engine<
                 ReturnType<'a, String> = std::pin::Pin<
                     Box<
                         dyn std::future::Future<
                                 Output = error_stack::Result<
                                     String,
-                                    hashicorp_vault::HashiCorpError,
+                                    hashicorp_vault::core::HashiCorpError,
                                 >,
                             > + Send
                             + 'a,

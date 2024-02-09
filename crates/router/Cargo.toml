@@ -111,6 +111,7 @@ diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 external_services = { version = "0.1.0", path = "../external_services" }
+hyperswitch_interface = { version = "0.1.0", path = "../hyperswitch_interface" }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
