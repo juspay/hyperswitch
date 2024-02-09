@@ -41,15 +41,15 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 api::PreAuthentication,
                 PreAuthNRequestData,
                 AuthenticationResponseData,
-            > = do_pre_auth_connector_call(
+            > = do_pre_auth_connector_call(state, card_number, three_ds_connector_account).await?;
+
+            let (authentication, authentication_data) = utils::update_trackers(
                 state,
-                card_number,
-                three_ds_connector_account,
+                router_data,
+                authentication,
+                payment_data.token.clone(),
             )
             .await?;
-
-            let (authentication, authentication_data) =
-                utils::update_trackers(state, router_data, authentication).await?;
             let external_3ds_authentication_requested =
                 if authentication_data.maximum_supported_version.0 == 2 {
                     *should_continue_confirm_transaction = false; // if 3ds version is >= 2
@@ -111,12 +111,8 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             card_number,
             other_fields: _,
         } => {
-            let _router_data = do_pre_auth_connector_call(
-                state,
-                card_number,
-                three_ds_connector_account,
-            )
-            .await?;
+            let _router_data =
+                do_pre_auth_connector_call(state, card_number, three_ds_connector_account).await?;
             // todo!("Some operation");
         }
     };
@@ -151,7 +147,7 @@ async fn do_pre_auth_connector_call(
         three_ds_connector_account,
     )?;
     let connector_data = api::AuthenticationConnectorData::get_connector_by_name(
-        &three_ds_connector_account.connector_name
+        &three_ds_connector_account.connector_name,
     )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,

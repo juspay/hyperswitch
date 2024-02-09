@@ -39,9 +39,8 @@ pub async fn perform_authentication(
     return_url: Option<String>,
     sdk_information: Option<payments::SDKInformation>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
-    let connector_data = api::AuthenticationConnectorData::get_connector_by_name(
-        &authentication_provider,
-    )?;
+    let connector_data =
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_provider)?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Authentication,
@@ -102,9 +101,8 @@ pub async fn perform_post_authentication(
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     authentication_data: types::AuthenticationData,
 ) -> CustomResult<core_types::api::authentication::PostAuthenticationResponse, ApiErrorResponse> {
-    let connector_data = api::AuthenticationConnectorData::get_connector_by_name(
-        &authentication_provider,
-    )?;
+    let connector_data =
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_provider)?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::PostAuthentication,

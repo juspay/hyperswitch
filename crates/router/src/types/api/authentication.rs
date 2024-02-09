@@ -1,10 +1,11 @@
-use super::BoxedConnector;
+use std::str::FromStr;
+
 use api_models::enums;
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
+
+use super::BoxedConnector;
 use crate::core::errors;
-use std::str::FromStr;
-use error_stack::ResultExt;
 
 #[derive(Debug, Clone)]
 pub struct PreAuthentication;
@@ -107,7 +108,9 @@ impl AuthenticationConnectorData {
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
             enums::AuthenticationConnectors::Tokenex => Ok(Box::new(&connector::Tokenex)),
-            enums::AuthenticationConnectors::Threedsecureio => Ok(Box::new(&connector::Threedsecureio)),
+            enums::AuthenticationConnectors::Threedsecureio => {
+                Ok(Box::new(&connector::Threedsecureio))
+            }
         }
     }
 }

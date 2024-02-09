@@ -654,16 +654,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
         });
         print!("is_pre_authn_call {:?}", is_pre_authn_call);
-        let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
-            .authentication_details
-            .clone()
-            .parse_value("authentication details")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let authentication_provider = authentication_details
-            .authentication_providers
-            .first()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
         if is_pre_authn_call {
+            let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
+                .authentication_details
+                .clone()
+                .parse_value("authentication details")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let authentication_provider = authentication_details
+                .authentication_providers
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
             if separate_authentication_requested && connector_supports_separate_authn {
                 if let Some(card_number) = card_number {
                     let profile_id = payment_data
@@ -703,6 +703,15 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
             Ok(())
         } else {
+            let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
+                .authentication_details
+                .clone()
+                .parse_value("authentication details")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let authentication_provider = authentication_details
+                .authentication_providers
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
             // call post authn service
             let profile_id = payment_data
                 .payment_intent

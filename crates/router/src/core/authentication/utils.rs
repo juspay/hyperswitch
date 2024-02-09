@@ -151,6 +151,7 @@ pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
+    token: Option<String>,
 ) -> RouterResult<(storage::Authentication, AuthenticationData)> {
     let mut authentication_data = authentication
         .authentication_data
@@ -192,7 +193,7 @@ pub async fn update_trackers<F: Clone, Req>(
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
                     connector_authentication_id: Some(connector_authentication_id),
-                    payment_method_id: None,
+                    payment_method_id: token,
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Started),
                     lifecycle_status: None,
