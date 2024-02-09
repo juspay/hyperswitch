@@ -1464,6 +1464,9 @@ impl api::IncomingWebhook for Paypal {
             paypal::PaypalResource::PaypalCardWebhooks(resource) => Ok(resource
                 .invoice_id
                 .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => Ok(resource
+                .invoice_id
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "get_webhook_payment_id method".to_string(),
             )

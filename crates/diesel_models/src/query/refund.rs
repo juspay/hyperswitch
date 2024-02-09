@@ -57,6 +57,20 @@ impl Refund {
         .await
     }
 
+    pub async fn find_by_attempt_id_connector_refund_id(
+        conn: &PgPooledConn,
+        attempt_id: &str,
+        connector_refund_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::attempt_id
+                .eq(attempt_id.to_owned())
+                .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned())),
+        )
+        .await
+    }
+
     #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector_refund_id_connector(
         conn: &PgPooledConn,

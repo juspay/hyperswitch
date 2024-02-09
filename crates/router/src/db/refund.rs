@@ -36,6 +36,12 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError>;
 
+    async fn find_refund_by_attempt_id_connector_refund_id(
+        &self,
+        attempt_id: &str,
+        connector_refund_id: &str,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError>;
+
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &str,
@@ -172,6 +178,22 @@ mod storage {
                 .await
                 .map_err(Into::into)
                 .into_report()
+        }
+
+        async fn find_refund_by_attempt_id_connector_refund_id(
+            &self,
+            attempt_id: &str,
+            connector_refund_id: &str,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Refund::find_by_attempt_id_connector_refund_id(
+                &conn,
+                attempt_id,
+                connector_refund_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
@@ -594,6 +616,26 @@ mod storage {
             }
         }
 
+        async fn find_refund_by_attempt_id_connector_refund_id(
+            &self,
+            attempt_id: &str,
+            connector_refund_id: &str,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                storage_types::Refund::find_by_attempt_id_connector_refund_id(
+                    &conn,
+                    attempt_id,
+                    connector_refund_id,
+                )
+                .await
+                .map_err(Into::into)
+                .into_report()
+            };
+            database_call().await
+            //Handle this monstrosity
+        }
+
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -852,6 +894,25 @@ impl RefundInterface for MockDb {
         refunds
             .iter()
             .find(|refund| refund.merchant_id == merchant_id && refund.refund_id == refund_id)
+            .cloned()
+            .ok_or_else(|| {
+                errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
+            })
+    }
+
+    async fn find_refund_by_attempt_id_connector_refund_id(
+        &self,
+        attempt_id: &str,
+        connector_refund_id: &str,
+    ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        refunds
+            .iter()
+            .find(|refund| {
+                refund.attempt_id == attempt_id
+                    && refund.connector_refund_id == Some(connector_refund_id.to_string())
+            })
             .cloned()
             .ok_or_else(|| {
                 errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()

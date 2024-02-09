@@ -1497,6 +1497,16 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    async fn find_refund_by_attempt_id_connector_refund_id(
+        &self,
+        attempt_id: &str,
+        connector_refund_id: &str,
+    ) -> CustomResult<storage::Refund, errors::StorageError> {
+        self.diesel_store
+            .find_refund_by_attempt_id_connector_refund_id(attempt_id, connector_refund_id)
+            .await
+    }
+
     async fn find_refund_by_merchant_id_connector_refund_id_connector(
         &self,
         merchant_id: &str,

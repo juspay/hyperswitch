@@ -1866,6 +1866,7 @@ pub struct PaypalRefundWebhooks {
     pub id: String,
     pub amount: OrderAmount,
     pub seller_payable_breakdown: PaypalSellerPayableBreakdown,
+    pub invoice_id: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
