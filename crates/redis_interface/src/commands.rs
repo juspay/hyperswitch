@@ -254,18 +254,23 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisMap> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        let output: Result<(), _> = self
-            .pool
+        let pipeline = self.pool.next().pipeline();
+        let _hset_result: String = pipeline
             .hset(key, values)
             .await
             .into_report()
-            .change_context(errors::RedisError::SetHashFailed);
-        // setting expiry for the key
-        output
-            .async_and_then(|_| {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
-            })
+            .change_context(errors::RedisError::SetHashFailed)?;
+        let _hset_expiry: String = pipeline
+            .expire(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
             .await
+            .into_report()
+            .change_context(errors::RedisError::SetExpiryFailed)?;
+        pipeline
+            .all()
+            .await
+            .into_report()
+            .change_context(errors::RedisError::PipelineError)?;
+        Ok(())
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -280,20 +285,26 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        let output: Result<HsetnxReply, _> = self
-            .pool
+        let pipeline = self.pool.next().pipeline();
+        let _hset_result: RedisValue = pipeline
             .hsetnx(key, field, value)
             .await
             .into_report()
-            .change_context(errors::RedisError::SetHashFieldFailed);
-
-        output
-            .async_and_then(|inner| async {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
-                    .await?;
-                Ok(inner)
-            })
+            .change_context(errors::RedisError::SetHashFieldFailed)?;
+        let _expiry_result: String = pipeline
+            .expire(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
             .await
+            .into_report()
+            .change_context(errors::RedisError::SetExpiryFailed)?;
+        let results = pipeline.try_all::<RedisValue>().await;
+
+        match results.into_iter().nth(0) {
+            Some(result) => result
+                .map_or_else(|err| Err(err), |x| fred::types::RedisValue::convert(x))
+                .into_report()
+                .change_context(errors::RedisError::PipelineError),
+            None => Err(errors::RedisError::UnknownResult).into_report(),
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]

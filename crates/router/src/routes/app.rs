@@ -82,6 +82,7 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
+    fn conf_as_ref(&self) -> &settings::Settings;
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
@@ -94,6 +95,9 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
+    fn conf_as_ref(&self) -> &settings::Settings {
+        self.conf.as_ref()
+    }
     fn conf(&self) -> settings::Settings {
         self.conf.as_ref().to_owned()
     }
