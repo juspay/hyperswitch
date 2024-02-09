@@ -1079,6 +1079,8 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
                 .address
                 .as_ref()
                 .and_then(|address| address.zip.to_owned()),
+            state: None,
+            phone: None,
         }
     }
 }
@@ -1245,6 +1247,7 @@ fn create_stripe_payment_method(
     auth_type: enums::AuthenticationType,
     payment_method_token: Option<types::PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
+    billing_address: StripeBillingAddress,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1262,7 +1265,7 @@ fn create_stripe_payment_method(
             Ok((
                 StripePaymentMethodData::try_from((card_details, payment_method_auth_type))?,
                 Some(StripePaymentMethodType::Card),
-                StripeBillingAddress::default(),
+                billing_address,
             ))
         }
         payments::PaymentMethodData::PayLater(pay_later_data) => {
@@ -1735,6 +1738,40 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             },
             None => StripeShippingAddress::default(),
         };
+
+        let billing_address = match item.address.billing.clone() {
+            Some(mut billing) => StripeBillingAddress {
+                city: billing.address.as_mut().and_then(|a| a.city.take()),
+                country: billing.address.as_mut().and_then(|a| a.country.take()),
+                address_line1: billing
+                    .address
+                    .as_mut()
+                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
+                address_line2: billing.address.as_mut().and_then(|a| a.line2.take()),
+                zip_code: billing.address.as_mut().and_then(|a| a.zip.take()),
+                state: billing.address.as_mut().and_then(|a| a.state.take()),
+                name: billing.address.as_mut().and_then(|a| {
+                    a.first_name.as_ref().map(|first_name| {
+                        format!(
+                            "{} {}",
+                            first_name.clone().expose(),
+                            a.last_name.clone().expose_option().unwrap_or_default()
+                        )
+                        .into()
+                    })
+                }),
+                email: item.request.email.clone(),
+                phone: billing.phone.map(|p| {
+                    format!(
+                        "{}{}",
+                        p.country_code.unwrap_or_default(),
+                        p.number.expose_option().unwrap_or_default()
+                    )
+                    .into()
+                }),
+            },
+            None => StripeBillingAddress::default(),
+        };
         let mut payment_method_options = None;
 
         let (mut payment_data, payment_method, mandate, billing_address, payment_method_types) = {
@@ -1774,6 +1811,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             Some(connector_util::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                 &item.request,
                             )),
+                            billing_address
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1980,6 +2018,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             item.auth_type,
             item.payment_method_token.clone(),
             None,
+            StripeBillingAddress::default(),
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -2897,6 +2936,10 @@ pub struct StripeBillingAddress {
     pub address_line2: Option<Secret<String>>,
     #[serde(rename = "payment_method_data[billing_details][address][postal_code]")]
     pub zip_code: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][address][state]")]
+    pub state: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][phone]")]
+    pub phone: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
