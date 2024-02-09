@@ -5,7 +5,7 @@ use api_models::routing::{self as routing_types, RoutingAlgorithmId};
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
 #[cfg(not(feature = "business_profile_routing"))]
-use common_utils::ext_traits::{Encode, StringExt};
+use common_utils::ext_traits::{ByteSliceExt, Encode};
 #[cfg(not(feature = "business_profile_routing"))]
 use diesel_models::configs;
 #[cfg(feature = "business_profile_routing")]
@@ -163,7 +163,7 @@ pub async fn create_routing_config(
     #[cfg(not(feature = "business_profile_routing"))]
     {
         let algorithm_str =
-            utils::Encode::<routing_types::RoutingAlgorithm>::encode_to_string_of_json(&algorithm)
+            utils::Encode::<routing_types::RoutingAlgorithm>::encode_to_vec(&algorithm)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize routing algorithm to string")?;
 

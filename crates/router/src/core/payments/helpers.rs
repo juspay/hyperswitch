@@ -2801,7 +2801,7 @@ pub async fn insert_merchant_connector_creds_to_config(
                     "mcd_{merchant_id}_{}",
                     merchant_connector_details.creds_identifier
                 ),
-                config: encoded_data.peek().to_owned(),
+                config: encoded_data.peek().to_owned().into(),
             })
             .await
         {
@@ -2901,7 +2901,11 @@ pub async fn get_merchant_connector_account(
             #[cfg(not(feature = "aws_kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
-            let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
+            let creds = std::str::from_utf8(&mca_config.config)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            let decrypted_mca = services::decrypt_jwe(creds, services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
                                         message: "decoding merchant_connector_details failed due to invalid data format!".into()})

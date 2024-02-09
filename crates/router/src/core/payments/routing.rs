@@ -33,7 +33,7 @@ use rand::{
 use rustc_hash::FxHashMap;
 
 #[cfg(not(feature = "business_profile_routing"))]
-use crate::utils::StringExt;
+use crate::utils::ByteSliceExt;
 use crate::{
     core::{
         errors as oss_errors, errors, payments as payments_oss, routing::helpers as routing_helpers,

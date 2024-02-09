@@ -264,7 +264,7 @@ pub async fn create_merchant_account(
 
     db.insert_config(diesel_models::configs::ConfigNew {
         key: format!("{}_requires_cvv", merchant_account.merchant_id),
-        config: "true".to_string(),
+        config: Vec::from("true"),
     })
     .await
     .map_err(|err| {

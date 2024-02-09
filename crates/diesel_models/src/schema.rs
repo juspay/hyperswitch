@@ -199,7 +199,7 @@ diesel::table! {
         id -> Int4,
         #[max_length = 255]
         key -> Varchar,
-        config -> Text,
+        config -> Bytea,
     }
 }
 

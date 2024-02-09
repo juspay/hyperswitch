@@ -12,7 +12,7 @@ use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     connector::{Helcim, Nexinets},
     core::{
-        errors::{self, RouterResponse, RouterResult},
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -111,7 +111,12 @@ where
             .store
             .find_config_by_key(&format!("connector_api_version_{connector_id}"))
             .await
-            .map(|value| value.config)
+            .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)
+            .and_then(|value| {
+                String::from_utf8(value.config)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+            })
             .ok()
     } else {
         None
