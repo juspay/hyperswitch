@@ -50,6 +50,31 @@ macro_rules! impl_error_display {
     };
 }
 
+#[macro_export]
+macro_rules! not_supported {
+    ($connector:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("Selected payment method"),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]

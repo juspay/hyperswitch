@@ -11,12 +11,11 @@ use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
-use super::utils as connector_utils;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger,
+    headers, logger, not_supported,
     services::{
         self,
         request::{self, Mask},
@@ -84,6 +83,7 @@ impl ConnectorValidation for Adyen {
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
+        let connector = self.id();
         match pmt {
             Some(payment_method_type) => match payment_method_type {
                 PaymentMethodType::Affirm
@@ -100,12 +100,9 @@ impl ConnectorValidation for Adyen {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
-                    enums::CaptureMethod::Scheduled => Err(
-                        connector_utils::construct_not_supported_error_for_pmt_report(
-                            format!("{} for {}", capture_method, payment_method_type,),
-                            self.id(),
-                        ),
-                    ),
+                    enums::CaptureMethod::Scheduled => {
+                        not_supported!(connector, capture_method, payment_method_type)
+                    }
                 },
                 PaymentMethodType::Ach
                 | PaymentMethodType::Alma
@@ -115,12 +112,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
                     enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-                    enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                        connector_utils::construct_not_supported_error_for_pmt_report(
-                            format!("{} for {}", capture_method, payment_method_type,),
-                            self.id(),
-                        ),
-                    ),
+                    enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
+                        not_supported!(connector, capture_method, payment_method_type)
+                    }
                 },
 
                 PaymentMethodType::AliPay
@@ -175,12 +169,9 @@ impl ConnectorValidation for Adyen {
                     enums::CaptureMethod::Automatic => Ok(()),
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
-                    | enums::CaptureMethod::Scheduled => Err(
-                        connector_utils::construct_not_supported_error_for_pmt_report(
-                            format!("{} for {}", capture_method, payment_method_type,),
-                            self.id(),
-                        ),
-                    ),
+                    | enums::CaptureMethod::Scheduled => {
+                        not_supported!(connector, capture_method, payment_method_type)
+                    }
                 },
                 PaymentMethodType::CardRedirect
                 | PaymentMethodType::Interac
@@ -198,22 +189,14 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect => {
-                    Err(connector_utils::construct_not_implemented_error_report(
-                        capture_method,
-                        self.id(),
-                    ))
+                    not_supported!(connector, capture_method, payment_method_type)
                 }
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
-                enums::CaptureMethod::Scheduled => {
-                    Err(connector_utils::construct_not_implemented_error_report(
-                        capture_method,
-                        self.id(),
-                    ))
-                }
+                enums::CaptureMethod::Scheduled => not_supported!(connector, capture_method),
             },
         }
     }

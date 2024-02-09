@@ -1326,17 +1326,6 @@ pub fn construct_not_supported_error_report(
     .into()
 }
 
-pub fn construct_not_supported_error_for_pmt_report(
-    message: String,
-    connector_name: &'static str,
-) -> error_stack::Report<errors::ConnectorError> {
-    errors::ConnectorError::NotSupported {
-        message,
-        connector: connector_name,
-    }
-    .into()
-}
-
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
