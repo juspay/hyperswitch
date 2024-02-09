@@ -31,5 +31,6 @@ impl SecretManagementInterface for NoEncryption {
             .map(Into::into)
             .into_report()
             .change_context(SecretsManagementError::FetchSecretFailed)
+            .attach_printable("Failed to convert decrypted value to UTF-8")
     }
 }

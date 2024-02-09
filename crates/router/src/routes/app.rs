@@ -161,11 +161,11 @@ impl AppState {
 
         Box::pin(async move {
             #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
+            let aws_kms_client = aws_kms::core::get_aws_kms_client(&conf.kms).await;
             #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
             #[allow(clippy::expect_used)]
             let hc_client =
-                external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
                     .await
                     .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
@@ -213,7 +213,7 @@ impl AppState {
                     sqlx.password = sqlx
                         .password
                         .clone()
-                        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                         .await
                         .expect("Failed while fetching from hashicorp vault");
                 }
@@ -239,7 +239,7 @@ impl AppState {
             {
                 conf.connector_onboarding = conf
                     .connector_onboarding
-                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -263,7 +263,7 @@ impl AppState {
                 conf.jwekey = conf
                     .jwekey
                     .clone()
-                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }

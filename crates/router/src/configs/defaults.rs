@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 #[cfg(feature = "aws_kms")]
-use external_services::aws_kms::AwsKmsValue;
+use external_services::aws_kms::core::AwsKmsValue;
 
 use super::settings::{ConnectorFields, Password, PaymentMethodType, RequiredFieldFinal};
 

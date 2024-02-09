@@ -4,7 +4,7 @@ use std::{collections::HashMap, future::Future, pin::Pin};
 
 use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{Report, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 
 static HC_CLIENT: tokio::sync::OnceCell<HashiCorpVault> = tokio::sync::OnceCell::const_new();
@@ -23,7 +23,7 @@ pub struct HashiCorpVaultConfig {
     /// The URL of the HashiCorp Vault server.
     pub url: String,
     /// The authentication token used to access HashiCorp Vault.
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 impl HashiCorpVaultConfig {
@@ -108,7 +108,7 @@ impl HashiCorpVault {
         VaultClient::new(
             VaultClientSettingsBuilder::default()
                 .address(&config.url)
-                .token(&config.token)
+                .token(config.token.peek())
                 .build()
                 .map_err(Into::<Report<_>>::into)
                 .change_context(HashiCorpError::ClientCreationFailed)

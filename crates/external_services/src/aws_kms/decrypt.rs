@@ -1,4 +1,4 @@
-//! decrypting data using the AWS KMS SDK.
+//! Decrypting data using the AWS KMS SDK.
 use common_utils::errors::CustomResult;
 
 use crate::aws_kms::core::{AwsKmsClient, AwsKmsError, AWS_KMS_CLIENT};

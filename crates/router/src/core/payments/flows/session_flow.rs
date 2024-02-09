@@ -189,7 +189,7 @@ async fn create_applepay_session_token(
                         common_merchant_identifier,
                     ) = async {
                         #[cfg(feature = "hashicorp-vault")]
-                        let client = external_services::hashicorp_vault::get_hashicorp_client(
+                        let client = external_services::hashicorp_vault::core::get_hashicorp_client(
                             &state.conf.hc_vault,
                         )
                         .await
@@ -206,7 +206,7 @@ async fn create_applepay_session_token(
                                         .apple_pay_merchant_cert
                                         .clone(),
                                 )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -217,7 +217,7 @@ async fn create_applepay_session_token(
                                         .apple_pay_merchant_cert_key
                                         .clone(),
                                 )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -228,7 +228,7 @@ async fn create_applepay_session_token(
                                         .common_merchant_identifier
                                         .clone(),
                                 )
-                                .fetch_inner::<hashicorp_vault::Kv2>(client)
+                                .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?
                                 .expose(),
@@ -260,7 +260,7 @@ async fn create_applepay_session_token(
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert =
-                        aws_kms::get_aws_kms_client(&state.conf.kms)
+                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(apple_pay_merchant_cert)
                             .await
@@ -269,7 +269,7 @@ async fn create_applepay_session_token(
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_apple_pay_merchant_cert_key =
-                        aws_kms::get_aws_kms_client(&state.conf.kms)
+                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(apple_pay_merchant_cert_key)
                             .await
@@ -280,7 +280,7 @@ async fn create_applepay_session_token(
 
                     #[cfg(feature = "aws_kms")]
                     let decrypted_merchant_identifier =
-                        aws_kms::get_aws_kms_client(&state.conf.kms)
+                        aws_kms::core::get_aws_kms_client(&state.conf.kms)
                             .await
                             .decrypt(common_merchant_identifier)
                             .await

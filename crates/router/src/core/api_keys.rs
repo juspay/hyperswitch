@@ -38,9 +38,9 @@ static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_K
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
@@ -57,7 +57,7 @@ pub async fn get_hash_key(
 
             #[cfg(feature = "hashicorp-vault")]
             let hash_key = hash_key
-                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -153,9 +153,9 @@ impl PlaintextApiKey {
 #[instrument(skip_all)]
 pub async fn create_api_key(
     state: AppState,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
