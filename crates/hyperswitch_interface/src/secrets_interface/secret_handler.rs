@@ -2,7 +2,7 @@
 
 use common_utils::errors::CustomResult;
 
-use crate::{
+use crate::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };

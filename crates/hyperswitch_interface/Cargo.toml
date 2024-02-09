@@ -1,5 +1,5 @@
 [package]
-name = "secrets_interface"
+name = "hyperswitch_interface"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 async-trait = "0.1.68"
+dyn-clone = "1.0.11"
 serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.40"
 

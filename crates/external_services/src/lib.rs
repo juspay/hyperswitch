@@ -15,9 +15,7 @@ pub mod hashicorp_vault;
 
 pub mod no_encryption;
 
-pub mod encryption_management;
-
-pub mod secrets_management;
+pub mod managers;
 
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]

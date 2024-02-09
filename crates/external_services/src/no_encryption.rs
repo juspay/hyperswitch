@@ -3,10 +3,12 @@
 //!
 
 use common_utils::errors::CustomResult;
-use encryption_interface::{EncryptionError, EncryptionManagementInterface};
 use error_stack::{IntoReport, ResultExt};
+use hyperswitch_interface::{
+    encryption_interface::{EncryptionError, EncryptionManagementInterface},
+    secrets_interface::{SecretManagementInterface, SecretsManagementError},
+};
 use masking::{ExposeInterface, Secret};
-use secrets_interface::{SecretManagementInterface, SecretsManagementError};
 
 /// No encryption type
 #[derive(Debug, Clone)]

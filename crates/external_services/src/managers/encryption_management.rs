@@ -3,7 +3,7 @@
 //!
 
 use common_utils::errors::CustomResult;
-use encryption_interface::{EncryptionError, EncryptionManagementInterface};
+use hyperswitch_interface::encryption_interface::{EncryptionError, EncryptionManagementInterface};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
@@ -18,7 +18,7 @@ pub enum EncryptionManagementConfig {
     #[cfg(feature = "aws_kms")]
     AwsKms {
         /// AWS KMS config
-        aws_kms: aws_kms::AwsKmsConfig,
+        aws_kms: aws_kms::core::AwsKmsConfig,
     },
 
     /// Variant representing no encryption
@@ -43,7 +43,7 @@ impl EncryptionManagementConfig {
     ) -> CustomResult<Box<dyn EncryptionManagementInterface>, EncryptionError> {
         Ok(match self {
             #[cfg(feature = "aws_kms")]
-            Self::AwsKms { aws_kms } => Box::new(aws_kms::AwsKmsClient::new(aws_kms).await),
+            Self::AwsKms { aws_kms } => Box::new(aws_kms::core::AwsKmsClient::new(aws_kms).await),
 
             Self::NoEncryption => Box::new(NoEncryption),
         })

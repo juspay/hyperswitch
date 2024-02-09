@@ -1,7 +1,5 @@
 //! Secrets management interface
 
-#![warn(missing_docs, missing_debug_implementations)]
-
 pub mod secret_handler;
 
 pub mod secret_state;

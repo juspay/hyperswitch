@@ -2377,16 +2377,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "encryption_interface"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "common_utils",
- "dyn-clone",
- "thiserror",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2501,15 +2491,14 @@ dependencies = [
  "base64 0.21.5",
  "common_utils",
  "dyn-clone",
- "encryption_interface",
  "error-stack",
  "hex",
  "hyper",
  "hyper-proxy",
+ "hyperswitch_interface",
  "masking",
  "once_cell",
  "router_env",
- "secrets_interface",
  "serde",
  "thiserror",
  "tokio 1.35.1",
@@ -3224,6 +3213,18 @@ dependencies = [
  "native-tls",
  "tokio 1.35.1",
  "tokio-native-tls",
+]
+
+[[package]]
+name = "hyperswitch_interface"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "common_utils",
+ "dyn-clone",
+ "masking",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -5190,7 +5191,6 @@ dependencies = [
  "digest 0.9.0",
  "dyn-clone",
  "encoding_rs",
- "encryption_interface",
  "erased-serde",
  "error-stack",
  "euclid",
@@ -5229,7 +5229,6 @@ dependencies = [
  "rust_decimal",
  "rustc-hash",
  "scheduler",
- "secrets_interface",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -5585,17 +5584,6 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
-
-[[package]]
-name = "secrets_interface"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "common_utils",
- "masking",
- "serde",
- "thiserror",
-]
 
 [[package]]
 name = "security-framework"
