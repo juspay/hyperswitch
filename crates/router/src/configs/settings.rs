@@ -242,6 +242,7 @@ pub struct DummyConnector {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]
