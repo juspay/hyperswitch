@@ -5,7 +5,7 @@ impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(not(feature = "kms"))]
+        #[cfg(not(feature = "aws_kms"))]
         {
             when(self.jwt_secret.is_default_or_empty(), || {
                 Err(ApplicationError::InvalidConfigurationValueError(
@@ -20,7 +20,7 @@ impl super::settings::Secrets {
             })?;
         }
 
-        #[cfg(feature = "kms")]
+        #[cfg(feature = "aws_kms")]
         {
             when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
                 Err(ApplicationError::InvalidConfigurationValueError(
@@ -68,9 +68,17 @@ impl super::settings::Locker {
 
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+        use common_utils::fp_utils::when;
+
+        when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "server host must not be empty".into(),
+            ))
+        })?;
+
+        when(self.workers == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "number of workers must be greater than 0".into(),
             ))
         })
     }
@@ -131,14 +139,14 @@ impl super::settings::ApiKeys {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(feature = "kms")]
+        #[cfg(feature = "aws_kms")]
         return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty when KMS feature is enabled".into(),
             ))
         });
 
-        #[cfg(not(feature = "kms"))]
+        #[cfg(not(feature = "aws_kms"))]
         when(self.hash_key.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),

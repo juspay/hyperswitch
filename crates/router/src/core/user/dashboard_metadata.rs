@@ -105,6 +105,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IsMultipleConfiguration => {
             Ok(types::MetaData::IsMultipleConfiguration(true))
         }
+        api::SetMetaDataRequest::IsChangePasswordRequired => {
+            Ok(types::MetaData::IsChangePasswordRequired(true))
+        }
     }
 }
 
@@ -131,6 +134,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ConfigureWoocom => DBEnum::ConfigureWoocom,
         api::GetMetaDataRequest::SetupWoocomWebhook => DBEnum::SetupWoocomWebhook,
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
+        api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
     }
 }
 
@@ -205,6 +209,9 @@ fn into_response(
         }
 
         DBEnum::IsMultipleConfiguration => Ok(api::GetMetaDataResponse::IsMultipleConfiguration(
+            data.is_some(),
+        )),
+        DBEnum::IsChangePasswordRequired => Ok(api::GetMetaDataResponse::IsChangePasswordRequired(
             data.is_some(),
         )),
     }
@@ -511,6 +518,17 @@ async fn insert_metadata(
         }
         types::MetaData::IsMultipleConfiguration(data) => {
             utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                data,
+            )
+            .await
+        }
+        types::MetaData::IsChangePasswordRequired(data) => {
+            utils::insert_user_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,

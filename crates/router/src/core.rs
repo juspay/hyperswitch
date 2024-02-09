@@ -35,7 +35,7 @@ pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
 pub mod utils;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(all(feature = "olap", feature = "aws_kms"))]
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
