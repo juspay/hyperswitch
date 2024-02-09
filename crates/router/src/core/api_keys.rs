@@ -590,9 +590,9 @@ mod tests {
         let hash_key = get_hash_key(
             &settings.api_keys,
             #[cfg(feature = "aws_kms")]
-            external_services::aws_kms::get_aws_kms_client(&settings.kms).await,
+            external_services::aws_kms::core::get_aws_kms_client(&settings.kms).await,
             #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::get_hashicorp_client(&settings.hc_vault)
+            external_services::hashicorp_vault::core::get_hashicorp_client(&settings.hc_vault)
                 .await
                 .unwrap(),
         )

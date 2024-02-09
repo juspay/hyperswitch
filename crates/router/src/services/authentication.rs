@@ -972,7 +972,7 @@ static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 #[cfg(feature = "recon")]
 pub async fn get_recon_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::core::AwsKmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     RECON_API_KEY
         .get_or_try_init(|| async {
@@ -1013,7 +1013,7 @@ where
         let admin_api_key = get_recon_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "aws_kms")]
-            aws_kms::get_aws_kms_client(&conf.kms).await,
+            aws_kms::core::get_aws_kms_client(&conf.kms).await,
         )
         .await?;
 
