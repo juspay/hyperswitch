@@ -20,6 +20,9 @@ The heart of `newman`(with directory support) and `UI-tests`
   export CONNECTOR_AUTH_FILE_PATH=/path/to/auth.toml
   ```
 
+> [!IMPORTANT]
+> You might also need to export the `GATEWAY_MERCHANT_ID`, `GPAY_CERTIFICATE` and `GPAY_CERTIFICATE_KEYS` as environment variables for certain collections. Make sure you do that before running the tests
+
 ### Supported Commands
 
 Required fields:
