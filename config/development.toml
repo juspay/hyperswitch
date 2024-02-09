@@ -14,7 +14,7 @@ use_xray_generator = false
 # TODO: Update database credentials before running application
 [master_database]
 username = "db_user"
-password = "AQICAHiuqtZ58B2e18+eXrzv9uMgsae/YmcY/pDPVTg9KN90ZAEC+m5xXWlqrdoqPIXjCSmxAAAAaDBmBgkqhkiG9w0BBwagWTBXAgEAMFIGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMeZWFiqMJ1tci7SXfAgEQgCXiQDRcb68vhHqE0wEhvqRrOFzmzLgSbuK+sWtYMKOKmecsSka4"
+password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -562,7 +562,3 @@ enabled = true
 
 [file_storage]
 file_storage_backend = "file_system"
-
-[kms]
-key_id = "a0aee3db-a4f7-42c9-8471-ed35d90a8712"
-region = "us-east-1"

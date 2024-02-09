@@ -3537,11 +3537,12 @@ impl ApplePayData {
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let apple_pay_ppc = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
@@ -3620,11 +3621,12 @@ impl ApplePayData {
 
         let apple_pay_ppc_key = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
