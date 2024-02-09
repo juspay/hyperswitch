@@ -3,7 +3,9 @@
 //!
 
 use common_utils::errors::CustomResult;
-use hyperswitch_interfaces::encryption_interface::{EncryptionError, EncryptionManagementInterface};
+use hyperswitch_interfaces::encryption_interface::{
+    EncryptionError, EncryptionManagementInterface,
+};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;

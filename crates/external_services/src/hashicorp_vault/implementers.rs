@@ -2,7 +2,9 @@
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::secrets_interface::{SecretManagementInterface, SecretsManagementError};
+use hyperswitch_interfaces::secrets_interface::{
+    SecretManagementInterface, SecretsManagementError,
+};
 use masking::{ExposeInterface, Secret};
 
 use crate::hashicorp_vault::core::{HashiCorpVault, Kv2};
