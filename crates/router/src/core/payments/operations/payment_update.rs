@@ -64,7 +64,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount,
+                payment_intent.original_amount,
                 false,
             )?;
         }
@@ -133,7 +133,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request.amount_to_capture,
             request
                 .surcharge_details
-                .or(payment_attempt.get_surcharge_details()),
+                .or(payment_attempt.get_request_surcharge_details()),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount_to_capture".to_string(),
@@ -152,7 +152,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let amount = request
             .amount
-            .unwrap_or_else(|| payment_attempt.amount.into());
+            .unwrap_or_else(|| payment_attempt.amount.get_original_amount().into());
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_customer_id_mandatory_cases(
@@ -275,14 +275,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     let amount = request
                         .amount
                         .map(Into::into)
-                        .unwrap_or(payment_attempt.amount);
-                    payment_attempt.amount = amount;
-                    payment_intent.amount = amount;
+                        .unwrap_or(payment_attempt.amount.get_original_amount());
+                    payment_attempt.amount.set_original_amount(amount);
+                    payment_intent.original_amount = amount;
                     let surcharge_amount = request
                         .surcharge_details
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                        .or(payment_attempt.get_total_surcharge_amount());
+                        .or(payment_attempt.amount.get_total_surcharge_amount());
                     (amount + surcharge_amount.unwrap_or(0)).into()
                 };
                 (Box::new(operations::PaymentConfirm), amount)

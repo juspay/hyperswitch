@@ -110,7 +110,7 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
     let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
 
     let (surcharge_source, merchant_surcharge_configs) = match (
-        payment_attempt.get_surcharge_details(),
+        payment_attempt.get_request_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
     ) {
         (Some(request_surcharge_details), _) => (
@@ -231,7 +231,7 @@ where
     let mut surcharge_metadata =
         types::SurchargeMetadata::new(payment_data.payment_attempt.attempt_id.clone());
     let surcharge_source = match (
-        payment_data.payment_attempt.get_surcharge_details(),
+        payment_data.payment_attempt.get_request_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
     ) {
         (Some(request_surcharge_details), _) => {
@@ -290,7 +290,7 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
     let surcharge_source = match (
-        payment_attempt.get_surcharge_details(),
+        payment_attempt.get_request_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
     ) {
         (Some(request_surcharge_details), _) => {
@@ -360,7 +360,7 @@ fn get_surcharge_details_from_surcharge_output(
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
         surcharge_decision_configs::SurchargeOutput::Rate(percentage) => percentage
-            .apply_and_ceil_result(payment_attempt.amount)
+            .apply_and_ceil_result(payment_attempt.amount.get_original_amount())
             .change_context(ConfigError::DslExecutionError)
             .attach_printable("Failed to Calculate surcharge amount by applying percentage")?,
     };
@@ -375,8 +375,9 @@ fn get_surcharge_details_from_surcharge_output(
         })
         .transpose()?
         .unwrap_or(0);
+    let original_amount = payment_attempt.amount.get_original_amount();
     Ok(types::SurchargeDetails {
-        original_amount: payment_attempt.amount,
+        original_amount,
         surcharge: match surcharge_details.surcharge {
             surcharge_decision_configs::SurchargeOutput::Fixed { amount } => {
                 common_utils_types::Surcharge::Fixed(amount)
@@ -388,7 +389,7 @@ fn get_surcharge_details_from_surcharge_output(
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
         surcharge_amount,
         tax_on_surcharge_amount,
-        final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
+        final_amount: original_amount + surcharge_amount + tax_on_surcharge_amount,
     })
 }
 

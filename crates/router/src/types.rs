@@ -665,7 +665,7 @@ impl Capturable for PaymentsAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.amount.get_authorize_amount()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -742,7 +742,7 @@ impl Capturable for CompleteAuthorizeData {
                     | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
                 }
             },
-            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount()),
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.amount.get_authorize_amount()),
             // In case of manual multiple, amount capturable must be inferred from all captures.
             common_enums::CaptureMethod::ManualMultiple |
             // Scheduled capture is not supported as of now
@@ -806,7 +806,7 @@ impl Capturable for PaymentsSyncData {
         payment_data
             .payment_attempt
             .amount_to_capture
-            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .or_else(|| Some(payment_data.payment_attempt.amount.get_authorize_amount()))
     }
     fn get_amount_capturable<F>(
         &self,

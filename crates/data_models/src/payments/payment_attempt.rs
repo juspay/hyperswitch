@@ -1,5 +1,6 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+use diesel_models::PaymentAttempt as DieselPaymentAttempt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -106,15 +107,12 @@ pub struct PaymentAttempt {
     pub merchant_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub amount: i64,
-    pub net_amount: i64,
+    pub amount: AttemptAmount,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i64>,
-    pub surcharge_amount: Option<i64>,
-    pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
@@ -157,9 +155,56 @@ pub struct PaymentAttempt {
     pub unified_message: Option<String>,
 }
 
-impl PaymentAttempt {
-    pub fn get_total_amount(&self) -> i64 {
-        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct AttemptAmount {
+    amount: i64,
+    surcharge_amount: Option<i64>,
+    tax_amount: Option<i64>,
+    net_amount: i64,
+}
+
+pub trait GetAttemptAmount {
+    fn get_attempt_amount(&self) -> AttemptAmount;
+}
+
+impl GetAttemptAmount for DieselPaymentAttempt {
+    fn get_attempt_amount(&self) -> AttemptAmount {
+        AttemptAmount {
+            amount: self.amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            net_amount: self.get_or_calculate_net_amount(),
+        }
+    }
+}
+
+impl GetAttemptAmount for PaymentAttemptNew {
+    fn get_attempt_amount(&self) -> AttemptAmount {
+        AttemptAmount {
+            amount: self.amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            net_amount: self.calculate_net_amount(),
+        }
+    }
+}
+
+impl AttemptAmount {
+    pub fn set_original_amount(&mut self, amount: i64) {
+        self.amount = amount;
+        self.net_amount = self.amount + self.get_total_surcharge_amount().unwrap_or(0);
+    }
+    pub fn get_authorize_amount(&self) -> i64 {
+        self.net_amount
+    }
+    pub fn get_original_amount(&self) -> i64 {
+        self.amount
+    }
+    pub fn get_surcharge_amount(&self) -> Option<i64> {
+        self.surcharge_amount
+    }
+    pub fn get_tax_amount_on_surcharge(&self) -> Option<i64> {
+        self.tax_amount
     }
     pub fn get_total_surcharge_amount(&self) -> Option<i64> {
         self.surcharge_amount

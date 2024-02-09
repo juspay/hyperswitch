@@ -479,11 +479,11 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
-    let original_payment_intent = mandate
+    let original_payment_attempt = mandate
         .original_payment_id
         .as_ref()
         .async_map(|payment_id| async {
-            db.find_payment_intent_by_payment_id_merchant_id(
+            db.find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
                 payment_id,
                 &mandate.merchant_id,
                 merchant_account.storage_scheme,
@@ -495,10 +495,11 @@ pub async fn get_token_for_recurring_mandate(
         })
         .await
         .flatten();
-
-    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_amount = original_payment_attempt
+        .clone()
+        .map(|pa| pa.amount.get_authorize_amount());
     let original_payment_authorized_currency =
-        original_payment_intent.clone().and_then(|pi| pi.currency);
+        original_payment_attempt.clone().and_then(|pi| pi.currency);
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -653,17 +654,22 @@ pub fn validate_amount_to_capture_and_capture_method(
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
     if capture_method == api_enums::CaptureMethod::Automatic {
-        let original_amount = request
-            .amount
-            .map(|amount| amount.into())
-            .or(payment_attempt.map(|payment_attempt| payment_attempt.amount));
+        let original_amount =
+            request
+                .amount
+                .map(|amount| amount.into())
+                .or(payment_attempt
+                    .map(|payment_attempt| payment_attempt.amount.get_original_amount()));
         let surcharge_amount = request
             .surcharge_details
             .map(|surcharge_details| surcharge_details.get_total_surcharge_amount())
             .or_else(|| {
                 payment_attempt.map(|payment_attempt| {
-                    payment_attempt.surcharge_amount.unwrap_or(0)
-                        + payment_attempt.tax_amount.unwrap_or(0)
+                    payment_attempt.amount.get_surcharge_amount().unwrap_or(0)
+                        + payment_attempt
+                            .amount
+                            .get_tax_amount_on_surcharge()
+                            .unwrap_or(0)
                 })
             })
             .unwrap_or(0);
@@ -2630,7 +2636,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            original_amount: 200,
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -2685,7 +2691,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            original_amount: 200,
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -2739,7 +2745,7 @@ mod tests {
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
             status: storage_enums::IntentStatus::RequiresCapture,
-            amount: 200,
+            original_amount: 200,
             currency: None,
             amount_captured: None,
             customer_id: None,
@@ -3148,7 +3154,7 @@ impl AttemptType {
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
 
-            amount: old_payment_attempt.amount,
+            amount: old_payment_attempt.amount.get_original_amount(),
             currency: old_payment_attempt.currency,
             save_to_locker: old_payment_attempt.save_to_locker,
 
@@ -3193,14 +3199,14 @@ impl AttemptType {
             error_reason: None,
             multiple_capture_count: None,
             connector_response_reference_id: None,
-            amount_capturable: old_payment_attempt.amount,
+            amount_capturable: old_payment_attempt.amount.get_original_amount(),
             updated_by: storage_scheme.to_string(),
             authentication_data: None,
             encoded_data: None,
             merchant_connector_id: None,
             unified_code: None,
             unified_message: None,
-            net_amount: old_payment_attempt.amount,
+            net_amount: old_payment_attempt.amount.get_original_amount(),
         }
     }
 

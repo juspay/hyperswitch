@@ -64,7 +64,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             connector_meta_data: None,
             amount_captured: None,
             request: FraudCheckSaleData {
-                amount: self.payment_attempt.amount,
+                amount: self.payment_attempt.amount.get_authorize_amount(),
                 order_details: self.order_details.clone(),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {

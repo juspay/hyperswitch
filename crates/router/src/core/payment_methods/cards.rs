@@ -1316,7 +1316,7 @@ pub async fn list_payment_methods(
         .transpose()?;
 
     let payment_type = payment_attempt.as_ref().map(|pa| {
-        let amount = api::Amount::from(pa.amount);
+        let amount = api::Amount::from(pa.amount.get_authorize_amount());
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
         } else if pa.mandate_details.is_some() {
@@ -2624,10 +2624,10 @@ fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
-    let amount = payment_intent.amount;
+    let amount = payment_intent.original_amount;
     (pm.maximum_amount.map_or(true, |amt| amount <= amt.into())
         && pm.minimum_amount.map_or(true, |amt| amount >= amt.into()))
-        || payment_intent.amount == 0
+        || payment_intent.original_amount == 0
 }
 
 async fn filter_payment_mandate_based(
