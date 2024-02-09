@@ -349,10 +349,11 @@ async fn store_bank_details_in_payment_methods(
 
     let pm_auth_key = async {
         #[cfg(feature = "hashicorp-vault")]
-        let client = external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while creating client")?;
+        let client =
+            external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while creating client")?;
 
         #[cfg(feature = "hashicorp-vault")]
         let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())

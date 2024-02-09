@@ -49,9 +49,10 @@ pub async fn get_store(
     let aws_kms_client = aws_kms::core::get_aws_kms_client(&config.kms).await;
 
     #[cfg(feature = "hashicorp-vault")]
-    let hc_client = external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
-        .await
-        .change_context(StorageError::InitializationError)?;
+    let hc_client =
+        external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
+            .await
+            .change_context(StorageError::InitializationError)?;
 
     let master_config = config.master_database.clone();
 

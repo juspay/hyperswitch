@@ -189,12 +189,13 @@ async fn create_applepay_session_token(
                         common_merchant_identifier,
                     ) = async {
                         #[cfg(feature = "hashicorp-vault")]
-                        let client = external_services::hashicorp_vault::core::get_hashicorp_client(
-                            &state.conf.hc_vault,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while building hashicorp client")?;
+                        let client =
+                            external_services::hashicorp_vault::core::get_hashicorp_client(
+                                &state.conf.hc_vault,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while building hashicorp client")?;
 
                         #[cfg(feature = "hashicorp-vault")]
                         {
