@@ -5,7 +5,7 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "hashicorp-vault")]
 use error_stack::ResultExt;
-use hyperswitch_interface::secrets_interface::{SecretManagementInterface, SecretsManagementError};
+use hyperswitch_interfaces::secrets_interface::{SecretManagementInterface, SecretsManagementError};
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;

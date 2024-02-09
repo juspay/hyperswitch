@@ -13,7 +13,7 @@ use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
 #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
-use hyperswitch_interface::encryption_interface::EncryptionManagementInterface;
+use hyperswitch_interfaces::encryption_interface::EncryptionManagementInterface;
 #[cfg(all(feature = "olap", feature = "aws_kms"))]
 use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;

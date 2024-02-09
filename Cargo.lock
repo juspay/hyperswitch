@@ -2495,7 +2495,7 @@ dependencies = [
  "hex",
  "hyper",
  "hyper-proxy",
- "hyperswitch_interface",
+ "hyperswitch_interfaces",
  "masking",
  "once_cell",
  "router_env",
@@ -3216,7 +3216,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperswitch_interface"
+name = "hyperswitch_interfaces"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -5199,7 +5199,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "hyperswitch_interface",
+ "hyperswitch_interfaces",
  "image",
  "infer 0.13.0",
  "josekit",

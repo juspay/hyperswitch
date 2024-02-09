@@ -2,7 +2,7 @@
 
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use hyperswitch_interface::{
+use hyperswitch_interfaces::{
     encryption_interface::{EncryptionError, EncryptionManagementInterface},
     secrets_interface::{SecretManagementInterface, SecretsManagementError},
 };

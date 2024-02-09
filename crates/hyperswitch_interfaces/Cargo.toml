@@ -1,5 +1,5 @@
 [package]
-name = "hyperswitch_interface"
+name = "hyperswitch_interfaces"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
