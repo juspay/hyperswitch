@@ -174,7 +174,6 @@ use diesel::{
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
-
 }
 impl<DB: Backend> FromSql<Jsonb, DB> for MandateDetails
 where
