@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.09.0
+
+### Features
+
+- **permissions:** Permsision Info Ordering Change ([#3594](https://github.com/juspay/hyperswitch/pull/3594)) ([`96f82cb`](https://github.com/juspay/hyperswitch/commit/96f82cb21233677968aade844db91f91e3918843))
+- Adding refunds type to api_event_logs api to fetch refunds audit trail ([#3503](https://github.com/juspay/hyperswitch/pull/3503)) ([`c2b2b65`](https://github.com/juspay/hyperswitch/commit/c2b2b65b9cfc43b5999888635c7b03b1d2de78b3))
+
+### Refactors
+
+- **payment_methods:** Handle card duplication ([#3146](https://github.com/juspay/hyperswitch/pull/3146)) ([`dd5630f`](https://github.com/juspay/hyperswitch/commit/dd5630f070db28051a3dd59a66f0a4ee6777e38f))
+- **user_role:** Change update user role request to take `email` instead of `user_id` ([#3530](https://github.com/juspay/hyperswitch/pull/3530)) ([`edd6806`](https://github.com/juspay/hyperswitch/commit/edd6806f97b8d400f1215d845023bb0d7c06aaca))
+
+### Documentation
+
+- Add list mandates for customer ([#3592](https://github.com/juspay/hyperswitch/pull/3592)) ([`3a869a2`](https://github.com/juspay/hyperswitch/commit/3a869a2d5731a2393a687ed7773eda5344bd8e3f))
+
+**Full Changelog:** [`2024.02.08.0...2024.02.09.0`](https://github.com/juspay/hyperswitch/compare/2024.02.08.0...2024.02.09.0)
+
+- - -
+
 ## 2024.02.08.0
 
 ### Features
