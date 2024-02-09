@@ -7,7 +7,7 @@ use hyperswitch_interface::encryption_interface::{EncryptionError, EncryptionMan
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
-use crate::no_encryption::NoEncryption;
+use crate::no_encryption::core::NoEncryption;
 
 /// Enum representing configuration options for encryption management.
 #[derive(Debug, Clone, Default, serde::Deserialize)]

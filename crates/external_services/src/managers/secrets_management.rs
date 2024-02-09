@@ -11,7 +11,7 @@ use hyperswitch_interface::secrets_interface::{SecretManagementInterface, Secret
 use crate::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use crate::hashicorp_vault;
-use crate::no_encryption::NoEncryption;
+use crate::no_encryption::core::NoEncryption;
 
 /// Enum representing configuration options for secrets management.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
