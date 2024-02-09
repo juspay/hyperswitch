@@ -2,7 +2,8 @@
 
 The heart of `newman`(with directory support) and `UI-tests`
 
-> If you're developing a collection and you want to learn more about it, click [_**here**_](/README.md)
+> [!NOTE]
+> If you're developing a collection and you want to learn more about it, click [_**here**_](/postman/README.md)
 
 ## Newman
 
@@ -14,6 +15,7 @@ The heart of `newman`(with directory support) and `UI-tests`
 
 - Add the connector credentials to the `connector_auth.toml` / `auth.toml` by creating a copy of the `sample_auth.toml` from `router/tests/connectors/sample_auth.toml`
 - Export the auth file path as an environment variable:
+
   ```shell
   export CONNECTOR_AUTH_FILE_PATH=/path/to/auth.toml
   ```
@@ -40,18 +42,21 @@ Optional fields:
     - Example: `--header "key1:value1" --header "key2:value2"`
 - `--verbose` -- A boolean to print detailed logs (requests and responses)
 
-**Note:** Passing `--verbose` will also print the connector as well as admin API keys in the logs. So, make sure you don't push the commands with `--verbose` to any public repository.
+> [!Note]
+> Passing `--verbose` will also print the connector as well as admin API keys in the logs. So, make sure you don't push the commands with `--verbose` to any public repository.
 
 ### Running tests
 
 - Tests can be run with the following command:
+
   ```shell
   cargo run --package test_utils --bin test_utils -- --connector-name=<connector_name> --base-url=<base_url> --admin-api-key=<admin_api_key> \
   # optionally
   --folder "<folder_name_1>,<folder_name_2>,...<folder_name_n>" --verbose
   ```
 
-**Note**: You can omit `--package test_utils` at the time of running the above command since it is optional.
+> [!Note]
+> You can omit `--package test_utils` at the time of running the above command since it is optional.
 
 ## UI tests
 
