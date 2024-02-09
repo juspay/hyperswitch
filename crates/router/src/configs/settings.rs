@@ -12,11 +12,14 @@ use config::{Environment, File};
 use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-use external_services::file_storage::FileStorageConfig;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
-use external_services::managers::{
-    encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
+use external_services::{
+    file_storage::FileStorageConfig,
+    managers::{
+        encryption_management::EncryptionManagementConfig,
+        secrets_management::SecretsManagementConfig,
+    },
 };
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
