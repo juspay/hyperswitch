@@ -809,9 +809,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
         let response = nmi::NmiRefundSyncResponse::try_from(res.response.to_vec())?;
 
-        if let Some(i) = event_builder {
-            i.set_response_body(&response)
-        };
+        event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {

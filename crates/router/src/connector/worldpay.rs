@@ -216,9 +216,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                     .response
                     .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 Ok(types::PaymentsCancelRouterData {
                     status: enums::AttemptStatus::Voided,
@@ -383,9 +381,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     .response
                     .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 Ok(types::PaymentsCaptureRouterData {
                     status: enums::AttemptStatus::Charged,
@@ -600,9 +596,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                     .response
                     .parse_struct("Worldpay PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 Ok(types::RefundExecuteRouterData {
                     response: Ok(types::RefundsResponseData {

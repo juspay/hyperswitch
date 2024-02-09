@@ -706,9 +706,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 let response =
                     serde_json::json!({"payment_fields_token": payment_fields_token.clone()});
 
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response);
-                }
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
                 Ok(types::RouterData {
@@ -732,9 +730,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .response
                     .parse_struct("BluesnapPaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,

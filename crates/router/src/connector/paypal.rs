@@ -479,9 +479,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
         match response {
             PaypalAuthResponse::PaypalOrdersResponse(response) => {
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -491,9 +489,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 })
             }
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -502,9 +498,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 })
             }
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,

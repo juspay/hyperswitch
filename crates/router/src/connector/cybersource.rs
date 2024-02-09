@@ -436,9 +436,7 @@ impl
         res: types::Response,
     ) -> CustomResult<types::MandateRevokeRouterData, errors::ConnectorError> {
         if matches!(res.status_code, 204) {
-            if let Some(i) = event_builder {
-                i.set_response_body(&serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()}));
-            }
+            event_builder.map(|i| i.set_response_body(&serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()})));
             Ok(types::MandateRevokeRouterData {
                 response: Ok(types::MandateRevokeResponseData {
                     mandate_status: common_enums::MandateStatus::Revoked,
@@ -452,11 +450,11 @@ impl
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             let response_string = response_value.to_string();
 
-            if let Some(i) = event_builder {
+            event_builder.map(|i| {
                 i.set_response_body(
                     &serde_json::json!({"response_string": response_string.clone()}),
-                );
-            }
+                )
+            });
             router_env::logger::info!(connector_response=?response_string);
 
             Ok(types::MandateRevokeRouterData {
@@ -886,9 +884,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .response
                 .parse_struct("Cybersource AuthSetupResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            if let Some(i) = event_builder {
-                i.set_response_body(&response)
-            };
+            event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
             types::RouterData::try_from(types::ResponseRouterData {
                 response,
@@ -900,9 +896,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .response
                 .parse_struct("Cybersource PaymentResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            if let Some(i) = event_builder {
-                i.set_response_body(&response)
-            };
+            event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
             types::RouterData::try_from(types::ResponseRouterData {
                 response,

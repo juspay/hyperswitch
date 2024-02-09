@@ -702,9 +702,7 @@ impl
                     .parse_struct("SetupIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -719,9 +717,7 @@ impl
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
@@ -883,9 +879,7 @@ impl
                                 errors::ConnectorError::ResponseDeserializationFailed,
                             )?;
 
-                        if let Some(i) = event_builder {
-                            i.set_response_body(&response)
-                        };
+                        event_builder.map(|i| i.set_response_body(&response));
                         router_env::logger::info!(connector_response=?response);
 
                         types::RouterData::try_from(types::ResponseRouterData {
@@ -902,9 +896,7 @@ impl
                                 errors::ConnectorError::ResponseDeserializationFailed,
                             )?;
 
-                        if let Some(i) = event_builder {
-                            i.set_response_body(&response)
-                        };
+                        event_builder.map(|i| i.set_response_body(&response));
                         router_env::logger::info!(connector_response=?response);
 
                         types::RouterData::try_from(types::ResponseRouterData {
@@ -921,9 +913,7 @@ impl
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                if let Some(i) = event_builder {
-                    i.set_response_body(&response)
-                };
+                event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
