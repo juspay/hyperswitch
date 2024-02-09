@@ -1335,13 +1335,7 @@ impl api::IncomingWebhook for Paypal {
             }
             paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        resource
-                            .purchase_units
-                            .first()
-                            .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    ),
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(resource.id),
                 ))
             }
             paypal::PaypalResource::PaypalRefundWebhooks(resource) => {
@@ -1360,6 +1354,35 @@ impl api::IncomingWebhook for Paypal {
                     ),
                 ))
             }
+        }
+    }
+
+    fn get_webhook_payment_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payload: paypal::PaypalWebhooksBody =
+            request
+                .body
+                .parse_struct("PaypalWebhooksBody")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        match payload.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => Ok(resource
+                .invoice_id
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => Ok(resource
+                .invoice_id
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => Ok(resource
+                .purchase_units
+                .first()
+                .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
+            paypal::PaypalResource::PaypalDisputeWebhooks(_) => Err(
+                errors::ConnectorError::NotImplemented("get_webhook_payment_id method".to_string())
+                    .into(),
+            ),
         }
     }
 
@@ -1448,30 +1471,6 @@ impl api::IncomingWebhook for Paypal {
             created_at: payload.create_time,
             updated_at: payload.update_time,
         })
-    }
-
-    fn get_webhook_payment_id(
-        &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let payload: paypal::PaypalWebhooksBody =
-            request
-                .body
-                .parse_struct("PaypalWebhooksBody")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        match payload.resource {
-            paypal::PaypalResource::PaypalCardWebhooks(resource) => Ok(resource
-                .invoice_id
-                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
-            paypal::PaypalResource::PaypalRefundWebhooks(resource) => Ok(resource
-                .invoice_id
-                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "get_webhook_payment_id method".to_string(),
-            )
-            .into()),
-        }
     }
 }
 
