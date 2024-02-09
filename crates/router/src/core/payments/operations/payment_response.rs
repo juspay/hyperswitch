@@ -821,40 +821,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
-    let mandate_id = match m_db
-        .find_mandate_by_merchant_id_original_payment_id(
-            router_data.merchant_id.as_str(),
-            router_data.payment_id.as_str(),
-        )
-        .await
-    {
-        Ok(mandate) => Some(api_models::payments::MandateIds {
-            mandate_id: mandate.mandate_id,
-            mandate_reference_id: None,
-        }),
-        Err(error) => match error.current_context() {
-            errors::StorageError::ValueNotFound(_) => None,
-            errors::StorageError::DatabaseError(data_err) => match data_err.current_context() {
-                diesel_models::errors::DatabaseError::NotFound => None,
-                _ => Err(errors::ApiErrorResponse::InternalServerError)?,
-            },
-            errors::StorageError::RedisError(data_err) => match data_err.current_context() {
-                errors::RedisError::NotFound => None,
-                _ => Err(errors::ApiErrorResponse::InternalServerError)?,
-            },
-            _ => Err(errors::ApiErrorResponse::InternalServerError)?,
-        },
-    };
-
     let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_router_data_merchant_id = router_data.merchant_id.clone();
-    let m_payment_data_mandate_id = payment_data.mandate_id.clone().or(mandate_id);
+    let m_original_payment_id = payment_data.payment_attempt.payment_id.clone();
+    let m_payment_data_mandate_id = payment_data.mandate_id.clone();
     let m_router_data_response = router_data.response.clone();
     let mandate_update_fut = tokio::spawn(
         async move {
             mandate::update_connector_mandate_id(
                 m_db.as_ref(),
                 m_router_data_merchant_id.clone(),
+                m_original_payment_id,
                 m_payment_data_mandate_id,
                 m_router_data_response,
                 m_payment_method_id,

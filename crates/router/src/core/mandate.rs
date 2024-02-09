@@ -155,6 +155,7 @@ pub async fn revoke_mandate(
 pub async fn update_connector_mandate_id(
     db: &dyn StorageInterface,
     merchant_account: String,
+    original_payment_id: String,
     mandate_ids_opt: Option<api_models::payments::MandateIds>,
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
     payment_method_id: Option<String>,
@@ -170,41 +171,62 @@ pub async fn update_connector_mandate_id(
         })
         .transpose()?;
 
-    //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
-    if let Some((mandate_ids, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
-        let mandate_id = &mandate_ids.mandate_id;
-        let mandate = db
-            .find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
-            .await
-            .change_context(errors::ApiErrorResponse::MandateNotFound)?;
-        // only update the connector_mandate_id if existing is none
-        if mandate.connector_mandate_id.is_none() {
-            match payment_method_id {
-                Some(pmd_id) => {
-                    db.update_mandate_by_merchant_id_mandate_id(
-                        &merchant_account,
-                        mandate_id,
-                        storage::MandateUpdate::ConnectorMandateIdUpdate {
-                            connector_mandate_ids: Some(connector_id),
-                            connector_mandate_id: mandate_details
-                                .and_then(|mandate_details| mandate_details.connector_mandate_id),
-                            payment_method_id: pmd_id,
-                            original_payment_id: None,
-                        },
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
-                }
-                None => {
-                    db.update_mandate_by_merchant_id_mandate_id(
-                        &merchant_account,
-                        mandate_id,
-                        storage::MandateUpdate::ConnectorReferenceUpdate {
-                            connector_mandate_ids: Some(connector_id),
-                        },
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+    //Ignore updation if the mandate_id or connector_mandate_id is not present
+    if let Some(connector_id) = connector_mandate_id {
+        if let Some(mandate_ids) = mandate_ids_opt.or({
+            match db
+                .find_mandate_by_merchant_id_original_payment_id(
+                    merchant_account.as_str(),
+                    original_payment_id.as_str(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)
+            {
+                Ok(mandate) => Some(api_models::payments::MandateIds {
+                    mandate_id: mandate.mandate_id,
+                    mandate_reference_id: None,
+                }),
+                Err(error) => match error.current_context() {
+                    errors::ApiErrorResponse::MandateNotFound => None,
+                    err => Err(err.clone()).into_report()?,
+                },
+            }
+        }) {
+            let mandate_id = &mandate_ids.mandate_id;
+            let mandate = db
+                .find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
+                .await
+                .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+            // only update the connector_mandate_id if existing is none
+            if mandate.connector_mandate_id.is_none() {
+                match payment_method_id {
+                    Some(pmd_id) => {
+                        db.update_mandate_by_merchant_id_mandate_id(
+                            &merchant_account,
+                            mandate_id,
+                            storage::MandateUpdate::ConnectorMandateIdUpdate {
+                                connector_mandate_ids: Some(connector_id),
+                                connector_mandate_id: mandate_details.and_then(|mandate_details| {
+                                    mandate_details.connector_mandate_id
+                                }),
+                                payment_method_id: pmd_id,
+                                original_payment_id: None,
+                            },
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+                    }
+                    None => {
+                        db.update_mandate_by_merchant_id_mandate_id(
+                            &merchant_account,
+                            mandate_id,
+                            storage::MandateUpdate::ConnectorReferenceUpdate {
+                                connector_mandate_ids: Some(connector_id),
+                            },
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+                    }
                 }
             }
         }
