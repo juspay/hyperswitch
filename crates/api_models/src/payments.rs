@@ -1,4 +1,4 @@
-use std::num::NonZeroI64;
+use std::{fmt, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
@@ -8,9 +8,10 @@ use common_utils::{
 };
 use masking::Secret;
 use router_derive::Setter;
-use serde::de::{self, Unexpected, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt;
+use serde::{
+    de::{self, Unexpected, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
@@ -71,8 +72,7 @@ impl<'de> Deserialize<'de> for ClientSecret {
             type Value = ClientSecret;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a string in the format 'payment_id_secret_secret'")
-                // Note sure if this is the right format
+                formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
@@ -106,8 +106,9 @@ impl Serialize for ClientSecret {
 
 #[cfg(test)]
 mod client_secret_tests {
-    use super::*;
     use serde_json;
+
+    use super::*;
 
     #[test]
     fn test_serialize_client_secret() {
