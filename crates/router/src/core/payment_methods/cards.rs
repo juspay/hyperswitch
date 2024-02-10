@@ -248,11 +248,7 @@ pub async fn add_payment_method(
                         Ok(pm) => {
                             let updated_card = Some(api::CardDetailFromLocker {
                                 scheme: None,
-                                last4_digits: Some(
-                                    card.card_number
-                                        .to_string()
-                                        .split_off(card.card_number.to_string().len() - 4),
-                                ),
+                                last4_digits: Some(card.card_number.clone().get_last4()),
                                 issuer_country: None,
                                 card_number: Some(card.card_number),
                                 expiry_month: Some(card.card_exp_month),
