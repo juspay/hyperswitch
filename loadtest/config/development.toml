@@ -189,6 +189,9 @@ cards = [
 [pm_filters.volt]
 open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
 
+[pm_filters.adyen]
+boleto = { country = "BR", currency = "BRL" }
+
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }

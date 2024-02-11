@@ -6144,6 +6144,44 @@ impl Default for super::settings::RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::Voucher,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::Boleto,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate : HashMap::from([
+                                            (
+                                                "payment_method_data.voucher.boleto.social_security_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.voucher.boleto.social_security_number".to_string(),
+                                                    display_name: "social_security_number".to_string(),
+                                                    field_type: enums::FieldType::Text,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                        common : HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Zen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                )
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
                 enums::PaymentMethod::BankDebit,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::Ach,
