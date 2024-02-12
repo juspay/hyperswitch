@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, AddressDetails, BankDebitBilling, OrderDetailsWithAmount},
+    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -86,7 +86,7 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
-    fn get_optional_billing_address(&self) -> Option<AddressDetails>;
+    fn get_optional_billing_address(&self) -> Option<api::AddressDetails>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -183,7 +183,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing.address"))
     }
 
-    fn get_optional_billing_address(&self) -> Option<AddressDetails> {
+    fn get_optional_billing_address(&self) -> Option<api::AddressDetails> {
         self.address
             .billing
             .as_ref()
