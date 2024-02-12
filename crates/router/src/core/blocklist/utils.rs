@@ -30,16 +30,13 @@ pub async fn delete_entry_from_blocklist(
             delete_card_bin_blocklist_entry(state, &xbin, &merchant_id).await?
         }
 
-        api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => {
-            state
-                .store
-                .delete_blocklist_entry_by_merchant_id_fingerprint_id(&merchant_id, &fingerprint_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "no blocklist record for the given fingerprint id was found"
-                        .to_string(),
-                })?
-        }
+        api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
+            .store
+            .delete_blocklist_entry_by_merchant_id_fingerprint_id(&merchant_id, &fingerprint_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "no blocklist record for the given fingerprint id was found".to_string(),
+            })?,
     };
 
     Ok(blocklist_entry.foreign_into())
@@ -467,7 +464,8 @@ pub async fn generate_payment_fingerprint(
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
 
-    if let Some(api_models::payments::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
+    if let Some(api_models::payments::PaymentMethodData::Card(card)) = payment_method_data.as_ref()
+    {
         if let Some(payload) = generate_fingerprint_hs(
             state,
             card.card_number.to_string(),
@@ -489,4 +487,3 @@ pub async fn generate_payment_fingerprint(
     logger::error!("failed to retrieve card fingerprint");
     Ok(None)
 }
-
