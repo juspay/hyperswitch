@@ -74,6 +74,10 @@ pub async fn config_key_update(
 
 #[instrument(skip_all, fields(flow = ?Flow::ConfigKeyDelete))]
 pub async fn config_key_delete(
+	 state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+)
     
 ) -> impl Responder {
     
