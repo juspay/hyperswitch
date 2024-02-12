@@ -848,7 +848,8 @@ impl Disputes {
             .service(
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
-                    .route(web::put().to(attach_dispute_evidence)),
+                    .route(web::put().to(attach_dispute_evidence))
+                    .route(web::delete().to(delete_dispute_evidence)),
             )
             .service(
                 web::resource("/evidence/{dispute_id}")
