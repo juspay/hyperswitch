@@ -221,7 +221,12 @@ pub async fn routing_unlink_config(
             &req,
             (),
             |state, auth: auth::AuthenticationData, _| {
-                routing::unlink_routing_config(state, auth.merchant_account, auth.key_store)
+                routing::unlink_routing_config(
+                    state,
+                    auth.merchant_account,
+                    auth.key_store,
+                    transaction_type,
+                )
             },
             #[cfg(not(feature = "release"))]
             auth::auth_type(

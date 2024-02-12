@@ -246,6 +246,7 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         routing::TransactionType::Payment => (Some(ref_val), None),
+        #[cfg(feature = "payouts")]
         routing::TransactionType::Payout => (None, Some(ref_val)),
     };
 
