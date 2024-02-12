@@ -155,3 +155,24 @@ pub async fn toggle_blocklist_guard(
     ))
     .await
 }
+pub async fn generate_fingerprint(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_blocklist::GenerateFingerprintRequest>,
+) -> HttpResponse {
+    let flow = Flow::AddToBlocklist;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: auth::AuthenticationData, body| blocklist::generate_fingerprint(state, body),
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

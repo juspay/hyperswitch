@@ -49,3 +49,12 @@ pub async fn toggle_blocklist_guard(
         .await
         .map(services::ApplicationResponse::Json)
 }
+
+pub async fn generate_fingerprint(
+    state: AppState,
+    body: api_blocklist::GenerateFingerprintRequest,
+) -> RouterResponse<api_blocklist::GenerateFingerprintResponse> {
+    utils::generate_fingerprint(&state, body)
+        .await
+        .map(services::ApplicationResponse::Json)
+}

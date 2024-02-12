@@ -1,15 +1,12 @@
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
-use common_utils::{
-    crypto::{self, SignMessage},
-    errors::CustomResult,
-};
+use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms;
 
-use super::{errors, AppState};
+use super::{errors, transformers::generate_fingerprint_hs, AppState};
 use crate::{
     consts,
     core::{
@@ -36,28 +33,6 @@ pub async fn delete_entry_from_blocklist(
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => {
-            let blocklist_fingerprint = state
-                .store
-                .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
-                    &merchant_id,
-                    &fingerprint_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "blocklist record with given fingerprint id not found".to_string(),
-                })?;
-
-            #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                .await
-                .decrypt(blocklist_fingerprint.encrypted_fingerprint)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to kms decrypt fingerprint")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
-
             let blocklist_entry = state
                 .store
                 .delete_blocklist_entry_by_merchant_id_fingerprint_id(&merchant_id, &fingerprint_id)
@@ -66,19 +41,6 @@ pub async fn delete_entry_from_blocklist(
                     message: "no blocklist record for the given fingerprint id was found"
                         .to_string(),
                 })?;
-
-            state
-                .store
-                .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
-                    &merchant_id,
-                    &decrypted_fingerprint,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "no blocklist record for the given fingerprint id was found"
-                        .to_string(),
-                })?;
-
             blocklist_entry
         }
     };
@@ -232,57 +194,20 @@ pub async fn insert_entry_into_blocklist(
                 }
             }
 
-            let blocklist_fingerprint = state
-                .store
-                .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
-                    &merchant_id,
-                    fingerprint_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "fingerprint not found".to_string(),
-                })?;
-
-            #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                .await
-                .decrypt(blocklist_fingerprint.encrypted_fingerprint)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to kms decrypt encrypted fingerprint")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
-
-            state
-                .store
-                .insert_blocklist_lookup_entry(
-                    diesel_models::blocklist_lookup::BlocklistLookupNew {
-                        merchant_id: merchant_id.clone(),
-                        fingerprint: decrypted_fingerprint,
-                    },
-                )
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "the payment instrument associated with the given fingerprint is already in the blocklist".to_string(),
-                })
-                .attach_printable("failed to add fingerprint to blocklist lookup")?;
-
             state
                 .store
                 .insert_blocklist_entry(storage::BlocklistNew {
                     merchant_id: merchant_id.clone(),
                     fingerprint_id: fingerprint_id.clone(),
-                    data_kind: blocklist_fingerprint.data_kind,
+                    data_kind: api_models::enums::enums::BlocklistDataKind::PaymentMethod,
                     metadata: None,
                     created_at: common_utils::date_time::now(),
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to add fingerprint to pm blocklist")?
+                .attach_printable("failed to add fingerprint to blocklist")?
         }
     };
-
     Ok(blocklist_entry.foreign_into())
 }
 
@@ -330,17 +255,6 @@ async fn duplicate_check_insert_bin(
     merchant_id: &str,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
-    let merchant_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
-    let bin_fingerprint = crypto::HmacSha512::sign_message(
-        &crypto::HmacSha512,
-        merchant_secret.clone().as_bytes(),
-        bin.as_bytes(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error in bin hash creation")?;
-
-    let encoded_fingerprint = hex::encode(bin_fingerprint.clone());
-
     let blocklist_entry_result = state
         .store
         .find_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, bin)
@@ -363,17 +277,6 @@ async fn duplicate_check_insert_bin(
         }
     }
 
-    // Checking for duplicacy
-    state
-        .store
-        .insert_blocklist_lookup_entry(diesel_models::blocklist_lookup::BlocklistLookupNew {
-            merchant_id: merchant_id.to_string(),
-            fingerprint: encoded_fingerprint.clone(),
-        })
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error inserting blocklist lookup entry")?;
-
     state
         .store
         .insert_blocklist_entry(storage::BlocklistNew {
@@ -393,21 +296,6 @@ async fn delete_card_bin_blocklist_entry(
     bin: &str,
     merchant_id: &str,
 ) -> RouterResult<storage::Blocklist> {
-    let merchant_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
-    let bin_fingerprint = crypto::HmacSha512
-        .sign_message(merchant_secret.as_bytes(), bin.as_bytes())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error when hashing card bin")?;
-    let encoded_fingerprint = hex::encode(bin_fingerprint);
-
-    state
-        .store
-        .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, &encoded_fingerprint)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "could not find a blocklist entry for the given bin".to_string(),
-        })?;
-
     state
         .store
         .delete_blocklist_entry_by_merchant_id_fingerprint_id(merchant_id, bin)
@@ -431,16 +319,16 @@ where
         get_merchant_fingerprint_secret(state, merchant_id.as_str()).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
-    let card_number_fingerprint = payment_data
-        .payment_method_data
-        .as_ref()
-        .and_then(|pm_data| match pm_data {
+    let card_number_fingerprint = if let Some(pm_data) = payment_data.payment_method_data.as_ref() {
+        match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                crypto::HmacSha512::sign_message(
-                    &crypto::HmacSha512,
-                    merchant_fingerprint_secret.as_bytes(),
-                    card.card_number.clone().get_card_no().as_bytes(),
+                if let Some(payload) = generate_fingerprint_hs(
+                    &state,
+                    card.card_number.to_string(),
+                    merchant_fingerprint_secret.clone(),
+                    api_models::enums::LockerChoice::Tartarus,
                 )
+                .await
                 .attach_printable("error in pm fingerprint creation")
                 .map_or_else(
                     |err| {
@@ -448,11 +336,17 @@ where
                         None
                     },
                     Some,
-                )
+                ) {
+                    Some(payload.card_fingerprint)
+                } else {
+                    None
+                }
             }
             _ => None,
-        })
-        .map(hex::encode);
+        }
+    } else {
+        None
+    };
 
     // Hashed Cardbin to check whether or not this payment should be blocked.
     let card_bin_fingerprint = payment_data
@@ -460,66 +354,43 @@ where
         .as_ref()
         .and_then(|pm_data| match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                crypto::HmacSha512::sign_message(
-                    &crypto::HmacSha512,
-                    merchant_fingerprint_secret.as_bytes(),
-                    card.card_number.clone().get_card_isin().as_bytes(),
-                )
-                .attach_printable("error in card bin hash creation")
-                .map_or_else(
-                    |err| {
-                        logger::error!(error=?err);
-                        None
-                    },
-                    Some,
-                )
+                Some(card.card_number.clone().get_card_isin())
             }
             _ => None,
-        })
-        .map(hex::encode);
+        });
 
     // Hashed Extended Cardbin to check whether or not this payment should be blocked.
-    let extended_card_bin_fingerprint = payment_data
-        .payment_method_data
-        .as_ref()
-        .and_then(|pm_data| match pm_data {
-            api_models::payments::PaymentMethodData::Card(card) => {
-                crypto::HmacSha512::sign_message(
-                    &crypto::HmacSha512,
-                    merchant_fingerprint_secret.as_bytes(),
-                    card.card_number.clone().get_extended_card_bin().as_bytes(),
-                )
-                .attach_printable("error in extended card bin hash creation")
-                .map_or_else(
-                    |err| {
-                        logger::error!(error=?err);
-                        None
-                    },
-                    Some,
-                )
-            }
-            _ => None,
-        })
-        .map(hex::encode);
+    let extended_card_bin_fingerprint =
+        payment_data
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| match pm_data {
+                api_models::payments::PaymentMethodData::Card(card) => {
+                    Some(card.card_number.clone().get_extended_card_bin())
+                }
+                _ => None,
+            });
 
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
     if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+        blocklist_futures.push(db.find_blocklist_entry_by_merchant_id_fingerprint_id(
             merchant_id,
             card_number_fingerprint,
         ));
     }
 
     if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
-            merchant_id,
-            card_bin_fingerprint,
-        ));
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_merchant_id_fingerprint_id(
+                merchant_id,
+                card_bin_fingerprint,
+            ),
+        );
     }
 
     if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+        blocklist_futures.push(db.find_blocklist_entry_by_merchant_id_fingerprint_id(
             merchant_id,
             extended_card_bin_fingerprint,
         ));
@@ -538,7 +409,6 @@ where
             }
         }
     }
-
     if should_payment_be_blocked {
         // Update db for attempt and intent status.
         db.update_payment_intent(
@@ -598,17 +468,18 @@ pub async fn generate_payment_fingerprint(
     merchant_id: String,
     payment_method_data: Option<crate::types::api::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let db = &state.store;
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
-    let card_number_fingerprint = payment_method_data
-        .as_ref()
-        .and_then(|pm_data| match pm_data {
+
+    if let Some(pm_data) = payment_method_data.as_ref() {
+        match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                crypto::HmacSha512::sign_message(
-                    &crypto::HmacSha512,
-                    merchant_fingerprint_secret.as_bytes(),
-                    card.card_number.clone().get_card_no().as_bytes(),
+                if let Some(payload) = generate_fingerprint_hs(
+                    &state,
+                    card.card_number.to_string(),
+                    merchant_fingerprint_secret,
+                    api_models::enums::LockerChoice::Tartarus,
                 )
+                .await
                 .attach_printable("error in pm fingerprint creation")
                 .map_or_else(
                     |err| {
@@ -616,50 +487,30 @@ pub async fn generate_payment_fingerprint(
                         None
                     },
                     Some,
-                )
+                ) {
+                    return Ok(Some(payload.card_fingerprint));
+                }
             }
-            _ => None,
-        })
-        .map(hex::encode);
-
-    let mut fingerprint_id = None;
-    if let Some(encoded_hash) = card_number_fingerprint {
-        #[cfg(feature = "kms")]
-        let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
-            .await
-            .encrypt(encoded_hash)
-            .await
-            .map_or_else(
-                |e| {
-                    logger::error!(error=?e, "failed kms encryption of card fingerprint");
-                    None
-                },
-                Some,
-            );
-
-        #[cfg(not(feature = "kms"))]
-        let encrypted_fingerprint = Some(encoded_hash);
-
-        if let Some(encrypted_fingerprint) = encrypted_fingerprint {
-            fingerprint_id = db
-                .insert_blocklist_fingerprint_entry(
-                    diesel_models::blocklist_fingerprint::BlocklistFingerprintNew {
-                        merchant_id,
-                        fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                        encrypted_fingerprint,
-                        data_kind: common_enums::BlocklistDataKind::PaymentMethod,
-                        created_at: common_utils::date_time::now(),
-                    },
-                )
-                .await
-                .map_or_else(
-                    |e| {
-                        logger::error!(error=?e, "failed storing card fingerprint in db");
-                        None
-                    },
-                    |fp| Some(fp.fingerprint_id),
-                );
+            _ => {}
         }
     }
-    Ok(fingerprint_id)
+    logger::error!("failed to retrieve card fingerprint");
+    Ok(None)
+}
+
+pub async fn generate_fingerprint(
+    state: &AppState,
+    req: api_blocklist::GenerateFingerprintRequest,
+) -> RouterResult<api_blocklist::GenerateFingerprintResponse> {
+    let fingerprint_payload = generate_fingerprint_hs(
+        &state,
+        req.clone().card.card_number,
+        req.clone().hash_key,
+        api_models::enums::LockerChoice::Tartarus,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    Ok(api_blocklist::GenerateFingerprintResponse {
+        fingerprint: fingerprint_payload.card_fingerprint,
+    })
 }

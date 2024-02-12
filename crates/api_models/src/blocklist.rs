@@ -10,6 +10,15 @@ pub enum BlocklistRequest {
     ExtendedCardBin(String),
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GenerateFingerprintRequest {
+    pub card: Card,
+    pub hash_key: String,
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Card {
+    pub card_number: String,
+}
 pub type AddToBlocklistRequest = BlocklistRequest;
 pub type DeleteFromBlocklistRequest = BlocklistRequest;
 
@@ -22,6 +31,10 @@ pub struct BlocklistResponse {
     pub created_at: time::PrimitiveDateTime,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GenerateFingerprintResponse {
+    pub fingerprint: String,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistResponse {
     pub blocklist_guard_status: String,
@@ -54,4 +67,7 @@ impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}
 impl ApiEventMetric for ToggleBlocklistResponse {}
 impl ApiEventMetric for ListBlocklistQuery {}
+impl ApiEventMetric for GenerateFingerprintRequest {}
 impl ApiEventMetric for ToggleBlocklistQuery {}
+impl ApiEventMetric for GenerateFingerprintResponse {}
+impl ApiEventMetric for Card {}
