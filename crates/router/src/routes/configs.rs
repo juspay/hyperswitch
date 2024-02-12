@@ -80,7 +80,7 @@ pub async fn config_key_delete(
 )
     
 ) -> impl Responder {
-    
+    let key = path.into_inner();
 
     api::server_wrap(
         flow,
