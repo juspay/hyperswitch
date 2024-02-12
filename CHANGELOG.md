@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.09.1-hotfix2
+
+### Bug Fixes
+
+- **payment_methods:** Unmask last4 when metadata changed during /payments ([#3635](https://github.com/juspay/hyperswitch/pull/3635)) ([`b0565e2`](https://github.com/juspay/hyperswitch/commit/b0565e23bf965a33231fa1e47e048a2564f6d93c))
+
+- - -
+
 ## 2024.02.09.1-hotfix1
 
 ### Bug Fixes
