@@ -5,6 +5,7 @@ mod health_check;
 pub mod logger;
 pub(crate) mod metrics;
 mod query;
+mod secrets_decryption;
 pub mod services;
 pub mod settings;
 mod stream;
@@ -17,13 +18,12 @@ use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use secrets_interface::secret_state::RawSecret;
 use tokio::sync::mpsc;
+pub(crate) type Settings = crate::settings::Settings<RawSecret>;
 
 use crate::{
-    connection::pg_connection,
-    services::Store,
-    settings::{DrainerSettings, Settings},
-    types::StreamData,
+    connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,
 };
 
 pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::DrainerResult<()> {

@@ -14,7 +14,7 @@ use_xray_generator = false
 # TODO: Update database credentials before running application
 [master_database]
 username = "db_user"
-password = "db_pass"
+password = "AQICAHiuqtZ58B2e18+eXrzv9uMgsae/YmcY/pDPVTg9KN90ZAEuQhlLWAWXOn9P6DV+cHhqAAAAaDBmBgkqhkiG9w0BBwagWTBXAgEAMFIGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMxcxwzfrgwssI42evAgEQgCXamLFtNQkB3cLSIBccNjqLvWBaJonR8wYfgoiFXJ1LlqaK/zdn"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -555,3 +555,17 @@ enabled = true
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[secrets_management]
+secrets_manager = "aws_kms"
+
+[secrets_management.aws_kms]
+key_id = "a0aee3db-a4f7-42c9-8471-ed35d90a8712"
+region = "us-east-1"
+
+# [secrets_management]
+# secrets_manager = "hashi_corp_vault"
+
+# [secrets_management.hc_vault]
+# url = ""
+# token = "us-east-1"

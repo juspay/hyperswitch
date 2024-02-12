@@ -31,7 +31,8 @@ pub struct HashiCorpVaultConfig {
 }
 
 impl HashiCorpVaultConfig {
-    pub(super) fn validate(&self) -> Result<(), &'static str> {
+    /// Verifies that the [`HashiCorpVault`] configuration is usable.
+    pub fn validate(&self) -> Result<(), &'static str> {
         when(self.url.is_default_or_empty(), || {
             Err("HashiCorp vault url must not be empty")
         })?;

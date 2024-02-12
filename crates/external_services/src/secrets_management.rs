@@ -64,3 +64,7 @@ impl SecretsManagementConfig {
         }
     }
 }
+
+trait AssertGt0 {
+    const VALID: ();
+}

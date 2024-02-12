@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::Settings;
 use actix_web::{web, Scope};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::CustomResult;
@@ -11,7 +12,6 @@ use crate::{
     connection::{pg_connection, redis_connection},
     errors::HealthCheckError,
     services::{self, Store},
-    settings::Settings,
 };
 
 pub const TEST_STREAM_NAME: &str = "TEST_STREAM_0";

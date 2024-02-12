@@ -1,7 +1,9 @@
 use drainer::{
     errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
 };
+use masking::PeekInterface;
 use router_env::tracing::Instrument;
+use secrets_interface::secret_state::SecuredSecret;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -9,13 +11,26 @@ async fn main() -> DrainerResult<()> {
     let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
-    let conf = settings::Settings::with_config_path(cmd_line.config_path)
+    let conf = settings::Settings::<SecuredSecret>::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     #[allow(clippy::expect_used)]
     conf.validate()
         .expect("Failed to validate drainer configuration");
 
-    let store = services::Store::new(&conf, false).await;
+    let state = settings::AppState::new(conf.clone()).await;
+
+    println!(
+        "db_pass_check: {:?}",
+        state
+            .conf
+            .master_database
+            .get_inner()
+            .password
+            .peek()
+            .clone()
+    );
+
+    let store = services::Store::new(&state.conf, false).await;
     let store = std::sync::Arc::new(store);
 
     #[cfg(feature = "vergen")]
@@ -28,7 +43,7 @@ async fn main() -> DrainerResult<()> {
     );
 
     #[allow(clippy::expect_used)]
-    let web_server = Box::pin(start_web_server(conf.clone(), store.clone()))
+    let web_server = Box::pin(start_web_server(state.conf.as_ref().clone(), store.clone()))
         .await
         .expect("Failed to create the server");
 
