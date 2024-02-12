@@ -3,7 +3,6 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
-
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 #[cfg(feature = "email")]
