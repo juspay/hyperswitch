@@ -549,7 +549,7 @@ where
                                     let base_url = server.base_url.clone();
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
-                                            authentication_url: format!(
+                                            three_ds_authentication_url: format!(
                                                 "{base_url}/payments/{payment_id}/3ds/authentication"
                                             ),
                                             three_ds_method_details:

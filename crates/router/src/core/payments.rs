@@ -170,7 +170,7 @@ where
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
     let separate_authentication = payment_data
         .payment_attempt
-        .external_3ds_authentication_requested;
+        .external_three_ds_authentication_requested;
     payment_data = tokenize_in_router_when_confirm_false(
         state,
         &operation,
@@ -3066,20 +3066,20 @@ pub async fn payment_external_authentication(
     )
     .await?;
 
-    let authentication_provider = payment_attempt
-        .authentication_provider
+    let authentication_connector = payment_attempt
+        .authentication_connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account = db
         .find_merchant_connector_account_by_profile_id_connector_name(
             profile_id,
-            &authentication_provider,
+            &authentication_connector,
             &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: format!("profile id {profile_id} and connector name {authentication_provider}"),
+            id: format!("profile id {profile_id} and connector name {authentication_connector}"),
         })?;
 
     let authentication = db
@@ -3214,7 +3214,7 @@ pub async fn payment_external_authentication(
     let return_url = Some(helpers::create_redirect_url(
         &state.conf.server.base_url,
         &payment_attempt.clone(),
-        &authentication_provider,
+        &authentication_connector,
         None,
     ));
     let device_channel = if req.sdk_information.is_some() {
@@ -3224,7 +3224,7 @@ pub async fn payment_external_authentication(
     };
     let authentication_response = authentication_core::perform_authentication(
         &state,
-        authentication_provider,
+        authentication_connector,
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,

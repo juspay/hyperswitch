@@ -330,7 +330,7 @@ pub struct PaymentsRequest {
 
     /// flag to request separate authentication
     #[schema(example = true)]
-    pub request_external_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -1920,7 +1920,7 @@ pub enum NextActionData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct ThreeDsData {
-    pub authentication_url: String,
+    pub three_ds_authentication_url: String,
     pub three_ds_method_details: ThreeDsMethodData,
 }
 

@@ -23,7 +23,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &AppState,
-    authentication_provider: String,
+    authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: api_models::payments::Address,
@@ -40,7 +40,7 @@ pub async fn perform_authentication(
     sdk_information: Option<payments::SDKInformation>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let connector_data =
-        api::AuthenticationConnectorData::get_connector_by_name(&authentication_provider)?;
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector)?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Authentication,
@@ -48,7 +48,7 @@ pub async fn perform_authentication(
         core_types::ConnectorAuthenticationResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_authentication_router_data(
-        authentication_provider.clone(),
+        authentication_connector.clone(),
         payment_method_data,
         payment_method,
         billing_address,
@@ -79,7 +79,7 @@ pub async fn perform_authentication(
             .map_err(|err| ApiErrorResponse::ExternalConnectorError {
                 code: err.code,
                 message: err.message,
-                connector: authentication_provider,
+                connector: authentication_connector,
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
@@ -96,13 +96,13 @@ pub async fn perform_authentication(
 
 pub async fn perform_post_authentication(
     state: &AppState,
-    authentication_provider: String,
+    authentication_connector: String,
     merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     authentication_data: types::AuthenticationData,
 ) -> CustomResult<core_types::api::authentication::PostAuthenticationResponse, ApiErrorResponse> {
     let connector_data =
-        api::AuthenticationConnectorData::get_connector_by_name(&authentication_provider)?;
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector)?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::PostAuthentication,
@@ -110,7 +110,7 @@ pub async fn perform_post_authentication(
         core_types::ConnectorPostAuthenticationResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_post_authentication_router_data(
-        authentication_provider.clone(),
+        authentication_connector.clone(),
         merchant_account,
         merchant_connector_account,
         authentication_data,
@@ -130,7 +130,7 @@ pub async fn perform_post_authentication(
             .map_err(|err| ApiErrorResponse::ExternalConnectorError {
                 code: err.code,
                 message: err.message,
-                connector: authentication_provider,
+                connector: authentication_connector,
                 status_code: err.status_code,
                 reason: err.reason,
             })?;

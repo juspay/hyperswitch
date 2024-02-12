@@ -50,7 +50,7 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 payment_data.token.clone(),
             )
             .await?;
-            let external_3ds_authentication_requested =
+            let external_three_ds_authentication_requested =
                 if authentication_data.maximum_supported_version.0 == 2 {
                     *should_continue_confirm_transaction = false; // if 3ds version is >= 2
                     true
@@ -61,8 +61,10 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 status: common_enums::AttemptStatus::foreign_from(
                     authentication.authentication_status,
                 ),
-                external_3ds_authentication_requested: Some(external_3ds_authentication_requested),
-                authentication_provider: Some(three_ds_connector_account.connector_name.clone()),
+                external_three_ds_authentication_requested: Some(
+                    external_three_ds_authentication_requested,
+                ),
+                authentication_connector: Some(three_ds_connector_account.connector_name.clone()),
                 authentication_id: Some(authentication.authentication_id.clone()),
                 updated_by: merchant_account.storage_scheme.to_string(),
             };
@@ -70,11 +72,11 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 common_enums::AttemptStatus::foreign_from(authentication.authentication_status);
             payment_data
                 .payment_attempt
-                .external_3ds_authentication_requested =
-                Some(external_3ds_authentication_requested);
+                .external_three_ds_authentication_requested =
+                Some(external_three_ds_authentication_requested);
             payment_data.payment_attempt.authentication_id =
                 Some(authentication.authentication_id.clone());
-            payment_data.payment_attempt.authentication_provider =
+            payment_data.payment_attempt.authentication_connector =
                 Some(three_ds_connector_account.connector_name.clone());
             state
                 .store
@@ -131,7 +133,7 @@ async fn do_pre_auth_connector_call(
     let temp_response_data = AuthenticationResponseData::PreAuthNResponse {
         threeds_server_transaction_id: "".into(),
         maximum_supported_3ds_version: (0, 0, 0),
-        connector_authentication_id: "".into(),
+        authentication_connector_id: "".into(),
         three_ds_method_data: "".into(),
         three_ds_method_url: None,
         message_version: "".into(),
@@ -176,13 +178,13 @@ async fn create_new_authentication(
     let new_authorization = storage::AuthenticationNew {
         authentication_id: authorization_id.clone(),
         merchant_id,
-        connector: "".into(),
-        connector_authentication_id: None,
+        authentication_connector: "".into(),
+        authentication_connector_id: None,
         authentication_data: None,
         payment_method_id: "".into(),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
-        lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
     };
     state
         .store

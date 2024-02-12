@@ -55,5 +55,5 @@ pub struct PaymentIntent {
     pub authorization_count: Option<i32>,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
-    pub request_external_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }

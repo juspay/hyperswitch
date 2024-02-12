@@ -649,7 +649,7 @@ impl
                     maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
                         acs_response.acs_end_protocol_version.clone(),
                     )?,
-                    connector_authentication_id: response.token.clone(),
+                    authentication_connector_id: response.token.clone(),
                     three_ds_method_data: creq_base64,
                     three_ds_method_url: acs_response.threeds_method_url.clone(),
                     message_version: acs_response.acs_end_protocol_version.clone(),

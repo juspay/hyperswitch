@@ -57,7 +57,7 @@ pub struct PaymentIntent {
     pub authorization_count: Option<i32>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
-    pub request_external_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(
@@ -110,7 +110,7 @@ pub struct PaymentIntentNew {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
-    pub request_external_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,7 +165,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         session_expiry: Option<PrimitiveDateTime>,
         fingerprint_id: Option<String>,
-        request_external_authentication: Option<bool>,
+        request_external_three_ds_authentication: Option<bool>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -233,7 +233,7 @@ pub struct PaymentIntentUpdateInternal {
     pub authorization_count: Option<i32>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub fingerprint_id: Option<String>,
-    pub request_external_authentication: Option<bool>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -268,7 +268,7 @@ impl PaymentIntentUpdate {
             authorization_count,
             session_expiry,
             fingerprint_id,
-            request_external_authentication,
+            request_external_three_ds_authentication,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -304,8 +304,8 @@ impl PaymentIntentUpdate {
             authorization_count: authorization_count.or(source.authorization_count),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             session_expiry: session_expiry.or(source.session_expiry),
-            request_external_authentication: request_external_authentication
-                .or(source.request_external_authentication),
+            request_external_three_ds_authentication: request_external_three_ds_authentication
+                .or(source.request_external_three_ds_authentication),
             ..source
         }
     }
@@ -334,7 +334,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 session_expiry,
                 fingerprint_id,
-                request_external_authentication,
+                request_external_three_ds_authentication,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -356,7 +356,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 session_expiry,
                 fingerprint_id,
-                request_external_authentication,
+                request_external_three_ds_authentication,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {

@@ -349,10 +349,10 @@ impl TryFrom<&TokenexRouterData<&types::ConnectorAuthenticationRouterData>>
             number: request
                 .authentication_data
                 .1
-                .connector_authentication_id
+                .authentication_connector_id
                 .clone()
                 .ok_or(report!(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_authentication_id"
+                    field_name: "authentication_connector_id"
                 }))?,
             card_expiry_date: Some(card_expiry_date),
             account_type,

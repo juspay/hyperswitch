@@ -373,9 +373,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .or(payment_attempt.payment_experience);
 
         payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
-        payment_attempt.external_3ds_authentication_requested = request
-            .request_external_authentication
-            .or(payment_attempt.external_3ds_authentication_requested);
+        payment_attempt.external_three_ds_authentication_requested = request
+            .request_external_three_ds_authentication
+            .or(payment_attempt.external_three_ds_authentication_requested);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
@@ -428,9 +428,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
-        payment_intent.request_external_authentication = request
-            .request_external_authentication
-            .or(payment_intent.request_external_authentication);
+        payment_intent.request_external_three_ds_authentication = request
+            .request_external_three_ds_authentication
+            .or(payment_intent.request_external_three_ds_authentication);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -645,7 +645,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         let is_pre_authn_call = payment_data.authentication.is_none();
         let separate_authentication_requested = payment_data
             .payment_intent
-            .request_external_authentication
+            .request_external_three_ds_authentication
             .unwrap_or(false);
         let connector_supports_separate_authn =
             authentication::utils::is_separate_authn_supported(connector_call_type);
@@ -663,8 +663,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .clone()
                 .parse_value("authentication details")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let authentication_provider = authentication_details
-                .authentication_providers
+            let authentication_connector = authentication_details
+                .authentication_connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
             if separate_authentication_requested && connector_supports_separate_authn {
@@ -680,14 +680,14 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         .store
                         .find_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
-                            authentication_provider,
+                            authentication_connector,
                             key_store,
                         )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                 id: format!(
-                                    "profile id {profile_id} and connector name {authentication_provider}"
+                                    "profile id {profile_id} and connector name {authentication_connector}"
                                 ),
                             },
                         )?;
@@ -711,8 +711,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .clone()
                 .parse_value("authentication details")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let authentication_provider = authentication_details
-                .authentication_providers
+            let authentication_connector = authentication_details
+                .authentication_connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
             // call post authn service
@@ -727,14 +727,14 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .store
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     profile_id,
-                    authentication_provider,
+                    authentication_connector,
                     key_store,
                 )
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: format!(
-                            "profile id {profile_id} and connector name {authentication_provider}"
+                            "profile id {profile_id} and connector name {authentication_connector}"
                         ),
                     },
                 )?;
@@ -760,7 +760,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 ),
-                connector_authentication_id: None,
+                authentication_connector_id: None,
                 payment_method_id: None,
                 authentication_type: None,
                 authentication_status: if post_auth_response.trans_status == "Y" {
@@ -768,7 +768,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 } else {
                     Some(common_enums::AuthenticationStatus::Failed)
                 },
-                lifecycle_status: None,
+                authentication_lifecycle_status: None,
             };
             let new_authentication = state
                 .store
@@ -831,7 +831,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 _ => {
                     if payment_data
                         .payment_attempt
-                        .external_3ds_authentication_requested
+                        .external_three_ds_authentication_requested
                         == Some(true)
                     {
                         (
@@ -1144,9 +1144,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         updated_by: m_storage_scheme,
                         fingerprint_id,
                         session_expiry,
-                        request_external_authentication: payment_data
+                        request_external_three_ds_authentication: payment_data
                             .payment_intent
-                            .request_external_authentication,
+                            .request_external_three_ds_authentication,
                     },
                     storage_scheme,
                 )

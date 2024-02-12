@@ -22,7 +22,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
 
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
-    authentication_provider: String,
+    authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: PaymentMethod,
     billing_address: api_models::payments::Address,
@@ -46,7 +46,7 @@ pub fn construct_authentication_router_data(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: authentication_provider,
+        connector: authentication_connector,
         payment_id: IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
@@ -99,7 +99,7 @@ pub fn construct_authentication_router_data(
 }
 
 pub fn construct_post_authentication_router_data(
-    authentication_provider: String,
+    authentication_connector: String,
     merchant_account: domain::MerchantAccount,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: super::types::AuthenticationData,
@@ -112,7 +112,7 @@ pub fn construct_post_authentication_router_data(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: authentication_provider,
+        connector: authentication_connector,
         payment_id: IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),

@@ -64,8 +64,8 @@ pub struct PaymentAttempt {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
-    pub external_3ds_authentication_requested: Option<bool>,
-    pub authentication_provider: Option<String>,
+    pub external_three_ds_authentication_requested: Option<bool>,
+    pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
 }
 
@@ -141,8 +141,8 @@ pub struct PaymentAttemptNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
-    pub external_3ds_authentication_requested: Option<bool>,
-    pub authentication_provider: Option<String>,
+    pub external_three_ds_authentication_requested: Option<bool>,
+    pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
 }
 
@@ -309,8 +309,8 @@ pub enum PaymentAttemptUpdate {
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
-        external_3ds_authentication_requested: Option<bool>,
-        authentication_provider: Option<String>,
+        external_three_ds_authentication_requested: Option<bool>,
+        authentication_connector: Option<String>,
         authentication_id: Option<String>,
         updated_by: String,
     },
@@ -356,8 +356,8 @@ pub struct PaymentAttemptUpdateInternal {
     encoded_data: Option<String>,
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
-    external_3ds_authentication_requested: Option<bool>,
-    authentication_provider: Option<String>,
+    external_three_ds_authentication_requested: Option<bool>,
+    authentication_connector: Option<String>,
     authentication_id: Option<String>,
 }
 
@@ -419,8 +419,8 @@ impl PaymentAttemptUpdate {
             encoded_data,
             unified_code,
             unified_message,
-            external_3ds_authentication_requested,
-            authentication_provider,
+            external_three_ds_authentication_requested,
+            authentication_connector,
             authentication_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -463,9 +463,9 @@ impl PaymentAttemptUpdate {
             encoded_data: encoded_data.or(source.encoded_data),
             unified_code: unified_code.unwrap_or(source.unified_code),
             unified_message: unified_message.unwrap_or(source.unified_message),
-            external_3ds_authentication_requested: external_3ds_authentication_requested
-                .or(source.external_3ds_authentication_requested),
-            authentication_provider: authentication_provider.or(source.authentication_provider),
+            external_three_ds_authentication_requested: external_three_ds_authentication_requested
+                .or(source.external_three_ds_authentication_requested),
+            authentication_connector: authentication_connector.or(source.authentication_connector),
             authentication_id: authentication_id.or(source.authentication_id),
             ..source
         }
@@ -765,14 +765,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
             } => Self {
                 status: Some(status),
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
                 ..Default::default()
