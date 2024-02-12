@@ -18,7 +18,8 @@ use url::Url;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
-        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+        self as connector_util, ApplePay, ApplePayDecrypt, BankRedirectBillingData,
+        PaymentsPreProcessingData, RouterData,
     },
     consts,
     core::errors,
@@ -1111,7 +1112,14 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: billing_details.billing_name.clone(),
+                name: Some(
+                    billing_details
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "giropay.billing_details",
+                        })?
+                        .get_billing_name()?,
+                ),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
