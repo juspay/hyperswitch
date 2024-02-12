@@ -106,6 +106,7 @@ cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
+connector_configs = { version = "0.1.0", path = "../connector_configs" }
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
