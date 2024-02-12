@@ -428,6 +428,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
+        payment_intent.request_external_authentication = request
+            .request_external_authentication
+            .or(payment_intent.request_external_authentication);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -641,8 +644,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         // We should do post authn call to fetch the authentication data from 3ds connector
         let is_pre_authn_call = payment_data.authentication.is_none();
         let separate_authentication_requested = payment_data
-            .payment_attempt
-            .external_3ds_authentication_requested
+            .payment_intent
+            .request_external_authentication
             .unwrap_or(false);
         let connector_supports_separate_authn =
             authentication::utils::is_separate_authn_supported(connector_call_type);
@@ -1141,6 +1144,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         updated_by: m_storage_scheme,
                         fingerprint_id,
                         session_expiry,
+                        request_external_authentication: payment_data
+                            .payment_intent
+                            .request_external_authentication,
                     },
                     storage_scheme,
                 )

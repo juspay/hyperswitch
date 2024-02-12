@@ -302,6 +302,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
+        payment_intent.request_external_authentication = request
+            .request_external_authentication
+            .or(payment_intent.request_external_authentication);
 
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
@@ -620,6 +623,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     updated_by: storage_scheme.to_string(),
                     fingerprint_id: None,
                     session_expiry,
+                    request_external_authentication: payment_data
+                        .payment_intent
+                        .request_external_authentication,
                 },
                 storage_scheme,
             )

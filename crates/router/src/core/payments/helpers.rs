@@ -2641,6 +2641,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -2696,6 +2697,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -2750,6 +2752,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

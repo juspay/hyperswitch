@@ -218,6 +218,7 @@ pub async fn generate_sample_data(
             authorization_count: Default::default(),
             fingerprint_id: None,
             session_expiry: Some(session_expiry),
+            request_external_authentication: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
