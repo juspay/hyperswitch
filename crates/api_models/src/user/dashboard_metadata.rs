@@ -24,6 +24,8 @@ pub enum SetMetaDataRequest {
     ConfigureWoocom,
     SetupWoocomWebhook,
     IsMultipleConfiguration,
+    #[serde(skip)]
+    IsChangePasswordRequired,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -110,6 +112,7 @@ pub enum GetMetaDataRequest {
     ConfigureWoocom,
     SetupWoocomWebhook,
     IsMultipleConfiguration,
+    IsChangePasswordRequired,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -146,4 +149,5 @@ pub enum GetMetaDataResponse {
     ConfigureWoocom(bool),
     SetupWoocomWebhook(bool),
     IsMultipleConfiguration(bool),
+    IsChangePasswordRequired(bool),
 }

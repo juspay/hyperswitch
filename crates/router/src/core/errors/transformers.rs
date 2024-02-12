@@ -190,7 +190,11 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.clone()), ..Default::default() })))
             }
             Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 3, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
-            Self::PaymentBlocked => AER::BadRequest(ApiError::new("HE", 3, "The payment is blocked", None)),
+            Self::PaymentBlockedError {
+                message,
+                reason,
+                ..
+            } => AER::DomainError(ApiError::new("HE", 3, message, Some(Extra { reason: Some(reason.clone()), ..Default::default() }))),
             Self::SuccessfulPaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Successful payment not found for the given payment id", None))
             }

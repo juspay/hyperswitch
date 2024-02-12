@@ -658,6 +658,9 @@ impl Blocklist {
                     .route(web::post().to(blocklist::add_entry_to_blocklist))
                     .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
             )
+            .service(
+                web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
     }
 }
 
@@ -1023,6 +1026,10 @@ impl User {
                 )
                 .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
+                .service(
+                    web::resource("/transfer_ownership")
+                        .route(web::post().to(transfer_org_ownership)),
+                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 

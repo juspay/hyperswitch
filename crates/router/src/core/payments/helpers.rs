@@ -1097,6 +1097,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: Some(customer_id),
@@ -1114,6 +1115,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: None,
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
@@ -3199,6 +3201,7 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
         }
     }
 
