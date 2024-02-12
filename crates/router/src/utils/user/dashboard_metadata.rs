@@ -279,15 +279,15 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
     })
 }
 
-fn contains_string(value: Option<String>, value_to_be_checked: &str) -> bool {
+fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
     value
         .as_ref()
-        .map_or(true, |mail| mail.contains(value_to_be_checked))
+        .map_or(false, |mail| !mail.contains(value_to_be_checked))
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
-    !(contains_string(data.poc_email.clone(), "juspay")
-        || contains_string(data.business_website.clone(), "juspay")
-        || contains_string(data.business_website.clone(), "hyperswitch")
-        || user_email.contains("juspay"))
+    not_contains_string(&data.poc_email, "juspay")
+        && not_contains_string(&data.business_website, "juspay")
+        && not_contains_string(&data.business_website, "hyperswitch")
+        && not_contains_string(&Some(user_email), "juspay")
 }

@@ -1,4 +1,6 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
+use diesel_models::user::User;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -448,8 +450,8 @@ async fn insert_metadata(
                 metadata = utils::update_user_scoped_metadata(
                     state,
                     user.user_id.clone(),
-                    user.merchant_id,
-                    user.org_id,
+                    user.merchant_id.clone(),
+                    user.org_id.clone(),
                     metadata_key,
                     data.clone(),
                 )
@@ -459,7 +461,7 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                let user_data = user.get_user(&state).await?.into();
+                let user_data: User = user.get_user(&state).await?.into();
                 let user_email = domain::UserEmail::from_pii_email(user_data.email.clone())
                     .change_context(UserErrors::InternalServerError)?
                     .get_secret()
