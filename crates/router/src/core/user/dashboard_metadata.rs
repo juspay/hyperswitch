@@ -17,7 +17,7 @@ use crate::{
     utils::user::dashboard_metadata as utils,
 };
 #[cfg(feature = "email")]
-use crate::{services::email::types as email_types, types::domain::UserEmail};
+use crate::{services::email::types as email_types, types::domain};
 
 pub async fn set_metadata(
     state: AppState,
@@ -460,13 +460,8 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                let user_data = state
-                    .store
-                    .find_user_by_id(&user.user_id)
-                    .await
-                    .change_context(UserErrors::InternalServerError)?;
-
-                let user_email = UserEmail::from_pii_email(user_data.email.clone())
+                let user_data = user.get_user(&state).await?.into();
+                let user_email = domain::UserEmail::from_pii_email(user_data.email.clone())
                     .change_context(UserErrors::InternalServerError)?
                     .get_secret()
                     .expose();
