@@ -3201,6 +3201,7 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
         }
     }
 

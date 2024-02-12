@@ -1233,6 +1233,45 @@
         ]
       }
     },
+    "/blocklist/toggle": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Toggle blocklist guard for a particular merchant",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Boolean value to enable/disable blocklist",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist guard enabled/disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleBlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -1560,6 +1599,39 @@
           },
           "404": {
             "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/mandates": {
+      "post": {
+        "tags": [
+          "Customers Mandates List"
+        ],
+        "summary": "Customers - Mandates List",
+        "description": "Customers - Mandates List\n\nLists all the mandates for a particular customer id.",
+        "operationId": "List all Mandates for a Customer",
+        "responses": {
+          "200": {
+            "description": "List of retrieved mandates for a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MandateResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
           }
         },
         "security": [
@@ -9059,6 +9131,11 @@
             "type": "string",
             "description": "The type of the payment card",
             "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The nick_name of the card holder",
+            "nullable": true
           }
         }
       },
@@ -16111,6 +16188,17 @@
             "format": "date-time",
             "description": "The end time to filter payments list or to get list of filters. If not passed the default time is now",
             "nullable": true
+          }
+        }
+      },
+      "ToggleBlocklistResponse": {
+        "type": "object",
+        "required": [
+          "blocklist_guard_status"
+        ],
+        "properties": {
+          "blocklist_guard_status": {
+            "type": "string"
           }
         }
       },

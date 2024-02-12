@@ -63,6 +63,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
+            Flow::ToggleBlocklistGuard => Self::Blocklist,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
@@ -195,7 +196,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::AcceptInvitation
-            | Flow::DeleteUserRole => Self::UserRole,
+            | Flow::DeleteUserRole
+            | Flow::TransferOrgOwnership => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

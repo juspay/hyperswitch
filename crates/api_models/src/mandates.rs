@@ -77,6 +77,9 @@ pub struct MandateCardDetails {
     pub card_network: Option<api_enums::CardNetwork>,
     /// The type of the payment card
     pub card_type: Option<String>,
+    /// The nick_name of the card holder
+    #[schema(value_type = Option<String>)]
+    pub nick_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

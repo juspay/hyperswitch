@@ -114,6 +114,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
+        routes::customers::customers_mandates_list,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
@@ -151,6 +152,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::blocklist::remove_entry_from_blocklist,
         routes::blocklist::list_blocked_payment_methods,
         routes::blocklist::add_entry_to_blocklist,
+        routes::blocklist::toggle_blocklist_guard,
 
         // Routes for payouts
         routes::payouts::payouts_create,
@@ -450,6 +452,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkStatus,
         api_models::blocklist::BlocklistRequest,
         api_models::blocklist::BlocklistResponse,
+        api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
         api_models::enums::BlocklistDataKind
     )),
