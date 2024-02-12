@@ -4,6 +4,8 @@ use error_stack::ResultExt;
 use josekit::jwe;
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
+    #[cfg(feature = "aws_kms")]
+use masking::PeekInterface;
 
 use crate::{
     configs::settings,
