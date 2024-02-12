@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.09.1-hotfix1
+
+### Bug Fixes
+
+- **payment_methods:** Unmask last4 digits of card when listing payment methods for customer ([#3621](https://github.com/juspay/hyperswitch/pull/3621)) ([`b59b90e`](https://github.com/juspay/hyperswitch/commit/b59b90e1149047401f6f71f5a89fbc474a8880e7))
+
+- - -
+
 ## 2024.02.09.1
 
 ### Bug Fixes
