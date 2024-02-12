@@ -556,8 +556,6 @@ pub async fn decide_payout_connector(
             .attach_printable("Empty connector list returned")?
             .clone();
 
-        connectors.remove(0);
-
         let connector_data = connectors
             .into_iter()
             .map(|conn| {
