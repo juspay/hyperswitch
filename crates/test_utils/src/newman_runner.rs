@@ -56,7 +56,6 @@ where
 
     // Open the file in write mode or create it if it doesn't exist
     let mut file = std::fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .create(true)
         .open(file_path)?;
