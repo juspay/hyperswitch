@@ -4,7 +4,7 @@ enabled = false
 [log.console]
 enabled = true
 level = "DEBUG"
-log_format = "default"
+log_format = "json"
 
 [log.telemetry]
 traces_enabled = false
