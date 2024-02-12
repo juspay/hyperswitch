@@ -379,7 +379,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, GlobepayRefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayErrorResponse {
     pub return_msg: String,
     pub return_code: GlobepayReturnCode,

@@ -598,7 +598,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

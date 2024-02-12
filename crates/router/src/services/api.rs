@@ -200,15 +200,19 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         Ok(ErrorResponse::get_not_implemented())
     }
 
     fn get_5xx_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         let error_message = match res.status_code {
             500 => "internal_server_error",
             501 => "not_implemented",
@@ -468,23 +472,30 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
-                                    connector_event.set_error(json!({"error": body.response.escape_ascii().to_string(), "status_code": body.status_code}));
 
-                                    match connector_event.try_into() {
-                                        Ok(event) => {
-                                            state.event_handler().log_event(event);
-                                        }
-                                        Err(err) => {
-                                            logger::error!(error=?err, "Error Logging Connector Event");
-                                        }
-                                    };
                                     let error = match body.status_code {
                                         500..=511 => {
-                                            connector_integration.get_5xx_error_response(body)?
+                                            let error_res = connector_integration
+                                                .get_5xx_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            error_res
                                         }
                                         _ => {
-                                            let error_res =
-                                                connector_integration.get_error_response(body)?;
+                                            let error_res = connector_integration
+                                                .get_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };

@@ -554,7 +554,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NexinetsErrorResponse {
     pub status: u16,
     pub code: u16,
@@ -562,7 +562,7 @@ pub struct NexinetsErrorResponse {
     pub errors: Vec<OrderErrorDetails>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct OrderErrorDetails {
     pub code: u16,
     pub message: String,

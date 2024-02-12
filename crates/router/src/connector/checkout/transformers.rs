@@ -943,7 +943,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
     pub error_type: Option<String>,

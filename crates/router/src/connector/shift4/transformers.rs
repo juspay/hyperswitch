@@ -810,12 +810,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub error: ApiErrorResponse,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,

@@ -625,7 +625,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub title: Option<String>,

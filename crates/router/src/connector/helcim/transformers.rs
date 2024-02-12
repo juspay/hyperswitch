@@ -748,19 +748,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, strum::Display, Deserialize)]
+#[derive(Debug, strum::Display, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum HelcimErrorTypes {
     StringType(String),
     JsonType(serde_json::Value),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HelcimPaymentsErrorResponse {
     pub errors: HelcimErrorTypes,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum HelcimErrorResponse {
     Payment(HelcimPaymentsErrorResponse),

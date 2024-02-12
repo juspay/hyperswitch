@@ -78,6 +78,15 @@ impl ConnectorEvent {
     pub fn set_error(&mut self, error: serde_json::Value) {
         self.error = Some(error.to_string());
     }
+
+    pub fn set_error_response_body<T: Serialize>(&mut self, response: &T) {
+        match masking::masked_serialize(response) {
+            Ok(masked) => {
+                self.error = Some(masked.to_string());
+            }
+            Err(er) => self.set_error(json!({"error": er.to_string()})),
+        }
+    }
 }
 
 impl TryFrom<ConnectorEvent> for RawEvent {

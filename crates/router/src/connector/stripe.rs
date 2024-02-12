@@ -200,12 +200,14 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -328,6 +330,7 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
@@ -453,6 +456,7 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
@@ -587,12 +591,15 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -735,12 +742,14 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -929,12 +938,14 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1052,12 +1063,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1208,12 +1223,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1329,12 +1348,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1437,12 +1460,16 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1587,12 +1614,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1693,12 +1724,15 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1820,12 +1854,16 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: stripe::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_error_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response

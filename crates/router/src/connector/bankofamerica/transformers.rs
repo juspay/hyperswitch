@@ -1945,7 +1945,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaStandardErrorResponse {
     pub error_information: Option<ErrorInformation>,
@@ -1955,7 +1955,7 @@ pub struct BankOfAmericaStandardErrorResponse {
     pub details: Option<Vec<Details>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaServerErrorResponse {
     pub status: Option<String>,
@@ -1963,7 +1963,7 @@ pub struct BankOfAmericaServerErrorResponse {
     pub reason: Option<Reason>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {
     SystemError,
@@ -1971,32 +1971,32 @@ pub enum Reason {
     ServiceTimeout,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BankOfAmericaAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaErrorResponse {
     AuthenticationError(BankOfAmericaAuthenticationErrorResponse),
     StandardError(BankOfAmericaStandardErrorResponse),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Details {
     pub field: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
 }

@@ -41,6 +41,7 @@ use crate::{
         utils, webhooks as webhooks_core,
     },
     db::StorageInterface,
+    events::connector_api_logs::ConnectorEvent,
     logger,
     routes::metrics,
     services,
@@ -376,6 +377,7 @@ pub async fn get_profile_id_using_object_reference_id(
 pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: String,
+    event_builder: Option<&mut ConnectorEvent>,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
@@ -386,6 +388,9 @@ pub fn handle_json_response_deserialization_failure(
     let response_data = String::from_utf8(res.response.to_vec())
         .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    event_builder.map(|i| i.set_error_response_body(&response_data));
+    router_env::logger::info!(connector_response=?response_data);
 
     // check for whether the response is in json format
     match serde_json::from_str::<Value>(&response_data) {

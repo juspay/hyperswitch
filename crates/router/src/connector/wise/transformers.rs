@@ -40,7 +40,7 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
 }
 
 // Wise error response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
@@ -51,7 +51,7 @@ pub struct ErrorResponse {
     pub path: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SubError {
     pub code: String,
     pub message: String,

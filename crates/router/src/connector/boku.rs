@@ -118,6 +118,7 @@ impl ConnectorCommon for Boku {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response_data: Result<boku::BokuErrorResponse, Report<errors::ConnectorError>> = res
             .response
@@ -125,15 +126,19 @@ impl ConnectorCommon for Boku {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
         match response_data {
-            Ok(response) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: response.code,
-                message: response.message,
-                reason: response.reason,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
-            Err(_) => get_xml_deserialized(res),
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.code,
+                    message: response.message,
+                    reason: response.reason,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            Err(_) => get_xml_deserialized(res, event_builder),
         }
     }
 }
@@ -276,8 +281,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -362,8 +368,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -444,8 +451,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -518,8 +526,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("boku RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+
+        event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -530,8 +540,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -610,8 +621,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -651,7 +663,10 @@ fn get_country_url(
 }
 
 // validate xml format for the error
-fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+fn get_xml_deserialized(
+    res: Response,
+    event_builder: Option<&mut ConnectorEvent>,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
         &metrics::CONTEXT,
         1,
@@ -661,6 +676,9 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
     let response_data = String::from_utf8(res.response.to_vec())
         .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    event_builder.map(|i| i.set_error_response_body(&response_data));
+    router_env::logger::info!(connector_response=?response_data);
 
     // check for whether the response is in xml format
     match roxmltree::Document::parse(&response_data) {

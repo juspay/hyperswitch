@@ -617,7 +617,7 @@ pub struct PayuErrorResponse {
     pub status: PayuErrorData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PayuAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

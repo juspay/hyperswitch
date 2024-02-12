@@ -839,12 +839,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessErrorResponse {
     pub error: GocardlessError,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessError {
     pub message: String,
     pub code: u16,
@@ -853,7 +853,7 @@ pub struct GocardlessError {
     pub error_type: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Error {
     pub field: Option<String>,
     pub message: String,

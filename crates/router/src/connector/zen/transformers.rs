@@ -1169,13 +1169,13 @@ pub enum ZenWebhookTxnType {
     Unknown,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ZenErrorResponse {
     pub error: Option<ZenErrorBody>,
     pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,

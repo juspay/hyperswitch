@@ -1737,7 +1737,7 @@ pub struct PaypalPaymentErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

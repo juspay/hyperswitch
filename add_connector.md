@@ -437,6 +437,7 @@ Within the `ConnectorCommon` trait, you'll find the following methods :
   fn build_error_response(
       &self,
       res: types::Response,
+      event_builder: Option<&mut ConnectorEvent>,
   ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
       let response: checkout::ErrorResponse = if res.response.is_empty() {
           let (error_codes, error_type) = if res.status_code == 401 {
@@ -597,8 +598,9 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
   fn get_error_response(
       &self,
       res: types::Response,
+      event_builder: Option<&mut ConnectorEvent>,
   ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-      self.build_error_response(res)
+      self.build_error_response(res, event_builder)
   }
 ```
 

@@ -76,7 +76,7 @@ pub struct GlobalpayRefreshTokenResponse {
     pub seconds_to_expire: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobalpayRefreshTokenErrorResponse {
     pub error_code: String,
     pub detailed_error_description: String,

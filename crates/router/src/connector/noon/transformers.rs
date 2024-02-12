@@ -918,7 +918,7 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonErrorResponse {
     pub result_code: u32,

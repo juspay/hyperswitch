@@ -573,7 +573,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponseStatus {
     pub environment: String,
     pub response_type: Option<String>,
@@ -581,7 +581,7 @@ pub struct ErrorResponseStatus {
     pub response_desc: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ForteErrorResponse {
     pub response: ErrorResponseStatus,
 }

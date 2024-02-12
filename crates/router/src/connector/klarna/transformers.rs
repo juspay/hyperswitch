@@ -225,7 +225,7 @@ impl From<KlarnaFraudStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaErrorResponse {
     pub error_code: String,
     pub error_messages: Option<Vec<String>>,

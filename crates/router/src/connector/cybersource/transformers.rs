@@ -2540,7 +2540,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CybersourceRsyncRespon
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceStandardErrorResponse {
     pub error_information: Option<ErrorInformation>,
@@ -2550,13 +2550,13 @@ pub struct CybersourceStandardErrorResponse {
     pub details: Option<Vec<Details>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceNotAvailableErrorResponse {
     pub errors: Vec<CybersourceNotAvailableErrorObject>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceNotAvailableErrorObject {
     #[serde(rename = "type")]
@@ -2564,7 +2564,7 @@ pub struct CybersourceNotAvailableErrorObject {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceServerErrorResponse {
     pub status: Option<String>,
@@ -2572,7 +2572,7 @@ pub struct CybersourceServerErrorResponse {
     pub reason: Option<Reason>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {
     SystemError,
@@ -2580,12 +2580,12 @@ pub enum Reason {
     ServiceTimeout,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CybersourceErrorResponse {
     AuthenticationError(CybersourceAuthenticationErrorResponse),
@@ -2594,20 +2594,20 @@ pub enum CybersourceErrorResponse {
     StandardError(CybersourceStandardErrorResponse),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Details {
     pub field: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
 }

@@ -252,7 +252,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OpennodeErrorResponse {
     pub message: String,
 }

@@ -390,13 +390,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundRespon
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayErrorResponse {
     pub status: PlacetopayError,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayError {
     pub status: PlacetopayErrorStatus,
@@ -404,7 +404,7 @@ pub struct PlacetopayError {
     pub reason: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayErrorStatus {
     Failed,

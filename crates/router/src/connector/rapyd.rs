@@ -87,6 +87,7 @@ impl ConnectorCommon for Rapyd {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: Result<
             rapyd::RapydPaymentsResponse,
@@ -94,17 +95,25 @@ impl ConnectorCommon for Rapyd {
         > = res.response.parse_struct("Rapyd ErrorResponse");
 
         match response {
-            Ok(response_data) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: response_data.status.error_code,
-                message: response_data.status.status.unwrap_or_default(),
-                reason: response_data.status.message,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
+            Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_error_response=?response_data);
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response_data.status.error_code,
+                    message: response_data.status.status.unwrap_or_default(),
+                    reason: response_data.status.message,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
             Err(error_msg) => {
                 logger::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
+                utils::handle_json_response_deserialization_failure(
+                    res,
+                    "rapyd".to_owned(),
+                    event_builder,
+                )
             }
         }
     }
@@ -261,8 +270,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -383,8 +393,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -461,8 +472,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 
     fn handle_response(
@@ -602,8 +614,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -722,8 +735,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
