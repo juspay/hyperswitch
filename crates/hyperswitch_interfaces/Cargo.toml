@@ -1,0 +1,17 @@
+[package]
+name = "hyperswitch_interfaces"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+
+[dependencies]
+async-trait = "0.1.68"
+dyn-clone = "1.0.11"
+serde = { version = "1.0.193", features = ["derive"] }
+thiserror = "1.0.40"
+
+# First party crates
+common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }

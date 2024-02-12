@@ -14,7 +14,7 @@ use serde::Deserialize;
 use crate::errors;
 
 #[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
+pub type Password = aws_kms::core::AwsKmsValue;
 #[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
@@ -36,9 +36,9 @@ pub struct Settings {
     pub log: Log,
     pub drainer: DrainerSettings,
     #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: aws_kms::core::AwsKmsConfig,
     #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]

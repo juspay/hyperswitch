@@ -34,10 +34,10 @@ impl Store {
                 &config.master_database,
                 test_transaction,
                 #[cfg(feature = "aws_kms")]
-                external_services::aws_kms::get_aws_kms_client(&config.kms).await,
+                external_services::aws_kms::core::get_aws_kms_client(&config.kms).await,
                 #[cfg(feature = "hashicorp-vault")]
                 #[allow(clippy::expect_used)]
-                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
                     .await
                     .expect("Failed while getting hashicorp client"),
             )
