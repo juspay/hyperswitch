@@ -5170,6 +5170,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
+ "connector_configs",
  "currency_conversion",
  "data_models",
  "derive_deref",
