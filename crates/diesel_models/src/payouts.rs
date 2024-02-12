@@ -108,7 +108,6 @@ pub enum PayoutsUpdate {
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
         last_modified_at: Option<PrimitiveDateTime>,
-        attempt_count: i16,
     },
     PayoutMethodIdUpdate {
         payout_method_id: Option<String>,
@@ -117,6 +116,9 @@ pub enum PayoutsUpdate {
     RecurringUpdate {
         recurring: bool,
         last_modified_at: Option<PrimitiveDateTime>,
+    },
+    AttemptCountUpdate {
+        attempt_count: i16,
     },
 }
 
@@ -151,7 +153,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type,
                 metadata,
                 last_modified_at,
-                attempt_count,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -163,7 +164,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type: Some(entity_type),
                 metadata,
                 last_modified_at,
-                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate {
@@ -180,6 +180,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             } => Self {
                 last_modified_at,
                 recurring: Some(recurring),
+                ..Default::default()
+            },
+            PayoutsUpdate::AttemptCountUpdate { attempt_count } => Self {
+                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
         }

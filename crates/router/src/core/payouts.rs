@@ -46,121 +46,6 @@ pub struct PayoutData {
 }
 
 // ********************************************** CORE FLOWS **********************************************
-#[cfg(feature = "payouts")]
-pub async fn get_connector_data(
-    state: &AppState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    connector: Option<String>,
-    routing_algorithm: Option<serde_json::Value>,
-    payout_data: &mut PayoutData,
-    eligible_connectors: Option<Vec<api_models::enums::Connector>>,
-) -> RouterResult<api::ConnectorData> {
-    let eligible_routable_connectors = eligible_connectors.map(|connectors| {
-        connectors
-            .into_iter()
-            .flat_map(|c| c.foreign_try_into())
-            .collect()
-    });
-    let connector_choice = helpers::get_default_payout_connector(state, routing_algorithm).await?;
-    let connector_details = match connector_choice {
-        api::ConnectorChoice::SessionMultiple(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Invalid connector choice - SessionMultiple")?
-        }
-
-        api::ConnectorChoice::StraightThrough(straight_through) => {
-            let request_straight_through: api::routing::StraightThroughAlgorithm = straight_through
-                .clone()
-                .parse_value("StraightThroughAlgorithm")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid straight through routing rules format")?;
-            payout_data.payout_attempt.straight_through_algorithm = Some(straight_through);
-            let mut routing_data = storage::RoutingData {
-                routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
-                merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
-                algorithm: Some(request_straight_through.clone()),
-                routing_info: PaymentRoutingInfo {
-                    algorithm: None,
-                    pre_routing_results: None,
-                },
-            };
-            helpers::decide_payout_connector(
-                state,
-                merchant_account,
-                key_store,
-                Some(request_straight_through),
-                &mut routing_data,
-                payout_data,
-                eligible_routable_connectors,
-            )
-            .await?
-        }
-
-        api::ConnectorChoice::Decide => {
-            let mut routing_data = storage::RoutingData {
-                routed_through: connector,
-                #[cfg(feature = "connector_choice_mca_id")]
-                merchant_connector_id: None,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                business_sub_label: payout_data.payout_attempt.business_label.clone(),
-                algorithm: None,
-                routing_info: PaymentRoutingInfo {
-                    algorithm: None,
-                    pre_routing_results: None,
-                },
-            };
-            helpers::decide_payout_connector(
-                state,
-                merchant_account,
-                key_store,
-                None,
-                &mut routing_data,
-                payout_data,
-                eligible_routable_connectors,
-            )
-            .await?
-        }
-    };
-    let connector_data = match connector_details {
-        api::ConnectorCallType::SessionMultiple(_) => {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Invalid connector details - SessionMultiple")?
-        }
-        api::ConnectorCallType::PreDetermined(connector) => connector,
-
-        api::ConnectorCallType::Retryable(connectors) => {
-            let mut connectors = connectors.into_iter();
-            payments::get_connector_data(&mut connectors)?
-        }
-    };
-
-    // Update connector in DB
-    payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
-    let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
-        connector: connector_data.connector_name.to_string(),
-        straight_through_algorithm: payout_data
-            .payout_attempt
-            .straight_through_algorithm
-            .clone(),
-    };
-    let db = &*state.store;
-    db.update_payout_attempt_by_merchant_id_payout_id(
-        &payout_data.payout_attempt.merchant_id,
-        &payout_data.payout_attempt.payout_id,
-        updated_payout_attempt,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error updating routing info in payout_attempt")?;
-    Ok(connector_data)
-}
-
 pub fn get_first_connector(
     connectors: &mut IntoIter<api::ConnectorData>,
 ) -> RouterResult<api::ConnectorData> {
@@ -412,7 +297,6 @@ pub async fn payouts_update_core(
         entity_type: req.entity_type.unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata),
         last_modified_at: Some(common_utils::date_time::now()),
-        attempt_count: payouts.attempt_count,
     };
 
     let db = &*state.store;

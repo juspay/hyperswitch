@@ -199,17 +199,7 @@ pub async fn modify_trackers(
 
     // update payout table's attempt count
     let payouts = payout_data.payouts.to_owned();
-    let updated_payouts = storage::PayoutsUpdate::Update {
-        amount: payouts.amount,
-        destination_currency: payouts.destination_currency,
-        source_currency: payouts.source_currency,
-        description: payouts.description,
-        recurring: payouts.recurring,
-        auto_fulfill: payouts.auto_fulfill,
-        return_url: payouts.return_url,
-        entity_type: payouts.entity_type,
-        metadata: payouts.metadata,
-        last_modified_at: Some(common_utils::date_time::now()),
+    let updated_payouts = storage::PayoutsUpdate::AttemptCountUpdate {
         attempt_count: new_attempt_count,
     };
 
@@ -248,54 +238,6 @@ pub async fn modify_trackers(
 
     Ok(())
 }
-
-// #[instrument(skip_all)]
-// pub fn make_new_payment_attempt(
-//     connector: String,
-//     old_payment_attempt: storage::PaymentAttempt,
-//     new_attempt_count: i16,
-//     is_step_up: bool,
-// ) -> storage::PaymentAttemptNew {
-//     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-//     storage::PaymentAttemptNew {
-//         connector: Some(connector),
-//         attempt_id: utils::get_payment_attempt_id(
-//             &old_payment_attempt.payment_id,
-//             new_attempt_count,
-//         ),
-//         payment_id: old_payment_attempt.payment_id,
-//         merchant_id: old_payment_attempt.merchant_id,
-//         status: old_payment_attempt.status,
-//         amount: old_payment_attempt.amount,
-//         currency: old_payment_attempt.currency,
-//         save_to_locker: old_payment_attempt.save_to_locker,
-
-//         offer_amount: old_payment_attempt.offer_amount,
-//         surcharge_amount: old_payment_attempt.surcharge_amount,
-//         tax_amount: old_payment_attempt.tax_amount,
-//         payment_method_id: old_payment_attempt.payment_method_id,
-//         payment_method: old_payment_attempt.payment_method,
-//         payment_method_type: old_payment_attempt.payment_method_type,
-//         capture_method: old_payment_attempt.capture_method,
-//         capture_on: old_payment_attempt.capture_on,
-//         confirm: old_payment_attempt.confirm,
-//         authentication_type: if is_step_up {
-//             Some(storage_enums::AuthenticationType::ThreeDs)
-//         } else {
-//             old_payment_attempt.authentication_type
-//         },
-
-//         amount_to_capture: old_payment_attempt.amount_to_capture,
-//         mandate_id: old_payment_attempt.mandate_id,
-//         browser_info: old_payment_attempt.browser_info,
-//         payment_token: old_payment_attempt.payment_token,
-
-//         created_at,
-//         modified_at,
-//         last_synced,
-//         ..storage::PaymentAttemptNew::default()
-//     }
-// }
 
 pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &String) -> bool {
     let config = db
