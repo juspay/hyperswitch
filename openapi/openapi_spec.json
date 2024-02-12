@@ -5227,12 +5227,16 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_account_bic": {
                     "type": "string",
