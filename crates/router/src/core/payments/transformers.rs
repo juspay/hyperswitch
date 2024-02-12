@@ -475,7 +475,6 @@ where
 
     let output = Ok(match payment_request {
         Some(_request) => {
-            dbg!(&payment_data.authentication);
             if payments::is_start_pay(&operation) && payment_attempt.authentication_data.is_some() {
                 let redirection_data = payment_attempt
                     .authentication_data
@@ -543,28 +542,32 @@ where
                                 ),
                             }
                         }))
-                        .or(payment_data.authentication.as_ref().map(
+                        .or(payment_data.authentication.as_ref().and_then(
                             |(_authentication, authentication_data)| {
-                                let payment_id = payment_attempt.payment_id.clone();
-                                let base_url = server.base_url.clone();
-                                api_models::payments::NextActionData::ThreeDsInvoke {
-                                    three_ds_data: api_models::payments::ThreeDsData {
-                                        authentication_url: format!(
-                                            "{base_url}/payments/{payment_id}/3ds/authentication"
-                                        ),
-                                        three_ds_method_details:
-                                            api_models::payments::ThreeDsMethodData {
-                                                three_ds_method_data_submission: true,
-                                                three_ds_method_data: authentication_data
-                                                    .three_ds_method_data
-                                                    .three_ds_method_data
-                                                    .clone(),
-                                                three_ds_method_url: authentication_data
-                                                    .three_ds_method_data
-                                                    .three_ds_method_url
-                                                    .clone(),
-                                            },
-                                    },
+                                if authentication_data.cavv.is_none() { // if preAuthn
+                                    let payment_id = payment_attempt.payment_id.clone();
+                                    let base_url = server.base_url.clone();
+                                    Some(api_models::payments::NextActionData::ThreeDsInvoke {
+                                        three_ds_data: api_models::payments::ThreeDsData {
+                                            authentication_url: format!(
+                                                "{base_url}/payments/{payment_id}/3ds/authentication"
+                                            ),
+                                            three_ds_method_details:
+                                                api_models::payments::ThreeDsMethodData {
+                                                    three_ds_method_data_submission: true,
+                                                    three_ds_method_data: authentication_data
+                                                        .three_ds_method_data
+                                                        .three_ds_method_data
+                                                        .clone(),
+                                                    three_ds_method_url: authentication_data
+                                                        .three_ds_method_data
+                                                        .three_ds_method_url
+                                                        .clone(),
+                                                },
+                                        },
+                                    })
+                                }else{
+                                    None
                                 }
                             },
                         ));

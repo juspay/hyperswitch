@@ -379,6 +379,9 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments_external_authentication)),
+                )
+                .service(
+                    web::resource("/{payment_id}/3ds/authorize").route(web::post().to(payments_authorize)),
                 );
         }
         route

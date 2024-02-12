@@ -1257,6 +1257,88 @@ pub async fn payments_external_authentication(
     .await
 }
 
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/authorize",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    request_body=PaymentsRequest,
+    responses(
+        (status = 200, description = "Payment Authorized", body = PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Authorize a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
+pub async fn payments_authorize(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAuthorize;
+    let mut payload = json_payload.into_inner();
+
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
+        return http_not_implemented();
+    };
+
+    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+        return api::log_and_return_error_response(err);
+    }
+
+    let payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", &payment_id);
+    payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
+    payload.confirm = Some(true);
+    let header_payload = match payment_types::HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::PaymentConfirm,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                header_payload,
+            )
+        },
+        &*auth_type,
+        locking_action,
+    ))
+    .await
+}
+
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
