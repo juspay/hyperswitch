@@ -753,7 +753,6 @@ impl<F>
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
-            api::PaymentMethodData::MandatePayment => {
             api::PaymentMethodData::MandatePayment => Self::try_from(item),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
