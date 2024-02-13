@@ -171,7 +171,6 @@ pub async fn payments_incoming_webhook_flow<
             if let Some(outgoing_event_type) = event_type {
                 create_event_and_trigger_outgoing_webhook::<W>(
                     state,
-                    merchant_account,
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -277,7 +276,6 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             updated_refund.clone().foreign_into();
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
-            merchant_account,
             business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
@@ -472,7 +470,6 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         if let Some(outgoing_event_type) = event_type {
             create_event_and_trigger_outgoing_webhook::<W>(
                 state,
-                merchant_account,
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Mandates,
@@ -539,7 +536,6 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
 
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
-            merchant_account,
             business_profile,
             event_type,
             enums::EventClass::Disputes,
@@ -625,7 +621,6 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
             if let Some(outgoing_event_type) = event_type {
                 create_event_and_trigger_outgoing_webhook::<W>(
                     state,
-                    merchant_account,
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -664,7 +659,6 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
         Some(api_models::enums::Connector::Stripe) => {
             create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
                 state.clone(),
-                merchant_account,
                 business_profile,
                 event_type,
                 event_class,
@@ -678,7 +672,6 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
         _ => {
             create_event_and_trigger_outgoing_webhook::<api_models::webhooks::OutgoingWebhook>(
                 state.clone(),
-                merchant_account,
                 business_profile,
                 event_type,
                 event_class,
@@ -696,7 +689,6 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
 #[instrument(skip_all)]
 pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
     event_type: enums::EventType,
     event_class: enums::EventClass,
@@ -705,6 +697,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let merchant_id = business_profile.merchant_id.clone();
     let event_id = format!("{primary_object_id}_{event_type}");
     let new_event = storage::EventNew {
         event_id: event_id.clone(),
@@ -735,7 +728,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
 
     if state.conf.webhooks.outgoing_enabled {
         let outgoing_webhook = api::OutgoingWebhook {
-            merchant_id: merchant_account.merchant_id.clone(),
+            merchant_id: merchant_id.clone(),
             event_id: event.event_id.clone(),
             event_type: event.event_type,
             content: content.clone(),
@@ -762,7 +755,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
             }
             let outgoing_webhook_event_type = content.get_outgoing_webhook_event_type();
             let webhook_event = OutgoingWebhookEvent::new(
-                merchant_account.merchant_id.clone(),
+                merchant_id,
                 event.event_id.clone(),
                 event_type,
                 outgoing_webhook_event_type,
