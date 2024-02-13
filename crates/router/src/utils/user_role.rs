@@ -16,9 +16,14 @@ pub fn get_role_name_and_permission_response(
     role_info.get_name().map(|name| {
         (
             role_info
-                .get_permissions()
+                .get_permission_groups()
                 .iter()
-                .map(|&per| per.into())
+                .flat_map(|permission_group| {
+                    permission_group
+                        .get_permissions_vec()
+                        .into_iter()
+                        .map(Into::into)
+                })
                 .collect::<Vec<user_role_api::Permission>>(),
             name,
         )

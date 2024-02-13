@@ -503,8 +503,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_role_info(&payload.role_id)?;
+        permissions.check_permission_exists(&self.0);
 
         Ok((
             (),
@@ -532,8 +532,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_role_info(&payload.role_id)?;
+        permissions.check_permission_exists(&self.0);
 
         Ok((
             UserFromToken {
@@ -570,8 +570,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.required_permission, permissions)?;
+        let permissions = authorization::get_role_info(&payload.role_id)?;
+        permissions.check_permission_exists(&self.required_permission);
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -613,8 +613,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_role_info(&payload.role_id)?;
+        permissions.check_permission_exists(&self.0);
 
         let key_store = state
             .store()
@@ -663,8 +663,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_role_info(&payload.role_id)?;
+        permissions.check_permission_exists(&self.0);
 
         let key_store = state
             .store()

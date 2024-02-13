@@ -4,14 +4,14 @@ use std::collections::HashMap;
 use error_stack::ResultExt;
 use once_cell::sync::Lazy;
 
-use super::permissions::Permission;
+use super::{permission_groups::PermissionGroup, permissions::Permission};
 use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::{UserErrors, UserResult};
 
 #[allow(dead_code)]
 pub struct RoleInfo {
-    permissions: Vec<Permission>,
+    groups: Vec<PermissionGroup>,
     name: Option<&'static str>,
     is_invitable: bool,
     is_deletable: bool,
@@ -19,8 +19,8 @@ pub struct RoleInfo {
 }
 
 impl RoleInfo {
-    pub fn get_permissions(&self) -> &Vec<Permission> {
-        &self.permissions
+    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
+        &self.groups
     }
 
     pub fn get_name(&self) -> Option<&'static str> {
@@ -30,6 +30,12 @@ impl RoleInfo {
     pub fn is_invitable(&self) -> bool {
         self.is_invitable
     }
+
+    pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
+        self.groups
+            .iter()
+            .any(|module| module.get_permissions_set().contains(required_permission))
+    }
 }
 
 pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
@@ -37,36 +43,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_INTERNAL_ADMIN,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::PaymentWrite,
-                Permission::RefundRead,
-                Permission::RefundWrite,
-                Permission::ApiKeyRead,
-                Permission::ApiKeyWrite,
-                Permission::MerchantAccountRead,
-                Permission::MerchantAccountWrite,
-                Permission::MerchantConnectorAccountRead,
-                Permission::MerchantConnectorAccountWrite,
-                Permission::RoutingRead,
-                Permission::RoutingWrite,
-                Permission::ForexRead,
-                Permission::ThreeDsDecisionManagerWrite,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerWrite,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::DisputeWrite,
-                Permission::MandateRead,
-                Permission::MandateWrite,
-                Permission::CustomerRead,
-                Permission::CustomerWrite,
-                Permission::FileRead,
-                Permission::FileWrite,
-                Permission::Analytics,
-                Permission::UsersRead,
-                Permission::UsersWrite,
-                Permission::MerchantAccountCreate,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: None,
             is_invitable: false,
@@ -77,22 +56,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::RefundRead,
-                Permission::ApiKeyRead,
-                Permission::MerchantAccountRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::RoutingRead,
-                Permission::ForexRead,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::Analytics,
-                Permission::DisputeRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::UsersRead,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: None,
             is_invitable: false,
@@ -104,36 +70,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::PaymentWrite,
-                Permission::RefundRead,
-                Permission::RefundWrite,
-                Permission::ApiKeyRead,
-                Permission::ApiKeyWrite,
-                Permission::MerchantAccountRead,
-                Permission::MerchantAccountWrite,
-                Permission::MerchantConnectorAccountRead,
-                Permission::MerchantConnectorAccountWrite,
-                Permission::RoutingRead,
-                Permission::RoutingWrite,
-                Permission::ForexRead,
-                Permission::ThreeDsDecisionManagerWrite,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerWrite,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::DisputeWrite,
-                Permission::MandateRead,
-                Permission::MandateWrite,
-                Permission::CustomerRead,
-                Permission::CustomerWrite,
-                Permission::FileRead,
-                Permission::FileWrite,
-                Permission::Analytics,
-                Permission::UsersRead,
-                Permission::UsersWrite,
-                Permission::MerchantAccountCreate,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("Organization Admin"),
             is_invitable: false,
@@ -146,35 +85,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_ADMIN,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::PaymentWrite,
-                Permission::RefundRead,
-                Permission::RefundWrite,
-                Permission::ApiKeyRead,
-                Permission::ApiKeyWrite,
-                Permission::MerchantAccountRead,
-                Permission::MerchantAccountWrite,
-                Permission::MerchantConnectorAccountRead,
-                Permission::ForexRead,
-                Permission::MerchantConnectorAccountWrite,
-                Permission::RoutingRead,
-                Permission::RoutingWrite,
-                Permission::ThreeDsDecisionManagerWrite,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerWrite,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::DisputeWrite,
-                Permission::MandateRead,
-                Permission::MandateWrite,
-                Permission::CustomerRead,
-                Permission::CustomerWrite,
-                Permission::FileRead,
-                Permission::FileWrite,
-                Permission::Analytics,
-                Permission::UsersRead,
-                Permission::UsersWrite,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("Admin"),
             is_invitable: true,
@@ -185,22 +98,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::RefundRead,
-                Permission::ApiKeyRead,
-                Permission::MerchantAccountRead,
-                Permission::ForexRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::RoutingRead,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::Analytics,
-                Permission::UsersRead,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("View Only"),
             is_invitable: true,
@@ -211,23 +111,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_IAM_ADMIN,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::RefundRead,
-                Permission::ApiKeyRead,
-                Permission::MerchantAccountRead,
-                Permission::ForexRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::RoutingRead,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::Analytics,
-                Permission::UsersRead,
-                Permission::UsersWrite,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("IAM"),
             is_invitable: true,
@@ -238,23 +124,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_DEVELOPER,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::RefundRead,
-                Permission::ApiKeyRead,
-                Permission::ApiKeyWrite,
-                Permission::MerchantAccountRead,
-                Permission::ForexRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::RoutingRead,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::DisputeRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::Analytics,
-                Permission::UsersRead,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("Developer"),
             is_invitable: true,
@@ -265,28 +137,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_OPERATOR,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::PaymentWrite,
-                Permission::RefundRead,
-                Permission::RefundWrite,
-                Permission::ApiKeyRead,
-                Permission::MerchantAccountRead,
-                Permission::ForexRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::MerchantConnectorAccountWrite,
-                Permission::RoutingRead,
-                Permission::RoutingWrite,
-                Permission::ThreeDsDecisionManagerRead,
-                Permission::ThreeDsDecisionManagerWrite,
-                Permission::SurchargeDecisionManagerRead,
-                Permission::SurchargeDecisionManagerWrite,
-                Permission::DisputeRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::Analytics,
-                Permission::UsersRead,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("Operator"),
             is_invitable: true,
@@ -297,20 +150,9 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
     roles.insert(
         consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT,
         RoleInfo {
-            permissions: vec![
-                Permission::PaymentRead,
-                Permission::RefundRead,
-                Permission::RefundWrite,
-                Permission::ForexRead,
-                Permission::DisputeRead,
-                Permission::DisputeWrite,
-                Permission::MerchantAccountRead,
-                Permission::MerchantConnectorAccountRead,
-                Permission::MandateRead,
-                Permission::CustomerRead,
-                Permission::FileRead,
-                Permission::FileWrite,
-                Permission::Analytics,
+            groups: vec![
+                PermissionGroup::OperationsRead,
+                PermissionGroup::OperationsWrite,
             ],
             name: Some("Customer Support"),
             is_invitable: true,
