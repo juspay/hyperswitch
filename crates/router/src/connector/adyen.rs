@@ -12,10 +12,11 @@ use router_env::{instrument, tracing};
 
 use self::transformers as adyen;
 use crate::{
+    capture_method_not_supported,
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger, not_supported,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -101,7 +102,11 @@ impl ConnectorValidation for Adyen {
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
                     enums::CaptureMethod::Scheduled => {
-                        not_supported!(connector, capture_method, payment_method_type)
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
                     }
                 },
                 PaymentMethodType::Ach
@@ -113,7 +118,11 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Walley => match capture_method {
                     enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
                     enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
-                        not_supported!(connector, capture_method, payment_method_type)
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
                     }
                 },
 
@@ -170,7 +179,11 @@ impl ConnectorValidation for Adyen {
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
                     | enums::CaptureMethod::Scheduled => {
-                        not_supported!(connector, capture_method, payment_method_type)
+                        capture_method_not_supported!(
+                            connector,
+                            capture_method,
+                            payment_method_type
+                        )
                     }
                 },
                 PaymentMethodType::CardRedirect
@@ -189,14 +202,16 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect => {
-                    not_supported!(connector, capture_method, payment_method_type)
+                    capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
-                enums::CaptureMethod::Scheduled => not_supported!(connector, capture_method),
+                enums::CaptureMethod::Scheduled => {
+                    capture_method_not_supported!(connector, capture_method)
+                }
             },
         }
     }
