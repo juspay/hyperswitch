@@ -3,7 +3,10 @@ use diesel::PgConnection;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::{self, decrypt::VaultFetch, Kv2};
+use external_services::hashicorp_vault::{
+    core::{HashiCorpVault, Kv2},
+    decrypt::VaultFetch,
+};
 #[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
 
@@ -28,8 +31,8 @@ pub async fn redis_connection(
 pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static hashicorp_vault::HashiCorpVault,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::core::AwsKmsClient,
+    #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static HashiCorpVault,
 ) -> PgPool {
     let password = database.password.clone();
     #[cfg(feature = "hashicorp-vault")]

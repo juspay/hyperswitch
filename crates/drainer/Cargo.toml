@@ -28,7 +28,7 @@ serde = "1.0.193"
 serde_json = "1.0.108"
 serde_path_to_error = "0.1.14"
 thiserror = "1.0.40"
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 async-trait = "0.1.74"
 
 # First Party Crates
