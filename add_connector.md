@@ -725,6 +725,130 @@ Notes:
 
 By following these steps, you should be able to update the connector configuration and build the WebAssembly files successfully.
 
+Certainly! Below is a detailed documentation guide on updating the `ConnectorTypes.res` and `ConnectorUtils.res` files in your [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center) project.
+
+Update `ConnectorTypes.res`:
+
+1. Open `ConnectorTypes.res`:
+
+   Open the `ConnectorTypes.res` file located at `src/screens/HyperSwitch/Connectors/ConnectorTypes.res` in your Hyperswitch-Control-Center project.
+
+2. Add Connector enum:
+
+   Add the new connector name enum under the `type connectorName` section. Here's an example:
+
+   ```reason
+   /* src/screens/HyperSwitch/Connectors/ConnectorTypes.res */
+
+   type connectorName =
+     | Stripe
+     | DummyConnector
+     | YourNewConnector
+     /* Add any other connector enums as needed */
+   ```
+
+   Replace `YourNewConnector` with the name of your newly added connector.
+
+3. Save the file:
+
+   Save the changes made to `ConnectorTypes.res`.
+
+Update `ConnectorUtils.res`:
+
+1. Open `ConnectorUtils.res`:
+
+   Open the `ConnectorUtils.res` file located at `src/screens/HyperSwitch/Connectors/ConnectorUtils.res` in your [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center) project.
+
+2. Add Connector Description:
+
+   Update the following functions in `ConnectorUtils.res`:
+
+   ```reason
+   /* src/screens/HyperSwitch/Connectors/ConnectorUtils.res */
+
+
+   let connectorList : array<connectorName> = [Stripe,YourNewConnector]
+
+
+   let getConnectorNameString = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe"
+     | DummyConnector => "Dummy Connector"
+     | YourNewConnector => "Your New Connector"
+     /* Add cases for other connectors */
+     };
+
+   let getConnectorNameTypeFromString = (str: string) =>
+     switch str {
+     | "Stripe" => Stripe
+     | "Dummy Connector" => DummyConnector
+     | "Your New Connector" => YourNewConnector
+     /* Add cases for other connectors */
+     };
+
+   let getConnectorInfo = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe connector description."
+     | DummyConnector => "Dummy Connector description."
+     | YourNewConnector => "Your New Connector description."
+     /* Add descriptions for other connectors */
+     };
+
+   let getDisplayNameForConnectors = (connectorName: connectorName) =>
+     switch connectorName {
+     | Stripe => "Stripe"
+     | DummyConnector => "Dummy Connector"
+     | YourNewConnector => "Your New Connector"
+     /* Add display names for other connectors */
+     };
+   ```
+
+   Adjust the strings and descriptions according to your actual connector names and descriptions.
+
+
+4. Save the File:
+
+   Save the changes made to `ConnectorUtils.res`.
+
+Notes:
+
+- Ensure that you replace placeholders like `YourNewConnector` with the actual names of your connectors.
+- Verify that your connector enums and descriptions are correctly updated.
+- Save the files after making the changes.
+
+By following these steps, you should be able to update the `ConnectorTypes.res` and `ConnectorUtils.res` files with the new connector enum and its related information.
+
+
+
+Certainly! Below is a detailed documentation guide on how to add a new connector icon under the `public/hyperswitch/Gateway` folder in your Hyperswitch-Control-Center project.
+
+Add Connector icon:
+
+1. Prepare the icon:
+
+   Prepare your connector icon in SVG format. Ensure that the icon is named in uppercase, following the convention. For example, name it `YOURCONNECTOR.SVG`.
+
+2. Open file explorer:
+
+   Open your file explorer and navigate to the `public/hyperswitch/Gateway` folder in your Hyperswitch-Control-Center project.
+
+3. Add Icon file:
+
+   Copy and paste your SVG icon file (e.g., `YOURCONNECTOR.SVG`) into the `Gateway` folder.
+
+4. Verify file structure:
+
+   Ensure that the file structure in the `Gateway` folder follows the uppercase convention. For example:
+
+   ```
+   public
+   └── hyperswitch
+       └── Gateway
+           └── YOURCONNECTOR.SVG
+   ```
+    Save the changes made to the `Gateway` folder.
+
+
 ### **Test the connector**
 
 The template code script generates a test file for the connector, containing 20 sanity tests. We anticipate that you will implement these tests when adding a new connector.
