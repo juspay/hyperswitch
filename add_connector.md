@@ -672,15 +672,15 @@ In the `connector/utils.rs` file, you'll discover utility functions that aid in 
 
 This section is explicitly for developers who are using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Below is a more detailed documentation that guides you through updating the connector configuration in the development.toml file in Hyperswitch and running the wasm-pack build command. Please replace placeholders such as /absolute/path/to/ with the actual absolute paths.
 
-1. cargo install wasm-pack
+1. Install wasm-pack: Run the following command to install wasm-pack:
 
-Update Connector Configuration
+```bash 
+cargo install wasm-pack
+```
 
-1. Open `development.toml` file:
+2. Add connector configuration:
 
    Open the `development.toml` file located at `crates/connector_configs/toml/development.toml` in your Hyperswitch project.
-
-2. Add Connector Configuration:
 
    Locate the [stripe] section as an example and add the configuration for the `example_connector`. Here's an example:
 
@@ -701,21 +701,13 @@ Update Connector Configuration
 
    ```
 
-   provide the necessary configuration details for the `example_connector`.
+   provide the necessary configuration details for the `example_connector`. Don't forget to save the file.
 
-3. Save the File:
-
-   Save the changes made to `development.toml`.
-
-Run `wasm-pack` Build Command
-
-Now, update the paths in the `wasm-pack` build command and execute it.
-
-1. Update Paths:
+3. Update Paths:
 
    Replace `/absolute/path/to/hyperswitch-control-center` with the absolute path to your Hyperswitch Control Center repository and `/absolute/path/to/hyperswitch` with the absolute path to your Hyperswitch repository.
 
-2. Run `wasm-pack` Build:
+4. Run `wasm-pack` Build:
 
    Execute the following command in your terminal:
 
