@@ -147,12 +147,9 @@ impl ConnectorCommon for Noon {
                 })
             }
             Err(error_message) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 logger::error!(deserialization_error =? error_message);
-                utils::handle_json_response_deserialization_failure(
-                    res,
-                    "noon".to_owned(),
-                    event_builder,
-                )
+                utils::handle_json_response_deserialization_failure(res, "noon".to_owned())
             }
         }
     }
