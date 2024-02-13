@@ -131,7 +131,7 @@ impl ConnectorCommon for Worldline {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let error = response.errors.into_iter().next().unwrap_or_default();
         Ok(ErrorResponse {

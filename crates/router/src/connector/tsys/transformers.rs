@@ -195,13 +195,13 @@ pub enum TsysPaymentsResponse {
 }
 
 fn get_error_response(
-    connector_error_response: TsysErrorResponse,
+    connector_response: TsysErrorResponse,
     status_code: u16,
 ) -> types::ErrorResponse {
     types::ErrorResponse {
-        code: connector_error_response.response_code,
-        message: connector_error_response.response_message.clone(),
-        reason: Some(connector_error_response.response_message),
+        code: connector_response.response_code,
+        message: connector_response.response_message.clone(),
+        reason: Some(connector_response.response_message),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
@@ -260,8 +260,8 @@ impl<F, T>
                     Ok(get_payments_response(auth_response)),
                     enums::AttemptStatus::Authorized,
                 ),
-                TsysResponseTypes::ErrorResponse(connector_error_response) => (
-                    Err(get_error_response(connector_error_response, item.http_code)),
+                TsysResponseTypes::ErrorResponse(connector_response) => (
+                    Err(get_error_response(connector_response, item.http_code)),
                     enums::AttemptStatus::AuthorizationFailed,
                 ),
             },
@@ -270,8 +270,8 @@ impl<F, T>
                     Ok(get_payments_response(sale_response)),
                     enums::AttemptStatus::Charged,
                 ),
-                TsysResponseTypes::ErrorResponse(connector_error_response) => (
-                    Err(get_error_response(connector_error_response, item.http_code)),
+                TsysResponseTypes::ErrorResponse(connector_response) => (
+                    Err(get_error_response(connector_response, item.http_code)),
                     enums::AttemptStatus::Failure,
                 ),
             },
@@ -280,8 +280,8 @@ impl<F, T>
                     Ok(get_payments_response(capture_response)),
                     enums::AttemptStatus::Charged,
                 ),
-                TsysResponseTypes::ErrorResponse(connector_error_response) => (
-                    Err(get_error_response(connector_error_response, item.http_code)),
+                TsysResponseTypes::ErrorResponse(connector_response) => (
+                    Err(get_error_response(connector_response, item.http_code)),
                     enums::AttemptStatus::CaptureFailed,
                 ),
             },
@@ -290,8 +290,8 @@ impl<F, T>
                     Ok(get_payments_response(void_response)),
                     enums::AttemptStatus::Voided,
                 ),
-                TsysResponseTypes::ErrorResponse(connector_error_response) => (
-                    Err(get_error_response(connector_error_response, item.http_code)),
+                TsysResponseTypes::ErrorResponse(connector_response) => (
+                    Err(get_error_response(connector_response, item.http_code)),
                     enums::AttemptStatus::VoidFailed,
                 ),
             },
@@ -366,8 +366,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TsysSyncResponse, T, types::Paym
                 Ok(get_payments_sync_response(&search_response)),
                 enums::AttemptStatus::from(search_response.transaction_details),
             ),
-            SearchResponseTypes::ErrorResponse(connector_error_response) => (
-                Err(get_error_response(connector_error_response, item.http_code)),
+            SearchResponseTypes::ErrorResponse(connector_response) => (
+                Err(get_error_response(connector_response, item.http_code)),
                 item.data.status,
             ),
         };
@@ -517,8 +517,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                 connector_refund_id: return_response.transaction_id,
                 refund_status: enums::RefundStatus::from(return_response.status),
             }),
-            TsysResponseTypes::ErrorResponse(connector_error_response) => {
-                Err(get_error_response(connector_error_response, item.http_code))
+            TsysResponseTypes::ErrorResponse(connector_response) => {
+                Err(get_error_response(connector_response, item.http_code))
             }
         };
         Ok(Self {
@@ -557,8 +557,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, TsysSyncResponse>>
                     refund_status: enums::RefundStatus::from(search_response.transaction_details),
                 })
             }
-            SearchResponseTypes::ErrorResponse(connector_error_response) => {
-                Err(get_error_response(connector_error_response, item.http_code))
+            SearchResponseTypes::ErrorResponse(connector_response) => {
+                Err(get_error_response(connector_response, item.http_code))
             }
         };
         Ok(Self {

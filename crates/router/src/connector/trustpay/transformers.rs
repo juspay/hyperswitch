@@ -955,7 +955,7 @@ pub struct TrustpayAuthUpdateResponse {
     pub result_info: ResultInfo,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,

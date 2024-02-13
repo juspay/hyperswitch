@@ -113,7 +113,7 @@ impl ConnectorCommon for Checkout {
         };
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(

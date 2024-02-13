@@ -97,7 +97,7 @@ impl ConnectorCommon for Rapyd {
         match response {
             Ok(response_data) => {
                 event_builder.map(|i| i.set_error_response_body(&response_data));
-                router_env::logger::info!(connector_error_response=?response_data);
+                router_env::logger::info!(connector_response=?response_data);
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,

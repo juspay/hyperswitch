@@ -113,7 +113,7 @@ impl ConnectorCommon for Payeezy {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let error_messages: Vec<String> = response
             .error

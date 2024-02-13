@@ -88,6 +88,10 @@ impl ConnectorCommon for Wise {
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         let default_status = response.status.unwrap_or_default().to_string();
         match response.errors {
             Some(errs) => {
@@ -308,7 +312,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let def_res = response.status.unwrap_or_default().to_string();
         let errors = response.errors.unwrap_or_default();

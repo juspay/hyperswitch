@@ -113,7 +113,7 @@ impl ConnectorCommon for Gocardless {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let error_iter = response.error.errors.iter();
         let mut error_reason: Vec<String> = Vec::new();

@@ -206,8 +206,10 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
+
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -336,7 +338,9 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -462,7 +466,9 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(error_response=?response);
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -599,7 +605,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -749,7 +755,7 @@ impl
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -945,7 +951,7 @@ impl
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1071,7 +1077,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1231,7 +1237,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1356,7 +1362,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1468,7 +1474,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1622,7 +1628,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1731,7 +1737,7 @@ impl
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -1862,7 +1868,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,

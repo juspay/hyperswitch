@@ -136,7 +136,7 @@ impl ConnectorCommon for Noon {
         match response {
             Ok(noon_error_response) => {
                 event_builder.map(|i| i.set_error_response_body(&noon_error_response));
-                router_env::logger::info!(connector_error_response=?noon_error_response);
+                router_env::logger::info!(connector_response=?noon_error_response);
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),

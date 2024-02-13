@@ -138,7 +138,7 @@ impl ConnectorCommon for Fiserv {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_error_response=?response);
+        router_env::logger::info!(connector_response=?response);
 
         let fiserv::ErrorResponse { error, details } = response;
 

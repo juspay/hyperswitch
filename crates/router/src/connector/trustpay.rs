@@ -120,7 +120,7 @@ impl ConnectorCommon for Trustpay {
         match response {
             Ok(response_data) => {
                 event_builder.map(|i| i.set_error_response_body(&response_data));
-                router_env::logger::info!(connector_error_response=?response_data);
+                router_env::logger::info!(connector_response=?response_data);
                 let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
                     self.clone(),
@@ -315,6 +315,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .response
             .parse_struct("Trustpay AccessTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_info.result_code.to_string(),
