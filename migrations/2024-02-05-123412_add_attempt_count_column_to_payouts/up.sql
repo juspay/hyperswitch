@@ -1,6 +1,6 @@
 -- Your SQL goes here
 ALTER TABLE payouts
-ADD COLUMN attempt_count SMALLINT NOT NULL DEFAULT 1;;
+ADD COLUMN attempt_count SMALLINT NOT NULL DEFAULT 1;
 
 
 UPDATE payouts
