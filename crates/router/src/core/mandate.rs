@@ -162,7 +162,7 @@ pub async fn update_connector_mandate_id(
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate_details = Option::foreign_from(resp);
 
-    let connector_mandate_id = mandate_details
+    let connector_mandate_reference = mandate_details
         .clone()
         .map(|md| {
             Encode::<types::MandateReference>::encode_to_value(&md)
@@ -172,9 +172,17 @@ pub async fn update_connector_mandate_id(
         .transpose()?;
 
     //Ignore updation if the mandate_id or connector_mandate_id is not present
-    if let Some(connector_id) = connector_mandate_id {
-        if let Some(mandate_ids) = mandate_ids_opt.or({
-            match db
+    if let Some(connector_id) = connector_mandate_reference {
+        let stored_mandate = match mandate_ids_opt {
+            Some(mandate_ids) => {
+                let mandate_id = &mandate_ids.mandate_id;
+                Some(
+                    db.find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
+                        .await
+                        .change_context(errors::ApiErrorResponse::MandateNotFound)?,
+                )
+            }
+            None => match db
                 .find_mandate_by_merchant_id_original_payment_id(
                     merchant_account.as_str(),
                     original_payment_id.as_str(),
@@ -182,21 +190,16 @@ pub async fn update_connector_mandate_id(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)
             {
-                Ok(mandate) => Some(api_models::payments::MandateIds {
-                    mandate_id: mandate.mandate_id,
-                    mandate_reference_id: None,
-                }),
+                Ok(mandate) => Some(mandate),
                 Err(error) => match error.current_context() {
                     errors::ApiErrorResponse::MandateNotFound => None,
                     err => Err(err.clone()).into_report()?,
                 },
-            }
-        }) {
-            let mandate_id = &mandate_ids.mandate_id;
-            let mandate = db
-                .find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
-                .await
-                .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+            },
+        };
+
+        if let Some(mandate) = stored_mandate {
+            let mandate_id = &mandate.mandate_id;
             // only update the connector_mandate_id if existing is none
             if mandate.connector_mandate_id.is_none() {
                 match payment_method_id {
