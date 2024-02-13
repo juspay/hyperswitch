@@ -520,16 +520,6 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
-    async fn find_mandate_by_merchant_id_original_payment_id(
-        &self,
-        merchant_id: &str,
-        original_payment_id: &str,
-    ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        self.diesel_store
-            .find_mandate_by_merchant_id_original_payment_id(merchant_id, original_payment_id)
-            .await
-    }
-
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
