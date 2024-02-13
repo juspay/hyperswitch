@@ -235,6 +235,8 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Delete Dispute Evidence flow
+    DeleteDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
@@ -311,6 +313,8 @@ pub enum Flow {
     GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
+    /// Transfer organization ownership
+    TransferOrgOwnership,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
     /// Generate Sample Data

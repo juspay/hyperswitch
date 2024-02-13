@@ -32,7 +32,7 @@
       "description": "Its my first payment request",
       "authentication_type": "three_ds",
       "return_url": "https://duck.com",
-      "setup_future_usage": "off_session",
+      "setup_future_usage": "on_session",
       "billing": {
         "address": {
           "line1": "1467",

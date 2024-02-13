@@ -315,7 +315,12 @@ fn get_payment_source(
             country,
             ..
         } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details.get_billing_name()?,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "giropay.billing_details",
+                })?
+                .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "giropay.country",
             })?,

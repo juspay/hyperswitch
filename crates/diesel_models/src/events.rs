@@ -5,9 +5,8 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::events};
 
-#[derive(Clone, Debug, Deserialize, Insertable, Serialize, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = events)]
-#[serde(deny_unknown_fields)]
 pub struct EventNew {
     pub event_id: String,
     pub event_type: storage_enums::EventType,

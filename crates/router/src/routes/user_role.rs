@@ -97,6 +97,25 @@ pub async fn update_user_role(
     .await
 }
 
+pub async fn transfer_org_ownership(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::TransferOrgOwnershipRequest>,
+) -> HttpResponse {
+    let flow = Flow::TransferOrgOwnership;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        user_role_core::transfer_org_ownership,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn accept_invitation(
     state: web::Data<AppState>,
     req: HttpRequest,
