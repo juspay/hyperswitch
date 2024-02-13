@@ -46,17 +46,17 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_decryption::kms_decryption(conf, secret_management_client).await;
+        let raw_conf = secrets_decryption::kms_decryption(conf, secret_management_client).await;
 
         #[allow(clippy::expect_used)]
-        let encryption_client = conf
+        let encryption_client = raw_conf
             .encryption_management
             .get_encryption_management_client()
             .await
             .expect("Failed to create encryption management client");
 
         Self {
-            conf: Arc::new(conf),
+            conf: Arc::new(raw_conf),
             encryption_client,
         }
     }

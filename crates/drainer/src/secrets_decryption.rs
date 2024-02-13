@@ -13,25 +13,21 @@ impl SecretsHandler for Database {
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: Box<dyn SecretManagementInterface>,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let db_password = secret_management_client
-            .get_secret(value.get_inner().password.clone())
+        let secured_db_config = value.get_inner();
+        let raw_db_password = secret_management_client
+            .get_secret(secured_db_config.password.clone())
             .await?;
 
         Ok(value.transition_state(|db| Self {
-            username: db.username,
-            password: db_password,
-            host: db.host,
-            port: db.port,
-            dbname: db.dbname,
-            pool_size: db.pool_size,
-            connection_timeout: db.connection_timeout,
+            password: raw_db_password,
+            ..db
         }))
     }
 }
 
 /// # Panics
 ///
-/// Will panic even if kms decryption fails for at least one field
+/// Will panic even if kms decryption fails for at least one secret
 #[allow(clippy::unwrap_used)]
 pub async fn kms_decryption(
     conf: Settings<SecuredSecret>,
