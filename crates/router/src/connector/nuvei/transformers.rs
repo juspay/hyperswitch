@@ -754,25 +754,7 @@ impl<F>
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
             api::PaymentMethodData::MandatePayment => {
-                let connector_mandate_id = &item.request.connector_mandate_id();
-                let related_transaction_id = if item.is_three_ds() {
-                    item.request.related_transaction_id.clone()
-                } else {
-                    None
-                };
-                let device_details = get_device_details(&item.request.get_optional_browser_info())?;
-                Ok(Self {
-                    related_transaction_id,
-                    device_details,
-                    is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
-                    user_token_id: Some(item.request.get_email()?),
-                    payment_option: PaymentOption {
-                        user_payment_option_id: connector_mandate_id.clone(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-            }
+            api::PaymentMethodData::MandatePayment => Self::try_from(item),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
                 payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
@@ -1009,7 +991,9 @@ fn get_card_info<F>(
         related_transaction_id,
         is_rebilling,
         user_token_id,
-        device_details: get_device_details(&browser_information)?,
+        device_details: Option::<DeviceDetails>::foreign_try_from(
+            &item.request.get_optional_browser_info(),
+        )?,
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
@@ -1371,18 +1355,6 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
     }
 }
 
-fn get_device_details(
-    browser_info: &Option<BrowserInformation>,
-) -> Result<Option<DeviceDetails>, error_stack::Report<errors::ConnectorError>> {
-    let device_details = match browser_info {
-        Some(browser_info) => Some(DeviceDetails {
-            ip_address: browser_info.get_ip_address()?,
-        }),
-        None => None,
-    };
-    Ok(device_details)
-}
-
 fn build_error_response<T>(
     response: &NuveiPaymentsResponse,
     http_code: u16,
@@ -1572,6 +1544,51 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
             ),
             ..item.data
         })
+    }
+}
+
+impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for NuveiPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        {
+            let item = data;
+            let connector_mandate_id = &item.request.connector_mandate_id();
+            let related_transaction_id = if item.is_three_ds() {
+                item.request.related_transaction_id.clone()
+            } else {
+                None
+            };
+            Ok(Self {
+                related_transaction_id,
+                device_details: Option::<DeviceDetails>::foreign_try_from(
+                    &item.request.get_optional_browser_info(),
+                )?,
+                is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                user_token_id: Some(item.request.get_email()?),
+                payment_option: PaymentOption {
+                    user_payment_option_id: connector_mandate_id.clone(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<&Option<BrowserInformation>> for Option<DeviceDetails> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(browser_info: &Option<BrowserInformation>) -> Result<Self, Self::Error> {
+        let device_details = match browser_info {
+            Some(browser_info) => Some(DeviceDetails {
+                ip_address: browser_info.get_ip_address()?,
+            }),
+            None => None,
+        };
+        Ok(device_details)
     }
 }
 
