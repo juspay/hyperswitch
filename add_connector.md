@@ -703,11 +703,11 @@ cargo install wasm-pack
 
    provide the necessary configuration details for the `example_connector`. Don't forget to save the file.
 
-3. Update Paths:
+3. Update paths:
 
    Replace `/absolute/path/to/hyperswitch-control-center` with the absolute path to your Hyperswitch Control Center repository and `/absolute/path/to/hyperswitch` with the absolute path to your Hyperswitch repository.
 
-4. Run `wasm-pack` Build:
+4. Run `wasm-pack` build:
 
    Execute the following command in your terminal:
 
