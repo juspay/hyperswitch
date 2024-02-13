@@ -670,7 +670,7 @@ In the `connector/utils.rs` file, you'll discover utility functions that aid in 
 
 ### **Connector configs for control center**
 
-This section is explicitly for developers who are using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Below is a more detailed documentation that guides you through updating the connector configuration in the development.toml file in Hyperswitch and running the wasm-pack build command. Please replace placeholders such as /absolute/path/to/ with the actual absolute paths.
+This section is explicitly for developers who are using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Below is a more detailed documentation that guides you through updating the connector configuration in the `development.toml` file in Hyperswitch and running the wasm-pack build command. Please replace placeholders such as `/absolute/path/to/` with the actual absolute paths.
 
 1. Install wasm-pack: Run the following command to install wasm-pack:
 
