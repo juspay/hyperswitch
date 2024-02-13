@@ -166,10 +166,15 @@ impl
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
                 ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Giropay,
-                bank_account_country: Some(api_models::enums::CountryAlpha2::DE),
+                bank_account_country: Some(country.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "giropay.country",
+                    },
+                )?),
                 bank_account_bank_name: None,
                 bank_account_bic: bank_account_bic.clone(),
                 bank_account_iban: bank_account_iban.clone(),

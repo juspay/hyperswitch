@@ -13,7 +13,6 @@ use time::PrimitiveDateTime;
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
-    pub mandate_type: Option<MandateDataType>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -23,13 +22,6 @@ pub enum MandateDataType {
     MultiUse(Option<MandateAmountData>),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[serde(untagged)]
-pub enum MandateTypeDetails {
-    MandateType(MandateDataType),
-    MandateDetails(MandateDetails),
-}
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
     pub amount: i64,
