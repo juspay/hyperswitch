@@ -3,9 +3,7 @@ use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
 use masking::Secret;
-use serde::Deserialize;
-#[cfg(feature = "payouts")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 

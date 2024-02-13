@@ -13,6 +13,7 @@ use self::transformers as wise;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -26,7 +27,7 @@ use crate::{
     utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payments, events::connector_api_logs::ConnectorEvent, routes};
+use crate::{core::payments, routes};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
