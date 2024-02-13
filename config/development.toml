@@ -233,6 +233,11 @@ port = 3000
 host = "127.0.0.1"
 workers = 1
 
+[cors]
+max_age = 36
+origins = "http://localhost:8080"
+allowed_methods = "GET,POST,PUT,DELETE"
+
 [email]
 sender_email = "example@example.com"
 aws_region = ""

@@ -327,6 +327,11 @@ paypal = { currency = "USD,INR", country = "US" }
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
 
+[cors]
+max_age = 36
+origins = "http://localhost:8080"
+allowed_methods = "GET,POST,PUT,DELETE"
+
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com" # Sender email

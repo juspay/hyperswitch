@@ -91,7 +91,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit);
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -231,6 +231,7 @@ impl Stop for mpsc::Sender<()> {
 
 pub fn get_application_builder(
     request_body_limit: usize,
+    cors: settings::CorsSettings,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -257,7 +258,7 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
-        .wrap(cors::cors())
+        .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::LogSpanInitializer)
