@@ -687,7 +687,7 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
+async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     event_type: enums::EventType,
@@ -775,7 +775,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     Ok(())
 }
 
-pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
+async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     business_profile: diesel_models::business_profile::BusinessProfile,
     webhook: api::OutgoingWebhook,
     state: AppState,
