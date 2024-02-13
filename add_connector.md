@@ -668,6 +668,71 @@ In the `connector/utils.rs` file, you'll discover utility functions that aid in 
   let json_wallet_data: CheckoutGooglePayData =wallet_data.get_wallet_token_as_json()?;
 ```
 
+### **Connector configs for control center**
+
+This section is explicitly for developers who are using the [Hyperswitch Control Center](https://github.com/juspay/hyperswitch-control-center). Below is a more detailed documentation that guides you through updating the connector configuration in the development.toml file in Hyperswitch and running the wasm-pack build command. Please replace placeholders such as /absolute/path/to/ with the actual absolute paths.
+
+1. cargo install wasm-pack
+
+Update Connector Configuration
+
+1. Open `development.toml` file:
+
+   Open the `development.toml` file located at `crates/connector_configs/toml/development.toml` in your Hyperswitch project.
+
+2. Add Connector Configuration:
+
+   Locate the [stripe] section as an example and add the configuration for the `example_connector`. Here's an example:
+
+   ```toml
+   # crates/connector_configs/toml/development.toml
+
+   # Other connector configurations...
+
+   [stripe]
+   [stripe.connector_auth.HeaderKey]
+   api_key="Secret Key"
+
+   # Add any other Stripe-specific configuration here
+
+   [example_connector]
+   # Your specific connector configuration for reference
+   # ...
+
+   ```
+
+   provide the necessary configuration details for the `example_connector`.
+
+3. Save the File:
+
+   Save the changes made to `development.toml`.
+
+Run `wasm-pack` Build Command
+
+Now, update the paths in the `wasm-pack` build command and execute it.
+
+1. Update Paths:
+
+   Replace `/absolute/path/to/hyperswitch-control-center` with the absolute path to your Hyperswitch Control Center repository and `/absolute/path/to/hyperswitch` with the absolute path to your Hyperswitch repository.
+
+2. Run `wasm-pack` Build:
+
+   Execute the following command in your terminal:
+
+   ```bash
+   wasm-pack build --target web --out-dir /absolute/path/to/hyperswitch-control-center/public/hyperswitch/wasm --out-name euclid /absolute/path/to/hyperswitch/crates/euclid_wasm -- --features dummy_connector
+   ```
+
+   This command builds the WebAssembly files for the `dummy_connector` feature and places them in the specified directory.
+
+Notes:
+
+- Ensure that you replace placeholders like `/absolute/path/to/` with the actual absolute paths in your file system.
+- Verify that your connector configurations in `development.toml` are correct and saved before running the `wasm-pack` command.
+- Check for any error messages during the build process and resolve them accordingly.
+
+By following these steps, you should be able to update the connector configuration and build the WebAssembly files successfully.
+
 ### **Test the connector**
 
 The template code script generates a test file for the connector, containing 20 sanity tests. We anticipate that you will implement these tests when adding a new connector.
