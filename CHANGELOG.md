@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.01.24.1-hotfix3
+
+### Refactors
+
+- [Noon] add new field max_amount to mandate request ([#3591](https://github.com/juspay/hyperswitch/pull/3591)) ([`90812c7`](https://github.com/juspay/hyperswitch/commit/90812c7ceb873380cbaa85f89e2237034e74ff4b))
+
+**Full Changelog:** [`2024.01.24.1-hotfix2...2024.01.24.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2024.01.24.1-hotfix2...2024.01.24.1-hotfix3)
+
+- - -
+
 ## 2024.01.24.1-hotfix2
 
 ### Bug Fixes
