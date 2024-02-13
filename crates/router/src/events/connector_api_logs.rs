@@ -87,7 +87,6 @@ impl ConnectorEvent {
     pub fn set_error(&mut self, error: serde_json::Value) {
         self.error = Some(error.to_string());
     }
-
 }
 
 impl TryFrom<ConnectorEvent> for RawEvent {
