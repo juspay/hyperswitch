@@ -1273,38 +1273,26 @@ pub async fn payments_external_authentication(
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAuthorize, payment_id))]
-pub async fn payments_authorize(
+pub async fn post_3ds_payments_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsRequest>,
-    path: web::Path<String>,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<(String, String, String)>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsAuthorize;
-    let mut payload = json_payload.into_inner();
+    let flow = Flow::PaymentsRedirect;
 
-    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
-        return http_not_implemented();
-    };
-
-    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
-        return api::log_and_return_error_response(err);
-    }
-
-    let payment_id = path.into_inner();
+    let (payment_id, merchant_id, connector) = path.into_inner();
     tracing::Span::current().record("payment_id", &payment_id);
-    payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
-    payload.confirm = Some(true);
-    let header_payload = match payment_types::HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => {
-            return api::log_and_return_error_response(err);
-        }
+    let param_string = req.query_string();
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        force_sync: true,
+        json_payload: json_payload.map(|payload| payload.0),
+        param: Some(param_string.to_string()),
+        connector: Some(connector),
+        creds_identifier: None,
     };
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -1314,26 +1302,15 @@ pub async fn payments_authorize(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<
-                api_types::Authorize,
-                payment_types::PaymentsResponse,
-                _,
-                _,
-                _,
-                Oss,
-            >(
+            <payments::PaymentAuthenticateCompleteAuthorize as PaymentRedirectFlow<Oss>>::handle_payments_redirect_response(
+                &payments::PaymentAuthenticateCompleteAuthorize {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                payments::PaymentConfirm,
                 req,
-                auth_flow,
-                payments::CallConnectorAction::Trigger,
-                None,
-                header_payload,
             )
         },
-        &*auth_type,
+        &auth::MerchantIdAuth(merchant_id),
         locking_action,
     ))
     .await

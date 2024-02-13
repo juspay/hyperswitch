@@ -391,7 +391,10 @@ impl TryFrom<&TokenexRouterData<&types::ConnectorAuthenticationRouterData>>
             generate_challenge_request: true,
             merchant_details,
             message_category: MessageCategory::Payment,
-            notification_url: "https://webhook.site/8e2e1fd3-1ab0-4ffd-84b7-0c01daf2e2b0".into(),
+            notification_url: request
+                .return_url
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             authentication_indicator: AuthenticationIndicator::PaymentTransaction,
             purchase_details,
             transaction_type: 1,
