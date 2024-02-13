@@ -209,9 +209,7 @@ where
                                         let updated_card = Some(CardDetailFromLocker {
                                             scheme: None,
                                             last4_digits: Some(
-                                                card.card_number.to_string().split_off(
-                                                    card.card_number.to_string().len() - 4,
-                                                ),
+                                                card.card_number.clone().get_last4(),
                                             ),
                                             issuer_country: None,
                                             card_number: Some(card.card_number),
