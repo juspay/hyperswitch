@@ -245,8 +245,7 @@ pub struct DummyConnector {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct CorsSettings {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_hashset")]
     pub origins: HashSet<String>,
     #[serde(default)]
     pub wildcard_origin: bool,
