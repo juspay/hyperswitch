@@ -151,6 +151,7 @@ pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
+    token: Option<String>,
 ) -> RouterResult<(storage::Authentication, AuthenticationData)> {
     let mut authentication_data = authentication
         .authentication_data
@@ -170,7 +171,7 @@ pub async fn update_trackers<F: Clone, Req>(
             AuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
-                connector_authentication_id,
+                authentication_connector_id,
                 three_ds_method_data,
                 three_ds_method_url,
                 message_version,
@@ -191,11 +192,11 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    connector_authentication_id: Some(connector_authentication_id),
-                    payment_method_id: None,
+                    authentication_connector_id: Some(authentication_connector_id),
+                    payment_method_id: token,
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Started),
-                    lifecycle_status: None,
+                    authentication_lifecycle_status: None,
                 }
             }
             AuthenticationResponseData::AuthNResponse { authn_flow_type } => {
@@ -205,11 +206,11 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    connector_authentication_id: None,
+                    authentication_connector_id: None,
                     payment_method_id: None,
                     authentication_type: None,
                     authentication_status: None,
-                    lifecycle_status: None,
+                    authentication_lifecycle_status: None,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse { cavv } => {
@@ -219,21 +220,21 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    connector_authentication_id: None,
+                    authentication_connector_id: None,
                     payment_method_id: None,
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Success),
-                    lifecycle_status: None,
+                    authentication_lifecycle_status: None,
                 }
             }
         }),
         Err(_error) => Some(storage::AuthenticationUpdate::AuthenticationDataUpdate {
             authentication_data: None,
-            connector_authentication_id: None,
+            authentication_connector_id: None,
             payment_method_id: None,
             authentication_type: None,
             authentication_status: Some(common_enums::AuthenticationStatus::Failed),
-            lifecycle_status: None,
+            authentication_lifecycle_status: None,
         }),
     };
     let authentication_result = if let Some(authentication_update) = authentication_update {

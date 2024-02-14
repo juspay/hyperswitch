@@ -63,8 +63,8 @@ pub struct PaymentAttemptBatchNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
-    pub external_3ds_authentication_requested: Option<bool>,
-    pub authentication_provider: Option<String>,
+    pub external_three_ds_authentication_requested: Option<bool>,
+    pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
 }
 
@@ -119,8 +119,9 @@ impl PaymentAttemptBatchNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             net_amount: self.net_amount,
-            external_3ds_authentication_requested: self.external_3ds_authentication_requested,
-            authentication_provider: self.authentication_provider,
+            external_three_ds_authentication_requested: self
+                .external_three_ds_authentication_requested,
+            authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
         }
     }

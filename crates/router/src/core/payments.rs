@@ -170,7 +170,7 @@ where
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
     let separate_authentication = payment_data
         .payment_attempt
-        .external_3ds_authentication_requested;
+        .external_three_ds_authentication_requested;
     payment_data = tokenize_in_router_when_confirm_false(
         state,
         &operation,
@@ -979,106 +979,41 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
-        let payment_attempt = match req.resource_id.clone() {
-            api_models::payments::PaymentIdType::PaymentIntentId(payment_id) => {
-                let payment_intent = state
-                    .store
-                    .find_payment_intent_by_payment_id_merchant_id(
-                        &payment_id,
-                        &merchant_account.merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                state
-                    .store
-                    .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                        &payment_id,
-                        &merchant_account.merchant_id,
-                        &payment_intent.active_attempt.get_id(),
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
-            }
-            _ => {
-                super::webhooks::get_payment_attempt_from_object_reference_id(
-                    &state,
-                    api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentIntentId(
-                            req.resource_id.to_string(),
-                        ),
-                    ),
-                    &merchant_account,
-                )
-                .await?
-            }
+        let payment_sync_req = api::PaymentsRetrieveRequest {
+            resource_id: req.resource_id,
+            merchant_id: req.merchant_id,
+            param: req.param,
+            force_sync: req.force_sync,
+            connector: req.connector,
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
+            client_secret: None,
+            expand_attempts: None,
+            expand_captures: None,
         };
-        if payment_attempt.external_3ds_authentication_requested == Some(true) {
-            let payment_id = payment_attempt.payment_id;
-            let request = api::PaymentsRequest {
-                payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                    payment_id,
-                )),
-                payment_token: payment_attempt.payment_token,
-                ..Default::default()
-            };
-            Box::pin(payments_core::<
-                api::Authorize,
-                api::PaymentsResponse,
-                _,
-                _,
-                _,
-                Ctx,
-            >(
-                state.clone(),
-                merchant_account.to_owned(),
-                merchant_key_store,
-                PaymentConfirm,
-                request,
-                services::api::AuthFlow::Merchant,
-                CallConnectorAction::Trigger,
-                None,
-                HeaderPayload::default(),
-            ))
-            .await
-        } else {
-            let payment_sync_req = api::PaymentsRetrieveRequest {
-                resource_id: req.resource_id,
-                merchant_id: req.merchant_id,
-                param: req.param,
-                force_sync: req.force_sync,
-                connector: req.connector,
-                merchant_connector_details: req.creds_identifier.map(|creds_id| {
-                    api::MerchantConnectorDetailsWrap {
-                        creds_identifier: creds_id,
-                        encoded_data: None,
-                    }
-                }),
-                client_secret: None,
-                expand_attempts: None,
-                expand_captures: None,
-            };
-            Box::pin(payments_core::<
-                api::PSync,
-                api::PaymentsResponse,
-                _,
-                _,
-                _,
-                Ctx,
-            >(
-                state.clone(),
-                merchant_account,
-                merchant_key_store,
-                PaymentStatus,
-                payment_sync_req,
-                services::api::AuthFlow::Merchant,
-                connector_action,
-                None,
-                HeaderPayload::default(),
-            ))
-            .await
-        }
+        Box::pin(payments_core::<
+            api::PSync,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
+            state.clone(),
+            merchant_account,
+            merchant_key_store,
+            PaymentStatus,
+            payment_sync_req,
+            services::api::AuthFlow::Merchant,
+            connector_action,
+            None,
+            HeaderPayload::default(),
+        ))
+        .await
     }
     fn generate_response(
         &self,
@@ -1097,6 +1032,70 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
 
     fn get_payment_action(&self) -> services::PaymentAction {
         services::PaymentAction::PSync
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PaymentAuthenticateCompleteAuthorize;
+
+#[async_trait::async_trait]
+impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticateCompleteAuthorize {
+    async fn call_payment_flow(
+        &self,
+        state: &AppState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        req: PaymentsRedirectResponseData,
+        connector_action: CallConnectorAction,
+    ) -> RouterResponse<api::PaymentsResponse> {
+        let payment_confirm_req = api::PaymentsRequest {
+            payment_id: Some(req.resource_id.clone()),
+            merchant_id: req.merchant_id.clone(),
+            feature_metadata: Some(api_models::payments::FeatureMetadata {
+                redirect_response: Some(api_models::payments::RedirectResponse {
+                    param: req.param.map(Secret::new),
+                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                }),
+            }),
+            ..Default::default()
+        };
+        Box::pin(payments_core::<
+            api::Authorize,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
+            state.clone(),
+            merchant_account,
+            merchant_key_store,
+            PaymentConfirm,
+            payment_confirm_req,
+            services::api::AuthFlow::Merchant,
+            connector_action,
+            None,
+            HeaderPayload::default(),
+        ))
+        .await
+    }
+    fn generate_response(
+        &self,
+        payments_response: api_models::payments::PaymentsResponse,
+        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_id: String,
+        connector: String,
+    ) -> RouterResult<api::RedirectionResponse> {
+        helpers::get_handle_response_url(
+            payment_id,
+            &business_profile,
+            payments_response,
+            connector,
+        )
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::CompleteAuthorize
     }
 }
 
@@ -3131,20 +3130,20 @@ pub async fn payment_external_authentication(
     )
     .await?;
 
-    let authentication_provider = payment_attempt
-        .authentication_provider
+    let authentication_connector = payment_attempt
+        .authentication_connector
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account = db
         .find_merchant_connector_account_by_profile_id_connector_name(
             profile_id,
-            &authentication_provider,
+            &authentication_connector,
             &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: format!("profile id {profile_id} and connector name {authentication_provider}"),
+            id: format!("profile id {profile_id} and connector name {authentication_connector}"),
         })?;
 
     let authentication = db
@@ -3174,7 +3173,6 @@ pub async fn payment_external_authentication(
             token,
             payment_attempt
                 .payment_method
-                .clone()
                 .unwrap_or(storage_enums::PaymentMethod::Card),
         );
         let token_data_string = redis_conn
@@ -3277,11 +3275,14 @@ pub async fn payment_external_authentication(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "browser_info",
         })?;
-    let return_url = Some(helpers::create_redirect_url(
+    let payment_connector_name = payment_attempt
+        .connector
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    let return_url = Some(helpers::create_authorize_url(
         &state.conf.server.base_url,
         &payment_attempt.clone(),
-        &authentication_provider,
-        None,
+        payment_connector_name,
     ));
     let device_channel = if req.sdk_information.is_some() {
         "01".to_string()
@@ -3290,7 +3291,7 @@ pub async fn payment_external_authentication(
     };
     let authentication_response = authentication_core::perform_authentication(
         &state,
-        authentication_provider,
+        authentication_connector,
         payment_method_details
             .ok_or(errors::ApiErrorResponse::InternalServerError)?
             .0,

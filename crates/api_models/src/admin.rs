@@ -105,7 +105,7 @@ pub struct MerchantAccountCreate {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationDetails {
     // Authenticatin provider
-    pub authentication_providers: Vec<String>,
+    pub authentication_connectors: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]

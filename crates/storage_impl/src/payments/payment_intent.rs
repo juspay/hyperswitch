@@ -103,6 +103,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     authorization_count: new.authorization_count,
                     fingerprint_id: new.fingerprint_id.clone(),
                     session_expiry: new.session_expiry,
+                    request_external_three_ds_authentication: new
+                        .request_external_three_ds_authentication,
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -772,6 +774,7 @@ impl DataModelExt for PaymentIntentNew {
             authorization_count: self.authorization_count,
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
         }
     }
 
@@ -817,6 +820,8 @@ impl DataModelExt for PaymentIntentNew {
             authorization_count: storage_model.authorization_count,
             fingerprint_id: storage_model.fingerprint_id,
             session_expiry: storage_model.session_expiry,
+            request_external_three_ds_authentication: storage_model
+                .request_external_three_ds_authentication,
         }
     }
 }
@@ -867,6 +872,7 @@ impl DataModelExt for PaymentIntent {
             authorization_count: self.authorization_count,
             fingerprint_id: self.fingerprint_id,
             session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: self.request_external_three_ds_authentication,
         }
     }
 
@@ -913,6 +919,8 @@ impl DataModelExt for PaymentIntent {
             authorization_count: storage_model.authorization_count,
             fingerprint_id: storage_model.fingerprint_id,
             session_expiry: storage_model.session_expiry,
+            request_external_three_ds_authentication: storage_model
+                .request_external_three_ds_authentication,
         }
     }
 }
@@ -997,6 +1005,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 updated_by,
                 fingerprint_id,
                 session_expiry,
+                request_external_three_ds_authentication,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -1017,6 +1026,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 updated_by,
                 fingerprint_id,
                 session_expiry,
+                request_external_three_ds_authentication,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,

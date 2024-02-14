@@ -799,9 +799,18 @@ pub async fn create_payment_connector(
 
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+    let authentication_connector =
+        api_enums::convert_authentication_connector(req.connector_name.to_string().as_str());
 
     if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            })
+            .into_report();
+        }
+    } else if authentication_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
             })

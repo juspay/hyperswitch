@@ -339,6 +339,8 @@ pub enum Flow {
     AcceptInvitation,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
 }
 
 ///

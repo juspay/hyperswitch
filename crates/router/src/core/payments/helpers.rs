@@ -865,6 +865,17 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+pub fn create_authorize_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/payments/{}/{}/authorize/{}",
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+    )
+}
+
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &String,
@@ -1733,7 +1744,7 @@ pub async fn store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
-    ) || payment_attempt.external_3ds_authentication_requested == Some(true)
+    ) || payment_attempt.external_three_ds_authentication_requested == Some(true)
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -2641,6 +2652,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -2696,6 +2708,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -2750,6 +2763,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3168,9 +3182,9 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
-            external_3ds_authentication_requested: old_payment_attempt
-                .external_3ds_authentication_requested,
-            authentication_provider: None,
+            external_three_ds_authentication_requested: old_payment_attempt
+                .external_three_ds_authentication_requested,
+            authentication_connector: None,
             authentication_id: None,
         }
     }

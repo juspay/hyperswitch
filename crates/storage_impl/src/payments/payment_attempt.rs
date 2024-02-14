@@ -390,9 +390,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     unified_code: payment_attempt.unified_code.clone(),
                     unified_message: payment_attempt.unified_message.clone(),
-                    external_3ds_authentication_requested: payment_attempt
-                        .external_3ds_authentication_requested,
-                    authentication_provider: payment_attempt.authentication_provider.clone(),
+                    external_three_ds_authentication_requested: payment_attempt
+                        .external_three_ds_authentication_requested,
+                    authentication_connector: payment_attempt.authentication_connector.clone(),
                     authentication_id: payment_attempt.authentication_id.clone(),
                 };
 
@@ -1083,8 +1083,9 @@ impl DataModelExt for PaymentAttempt {
             merchant_connector_id: self.merchant_connector_id,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
-            external_3ds_authentication_requested: self.external_3ds_authentication_requested,
-            authentication_provider: self.authentication_provider,
+            external_three_ds_authentication_requested: self
+                .external_three_ds_authentication_requested,
+            authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
         }
     }
@@ -1141,9 +1142,9 @@ impl DataModelExt for PaymentAttempt {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
-            external_3ds_authentication_requested: storage_model
-                .external_3ds_authentication_requested,
-            authentication_provider: storage_model.authentication_provider,
+            external_three_ds_authentication_requested: storage_model
+                .external_three_ds_authentication_requested,
+            authentication_connector: storage_model.authentication_connector,
             authentication_id: storage_model.authentication_id,
         }
     }
@@ -1200,8 +1201,9 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: self.merchant_connector_id,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
-            external_3ds_authentication_requested: self.external_3ds_authentication_requested,
-            authentication_provider: self.authentication_provider,
+            external_three_ds_authentication_requested: self
+                .external_three_ds_authentication_requested,
+            authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
         }
     }
@@ -1256,9 +1258,9 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
-            external_3ds_authentication_requested: storage_model
-                .external_3ds_authentication_requested,
-            authentication_provider: storage_model.authentication_provider,
+            external_three_ds_authentication_requested: storage_model
+                .external_three_ds_authentication_requested,
+            authentication_connector: storage_model.authentication_connector,
             authentication_id: storage_model.authentication_id,
         }
     }
@@ -1534,14 +1536,14 @@ impl DataModelExt for PaymentAttemptUpdate {
             },
             Self::AuthenticationUpdate {
                 status,
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationUpdate {
                 status,
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
             },
@@ -1815,14 +1817,14 @@ impl DataModelExt for PaymentAttemptUpdate {
             },
             DieselPaymentAttemptUpdate::AuthenticationUpdate {
                 status,
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
             } => Self::AuthenticationUpdate {
                 status,
-                external_3ds_authentication_requested,
-                authentication_provider,
+                external_three_ds_authentication_requested,
+                authentication_connector,
                 authentication_id,
                 updated_by,
             },

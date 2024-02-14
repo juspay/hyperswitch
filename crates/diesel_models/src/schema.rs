@@ -67,9 +67,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        connector -> Varchar,
+        authentication_connector -> Varchar,
         #[max_length = 64]
-        connector_authentication_id -> Nullable<Varchar>,
+        authentication_connector_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Jsonb>,
         #[max_length = 64]
         payment_method_id -> Varchar,
@@ -78,7 +78,7 @@ diesel::table! {
         #[max_length = 64]
         authentication_status -> Varchar,
         #[max_length = 64]
-        lifecycle_status -> Varchar,
+        authentication_lifecycle_status -> Varchar,
         created_at -> Timestamp,
         modified_at -> Timestamp,
     }
@@ -716,9 +716,9 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
-        external_3ds_authentication_requested -> Nullable<Bool>,
+        external_three_ds_authentication_requested -> Nullable<Bool>,
         #[max_length = 64]
-        authentication_provider -> Nullable<Varchar>,
+        authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         authentication_id -> Nullable<Varchar>,
     }
@@ -788,6 +788,7 @@ diesel::table! {
         session_expiry -> Nullable<Timestamp>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        request_external_three_ds_authentication -> Nullable<Bool>,
     }
 }
 

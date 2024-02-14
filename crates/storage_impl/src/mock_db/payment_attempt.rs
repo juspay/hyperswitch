@@ -147,9 +147,9 @@ impl PaymentAttemptInterface for MockDb {
             merchant_connector_id: payment_attempt.merchant_connector_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
-            external_3ds_authentication_requested: payment_attempt
-                .external_3ds_authentication_requested,
-            authentication_provider: payment_attempt.authentication_provider,
+            external_three_ds_authentication_requested: payment_attempt
+                .external_three_ds_authentication_requested,
+            authentication_connector: payment_attempt.authentication_connector,
             authentication_id: payment_attempt.authentication_id,
         };
         payment_attempts.push(payment_attempt.clone());
