@@ -202,7 +202,9 @@ pub async fn get_decrypted_response_payload(
 
     #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
+        }
     };
 
     #[cfg(feature = "aws_kms")]
@@ -262,7 +264,9 @@ pub async fn mk_basilisk_req(
 
     #[cfg(feature = "aws_kms")]
     let public_key = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
+        }
     };
 
     #[cfg(not(feature = "aws_kms"))]
@@ -563,7 +567,8 @@ pub async fn mk_delete_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
 
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");

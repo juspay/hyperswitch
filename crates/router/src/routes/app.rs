@@ -37,8 +37,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
-    payment_link::*, user::*, user_role::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
+    user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
