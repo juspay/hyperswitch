@@ -28,6 +28,7 @@ impl Default for super::settings::CorsSettings {
                     .into_iter()
                     .map(ToString::to_string),
             ),
+            wildcard_origin: false,
             max_age: 30,
         }
     }

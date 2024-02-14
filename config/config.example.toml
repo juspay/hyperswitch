@@ -328,9 +328,10 @@ key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
 
 [cors]
-max_age = 36
-origins = "http://localhost:8080"
-allowed_methods = "GET,POST,PUT,DELETE"
+max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
+wildcard_origin = false # If true, allows any origin to make requests
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]

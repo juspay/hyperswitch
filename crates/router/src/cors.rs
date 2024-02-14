@@ -9,8 +9,12 @@ pub fn cors(config: settings::CorsSettings) -> actix_cors::Cors {
         .allowed_methods(allowed_methods)
         .max_age(config.max_age);
 
-    for origin in &config.origins {
-        cors = cors.allowed_origin(origin);
+    if config.wildcard_origin {
+        cors = cors.allow_any_origin()
+    } else {
+        for origin in &config.origins {
+            cors = cors.allowed_origin(origin);
+        }
     }
 
     cors

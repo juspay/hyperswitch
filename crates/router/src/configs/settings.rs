@@ -246,7 +246,10 @@ pub struct DummyConnector {
 #[derive(Debug, Deserialize, Clone)]
 pub struct CorsSettings {
     #[serde(deserialize_with = "deserialize_hashset")]
+    #[serde(default)]
     pub origins: HashSet<String>,
+    #[serde(default)]
+    pub wildcard_origin: bool,
     pub max_age: usize,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub allowed_methods: HashSet<String>,
@@ -723,6 +726,8 @@ impl Settings {
         self.secrets.validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+
+        self.cors.validate()?;
 
         self.scheduler
             .as_ref()

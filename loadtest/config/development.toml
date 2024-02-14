@@ -254,6 +254,12 @@ bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.giropay = {connector_list = "adyen,globalpay"}
 
 
+[cors]
+max_age = 30
+origins = "http://localhost:8080"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
+
 [mandates.update_mandate_supported]
 card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
