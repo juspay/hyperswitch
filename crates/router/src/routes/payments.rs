@@ -1259,7 +1259,7 @@ pub async fn payments_external_authentication(
 
 #[utoipa::path(
     post,
-    path = "/payments/{payment_id}/authorize",
+    path = "/payments/{payment_id}/{merchant_id}/authorize/{connector}",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
