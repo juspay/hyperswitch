@@ -1,6 +1,5 @@
 use cards::CardNumber;
 use common_utils;
-use error_stack::ResultExt;
 
 use super::{types, utils};
 use crate::{
@@ -17,9 +16,7 @@ use crate::{
     types::{
         api,
         authentication::{AuthenticationResponseData, PreAuthNRequestData},
-        domain, storage,
-        transformers::ForeignFrom,
-        RouterData,
+        domain, storage, RouterData,
     },
 };
 
@@ -50,63 +47,9 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
                 payment_data.token.clone(),
             )
             .await?;
-            let external_three_ds_authentication_requested =
-                if authentication_data.maximum_supported_version.0 == 2 {
-                    *should_continue_confirm_transaction = false; // if 3ds version is >= 2
-                    true
-                } else {
-                    false
-                };
-            let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-                status: common_enums::AttemptStatus::foreign_from(
-                    authentication.authentication_status,
-                ),
-                external_three_ds_authentication_requested: Some(
-                    external_three_ds_authentication_requested,
-                ),
-                authentication_connector: Some(three_ds_connector_account.connector_name.clone()),
-                authentication_id: Some(authentication.authentication_id.clone()),
-                updated_by: merchant_account.storage_scheme.to_string(),
-            };
-            payment_data.payment_attempt.status =
-                common_enums::AttemptStatus::foreign_from(authentication.authentication_status);
-            payment_data
-                .payment_attempt
-                .external_three_ds_authentication_requested =
-                Some(external_three_ds_authentication_requested);
-            payment_data.payment_attempt.authentication_id =
-                Some(authentication.authentication_id.clone());
-            payment_data.payment_attempt.authentication_connector =
-                Some(three_ds_connector_account.connector_name.clone());
-            state
-                .store
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.to_owned(),
-                    attempt_update,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(ApiErrorResponse::PaymentNotFound)?;
-            let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
-                status: api_models::enums::IntentStatus::foreign_from(
-                    payment_data.payment_attempt.status,
-                ),
-                updated_by: merchant_account.storage_scheme.to_string(),
-                incremental_authorization_allowed: payment_data
-                    .payment_intent
-                    .incremental_authorization_allowed,
-            };
-            payment_data.payment_intent.status =
-                api_models::enums::IntentStatus::foreign_from(payment_data.payment_attempt.status);
-            state
-                .store
-                .update_payment_intent(
-                    payment_data.payment_intent.clone(),
-                    payment_intent_update,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(ApiErrorResponse::PaymentNotFound)?;
+            if authentication_data.is_separate_authn_required() {
+                *should_continue_confirm_transaction = true;
+            }
             payment_data.authentication = Some((authentication, authentication_data))
         }
         types::AuthenthenticationFlowInput::PaymentMethodAuthNFlow {

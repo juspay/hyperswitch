@@ -1351,6 +1351,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1372,6 +1375,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1632,6 +1638,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1653,6 +1662,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id: connector_id,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

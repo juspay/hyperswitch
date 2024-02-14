@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{
     crypto::{self, SignMessage},
-    ext_traits::{AsyncExt, Encode},
+    ext_traits::{AsyncExt, Encode, ValueExt},
 };
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
@@ -796,8 +796,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let frm_message = payment_data.frm_message.clone();
 
         let (mut intent_status, mut attempt_status, (error_code, error_message)) =
-            match frm_suggestion {
-                Some(FrmSuggestion::FrmCancelTransaction) => (
+            match (frm_suggestion, payment_data.authentication.as_ref()) {
+                (Some(FrmSuggestion::FrmCancelTransaction), _) => (
                     storage_enums::IntentStatus::Failed,
                     storage_enums::AttemptStatus::Failure,
                     frm_message.map_or((None, None), |fraud_check| {
@@ -807,17 +807,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         )
                     }),
                 ),
-                Some(FrmSuggestion::FrmManualReview) => (
+                (Some(FrmSuggestion::FrmManualReview), _) => (
                     storage_enums::IntentStatus::RequiresMerchantAction,
                     storage_enums::AttemptStatus::Unresolved,
                     (None, None),
                 ),
-                _ => {
-                    if payment_data
-                        .payment_attempt
-                        .external_three_ds_authentication_requested
-                        == Some(true)
-                    {
+                (_, Some((_authentication, authentication_data))) => {
+                    if authentication_data.is_separate_authn_required() {
                         (
                             storage_enums::IntentStatus::RequiresCustomerAction,
                             storage_enums::AttemptStatus::AuthenticationPending,
@@ -831,6 +827,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         )
                     }
                 }
+                (_, None) => (
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::AttemptStatus::Pending,
+                    (None, None),
+                ),
             };
 
         let connector = payment_data.payment_attempt.connector.clone();
@@ -1055,6 +1056,19 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
+        let (
+            external_three_ds_authentication_requested,
+            authentication_connector,
+            authentication_id,
+        ) = match payment_data.authentication.as_ref() {
+            Some((authentication, authentication_data)) => (
+                Some(authentication_data.is_separate_authn_required()),
+                Some(authentication.authentication_connector.clone()),
+                Some(authentication.authentication_id.clone()),
+            ),
+            None => (None, None, None),
+        };
+
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1080,6 +1094,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        external_three_ds_authentication_requested,
+                        authentication_connector,
+                        authentication_id,
                     },
                     storage_scheme,
                 )
