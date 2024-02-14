@@ -885,7 +885,7 @@ fn raise_webhooks_analytics_event(
         None
     };
 
-    let outgoing_webhook_event_content = content.get_outgoing_webhook_event_type();
+    let outgoing_webhook_event_content = content.get_outgoing_webhook_event_content();
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id.to_owned(),
         event.event_id.clone(),
