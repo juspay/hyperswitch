@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
 aws_s3 = ["external_services/aws_s3"]
 aws_kms = ["external_services/aws_kms"]
 hashicorp-vault = ["external_services/hashicorp-vault"]
@@ -30,8 +30,8 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgra
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = ["payout_retry"]
-payout_retry = []
+payouts = []
+payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
 

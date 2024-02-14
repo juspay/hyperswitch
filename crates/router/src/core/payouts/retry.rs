@@ -32,36 +32,30 @@ pub async fn do_gsm_actions(
 ) -> RouterResult<PayoutData> {
     let mut retries = None;
 
-    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
-
-    let mut initial_gsm = get_gsm(state, &original_connector_data, &payout_data).await?;
+    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
     let mut connector = original_connector_data;
 
     loop {
-        // Use initial_gsm for first time alone
-        let gsm = match initial_gsm.as_ref() {
-            Some(gsm) => Some(gsm.clone()),
-            None => get_gsm(state, &connector, &payout_data).await?,
-        };
+        let gsm = get_gsm(state, &connector, &payout_data).await?;
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {
                 retries = get_retries(state, retries, &merchant_account.merchant_id).await;
 
                 if retries.is_none() || retries == Some(0) {
-                    metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
                     logger::info!("retries exhausted for auto_retry payment");
                     break;
                 }
 
                 if connectors.len() == 0 {
                     logger::info!("connectors exhausted for auto_retry payment");
-                    metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
                     break;
                 }
 
-                connector = super::get_first_connector(&mut connectors)?;
+                connector = super::get_next_connector(&mut connectors)?;
 
                 payout_data = do_retry(
                     &state.clone(),
@@ -85,7 +79,6 @@ pub async fn do_gsm_actions(
             }
             api_models::gsm::GsmDecision::DoDefault => break,
         }
-        initial_gsm = None;
     }
     Ok(payout_data)
 }
@@ -156,7 +149,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -171,7 +164,7 @@ pub async fn do_retry(
     mut payout_data: PayoutData,
     req: &PayoutCreateRequest,
 ) -> RouterResult<PayoutData> {
-    metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYOUT_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
     modify_trackers(state, &connector, merchant_account, &mut payout_data).await?;
 
@@ -239,7 +232,10 @@ pub async fn modify_trackers(
     Ok(())
 }
 
-pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &String) -> bool {
+pub async fn config_should_call_gsm_payout(
+    db: &dyn StorageInterface,
+    merchant_id: &String,
+) -> bool {
     let config = db
         .find_config_by_key_unwrap_or(
             format!("should_call_gsm_payout_{}", merchant_id).as_str(),

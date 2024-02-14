@@ -46,7 +46,7 @@ pub struct PayoutData {
 }
 
 // ********************************************** CORE FLOWS **********************************************
-pub fn get_first_connector(
+pub fn get_next_connector(
     connectors: &mut IntoIter<api::ConnectorData>,
 ) -> RouterResult<api::ConnectorData> {
     connectors
@@ -163,7 +163,7 @@ pub async fn make_connector_decision(
         api::ConnectorCallType::Retryable(connectors) => {
             let mut connectors = connectors.into_iter();
 
-            let connector_data = get_first_connector(&mut connectors)?;
+            let connector_data = get_next_connector(&mut connectors)?;
 
             payout_data = call_connector_payout(
                 state,
@@ -177,12 +177,18 @@ pub async fn make_connector_decision(
 
             #[cfg(feature = "payout_retry")]
             {
+                println!("inside_retry_body");
                 use crate::core::payouts::retry::{self, GsmValidation};
-                let config_bool =
-                    retry::config_should_call_gsm(&*state.store, &merchant_account.merchant_id)
-                        .await;
+                let config_bool = retry::config_should_call_gsm_payout(
+                    &*state.store,
+                    &merchant_account.merchant_id,
+                )
+                .await;
+
+                println!("retry_config {:?}", config_bool);
 
                 if config_bool && payout_data.should_call_gsm() {
+                    println!("inside_retry_logic");
                     payout_data = retry::do_gsm_actions(
                         state,
                         connectors,

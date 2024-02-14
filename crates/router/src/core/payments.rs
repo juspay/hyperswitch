@@ -2929,7 +2929,6 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    #[allow(unused_variables)]
     let (profile_id, routing_algorithm) = match operation_data {
         TransactionData::Payment(payment_data) => {
             if cfg!(feature = "business_profile_routing") {
