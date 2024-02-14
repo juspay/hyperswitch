@@ -2342,6 +2342,7 @@ dependencies = [
  "diesel_models",
  "error-stack",
  "external_services",
+ "hyperswitch_interfaces",
  "masking",
  "mime",
  "once_cell",

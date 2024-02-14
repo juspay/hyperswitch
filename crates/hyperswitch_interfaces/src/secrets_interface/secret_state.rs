@@ -8,12 +8,12 @@ use serde::{Deserialize, Deserializer};
 pub trait SecretState {}
 
 /// Decrypted state
-#[derive(Debug, Clone, Deserialize)]
-pub enum RawSecret {}
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct RawSecret {}
 
 /// Encrypted state
-#[derive(Debug, Clone, Deserialize)]
-pub enum SecuredSecret {}
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SecuredSecret {}
 
 impl SecretState for RawSecret {}
 impl SecretState for SecuredSecret {}

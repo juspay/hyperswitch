@@ -5,7 +5,17 @@ num_partitions = 64
 shutdown_interval = 1000
 stream_name = "drainer_stream"
 
-[kms]
+[secrets_management]
+secrets_manager = "aws_kms"
+
+[secrets_management.aws_kms]
+key_id = "kms_key_id"
+region = "kms_region"
+
+[encryption_management]
+encryption_manager = "aws_kms"
+
+[encryption_management.aws_kms]
 key_id = "kms_key_id"
 region = "kms_region"
 
