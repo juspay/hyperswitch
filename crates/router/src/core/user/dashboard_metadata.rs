@@ -4,10 +4,10 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
+use masking::ExposeInterface;
+#[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::AppState,
@@ -15,6 +15,8 @@ use crate::{
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, types::domain};
 
 pub async fn set_metadata(
     state: AppState,
@@ -446,8 +448,8 @@ async fn insert_metadata(
                 metadata = utils::update_user_scoped_metadata(
                     state,
                     user.user_id.clone(),
-                    user.merchant_id,
-                    user.org_id,
+                    user.merchant_id.clone(),
+                    user.org_id.clone(),
                     metadata_key,
                     data.clone(),
                 )
@@ -457,7 +459,13 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                if utils::is_prod_email_required(&data) {
+                let user_data = user.get_user(state).await?;
+                let user_email = domain::UserEmail::from_pii_email(user_data.email.clone())
+                    .change_context(UserErrors::InternalServerError)?
+                    .get_secret()
+                    .expose();
+
+                if utils::is_prod_email_required(&data, user_email) {
                     let email_contents = email_types::BizEmailProd::new(state, data)?;
                     let send_email_result = state
                         .email_client
