@@ -19,8 +19,10 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
+
+    // The endpoint '/webhooks/{merchant_id}/{mca_id OR connector_name}' manages incoming webhooks for merchants.
+    // The endpoint '/webhooks/unified/{connector_name}' is designed for handling incoming webhooks specific to the merchant onboarding flow.
     let (merchant_id_or_unified, connector_id_or_name) = path.into_inner();
-    //merchant_id will either be unified or a merchant id.
     let merchant_id = if merchant_id_or_unified == "unified" {
         let mid = fetch_merchant_id_for_unified_webhooks(
             state.to_owned(),

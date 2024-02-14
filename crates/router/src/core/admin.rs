@@ -62,6 +62,11 @@ pub async fn create_merchant_account(
 
     let publishable_key = Some(create_merchant_publishable_key());
 
+    if req.merchant_id == "unified" {
+        Err(errors::ApiErrorResponse::InvalidMerchantId {
+            merchant_id: req.merchant_id.clone(),
+        })?
+    }
     let primary_business_details =
         utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
             &req.primary_business_details.clone().unwrap_or_default(),
@@ -150,7 +155,7 @@ pub async fn create_merchant_account(
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Mot able to generate Merchant fingerprint")?;
+        .attach_printable("Not able to generate Merchant fingerprint")?;
     };
 
     let organization_id = if let Some(organization_id) = req.organization_id.as_ref() {

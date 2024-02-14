@@ -507,7 +507,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
-            errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
+            errors::ApiErrorResponse::MerchantAccountNotFound
+            | errors::ApiErrorResponse::InvalidMerchantId { .. } => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::PaymentLinkNotFound => Self::PaymentLinkNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {

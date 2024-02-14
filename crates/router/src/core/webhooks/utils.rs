@@ -160,16 +160,17 @@ pub async fn fetch_merchant_id_for_unified_webhooks(
 
     match object_ref_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(payment_id) => match payment_id {
-            api_models::payments::PaymentIdType::ConnectorTransactionId(x) => {
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                connector_transaction_id,
+            ) => {
                 let payment_attempt = state
                     .store
-                    .find_payment_attempt_by_attempt_id_connector_txn_id(&connector_payment_id, &x)
-                    .await
-                    .to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: connector_name.to_string(),
-                        },
+                    .find_payment_attempt_by_attempt_id_connector_txn_id(
+                        &connector_payment_id,
+                        &connector_transaction_id,
                     )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
                     .attach_printable(
                         "error while fetching merchant_connector_account from connector_id",
                     )?;
@@ -178,39 +179,32 @@ pub async fn fetch_merchant_id_for_unified_webhooks(
             api_models::payments::PaymentIdType::PaymentAttemptId(_)
             | api_models::payments::PaymentIdType::PaymentIntentId(_)
             | api_models::payments::PaymentIdType::PreprocessingId(_) => {
-                Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: connector_name.to_string(),
-                })?
+                Err(errors::ApiErrorResponse::MerchantAccountNotFound)?
             }
         },
         api_models::webhooks::ObjectReferenceId::RefundId(refund_id) => match refund_id {
-            api_models::webhooks::RefundIdType::ConnectorRefundId(x) => {
+            api_models::webhooks::RefundIdType::ConnectorRefundId(connector_refund_id) => {
                 let refund = state
                     .store
-                    .find_refund_by_attempt_id_connector_refund_id(&connector_payment_id, &x)
-                    .await
-                    .to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: connector_name.to_string(),
-                        },
+                    .find_refund_by_attempt_id_connector_refund_id(
+                        &connector_payment_id,
+                        &connector_refund_id,
                     )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
                     .attach_printable(
                         "error while fetching merchant_connector_account from connector_id",
                     )?;
                 Ok(refund.merchant_id)
             }
             api_models::webhooks::RefundIdType::RefundId(_) => {
-                Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: connector_name.to_string(),
-                })?
+                Err(errors::ApiErrorResponse::MerchantAccountNotFound)?
             }
         },
         api_models::webhooks::ObjectReferenceId::MandateId(mandate_id) => match mandate_id {
             api_models::webhooks::MandateIdType::MandateId(_)
             | api_models::webhooks::MandateIdType::ConnectorMandateId(_) => {
-                Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: connector_name.to_string(),
-                })?
+                Err(errors::ApiErrorResponse::MerchantAccountNotFound)?
             }
         },
     }

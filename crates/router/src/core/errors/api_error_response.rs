@@ -131,6 +131,8 @@ pub enum ApiErrorResponse {
     DuplicateRefundRequest,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID")]
     DuplicateMandate,
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Utilizing '{merchant_id}' as the merchant ID for merchant account creation is restricted. Please select an alternative merchant ID.")]
+    InvalidMerchantId { merchant_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant account with the specified details already exists in our records")]
     DuplicateMerchantAccount,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]

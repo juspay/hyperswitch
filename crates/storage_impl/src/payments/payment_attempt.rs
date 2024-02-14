@@ -157,6 +157,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    // Invoke this function exclusively for payments processed via the merchant onboarding flow (PayPal).
+    // Multiple payment_attempts may be present in all other scenarios.
     async fn find_payment_attempt_by_attempt_id_connector_txn_id(
         &self,
         attempt_id: &str,
@@ -777,6 +779,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    // Invoke this function exclusively for payments processed via the merchant onboarding flow (PayPal).
+    // Multiple payment_attempts may be present in all other scenarios.
     async fn find_payment_attempt_by_attempt_id_connector_txn_id(
         &self,
         attempt_id: &str,

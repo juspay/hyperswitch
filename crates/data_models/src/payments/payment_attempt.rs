@@ -56,7 +56,7 @@ pub trait PaymentAttemptInterface {
 
     async fn find_payment_attempt_by_attempt_id_connector_txn_id(
         &self,
-        merchant_id: &str,
+        attempt_id: &str,
         connector_txn_id: &str,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 

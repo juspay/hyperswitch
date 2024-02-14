@@ -982,6 +982,8 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    // Invoke this function exclusively for payments processed via the merchant onboarding flow (PayPal).
+    // Multiple payment_attempts may be present in all other scenarios.
     async fn find_payment_attempt_by_attempt_id_connector_txn_id(
         &self,
         attempt_id: &str,
@@ -1497,6 +1499,8 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    // Invoke this function exclusively for refunds processed via the merchant onboarding flow (PayPal).
+    // Multiple refunds may be present in all other scenarios.
     async fn find_refund_by_attempt_id_connector_refund_id(
         &self,
         attempt_id: &str,
