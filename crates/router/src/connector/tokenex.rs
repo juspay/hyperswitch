@@ -119,19 +119,16 @@ impl ConnectorCommon for Tokenex {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: tokenex::TokenexErrorResponse = res
+        let response: tokenex::TokenexAuthenticationResponse = res
             .response
-            .parse_struct("TokenexErrorResponse")
+            .parse_struct("TokenexAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        let error_response =
+            tokenex::get_router_response_from_tokenex_authn_response(&response, res.status_code);
+        match error_response {
+            Ok(_) => Err(errors::ConnectorError::ParsingFailed.into()),
+            Err(error_response) => Ok(error_response),
+        }
     }
 }
 
@@ -754,38 +751,17 @@ impl
         let response: Result<
             tokenex::TokenexAuthenticationResponse,
             error_stack::Report<ParsingError>,
-        > = res.response.parse_struct("tokenex PaymentsSyncResponse");
-        println!("response authn {:?}", response);
-        let response =
+        > = res
+            .response
+            .parse_struct("tokenex TokenexAuthenticationResponse");
+        let tokenex_response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        println!(
-            "creq_base64 authn {}",
-            &response.three_d_secure_response.encoded_c_req
+        let response = tokenex::get_router_response_from_tokenex_authn_response(
+            &tokenex_response,
+            res.status_code,
         );
         Ok(types::ConnectorAuthenticationRouterData {
-            response: Ok(types::ConnectorAuthenticationResponse {
-                trans_status: response.three_d_secure_response.trans_status.clone(),
-                acs_url: response.three_d_secure_response.acs_url,
-                challenge_request: if response.three_d_secure_response.trans_status != "Y" {
-                    Some(response.three_d_secure_response.encoded_c_req)
-                } else {
-                    None
-                },
-                acs_reference_number: Some(
-                    response
-                        .three_d_secure_response
-                        .acs_reference_number
-                        .clone(),
-                ),
-                acs_trans_id: Some(response.three_d_secure_response.acs_trans_id.clone()),
-                three_dsserver_trans_id: Some(
-                    response
-                        .three_d_secure_response
-                        .three_dsserver_trans_id
-                        .clone(),
-                ),
-                acs_signed_content: None,
-            }),
+            response,
             ..data.clone()
         })
     }

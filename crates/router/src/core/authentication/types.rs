@@ -27,11 +27,7 @@ pub struct AuthenticationData {
 
 impl AuthenticationData {
     pub fn is_separate_authn_required(&self) -> bool {
-        if self.maximum_supported_version.0 == 2 {
-            true
-        } else {
-            false
-        }
+        self.maximum_supported_version.0 == 2
     }
 }
 

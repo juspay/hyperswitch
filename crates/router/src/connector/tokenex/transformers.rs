@@ -539,11 +539,19 @@ pub enum MethodCompletionIndicatorEnum {
     ResultUnavailable = 3,
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+// TokenEx returns 2xx even for errors
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TokenexAuthenticationResponse {
+    Success(Box<TokenexAuthenticationResponseBody>),
+    Error(Box<TokenexAuthenticationErrorResponseBody>),
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct TokenexAuthenticationResponse {
+pub struct TokenexAuthenticationResponseBody {
     pub token: String,
-    pub three_d_secure_response: ThreeDSecureAuthNResponse,
+    pub three_d_secure_response: ThreeDSecureAuthNResponseEnum,
     pub reference_number: String,
     pub success: bool,
     pub error: String,
@@ -551,6 +559,21 @@ pub struct TokenexAuthenticationResponse {
     pub third_party_status_code: String,
 }
 
+#[derive(Default, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenexAuthenticationErrorResponseBody {
+    pub reference_number: String,
+    pub success: bool,
+    pub error: String,
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum ThreeDSecureAuthNResponseEnum {
+    Success(Box<ThreeDSecureAuthNResponse>),
+    Error(Box<ThreeDSecureAuthNErrorResponse>),
+}
 #[derive(Default, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSecureAuthNResponse {
@@ -581,6 +604,17 @@ pub struct ThreeDSecureAuthNResponse {
     pub encoded_c_req: String,
 }
 
+#[derive(Default, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureAuthNErrorResponse {
+    pub error_code: String,
+    pub error_detail: String,
+    pub error_description: String,
+    #[serde(rename = "threeDSServerTransID")]
+    pub three_ds_server_trans_id: String,
+    pub error_component: String,
+}
+
 // Post Authentication
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -600,4 +634,52 @@ pub struct TokenexThreeDSResponse {
     pub authentication_value: Option<String>,
     pub trans_status: String,
     pub eci: Option<String>,
+}
+
+pub fn get_router_response_from_tokenex_authn_response(
+    tokenex_response: &TokenexAuthenticationResponse,
+    status_code: u16,
+) -> Result<types::ConnectorAuthenticationResponse, types::ErrorResponse> {
+    match tokenex_response {
+        TokenexAuthenticationResponse::Success(tokenex_authn_response) => {
+            match &tokenex_authn_response.three_d_secure_response {
+                ThreeDSecureAuthNResponseEnum::Success(threeds_response) => {
+                    println!("creq_base64 authn {}", &threeds_response.encoded_c_req);
+                    Ok(types::ConnectorAuthenticationResponse {
+                        trans_status: threeds_response.trans_status.clone(),
+                        acs_url: threeds_response.acs_url.clone(),
+                        challenge_request: if threeds_response.trans_status != "Y" {
+                            Some(threeds_response.encoded_c_req.clone())
+                        } else {
+                            None
+                        },
+                        acs_reference_number: Some(threeds_response.acs_reference_number.clone()),
+                        acs_trans_id: Some(threeds_response.acs_trans_id.clone()),
+                        three_dsserver_trans_id: Some(
+                            threeds_response.three_dsserver_trans_id.clone(),
+                        ),
+                        acs_signed_content: None,
+                    })
+                }
+                ThreeDSecureAuthNResponseEnum::Error(threeds_error_response) => {
+                    Err(types::ErrorResponse {
+                        code: threeds_error_response.error_code.clone(),
+                        message: threeds_error_response.error_description.clone(),
+                        reason: Some(threeds_error_response.error_detail.clone()),
+                        status_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(tokenex_authn_response.token.clone()),
+                    })
+                }
+            }
+        }
+        TokenexAuthenticationResponse::Error(tokenex_error_response) => Err(types::ErrorResponse {
+            code: tokenex_error_response.error.clone(),
+            message: tokenex_error_response.error.clone(),
+            reason: Some(tokenex_error_response.error.clone()),
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+        }),
+    }
 }
