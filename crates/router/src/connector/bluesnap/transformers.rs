@@ -926,14 +926,14 @@ impl<F> TryFrom<&BluesnapRouterData<&types::RefundsRouterData<F>>> for BluesnapR
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum BluesnapRefundStatus {
     Success,
     #[default]
     Pending,
 }
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     refund_transaction_id: i32,
@@ -1122,13 +1122,13 @@ pub struct ErrorDetails {
     pub error_name: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapErrorResponse {
     pub message: Vec<ErrorDetails>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
@@ -1136,7 +1136,7 @@ pub struct BluesnapAuthErrorResponse {
     pub error_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
     Payment(BluesnapErrorResponse),

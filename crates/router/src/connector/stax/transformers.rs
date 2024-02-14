@@ -167,7 +167,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StaxCustomerResponse {
     id: Secret<String>,
 }
@@ -277,7 +277,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StaxTokenResponse {
     id: Secret<String>,
 }
@@ -298,19 +298,19 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::Pay
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StaxPaymentResponseTypes {
     Charge,
     PreAuth,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StaxChildCapture {
     id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StaxPaymentsResponse {
     success: bool,
     id: String,
@@ -406,14 +406,14 @@ impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundReq
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
     total: f64,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
     success: bool,
