@@ -1,5 +1,6 @@
 use external_services::hashicorp_vault::{
-    decrypt::VaultFetch, Engine, HashiCorpError, HashiCorpVault,
+    core::{Engine, HashiCorpError, HashiCorpVault},
+    decrypt::VaultFetch,
 };
 use masking::ExposeInterface;
 

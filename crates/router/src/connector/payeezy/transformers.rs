@@ -298,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
 }
 // PaymentsResponse
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyPaymentStatus {
     Approved,
@@ -308,7 +308,7 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyPaymentsResponse {
     pub correlation_id: String,
     pub transaction_status: PayeezyPaymentStatus,
@@ -327,7 +327,7 @@ pub struct PayeezyPaymentsResponse {
     pub reference: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsStoredCredentials {
     cardbrand_original_transaction_id: String,
 }
@@ -502,7 +502,7 @@ impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRef
 
 // Type definition for Refund Response
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Approved,
@@ -522,7 +522,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     pub correlation_id: String,
     pub transaction_status: RefundStatus,
@@ -556,18 +556,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
     pub code: String,
     pub description: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyError {
     pub messages: Vec<Message>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyErrorResponse {
     pub transaction_status: String,
     #[serde(rename = "Error")]

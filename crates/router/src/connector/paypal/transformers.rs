@@ -315,7 +315,12 @@ fn get_payment_source(
             country,
             ..
         } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details.get_billing_name()?,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "giropay.billing_details",
+                })?
+                .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "giropay.country",
             })?,
@@ -757,7 +762,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PaypalAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -1058,7 +1063,7 @@ pub enum PaypalAuthResponse {
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaypalSyncResponse {
     PaypalOrdersSyncResponse(PaypalOrdersResponse),
@@ -1737,7 +1742,7 @@ pub struct PaypalPaymentErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

@@ -174,9 +174,30 @@ use diesel::{
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
-    pub mandate_type: Option<MandateDataType>,
+}
+impl<DB: Backend> FromSql<Jsonb, DB> for MandateDetails
+where
+    serde_json::Value: FromSql<Jsonb, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
 }
 
+impl ToSql<Jsonb, diesel::pg::Pg> for MandateDetails
+where
+    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+
+        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
+        // please refer to the diesel migration blog:
+        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
+        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
+    }
+}
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
 )]
@@ -198,40 +219,6 @@ where
 }
 
 impl ToSql<Jsonb, diesel::pg::Pg> for MandateDataType
-where
-    serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
-{
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> diesel::serialize::Result {
-        let value = serde_json::to_value(self)?;
-
-        // the function `reborrow` only works in case of `Pg` backend. But, in case of other backends
-        // please refer to the diesel migration blog:
-        // https://github.com/Diesel-rs/Diesel/blob/master/guide_drafts/migration_guide.md#changed-tosql-implementations
-        <serde_json::Value as ToSql<Jsonb, diesel::pg::Pg>>::to_sql(&value, &mut out.reborrow())
-    }
-}
-
-#[derive(
-    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(untagged)]
-#[serde(rename_all = "snake_case")]
-pub enum MandateTypeDetails {
-    MandateType(MandateDataType),
-    MandateDetails(MandateDetails),
-}
-
-impl<DB: Backend> FromSql<Jsonb, DB> for MandateTypeDetails
-where
-    serde_json::Value: FromSql<Jsonb, DB>,
-{
-    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
-        Ok(serde_json::from_value(value)?)
-    }
-}
-impl ToSql<Jsonb, diesel::pg::Pg> for MandateTypeDetails
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
 {
@@ -511,4 +498,5 @@ pub enum DashboardMetadata {
     ConfigureWoocom,
     SetupWoocomWebhook,
     IsMultipleConfiguration,
+    IsChangePasswordRequired,
 }

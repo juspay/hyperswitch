@@ -688,6 +688,7 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
+        mandate_data -> Nullable<Jsonb>,
     }
 }
 

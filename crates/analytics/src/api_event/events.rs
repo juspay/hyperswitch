@@ -33,9 +33,30 @@ where
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
     match query_param.query_param {
-        QueryType::Payment { payment_id } => query_builder
-            .add_filter_clause("payment_id", payment_id)
-            .switch()?,
+        QueryType::Payment { payment_id } => {
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
+            query_builder
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::PaymentsCancel,
+                        Flow::PaymentsCapture,
+                        Flow::PaymentsConfirm,
+                        Flow::PaymentsCreate,
+                        Flow::PaymentsStart,
+                        Flow::PaymentsUpdate,
+                        Flow::RefundsCreate,
+                        Flow::RefundsUpdate,
+                        Flow::DisputesEvidenceSubmit,
+                        Flow::AttachDisputeEvidence,
+                        Flow::RetrieveDisputeEvidence,
+                        Flow::IncomingWebhookReceive,
+                    ],
+                )
+                .switch()?;
+        }
         QueryType::Refund {
             payment_id,
             refund_id,
@@ -46,28 +67,31 @@ where
             query_builder
                 .add_filter_clause("refund_id", refund_id)
                 .switch()?;
+            query_builder
+                .add_filter_in_range_clause("api_flow", &[Flow::RefundsCreate, Flow::RefundsUpdate])
+                .switch()?;
         }
-    }
-    if let Some(list_api_name) = query_param.api_name_filter {
-        query_builder
-            .add_filter_in_range_clause("api_flow", &list_api_name)
-            .switch()?;
-    } else {
-        query_builder
-            .add_filter_in_range_clause(
-                "api_flow",
-                &[
-                    Flow::PaymentsCancel,
-                    Flow::PaymentsCapture,
-                    Flow::PaymentsConfirm,
-                    Flow::PaymentsCreate,
-                    Flow::PaymentsStart,
-                    Flow::PaymentsUpdate,
-                    Flow::RefundsCreate,
-                    Flow::IncomingWebhookReceive,
-                ],
-            )
-            .switch()?;
+        QueryType::Dispute {
+            payment_id,
+            dispute_id,
+        } => {
+            query_builder
+                .add_filter_clause("payment_id", payment_id)
+                .switch()?;
+            query_builder
+                .add_filter_clause("dispute_id", dispute_id)
+                .switch()?;
+            query_builder
+                .add_filter_in_range_clause(
+                    "api_flow",
+                    &[
+                        Flow::DisputesEvidenceSubmit,
+                        Flow::AttachDisputeEvidence,
+                        Flow::RetrieveDisputeEvidence,
+                    ],
+                )
+                .switch()?;
+        }
     }
     //TODO!: update the execute_query function to return reports instead of plain errors...
     query_builder

@@ -11,7 +11,7 @@ use crate::{
     connection::{pg_connection, redis_connection},
     errors::HealthCheckError,
     services::{self, Store},
-    settings::Settings,
+    Settings,
 };
 
 pub const TEST_STREAM_NAME: &str = "TEST_STREAM_0";
