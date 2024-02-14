@@ -49,4 +49,3 @@ pub async fn toggle_blocklist_guard(
         .await
         .map(services::ApplicationResponse::Json)
 }
-
