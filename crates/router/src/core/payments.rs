@@ -168,9 +168,9 @@ where
     .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
-    let separate_authentication = payment_data
-        .payment_attempt
-        .external_three_ds_authentication_requested;
+    let is_external_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication;
     payment_data = tokenize_in_router_when_confirm_false(
         state,
         &operation,
@@ -178,7 +178,7 @@ where
         &validate_result,
         &key_store,
         &customer,
-        separate_authentication,
+        is_external_authentication_requested,
     )
     .await?;
 
@@ -222,7 +222,7 @@ where
 
         operation
             .to_domain()?
-            .call_authentication_if_needed(
+            .call_external_three_ds_authentication_if_eligible(
                 state,
                 &mut payment_data,
                 &mut should_continue_transaction,
@@ -2035,30 +2035,30 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-    separate_authentication: Option<bool>,
+    is_external_authentication_requested: Option<bool>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
-    let payment_data = if !is_operation_confirm(operation) || separate_authentication == Some(true)
-    {
-        let (_operation, payment_method_data) = operation
-            .to_domain()?
-            .make_pm_data(
-                state,
-                payment_data,
-                validate_result.storage_scheme,
-                merchant_key_store,
-                customer,
-            )
-            .await?;
-        payment_data.payment_method_data = payment_method_data;
-        payment_data
-    } else {
-        payment_data
-    };
+    let payment_data =
+        if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
+            let (_operation, payment_method_data) = operation
+                .to_domain()?
+                .make_pm_data(
+                    state,
+                    payment_data,
+                    validate_result.storage_scheme,
+                    merchant_key_store,
+                    customer,
+                )
+                .await?;
+            payment_data.payment_method_data = payment_method_data;
+            payment_data
+        } else {
+            payment_data
+        };
     Ok(payment_data.to_owned())
 }
 

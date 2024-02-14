@@ -732,8 +732,7 @@ impl PaymentCreate {
                     .mandate_data
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
-                external_three_ds_authentication_requested: request
-                    .request_external_three_ds_authentication,
+                external_three_ds_authentication_requested: None,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,

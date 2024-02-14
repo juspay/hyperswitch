@@ -167,7 +167,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         Ok(())
     }
 
-    async fn call_authentication_if_needed<'a>(
+    async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         _state: &AppState,
         _payment_data: &mut PaymentData<F>,

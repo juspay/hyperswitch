@@ -1744,7 +1744,7 @@ pub async fn store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
-    ) || payment_attempt.external_three_ds_authentication_requested == Some(true)
+    ) || payment_intent.request_external_three_ds_authentication == Some(true)
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
