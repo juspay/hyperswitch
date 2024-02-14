@@ -438,6 +438,7 @@ where
             "Failed to update status in Payment Attempt to failed, due to it being blocklisted",
         )?;
 
+        println!(">>>>>>>>>>>>>>>>>>>????????>>>>>>>>>>>>>>>>Getting called {:?}", payment_data.payment_attempt.fingerprint_id);
         Err(errors::ApiErrorResponse::PaymentBlockedError {
             code: 200,
             message: "This payment method is blocked".to_string(),
@@ -446,12 +447,15 @@ where
         }
         .into())
     } else {
-        payment_data.payment_attempt.fingerprint_id = generate_payment_fingerprint(
+
+        let res = generate_payment_fingerprint(
             state,
             payment_data.payment_attempt.merchant_id.clone(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
+
+        payment_data.payment_attempt.fingerprint_id = res.clone();
         Ok(false)
     }
 }
@@ -467,7 +471,7 @@ pub async fn generate_payment_fingerprint(
     {
         if let Some(payload) = generate_fingerprint_hs(
             state,
-            card.card_number.to_string(),
+            card.card_number.clone().get_card_no(),
             merchant_fingerprint_secret,
             api_models::enums::LockerChoice::Tartarus,
         )
