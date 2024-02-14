@@ -3201,6 +3201,7 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
         }
     }
 
@@ -3537,16 +3538,17 @@ impl ApplePayData {
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let apple_pay_ppc = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
                     .expose();
@@ -3559,7 +3561,7 @@ impl ApplePayData {
         .await?;
 
         #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
+        let cert_data = aws_kms::core::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc)
             .await
@@ -3620,16 +3622,17 @@ impl ApplePayData {
 
         let apple_pay_ppc_key = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
                     .attach_printable("Failed while creating client")?
@@ -3643,7 +3646,7 @@ impl ApplePayData {
         .await?;
 
         #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
+        let decrypted_apple_pay_ppc_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc_key)
             .await

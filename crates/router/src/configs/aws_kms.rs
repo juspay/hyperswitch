@@ -1,5 +1,8 @@
 use common_utils::errors::CustomResult;
-use external_services::aws_kms::{decrypt::AwsKmsDecrypt, AwsKmsClient, AwsKmsError};
+use external_services::aws_kms::{
+    core::{AwsKmsClient, AwsKmsError},
+    decrypt::AwsKmsDecrypt,
+};
 use masking::ExposeInterface;
 
 use crate::configs::settings;

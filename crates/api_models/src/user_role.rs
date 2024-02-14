@@ -108,3 +108,8 @@ pub type AcceptInvitationResponse = DashboardEntryResponse;
 pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TransferOrgOwnershipRequest {
+    pub email: pii::Email,
+}

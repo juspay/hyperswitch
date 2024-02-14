@@ -1,19 +1,21 @@
 // use actix_web::http::header;
 
-pub fn cors() -> actix_cors::Cors {
-    actix_cors::Cors::permissive() // FIXME : Never use in  production
+use crate::configs::settings;
 
-    /*
-    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-    .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE]);
-    if CONFIG.profile == "debug" {         //   --------->>>  FIXME: It should be conditional
-        cors.allowed_origin_fn(|origin, _req_head| {
-            origin.as_bytes().starts_with(b"http://localhost")
-        })
+pub fn cors(config: settings::CorsSettings) -> actix_cors::Cors {
+    let allowed_methods = config.allowed_methods.iter().map(|s| s.as_str());
+
+    let mut cors = actix_cors::Cors::default()
+        .allowed_methods(allowed_methods)
+        .max_age(config.max_age);
+
+    if config.wildcard_origin {
+        cors = cors.allow_any_origin()
     } else {
-
-    FIXME : I don't know what to put here
-    .allowed_origin_fn(|origin, _req_head| origin.as_bytes().starts_with(b"http://localhost"))
+        for origin in &config.origins {
+            cors = cors.allowed_origin(origin);
+        }
     }
-    */
+
+    cors
 }

@@ -13,6 +13,7 @@ use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
 #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
 use external_services::hashicorp_vault::decrypt::VaultFetch;
+use hyperswitch_interfaces::encryption_interface::EncryptionManagementInterface;
 #[cfg(all(feature = "olap", feature = "aws_kms"))]
 use masking::PeekInterface;
 use router_env::tracing_actix_web::RequestId;
@@ -74,6 +75,7 @@ pub struct AppState {
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -151,13 +153,20 @@ impl AppState {
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+        #[allow(clippy::expect_used)]
+        let encryption_client = conf
+            .encryption_management
+            .get_encryption_management_client()
+            .await
+            .expect("Failed to create encryption client");
+
         Box::pin(async move {
             #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::get_aws_kms_client(&conf.kms).await;
+            let aws_kms_client = aws_kms::core::get_aws_kms_client(&conf.kms).await;
             #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
             #[allow(clippy::expect_used)]
             let hc_client =
-                external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+                external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
                     .await
                     .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
@@ -205,7 +214,7 @@ impl AppState {
                     sqlx.password = sqlx
                         .password
                         .clone()
-                        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                         .await
                         .expect("Failed while fetching from hashicorp vault");
                 }
@@ -231,7 +240,7 @@ impl AppState {
             {
                 conf.connector_onboarding = conf
                     .connector_onboarding
-                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -255,7 +264,7 @@ impl AppState {
                 conf.jwekey = conf
                     .jwekey
                     .clone()
-                    .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                     .await
                     .expect("Failed to decrypt connector onboarding credentials");
             }
@@ -288,6 +297,7 @@ impl AppState {
                 pool,
                 request_id: None,
                 file_storage_client,
+                encryption_client,
             }
         })
         .await
@@ -883,7 +893,8 @@ impl Disputes {
             .service(
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
-                    .route(web::put().to(attach_dispute_evidence)),
+                    .route(web::put().to(attach_dispute_evidence))
+                    .route(web::delete().to(delete_dispute_evidence)),
             )
             .service(
                 web::resource("/evidence/{dispute_id}")
@@ -1071,6 +1082,10 @@ impl User {
                 )
                 .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
+                .service(
+                    web::resource("/transfer_ownership")
+                        .route(web::post().to(transfer_org_ownership)),
+                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 

@@ -48,7 +48,7 @@ pub struct KlarnaPaymentsRequest {
     merchant_reference1: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
@@ -64,7 +64,7 @@ pub struct KlarnaSessionRequest {
     order_lines: Vec<OrderLines>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaSessionResponse {
     pub client_token: String,
     pub session_id: String,
@@ -225,7 +225,7 @@ impl From<KlarnaFraudStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaErrorResponse {
     pub error_code: String,
     pub error_messages: Option<Vec<String>>,

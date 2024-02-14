@@ -248,11 +248,7 @@ pub async fn add_payment_method(
                         Ok(pm) => {
                             let updated_card = Some(api::CardDetailFromLocker {
                                 scheme: None,
-                                last4_digits: Some(
-                                    card.card_number
-                                        .to_string()
-                                        .split_off(card.card_number.to_string().len() - 4),
-                                ),
+                                last4_digits: Some(card.card_number.clone().get_last4()),
                                 issuer_country: None,
                                 card_number: Some(card.card_number),
                                 expiry_month: Some(card.card_exp_month),
@@ -2000,17 +1996,8 @@ pub async fn list_payment_methods(
             merchant_name: merchant_account.merchant_name,
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt
-                .and_then(|inner| inner.mandate_details)
-                .and_then(|man_type_details| match man_type_details {
-                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
-                        Some(mandate_type)
-                    }
-                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
-                        mandate_details.mandate_type
-                    }
-                })
-                .map(|d| match d {
+            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
+                |d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -2032,7 +2019,8 @@ pub async fn list_payment_methods(
                     data_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                }),
+                },
+            ),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
@@ -2242,28 +2230,20 @@ pub async fn filter_payment_methods(
                         })?;
                     let filter7 = payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
-                        .map(|mandate_details| {
-                            let (mandate_type_present, update_mandate_id_present) =
-                                match mandate_details {
-                                    data_models::mandates::MandateTypeDetails::MandateType(_) => {
-                                        (true, false)
-                                    }
-                                    data_models::mandates::MandateTypeDetails::MandateDetails(
-                                        mand_details,
-                                    ) => (
-                                        mand_details.mandate_type.is_some(),
-                                        mand_details.update_mandate_id.is_some(),
-                                    ),
-                                };
+                        .map(|_mandate_details| {
+                            filter_pm_based_on_supported_payments_for_mandate(
+                                supported_payment_methods_for_mandate,
+                                &payment_method,
+                                &payment_method_object.payment_method_type,
+                                connector_variant,
+                            )
+                        })
+                        .unwrap_or(true);
 
-                            if mandate_type_present {
-                                filter_pm_based_on_supported_payments_for_mandate(
-                                    supported_payment_methods_for_mandate,
-                                    &payment_method,
-                                    &payment_method_object.payment_method_type,
-                                    connector_variant,
-                                )
-                            } else if update_mandate_id_present {
+                    let filter8 = payment_attempt
+                        .and_then(|attempt| attempt.mandate_data.as_ref())
+                        .map(|mandate_detail| {
+                            if mandate_detail.update_mandate_id.is_some() {
                                 filter_pm_based_on_update_mandate_support_for_connector(
                                     supported_payment_methods_for_update_mandate,
                                     &payment_method,
@@ -2284,7 +2264,15 @@ pub async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 && filter7 {
+                    if filter
+                        && filter2
+                        && filter3
+                        && filter4
+                        && filter5
+                        && filter6
+                        && filter7
+                        && filter8
+                    {
                         resp.push(response_pm_type);
                     }
                 }
@@ -2299,12 +2287,33 @@ pub fn filter_pm_based_on_update_mandate_support_for_connector(
     payment_method_type: &api_enums::PaymentMethodType,
     connector: api_enums::Connector,
 ) -> bool {
-    supported_payment_methods_for_mandate
-        .0
-        .get(payment_method)
-        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
-        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
-        .unwrap_or(false)
+    if payment_method == &api_enums::PaymentMethod::Card {
+        supported_payment_methods_for_mandate
+            .0
+            .get(payment_method)
+            .map(|payment_method_type_hm| {
+                let pm_credit = payment_method_type_hm
+                    .0
+                    .get(&api_enums::PaymentMethodType::Credit)
+                    .map(|conn| conn.connector_list.clone())
+                    .unwrap_or_default();
+                let pm_debit = payment_method_type_hm
+                    .0
+                    .get(&api_enums::PaymentMethodType::Debit)
+                    .map(|conn| conn.connector_list.clone())
+                    .unwrap_or_default();
+                &pm_credit | &pm_debit
+            })
+            .map(|supported_connectors| supported_connectors.contains(&connector))
+            .unwrap_or(false)
+    } else {
+        supported_payment_methods_for_mandate
+            .0
+            .get(payment_method)
+            .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+            .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+            .unwrap_or(false)
+    }
 }
 
 fn filter_pm_based_on_supported_payments_for_mandate(
