@@ -1,6 +1,7 @@
+//! Decrypting data using the AWS KMS SDK.
 use common_utils::errors::CustomResult;
 
-use super::*;
+use crate::aws_kms::core::{AwsKmsClient, AwsKmsError, AWS_KMS_CLIENT};
 
 #[async_trait::async_trait]
 /// This trait performs in place decryption of the structure on which this is implemented
@@ -24,19 +25,5 @@ pub trait AwsKmsDecrypt {
             .get()
             .ok_or(AwsKmsError::AwsKmsClientNotInitialized)?;
         self.decrypt_inner(client).await
-    }
-}
-
-#[async_trait::async_trait]
-impl AwsKmsDecrypt for &AwsKmsValue {
-    type Output = String;
-    async fn decrypt_inner(
-        self,
-        aws_kms_client: &AwsKmsClient,
-    ) -> CustomResult<Self::Output, AwsKmsError> {
-        aws_kms_client
-            .decrypt(self.0.peek())
-            .await
-            .attach_printable("Failed to decrypt AWS KMS value")
     }
 }

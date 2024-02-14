@@ -79,7 +79,7 @@ pub struct DisputeResponsePaymentsRetrieve {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Debug, Serialize, strum::Display, Clone)]
+#[derive(Debug, Serialize, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {
@@ -195,4 +195,12 @@ pub struct SubmitEvidenceRequest {
     pub uncategorized_file: Option<String>,
     /// Any additional evidence statements
     pub uncategorized_text: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct DeleteEvidenceRequest {
+    /// Id of the dispute
+    pub dispute_id: String,
+    /// Evidence Type to be deleted
+    pub evidence_type: EvidenceType,
 }

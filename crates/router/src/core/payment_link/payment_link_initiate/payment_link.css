@@ -645,7 +645,7 @@ body {
   animation: loading 1s linear infinite;
 }
 
-@media only screen and (max-width: 1400px) {
+@media only screen and (max-width: 1199px) {
   body {
     overflow-y: scroll;
   }

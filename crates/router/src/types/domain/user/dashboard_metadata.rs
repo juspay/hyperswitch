@@ -25,6 +25,7 @@ pub enum MetaData {
     ConfigureWoocom(bool),
     SetupWoocomWebhook(bool),
     IsMultipleConfiguration(bool),
+    IsChangePasswordRequired(bool),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -51,6 +52,7 @@ impl From<&MetaData> for DBEnum {
             MetaData::ConfigureWoocom(_) => Self::ConfigureWoocom,
             MetaData::SetupWoocomWebhook(_) => Self::SetupWoocomWebhook,
             MetaData::IsMultipleConfiguration(_) => Self::IsMultipleConfiguration,
+            MetaData::IsChangePasswordRequired(_) => Self::IsChangePasswordRequired,
         }
     }
 }
