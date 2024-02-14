@@ -43,3 +43,9 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
         header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum WebhookDeliveryAttempt {
+    InitialAttempt,
+    AutomaticRetry,
+}

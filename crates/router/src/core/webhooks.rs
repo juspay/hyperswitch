@@ -739,20 +739,16 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
         // may have an actix arbiter
         tokio::spawn(
             async move {
-                let trigger_webhook_result = trigger_webhook_to_merchant::<W>(
+                trigger_webhook_and_raise_event::<api_models::webhooks::OutgoingWebhook>(
+                    state,
                     business_profile,
                     outgoing_webhook,
-                    state.clone(),
+                    types::WebhookDeliveryAttempt::InitialAttempt,
+                    content,
+                    event,
+                    event_type,
                 )
                 .await;
-                raise_webhooks_analytics_event(
-                    state,
-                    trigger_webhook_result,
-                    content,
-                    &merchant_id,
-                    &event,
-                    event_type,
-                );
             }
             .in_current_span(),
         );
@@ -761,10 +757,39 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
     Ok(())
 }
 
+async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
+    state: AppState,
+    business_profile: diesel_models::business_profile::BusinessProfile,
+    outgoing_webhook: api::OutgoingWebhook,
+    delivery_attempt: types::WebhookDeliveryAttempt,
+    content: api::OutgoingWebhookContent,
+    event: storage::Event,
+    event_type: enums::EventType,
+) {
+    let merchant_id = business_profile.merchant_id.clone();
+    let trigger_webhook_result = trigger_webhook_to_merchant::<W>(
+        state.clone(),
+        business_profile,
+        outgoing_webhook,
+        delivery_attempt,
+    )
+    .await;
+
+    raise_webhooks_analytics_event(
+        state,
+        trigger_webhook_result,
+        content,
+        &merchant_id,
+        &event,
+        event_type,
+    );
+}
+
 async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
+    state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     webhook: api::OutgoingWebhook,
-    state: AppState,
+    _delivery_attempt: types::WebhookDeliveryAttempt,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = business_profile
         .webhook_details
@@ -821,6 +846,30 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     );
     logger::debug!(outgoing_webhook_response=?response);
 
+    let update_event_in_storage = |merchant_id: String, outgoing_webhook_event_id: String| async {
+        metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+        );
+        let update_event = storage::EventUpdate::UpdateWebhookNotified {
+            is_webhook_notified: Some(true),
+        };
+        state
+            .store
+            .update_event(outgoing_webhook_event_id, update_event)
+            .await
+            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
+    };
+
+    let increment_webhook_outgoing_not_received_count = |merchant_id: String| {
+        metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
+        );
+    };
+
     match response {
         Err(e) => {
             // [#217]: Schedule webhook for retry.
@@ -828,31 +877,10 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
         }
         Ok(res) => {
             if res.status().is_success() {
-                metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue::new(
-                        MERCHANT_ID,
-                        business_profile.merchant_id.clone(),
-                    )],
-                );
-                let update_event = storage::EventUpdate::UpdateWebhookNotified {
-                    is_webhook_notified: Some(true),
-                };
-                state
-                    .store
-                    .update_event(outgoing_webhook_event_id, update_event)
-                    .await
-                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
+                update_event_in_storage(business_profile.merchant_id, outgoing_webhook_event_id)
+                    .await?;
             } else {
-                metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue::new(
-                        MERCHANT_ID,
-                        business_profile.merchant_id.clone(),
-                    )],
-                );
+                increment_webhook_outgoing_not_received_count(business_profile.merchant_id);
                 // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }
