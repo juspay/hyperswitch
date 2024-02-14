@@ -28,13 +28,14 @@ serde = "1.0.193"
 serde_json = "1.0.108"
 serde_path_to_error = "0.1.14"
 thiserror = "1.0.40"
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 async-trait = "0.1.74"
 
 # First Party Crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 external_services = { version = "0.1.0", path = "../external_services" }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }

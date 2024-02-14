@@ -1,23 +1,13 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::{
-    core::{HashiCorpVault, Kv2},
-    decrypt::VaultFetch,
-};
-#[cfg(not(feature = "aws_kms"))]
 use masking::PeekInterface;
 
-use crate::settings::Database;
+use crate::{settings::Database, Settings};
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 #[allow(clippy::expect_used)]
-pub async fn redis_connection(
-    conf: &crate::settings::Settings,
-) -> redis_interface::RedisConnectionPool {
+pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
     redis_interface::RedisConnectionPool::new(&conf.redis)
         .await
         .expect("Failed to create Redis connection Pool")
@@ -28,31 +18,14 @@ pub async fn redis_connection(
 ///
 /// Will panic if could not create a db pool
 #[allow(clippy::expect_used)]
-pub async fn diesel_make_pg_pool(
-    database: &Database,
-    _test_transaction: bool,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &'static aws_kms::core::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")] hashicorp_client: &'static HashiCorpVault,
-) -> PgPool {
-    let password = database.password.clone();
-    #[cfg(feature = "hashicorp-vault")]
-    let password = password
-        .fetch_inner::<Kv2>(hashicorp_client)
-        .await
-        .expect("Failed while fetching db password");
-
-    #[cfg(feature = "aws_kms")]
-    let password = password
-        .decrypt_inner(aws_kms_client)
-        .await
-        .expect("Failed to decrypt password");
-
-    #[cfg(not(feature = "aws_kms"))]
-    let password = &password.peek();
-
+pub async fn diesel_make_pg_pool(database: &Database, _test_transaction: bool) -> PgPool {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
-        database.username, password, database.host, database.port, database.dbname
+        database.username,
+        database.password.peek(),
+        database.host,
+        database.port,
+        database.dbname
     );
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let pool = bb8::Pool::builder()
