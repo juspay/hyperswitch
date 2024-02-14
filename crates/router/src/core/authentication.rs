@@ -27,7 +27,7 @@ pub async fn perform_authentication(
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: api_models::payments::Address,
-    shipping_address: api_models::payments::Address,
+    shipping_address: Option<api_models::payments::Address>,
     browser_details: core_types::BrowserInformation,
     merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,

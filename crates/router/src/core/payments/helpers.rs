@@ -38,6 +38,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
+        pm_auth::retrieve_payment_method_from_auth_service,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
@@ -3828,4 +3829,106 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+pub async fn get_payment_method_details_from_payment_token(
+    state: &AppState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
+    let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            token,
+            payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+        );
+        let token_data_string = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?
+            .ok_or(error_stack::Report::new(
+                errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Token is invalid or expired".to_owned(),
+                },
+            ))?;
+        let token_data_result = token_data_string
+            .clone()
+            .parse_struct("PaymentTokenData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to deserialize hyperswitch token data");
+        let token_data = match token_data_result {
+            Ok(data) => data,
+            Err(e) => {
+                // The purpose of this logic is backwards compatibility to support tokens
+                // in redis that might be following the old format.
+                if token_data_string.starts_with('{') {
+                    return Err(e);
+                } else {
+                    storage::PaymentTokenData::temporary_generic(token_data_string)
+                }
+            }
+        };
+        Some(token_data)
+    } else {
+        None
+    };
+
+    Ok(
+        match hyperswitch_token.ok_or(errors::ApiErrorResponse::InternalServerError)? {
+            storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+                retrieve_payment_method_with_temporary_token(
+                    &state,
+                    &generic_token.token,
+                    &payment_intent,
+                    &key_store,
+                    None,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Temporary(generic_token) => {
+                retrieve_payment_method_with_temporary_token(
+                    &state,
+                    &generic_token.token,
+                    &payment_intent,
+                    &key_store,
+                    None,
+                )
+                .await
+            }
+
+            storage::PaymentTokenData::Permanent(card_token) => {
+                retrieve_card_with_permanent_token(&state, &card_token.token, &payment_intent, None)
+                    .await
+                    .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::PermanentCard(card_token) => {
+                retrieve_card_with_permanent_token(&state, &card_token.token, &payment_intent, None)
+                    .await
+                    .map(|card| Some((card, enums::PaymentMethod::Card)))
+            }
+
+            storage::PaymentTokenData::AuthBankDebit(auth_token) => {
+                retrieve_payment_method_from_auth_service(
+                    &state,
+                    &key_store,
+                    &auth_token,
+                    &payment_intent,
+                    &None,
+                )
+                .await
+            }
+        }?,
+    )
 }

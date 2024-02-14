@@ -26,8 +26,12 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
     merchant_account: &domain::MerchantAccount,
     three_ds_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<()> {
-    let authentication =
-        create_new_authentication(state, merchant_account.merchant_id.clone()).await?;
+    let authentication = create_new_authentication(
+        state,
+        merchant_account.merchant_id.clone(),
+        three_ds_connector_account,
+    )
+    .await?;
     match authentication_flow_input {
         types::AuthenthenticationFlowInput::PaymentAuthNFlow {
             payment_data,
@@ -48,7 +52,7 @@ pub async fn execute_pre_auth_flow<F: Clone + Send>(
             )
             .await?;
             if authentication_data.is_separate_authn_required() {
-                *should_continue_confirm_transaction = true;
+                *should_continue_confirm_transaction = false;
             }
             payment_data.authentication = Some((authentication, authentication_data))
         }
@@ -115,13 +119,14 @@ async fn do_pre_auth_connector_call(
 async fn create_new_authentication(
     state: &AppState,
     merchant_id: String,
+    three_ds_connector_account: &domain::MerchantConnectorAccount,
 ) -> RouterResult<storage::Authentication> {
-    let authorization_id =
+    let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
     let new_authorization = storage::AuthenticationNew {
-        authentication_id: authorization_id.clone(),
+        authentication_id: authentication_id.clone(),
         merchant_id,
-        authentication_connector: "".into(),
+        authentication_connector: three_ds_connector_account.connector_name.clone(),
         authentication_connector_id: None,
         authentication_data: None,
         payment_method_id: "".into(),
@@ -136,7 +141,7 @@ async fn create_new_authentication(
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authorization_id
+                authentication_id
             ),
         })
 }

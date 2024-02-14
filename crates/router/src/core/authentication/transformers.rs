@@ -26,7 +26,7 @@ pub fn construct_authentication_router_data(
     payment_method_data: payments::PaymentMethodData,
     payment_method: PaymentMethod,
     billing_address: api_models::payments::Address,
-    shipping_address: api_models::payments::Address,
+    shipping_address: Option<api_models::payments::Address>,
     browser_details: types::BrowserInformation,
     amount: Option<i64>,
     currency: Option<common_enums::Currency>,

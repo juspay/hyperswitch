@@ -1064,7 +1064,7 @@ pub struct AcceptDisputeResponse {
 pub struct ConnectorAuthenticationRequestData {
     pub payment_method_data: payments::PaymentMethodData,
     pub billing_address: api_models::payments::Address,
-    pub shipping_address: api_models::payments::Address,
+    pub shipping_address: Option<api_models::payments::Address>,
     pub browser_details: BrowserInformation,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,

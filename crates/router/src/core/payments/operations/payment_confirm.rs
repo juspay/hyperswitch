@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{
     crypto::{self, SignMessage},
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, Encode},
 };
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
