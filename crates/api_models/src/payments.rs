@@ -124,8 +124,10 @@ mod client_secret_tests {
         let expected_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
         let expected_str2 = r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
 
-        let actual_str1 = serde_json::to_string(&client_secret1).unwrap();
-        let actual_str2 = serde_json::to_string(&client_secret2).unwrap();
+        let actual_str1 =
+            serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
+        let actual_str2 =
+            serde_json::to_string(&client_secret2).expect("Failed to serialize client_secret2");
 
         assert_eq!(expected_str1, actual_str1);
         assert_eq!(expected_str2, actual_str2);
@@ -152,9 +154,12 @@ mod client_secret_tests {
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
 
-        let actual1: ClientSecret = serde_json::from_str(client_secret_str1).unwrap();
-        let actual2: ClientSecret = serde_json::from_str(client_secret_str2).unwrap();
-        let actual3: ClientSecret = serde_json::from_str(client_secret_str3).unwrap();
+        let actual1: ClientSecret = serde_json::from_str(client_secret_str1)
+            .expect("Failed to deserialize client_secret_str1");
+        let actual2: ClientSecret = serde_json::from_str(client_secret_str2)
+            .expect("Failed to deserialize client_secret_str2");
+        let actual3: ClientSecret = serde_json::from_str(client_secret_str3)
+            .expect("Failed to deserialize client_secret_str3");
 
         assert_eq!(expected1, actual1);
         assert_eq!(expected2, actual2);
