@@ -119,3 +119,10 @@ pub async fn construct_webhook_router_data<'a>(
     };
     Ok(router_data)
 }
+
+const INITIAL_RETRY_SCHEDULE_DELAY_SECS: i64 = 60; // 1 minute
+pub(super) fn get_initial_retry_schedule_time() -> time::PrimitiveDateTime {
+    use time::ext::NumericalDuration;
+
+    common_utils::date_time::now().saturating_add(INITIAL_RETRY_SCHEDULE_DELAY_SECS.seconds())
+}

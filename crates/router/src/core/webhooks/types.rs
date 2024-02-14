@@ -3,7 +3,7 @@ use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
 use serde::Serialize;
 
-use crate::{core::errors, headers, services::request::Maskable};
+use crate::{core::errors, headers, services::request::Maskable, types::storage::enums};
 
 pub trait OutgoingWebhookType:
     Serialize + From<webhooks::OutgoingWebhook> + Sync + Send + std::fmt::Debug + 'static
@@ -48,4 +48,13 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
 pub(super) enum WebhookDeliveryAttempt {
     InitialAttempt,
     AutomaticRetry,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookTrackingData {
+    pub(crate) business_profile_id: String,
+    pub(crate) event_type: enums::EventType,
+    pub(crate) event_class: enums::EventClass,
+    pub(crate) primary_object_id: String,
+    pub(crate) primary_object_type: enums::EventObjectType,
 }
