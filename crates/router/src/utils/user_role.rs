@@ -1,41 +1,13 @@
 use api_models::user_role as user_role_api;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::ResultExt;
 
 use crate::{
     consts,
-    core::errors::{UserErrors, UserResult},
-    routes::AppState,
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
     role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub async fn get_active_user_roles_for_user(
-    state: &AppState,
-    user_id: &str,
-) -> UserResult<Vec<UserRole>> {
-    Ok(state
-        .store
-        .list_user_roles_by_user_id(user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter(|ele| ele.status == UserStatus::Active)
-        .collect())
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
 }
 
 pub fn get_role_name_and_permission_response(

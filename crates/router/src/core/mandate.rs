@@ -59,7 +59,6 @@ pub async fn revoke_mandate(
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-
     let mandate_revoke_status = match mandate.mandate_status {
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive

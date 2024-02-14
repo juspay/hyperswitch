@@ -46,18 +46,19 @@ pub async fn get_store(
     test_transaction: bool,
 ) -> StorageResult<Store> {
     #[cfg(feature = "aws_kms")]
-    let aws_kms_client = aws_kms::get_aws_kms_client(&config.kms).await;
+    let aws_kms_client = aws_kms::core::get_aws_kms_client(&config.kms).await;
 
     #[cfg(feature = "hashicorp-vault")]
-    let hc_client = external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
-        .await
-        .change_context(StorageError::InitializationError)?;
+    let hc_client =
+        external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
+            .await
+            .change_context(StorageError::InitializationError)?;
 
     let master_config = config.master_database.clone();
 
     #[cfg(feature = "hashicorp-vault")]
     let master_config = master_config
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
         .await
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to fetch data from hashicorp vault")?;
@@ -74,7 +75,7 @@ pub async fn get_store(
 
     #[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
     let replica_config = replica_config
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
         .await
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to fetch data from hashicorp vault")?;
@@ -128,15 +129,15 @@ pub async fn get_store(
 #[allow(clippy::expect_used)]
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
 ) -> StrongSecret<Vec<u8>> {
     let master_enc_key = conf.secrets.master_enc_key.clone();
 
     #[cfg(feature = "hashicorp-vault")]
     let master_enc_key = master_enc_key
-        .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
         .await
         .expect("Failed to fetch master enc key");
 
