@@ -388,7 +388,7 @@ fn get_address_details(
     Ok(address_details)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
     pub resource: String,
@@ -625,7 +625,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub title: Option<String>,

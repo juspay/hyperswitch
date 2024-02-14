@@ -102,7 +102,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayPaymentStatus {
     Success,
@@ -123,7 +123,7 @@ pub struct GlobepayConnectorMetadata {
     image_data_url: url::Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayPaymentsResponse {
     result_code: Option<GlobepayPaymentStatus>,
     order_id: Option<String>,
@@ -132,7 +132,7 @@ pub struct GlobepayPaymentsResponse {
     return_msg: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, strum::Display)]
+#[derive(Debug, Deserialize, PartialEq, strum::Display, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayReturnCode {
     Success,
@@ -210,7 +210,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepaySyncResponse {
     pub result_code: Option<GlobepayPaymentPsyncStatus>,
     pub order_id: Option<String>,
@@ -218,7 +218,7 @@ pub struct GlobepaySyncResponse {
     pub return_msg: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayPaymentPsyncStatus {
     Paying,
@@ -313,7 +313,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for GlobepayRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum GlobepayRefundStatus {
     Waiting,
     CreateFailed,
@@ -335,7 +335,7 @@ impl From<GlobepayRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayRefundResponse {
     pub result_code: Option<GlobepayRefundStatus>,
     pub refund_id: Option<String>,
@@ -379,7 +379,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, GlobepayRefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayErrorResponse {
     pub return_msg: String,
     pub return_code: GlobepayReturnCode,

@@ -208,7 +208,7 @@ pub struct AdyenBalanceRequest<'a> {
     pub merchant_account: Secret<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBalanceResponse {
     pub psp_reference: String,
@@ -297,7 +297,7 @@ pub struct AdyenThreeDS {
     pub result_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Box<Response>),
@@ -328,7 +328,7 @@ pub struct RedirectionErrorResponse {
     refusal_reason: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectionResponse {
     result_code: AdyenStatus,
@@ -337,7 +337,7 @@ pub struct RedirectionResponse {
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PresentToShopperResponse {
     psp_reference: Option<String>,
@@ -347,7 +347,7 @@ pub struct PresentToShopperResponse {
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QrCodeResponseResponse {
     result_code: AdyenStatus,
@@ -1077,14 +1077,14 @@ pub struct AdyenCancelRequest {
     reference: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelResponse {
     psp_reference: String,
     status: CancelStatus,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CancelStatus {
     Received,
