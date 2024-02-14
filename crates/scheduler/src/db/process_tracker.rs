@@ -242,6 +242,7 @@ pub trait ProcessTrackerExt {
         process_tracker_id: String,
         task: &'a str,
         runner: &'a str,
+        tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
     ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
@@ -277,6 +278,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         process_tracker_id: String,
         task: &'a str,
         runner: &'a str,
+        tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
     ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
@@ -287,7 +289,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         Ok(storage::ProcessTrackerNew {
             id: process_tracker_id,
             name: Some(String::from(task)),
-            tag: vec![String::from("SYNC"), String::from("PAYMENT")],
+            tag: tag.into_iter().map(Into::into).collect(),
             runner: Some(String::from(runner)),
             retry_count: 0,
             schedule_time: Some(schedule_time),
