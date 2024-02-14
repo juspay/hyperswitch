@@ -266,7 +266,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BitpayErrorResponse {
     pub error: String,
     pub code: Option<String>,

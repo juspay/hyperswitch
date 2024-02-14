@@ -299,6 +299,7 @@ mini_stop = {country = "JP", currency = "JPY"}
 family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
 open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
@@ -351,6 +352,8 @@ bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"

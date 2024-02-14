@@ -26,10 +26,11 @@ This directory contains the Postman collection for all Hyperswitch supported con
 
 - Make sure that you update the `tests` section where the necessary `javascript` code has to written/updated to test the feature (assertion checks where you verify the results obtained with the expected outcome)
 - If certain `tests` need to be run at the time of making a request, make sure you add them to the `Pre-request Script` section of the request
+- Make sure that the request body does not contain any comments else the `newman dir-export` command will fail which is used to export the collection to its directory structure
 
 ---
 
 - After all the development is done, make sure you right click and run the collection in respective environments to make sure that the collection runs successfully
-- Export the collection as `v2.1` and save it `postman/collection-json` directory
-- Export the postman-collection to its directory structure by using the command `newman dir-export /path/to/collection.json` and move the folder to `postman/collection-dir` (for more info, refer to [Newman-Fork](https://github.com/juspay/hyperswitch/tree/main/crates/test_utils#newman))
-- You can run the dir postman collection from newman using `rustman` by referring [here](https://github.com/juspay/hyperswitch/tree/main/crates/test_utils#running-tests)
+- Export the collection as `v2.1` and save it `postman/collection-json` directory with file name following the format `<connector_name>.postman_collection.json`
+- Export the postman-collection to its directory structure by using the command `newman dir-export /path/to/collection.json` and move the folder to `postman/collection-dir` (for more info, refer to [Newman-Fork](/crates/test_utils/README.md#newman)) with the folder renamed with name of the connector
+- You can run the postman collection from directory structure by referring [here](/crates/test_utils/README.md#running-tests)

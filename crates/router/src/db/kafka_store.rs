@@ -24,6 +24,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
@@ -1964,6 +1965,18 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
+
+    async fn update_user_roles_by_user_id_org_id(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        update: user_storage::UserRoleUpdate,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .update_user_roles_by_user_id_org_id(user_id, org_id, update)
+            .await
+    }
+
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1979,6 +1992,17 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
+    }
+
+    async fn transfer_org_ownership_between_users(
+        &self,
+        from_user_id: &str,
+        to_user_id: &str,
+        org_id: &str,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
+            .await
     }
 }
 
@@ -2021,6 +2045,7 @@ impl DashboardMetadataInterface for KafkaStore {
             .find_user_scoped_dashboard_metadata(user_id, merchant_id, org_id, data_keys)
             .await
     }
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -2032,13 +2057,28 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 
-    async fn delete_user_scoped_dashboard_metadata_by_merchant_id(
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .delete_all_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+                user_id,
+                merchant_id,
+                data_key,
+            )
             .await
     }
 }
@@ -2198,4 +2238,34 @@ impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
     }
+}
+
+#[async_trait::async_trait]
+impl RoleInterface for KafkaStore {
+    async fn insert_role(
+        &self,
+        role: storage::RoleNew,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.insert_role(role).await
+    }
+    async fn find_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.find_role_by_role_id(role_id).await
+    }
+
+    async fn delete_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store.delete_role_by_role_id(role_id).await
+    }
+
+    // async fn update_permissions_by_role_id(
+    //     &self,
+    //     user_id: &str,
+    //     merchant_id: &str,
+    //     update: storage::RoleUpdate,
+    // ) -> CustomResult<storage::Role, errors::StorageError>;
 }

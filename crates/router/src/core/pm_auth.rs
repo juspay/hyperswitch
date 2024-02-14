@@ -349,14 +349,15 @@ async fn store_bank_details_in_payment_methods(
 
     let pm_auth_key = async {
         #[cfg(feature = "hashicorp-vault")]
-        let client = external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while creating client")?;
+        let client =
+            external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while creating client")?;
 
         #[cfg(feature = "hashicorp-vault")]
         let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())
-            .fetch_inner::<hashicorp_vault::Kv2>(client)
+            .fetch_inner::<hashicorp_vault::core::Kv2>(client)
             .await
             .change_context(ApiErrorResponse::InternalServerError)?
             .expose();
@@ -369,7 +370,7 @@ async fn store_bank_details_in_payment_methods(
     .await?;
 
     #[cfg(feature = "aws_kms")]
-    let pm_auth_key = aws_kms::get_aws_kms_client(&state.conf.kms)
+    let pm_auth_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
         .await
         .decrypt(pm_auth_key)
         .await

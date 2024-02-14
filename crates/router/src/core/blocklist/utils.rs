@@ -48,7 +48,7 @@ pub async fn delete_entry_from_blocklist(
                 })?;
 
             #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
+            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
                 .await
                 .decrypt(blocklist_fingerprint.encrypted_fingerprint)
                 .await
@@ -244,7 +244,7 @@ pub async fn insert_entry_into_blocklist(
                 })?;
 
             #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::get_aws_kms_client(&state.conf.kms)
+            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
                 .await
                 .decrypt(blocklist_fingerprint.encrypted_fingerprint)
                 .await

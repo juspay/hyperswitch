@@ -1289,7 +1289,7 @@ pub enum BankRedirectData {
     },
     Giropay {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
         /// Bank account details for Giropay
 
         #[schema(value_type = Option<String>)]
