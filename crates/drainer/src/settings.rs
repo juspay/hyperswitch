@@ -17,7 +17,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::{errors, secrets_decryption};
+use crate::{errors, secrets_transformers};
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -46,7 +46,8 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let raw_conf = secrets_decryption::kms_decryption(conf, secret_management_client).await;
+        let raw_conf =
+            secrets_transformers::fetch_raw_secrets(conf, secret_management_client).await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = raw_conf

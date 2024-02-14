@@ -11,7 +11,7 @@ mod stream;
 mod types;
 mod utils;
 use std::sync::Arc;
-mod secrets_decryption;
+mod secrets_transformers;
 
 use actix_web::dev::Server;
 use common_utils::signals::get_allowed_signals;
