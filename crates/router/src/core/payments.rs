@@ -2365,6 +2365,7 @@ pub async fn add_process_sync_task(
     };
     let runner = "PAYMENTS_SYNC_WORKFLOW";
     let task = "PAYMENTS_SYNC";
+    let tag = ["SYNC", "PAYMENT"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
@@ -2375,6 +2376,7 @@ pub async fn add_process_sync_task(
         process_tracker_id,
         task,
         runner,
+        tag,
         tracking_data,
         schedule_time,
     )?;
