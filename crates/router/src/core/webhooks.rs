@@ -32,6 +32,7 @@ use crate::{
     events::{
         api_logs::ApiEvent,
         outgoing_webhook_logs::{OutgoingWebhookEvent, OutgoingWebhookEventMetric},
+        RawEvent,
     },
     logger,
     routes::{app::AppStateInfo, lock_utils, metrics::request::add_attributes, AppState},
@@ -734,42 +735,27 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
             content: content.clone(),
             timestamp: event.created_at,
         };
-        let state_clone = state.clone();
         // Using a tokio spawn here and not arbiter because not all caller of this function
         // may have an actix arbiter
-        tokio::spawn(async move {
-            let mut error = None;
-            let result =
-                trigger_webhook_to_merchant::<W>(business_profile, outgoing_webhook, state).await;
-
-            if let Err(e) = result {
-                error.replace(
-                    serde_json::to_value(e.current_context())
-                        .into_report()
-                        .attach_printable("Failed to serialize json error response")
-                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                        .ok()
-                        .into(),
+        tokio::spawn(
+            async move {
+                let trigger_webhook_result = trigger_webhook_to_merchant::<W>(
+                    business_profile,
+                    outgoing_webhook,
+                    state.clone(),
+                )
+                .await;
+                raise_webhooks_analytics_event(
+                    state,
+                    trigger_webhook_result,
+                    content,
+                    &merchant_id,
+                    &event,
+                    event_type,
                 );
-                logger::error!(?e);
             }
-            let outgoing_webhook_event_type = content.get_outgoing_webhook_event_type();
-            let webhook_event = OutgoingWebhookEvent::new(
-                merchant_id,
-                event.event_id.clone(),
-                event_type,
-                outgoing_webhook_event_type,
-                error,
-            );
-            match webhook_event.clone().try_into() {
-                Ok(event) => {
-                    state_clone.event_handler().log_event(event);
-                }
-                Err(err) => {
-                    logger::error!(error=?err, event=?webhook_event, "Error Logging Outgoing Webhook Event");
-                }
-            }
-        }.in_current_span());
+            .in_current_span(),
+        );
     }
 
     Ok(())
@@ -874,6 +860,48 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     }
 
     Ok(())
+}
+
+fn raise_webhooks_analytics_event(
+    state: AppState,
+    trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
+    content: api::OutgoingWebhookContent,
+    merchant_id: &str,
+    event: &storage::Event,
+    event_type: enums::EventType,
+) {
+    let error = if let Err(error) = trigger_webhook_result {
+        logger::error!(?error, "Failed to send webhook to merchant");
+
+        serde_json::to_value(error.current_context())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .map_err(|error| {
+                logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
+                error
+            })
+            .ok()
+    } else {
+        None
+    };
+
+    let outgoing_webhook_event_content = content.get_outgoing_webhook_event_type();
+    let webhook_event = OutgoingWebhookEvent::new(
+        merchant_id.to_owned(),
+        event.event_id.clone(),
+        event_type,
+        outgoing_webhook_event_content,
+        error,
+    );
+
+    match RawEvent::try_from(webhook_event.clone()) {
+        Ok(event) => {
+            state.event_handler().log_event(event);
+        }
+        Err(error) => {
+            logger::error!(?error, event=?webhook_event, "Error logging outgoing webhook event");
+        }
+    }
 }
 
 pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
