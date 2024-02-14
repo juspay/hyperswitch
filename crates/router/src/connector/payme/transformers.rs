@@ -119,7 +119,7 @@ pub struct CaptureBuyerRequest {
     card: PaymeCard,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureBuyerResponse {
     buyer_key: String,
 }
@@ -156,7 +156,7 @@ pub struct ThreeDsSettings {
     active: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GenerateSaleResponse {
     payme_sale_id: String,
 }
@@ -858,19 +858,19 @@ impl From<SaleStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymePaymentsResponse {
     PaymePaySaleResponse(PaymePaySaleResponse),
     SaleQueryResponse(SaleQueryResponse),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SaleQueryResponse {
     items: Vec<SaleQuery>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
@@ -978,7 +978,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
     payme_transaction_id: String,

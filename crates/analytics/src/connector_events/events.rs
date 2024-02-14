@@ -62,6 +62,7 @@ pub struct ConnectorEventsResult {
     pub request_id: Option<String>,
     pub flow: String,
     pub request: String,
+    #[serde(rename = "masked_response")]
     pub response: Option<String>,
     pub error: Option<String>,
     pub status_code: u16,

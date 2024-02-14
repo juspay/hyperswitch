@@ -691,7 +691,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        match self
+        let mca_update_res = self
             .merchant_connector_accounts
             .lock()
             .await
@@ -709,8 +709,9 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
-            .await
-        {
+            .await;
+
+        match mca_update_res {
             Some(result) => result,
             None => {
                 return Err(errors::StorageError::ValueNotFound(

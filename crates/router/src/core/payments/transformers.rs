@@ -1160,6 +1160,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
@@ -1341,7 +1342,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
         })
     }
 }
-
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

@@ -12,9 +12,15 @@ use config::{Environment, File};
 use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-use external_services::file_storage::FileStorageConfig;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
+use external_services::{
+    file_storage::FileStorageConfig,
+    managers::{
+        encryption_management::EncryptionManagementConfig,
+        secrets_management::SecretsManagementConfig,
+    },
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -30,7 +36,7 @@ use crate::{
     events::EventsConfig,
 };
 #[cfg(feature = "aws_kms")]
-pub type Password = aws_kms::AwsKmsValue;
+pub type Password = aws_kms::core::AwsKmsValue;
 #[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
@@ -89,10 +95,12 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
     #[cfg(feature = "aws_kms")]
-    pub kms: aws_kms::AwsKmsConfig,
+    pub kms: aws_kms::core::AwsKmsConfig,
     pub file_storage: FileStorageConfig,
+    pub encryption_management: EncryptionManagementConfig,
+    pub secrets_management: SecretsManagementConfig,
     #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
@@ -237,6 +245,7 @@ pub struct DummyConnector {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -367,11 +376,11 @@ pub struct Secrets {
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_jwt_secret: aws_kms::AwsKmsValue,
+    pub kms_encrypted_jwt_secret: aws_kms::core::AwsKmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_admin_api_key: aws_kms::core::AwsKmsValue,
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_recon_admin_api_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_recon_admin_api_key: aws_kms::core::AwsKmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -597,7 +606,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "aws_kms")]
-    pub kms_encrypted_hash_key: aws_kms::AwsKmsValue,
+    pub kms_encrypted_hash_key: aws_kms::core::AwsKmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
@@ -723,6 +732,14 @@ impl Settings {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        self.encryption_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.secrets_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
     }
 }
