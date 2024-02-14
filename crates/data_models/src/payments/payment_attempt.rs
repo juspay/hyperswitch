@@ -307,6 +307,9 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
+        external_three_ds_authentication_requested: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,

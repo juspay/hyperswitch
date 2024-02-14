@@ -25,6 +25,16 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
 }
 
+impl AuthenticationData {
+    pub fn is_separate_authn_required(&self) -> bool {
+        if self.maximum_supported_version.0 == 2 {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ThreeDsMethodData {
     pub three_ds_method_data_submission: bool,

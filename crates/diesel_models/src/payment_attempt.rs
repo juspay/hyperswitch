@@ -218,6 +218,9 @@ pub enum PaymentAttemptUpdate {
         tax_amount: Option<i64>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        external_three_ds_authentication_requested: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -542,6 +545,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -564,6 +570,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_requested,
+                authentication_connector,
+                authentication_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
