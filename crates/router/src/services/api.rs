@@ -266,7 +266,7 @@ pub enum CaptureSyncMethod {
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all, fields(payment_method))]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -286,6 +286,7 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    tracing::Span::current().record("connector_name", &req.connector);
     tracing::Span::current().record("payment_method", &req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
