@@ -38,7 +38,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
-    locker_migration, payment_link::*, user::*, user_role::*,
+    payment_link::*, user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1061,19 +1061,6 @@ impl User {
             )
         }
         route
-    }
-}
-
-pub struct LockerMigrate;
-
-#[cfg(feature = "olap")]
-impl LockerMigrate {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("locker_migration/{merchant_id}")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
-            )
     }
 }
 
