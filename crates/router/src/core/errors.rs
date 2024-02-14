@@ -52,13 +52,6 @@ macro_rules! impl_error_display {
 
 #[macro_export]
 macro_rules! capture_method_not_supported {
-    // ($connector:expr) => {
-    //     Err(errors::ConnectorError::NotSupported {
-    //         message: format!("Selected payment method"),
-    //         connector: $connector,
-    //     }
-    //     .into())
-    // };
     ($connector:expr, $capture_method:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
