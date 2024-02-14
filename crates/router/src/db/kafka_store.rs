@@ -24,6 +24,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
@@ -2237,4 +2238,34 @@ impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
     }
+}
+
+#[async_trait::async_trait]
+impl RoleInterface for KafkaStore {
+    async fn insert_role(
+        &self,
+        role: storage::RoleNew,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.insert_role(role).await
+    }
+    async fn find_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.find_role_by_role_id(role_id).await
+    }
+
+    async fn delete_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store.delete_role_by_role_id(role_id).await
+    }
+
+    // async fn update_permissions_by_role_id(
+    //     &self,
+    //     user_id: &str,
+    //     merchant_id: &str,
+    //     update: storage::RoleUpdate,
+    // ) -> CustomResult<storage::Role, errors::StorageError>;
 }
