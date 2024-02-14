@@ -739,6 +739,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
+        let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .surcharge_details
@@ -774,6 +775,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        fingerprint_id: m_fingerprint_id,
                     },
                     storage_scheme,
                 )
@@ -784,7 +786,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         );
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
-        let m_fingerprint_id = payment_data.payment_intent.fingerprint_id.clone();
         let m_customer_id = customer_id.clone();
         let m_shipping_address_id = shipping_address.clone();
         let m_billing_address_id = billing_address.clone();
@@ -821,7 +822,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        fingerprint_id: m_fingerprint_id,
+                        fingerprint_id: None,
                         session_expiry,
                     },
                     storage_scheme,

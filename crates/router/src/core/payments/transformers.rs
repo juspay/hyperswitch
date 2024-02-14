@@ -707,7 +707,7 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
-                        .set_fingerprint(payment_intent.fingerprint_id)
+                        .set_fingerprint(payment_attempt.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
