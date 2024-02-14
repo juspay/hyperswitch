@@ -11,4 +11,4 @@ license.workspace = true
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
 serde_json = "1.0.96"
 
-api_models = { version = "0.1.0", path = "../api_models", features = ["openapi", "backwards_compatibility", "business_profile_routing", "connector_choice_mca_id", "recon", "dummy_connector", "payouts", "frm", "olap"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["openapi"] }
