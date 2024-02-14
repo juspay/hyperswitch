@@ -6607,6 +6607,13 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -10300,6 +10307,7 @@
         "description": "Routing Algorithm specific to merchants",
         "required": [
           "id",
+          "profile_id",
           "name",
           "description",
           "algorithm",
@@ -10308,6 +10316,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -15446,7 +15457,7 @@
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "sub_label": {
+          "merchant_connector_id": {
             "type": "string",
             "nullable": true
           }
@@ -15456,6 +15467,13 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -15655,6 +15673,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "kind",
           "description",
@@ -15663,6 +15682,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
