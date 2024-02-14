@@ -168,7 +168,7 @@ function invert(color, bw) {
 window.state = {
   prevHeight: window.innerHeight,
   prevWidth: window.innerWidth,
-  isMobileView: window.innerWidth <= 1400,
+  isMobileView: window.innerWidth <= 1199,
   currentScreen: "payment_link",
 };
 
@@ -267,14 +267,14 @@ function initializeEventListeners(paymentDetails) {
     hyperCheckoutCartImageNode.style.backgroundColor = contrastingTone;
   }
 
-  if (window.innerWidth <= 1400) {
+  if (window.innerWidth <= 1199) {
     if (hyperCheckoutNode instanceof HTMLDivElement) {
       hyperCheckoutNode.style.color = contrastBWColor;
     }
     if (hyperCheckoutFooterNode instanceof HTMLDivElement) {
       hyperCheckoutFooterNode.style.backgroundColor = contrastingTone;
     }
-  } else if (window.innerWidth > 1400) {
+  } else if (window.innerWidth > 1199) {
     if (hyperCheckoutNode instanceof HTMLDivElement) {
       hyperCheckoutNode.style.color = "#333333";
     }
@@ -287,7 +287,7 @@ function initializeEventListeners(paymentDetails) {
     var currentHeight = window.innerHeight;
     var currentWidth = window.innerWidth;
     // @ts-ignore
-    if (currentWidth <= 1400 && window.state.prevWidth > 1400) {
+    if (currentWidth <= 1199 && window.state.prevWidth > 1199) {
       hide("#hyper-checkout-cart");
       // @ts-ignore
       if (window.state.currentScreen === "payment_link") {
@@ -304,7 +304,7 @@ function initializeEventListeners(paymentDetails) {
         console.error("Failed to fetch primary-color, using default", error);
       }
       // @ts-ignore
-    } else if (currentWidth > 1400 && window.state.prevWidth <= 1400) {
+    } else if (currentWidth > 1199 && window.state.prevWidth <= 1199) {
       // @ts-ignore
       if (window.state.currentScreen === "payment_link") {
         hide("#hyper-footer");
@@ -327,7 +327,7 @@ function initializeEventListeners(paymentDetails) {
     // @ts-ignore
     window.state.prevWidth = currentWidth;
     // @ts-ignore
-    window.state.isMobileView = currentWidth <= 1400;
+    window.state.isMobileView = currentWidth <= 1199;
   });
 }
 

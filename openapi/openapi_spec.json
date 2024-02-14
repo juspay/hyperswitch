@@ -1608,6 +1608,39 @@
         ]
       }
     },
+    "/customers/{customer_id}/mandates": {
+      "post": {
+        "tags": [
+          "Customers Mandates List"
+        ],
+        "summary": "Customers - Mandates List",
+        "description": "Customers - Mandates List\n\nLists all the mandates for a particular customer id.",
+        "operationId": "List all Mandates for a Customer",
+        "responses": {
+          "200": {
+            "description": "List of retrieved mandates for a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MandateResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/{customer_id}/payment_methods": {
       "get": {
         "tags": [
@@ -5194,12 +5227,16 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_account_bic": {
                     "type": "string",

@@ -86,7 +86,7 @@ pub struct PermissionInfo {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserRoleRequest {
-    pub user_id: String,
+    pub email: pii::Email,
     pub role_id: String,
 }
 
@@ -106,5 +106,10 @@ pub type AcceptInvitationResponse = DashboardEntryResponse;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TransferOrgOwnershipRequest {
     pub email: pii::Email,
 }

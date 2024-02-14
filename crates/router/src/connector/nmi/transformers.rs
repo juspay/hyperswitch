@@ -137,7 +137,7 @@ fn get_card_details(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiVaultResponse {
     pub response: Response,
     pub responsetext: String,
@@ -305,7 +305,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NmiCompleteResponse {
     pub response: Response,
     pub responsetext: String,
@@ -707,7 +707,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Response {
     #[serde(alias = "1")]
     Approved,
@@ -717,7 +717,7 @@ pub enum Response {
     Error,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StandardResponse {
     pub response: Response,
     pub responsetext: String,
@@ -898,15 +898,14 @@ pub enum NmiStatus {
     Unknown,
 }
 
-impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
-    for types::PaymentsSyncRouterData
+impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::PaymentsSyncResponseRouterData<types::Response>,
+        item: types::ResponseRouterData<F, SyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let response = SyncResponse::try_from(item.response.response.to_vec())?;
-        match response.transaction {
+        match item.response.transaction {
             Some(trn) => Ok(Self {
                 status: enums::AttemptStatus::from(NmiStatus::from(trn.condition)),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1050,19 +1049,18 @@ impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, types::Response>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = Error;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, types::Response>,
+        item: types::RefundsResponseRouterData<api::RSync, NmiRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = NmiRefundSyncResponse::try_from(item.response.response.to_vec())?;
         let refund_status =
-            enums::RefundStatus::from(NmiStatus::from(response.transaction.condition));
+            enums::RefundStatus::from(NmiStatus::from(item.response.transaction.condition));
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: response.transaction.order_id,
+                connector_refund_id: item.response.transaction.order_id,
                 refund_status,
             }),
             ..item.data
@@ -1110,14 +1108,14 @@ pub struct SyncResponse {
     pub transaction: Option<SyncTransactionResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundSyncBody {
     order_id: String,
     condition: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct NmiRefundSyncResponse {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiRefundSyncResponse {
     transaction: RefundSyncBody,
 }
 
