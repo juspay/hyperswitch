@@ -31,9 +31,10 @@ pub struct BlocklistResponse {
     pub created_at: time::PrimitiveDateTime,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct GenerateFingerprintResponse {
-    pub fingerprint: String,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct GenerateFingerprintResponsePayload {
+    pub card_fingerprint: String,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleBlocklistResponse {
@@ -69,5 +70,5 @@ impl ApiEventMetric for ToggleBlocklistResponse {}
 impl ApiEventMetric for ListBlocklistQuery {}
 impl ApiEventMetric for GenerateFingerprintRequest {}
 impl ApiEventMetric for ToggleBlocklistQuery {}
-impl ApiEventMetric for GenerateFingerprintResponse {}
+impl ApiEventMetric for GenerateFingerprintResponsePayload {}
 impl ApiEventMetric for Card {}

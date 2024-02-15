@@ -5,7 +5,6 @@ use josekit::jwe;
 #[cfg(feature = "aws_kms")]
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
@@ -19,6 +18,8 @@ use crate::{
     utils::{self, ConnectorResponseExt},
 };
 
+const LOCKER_API_URL: &str = "/cards/fingerprint";
+
 impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     fn foreign_from(from: storage::Blocklist) -> Self {
         Self {
@@ -29,34 +30,14 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-const LOCKER_API_URL: &str = "/cards/fingerprint";
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct GenerateFingerprintRequest {
-    pub card: Card,
-    pub hash_key: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct Card {
-    pub card_number: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct GenerateFingerprintResponsePayload {
-    pub card_fingerprint: String,
-}
-
 async fn generate_fingerprint_request<'a>(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
-    payload: &GenerateFingerprintRequest,
+    payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = utils::Encode::<GenerateFingerprintRequest>::encode_to_vec(&payload)
+    let payload = utils::Encode::<blocklist::GenerateFingerprintRequest>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -146,9 +127,9 @@ pub async fn generate_fingerprint(
     card_number: String,
     hash_key: String,
     locker_choice: api_enums::LockerChoice,
-) -> CustomResult<GenerateFingerprintResponsePayload, errors::VaultError> {
-    let payload = GenerateFingerprintRequest {
-        card: Card { card_number },
+) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
+    let payload = blocklist::GenerateFingerprintRequest {
+        card: blocklist::Card { card_number },
         hash_key,
     };
 
@@ -161,9 +142,9 @@ pub async fn generate_fingerprint(
 #[instrument(skip_all)]
 async fn call_to_locker_for_fingerprint(
     state: &routes::AppState,
-    payload: &GenerateFingerprintRequest,
+    payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
-) -> CustomResult<GenerateFingerprintResponsePayload, errors::VaultError> {
+) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let locker = &state.conf.locker;
     #[cfg(not(feature = "aws_kms"))]
     let jwekey = &state.conf.jwekey;
@@ -184,7 +165,7 @@ async fn call_to_locker_for_fingerprint(
             .await
             .change_context(errors::VaultError::GenerateFingerprintFailed)
             .attach_printable("Error getting decrypted fingerprint response payload")?;
-    let generate_fingerprint_response: GenerateFingerprintResponsePayload = decrypted_payload
+    let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload = decrypted_payload
         .parse_struct("GenerateFingerprintResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)?;
 
