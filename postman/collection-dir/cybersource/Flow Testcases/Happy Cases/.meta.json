@@ -16,15 +16,15 @@
     "Scenario9-Add card flow",
     "Scenario10-Don't Pass CVV for save card flow and verifysuccess payment",
     "Scenario11-Save card payment with manual capture",
-    "Scenario12- Zero auth mandates",
-    "Scenario13 Incremental auth",
-    "Scenario14 Incremental auth for mandates",
-    "Scenario15 Incremental auth with partial capture",
+    "Scenario12-Zero auth mandates",
+    "Scenario13-Incremental auth",
+    "Scenario14-Incremental auth for mandates",
+    "Scenario15-Incremental auth with partial capture",
     "Scenario16-Verify PML for mandate",
-    "Scenario17- Revoke mandates",
-    "Scenario18- Update mandate card details",
-    "Scenario19- Create 3ds payment",
-    "Scenario20- Create 3ds mandate",
+    "Scenario17-Revoke mandates",
+    "Scenario18-Update mandate card details",
+    "Scenario19-Create 3ds payment",
+    "Scenario20-Create 3ds mandate",
     "Scenario21-Create a mandate without customer acceptance"
   ]
 }

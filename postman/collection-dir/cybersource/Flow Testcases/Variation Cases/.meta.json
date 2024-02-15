@@ -8,13 +8,13 @@
     "Scenario7-Refund exceeds amount",
     "Scenario8-Refund for unsuccessful payment",
     "Scenario9-Create a recurring payment with greater mandate amount",
-    "Scenario10- Manual multiple capture",
+    "Scenario10-Manual multiple capture",
     "Scenario11-Failure card",
     "Scenario12-Refund exceeds amount captured",
-    "Scenario13- Revoke for revoked mandates",
-    "Scenario14- Recurring payment for revoked mandates",
-    "Scenario15- Setup_future_usage is off_session for normal payments",
-    "Scenario16- Setup_future_usage is on_session for mandates payments -confirm false",
-    "Scenario17- Setup_future_usage is null for normal payments"
+    "Scenario13-Revoke for revoked mandates",
+    "Scenario14-Recurring payment for revoked mandates",
+    "Scenario15-Setup_future_usage is off_session for normal payments",
+    "Scenario16-Setup_future_usage is on_session for mandates payments -confirm false",
+    "Scenario17-Setup_future_usage is null for normal payments"
   ]
 }
