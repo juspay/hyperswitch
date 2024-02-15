@@ -29,7 +29,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-const LOCKER_API_URL:&str = "/cards/fingerprint";
+const LOCKER_API_URL: &str = "/cards/fingerprint";
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct GenerateFingerprintRequest {
