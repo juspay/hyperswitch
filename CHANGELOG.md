@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.15.1
+
+### Features
+
+- **api_models:** Add client_secret type to payments ([#3557](https://github.com/juspay/hyperswitch/pull/3557)) ([`610a5a3`](https://github.com/juspay/hyperswitch/commit/610a5a3969789f1e1bcb074a262070247a030eb1))
+
+### Bug Fixes
+
+- Allow all headers on cors ([#3653](https://github.com/juspay/hyperswitch/pull/3653)) ([`64bf815`](https://github.com/juspay/hyperswitch/commit/64bf815294244b1f4d42ea6cefcf2177d0febf9e))
+
+### Refactors
+
+- **webhooks:** Check event type not supported before checking for profile_id ([#3543](https://github.com/juspay/hyperswitch/pull/3543)) ([`2d4f6b3`](https://github.com/juspay/hyperswitch/commit/2d4f6b3fa004a3f03beaa604e2dbfe95fcbe22a6))
+
+**Full Changelog:** [`2024.02.15.0...2024.02.15.1`](https://github.com/juspay/hyperswitch/compare/2024.02.15.0...2024.02.15.1)
+
+- - -
+
 ## 2024.02.15.0
 
 ### Features
