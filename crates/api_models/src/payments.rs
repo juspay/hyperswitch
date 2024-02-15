@@ -106,6 +106,8 @@ impl Serialize for ClientSecret {
 
 #[cfg(test)]
 mod client_secret_tests {
+    #![allow(clippy::expect_used)]
+
     use serde_json;
 
     use super::*;
