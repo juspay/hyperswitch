@@ -91,10 +91,7 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
                 .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?
         {
             process
-                .finish_with_status(
-                    state.get_db().as_scheduler(),
-                    format!("COMPLETED_BY_PT_{task_id}"),
-                )
+                .finish_with_status(state.get_db().as_scheduler(), "COMPLETED_BY_PT".to_string())
                 .await?
         }
         // If tasks are remaining that has to be scheduled
