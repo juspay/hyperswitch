@@ -7,6 +7,7 @@ edition = "2021"
 default = ["kv_store", "olap"]
 olap = ["storage_impl/olap"]
 kv_store = []
+email = []
 
 [dependencies]
 # Third party crates
