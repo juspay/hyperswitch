@@ -50,6 +50,24 @@ macro_rules! impl_error_display {
     };
 }
 
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
+    };
+}
+
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
         #[derive(Debug)]
@@ -187,6 +205,12 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum HealthCheckOutGoing {
+    #[error("Outgoing call failed with error: {message}")]
+    OutGoingFailed { message: String },
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
@@ -215,12 +239,12 @@ pub enum VaultError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum KmsError {
+pub enum AwsKmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
-    #[error("Failed to KMS decrypt input data")]
+    #[error("Failed to AWS KMS decrypt input data")]
     DecryptionFailed,
-    #[error("Missing plaintext KMS decryption output")]
+    #[error("Missing plaintext AWS KMS decryption output")]
     MissingPlaintextDecryptionOutput,
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,

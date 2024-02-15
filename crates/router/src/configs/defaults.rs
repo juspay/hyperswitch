@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-#[cfg(feature = "kms")]
-use external_services::kms::KmsValue;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::core::AwsKmsValue;
 
 use super::settings::{ConnectorFields, Password, PaymentMethodType, RequiredFieldFinal};
 
@@ -19,6 +19,20 @@ impl Default for super::settings::Server {
     }
 }
 
+impl Default for super::settings::CorsSettings {
+    fn default() -> Self {
+        Self {
+            origins: HashSet::from_iter(["http://localhost:8080".to_string()]),
+            allowed_methods: HashSet::from_iter(
+                ["GET", "PUT", "POST", "DELETE"]
+                    .into_iter()
+                    .map(ToString::to_string),
+            ),
+            wildcard_origin: false,
+            max_age: 30,
+        }
+    }
+}
 impl Default for super::settings::Database {
     fn default() -> Self {
         Self {
@@ -209,6 +223,7 @@ impl Default for Mandates {
                     ])),
                 ),
             ])),
+            update_mandate_supported: SupportedPaymentMethodsForMandate(HashMap::default()),
         }
     }
 }
@@ -4481,10 +4496,222 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
-                                    enums::Connector::Stripe,
+                                    enums::Connector::Aci,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.giropay.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.giropay.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserCountry {
+                                                        options: vec![
+                                                                "DE".to_string(),
+                                                        ]},
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Adyen,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
                                         non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Globalpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            ("billing.address.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserAddressCountry {
+                                                    options: vec![
+                                                            "DE".to_string(),
+                                                        ]
+                                                },
+                                                value: None,
+                                            }
+                                        )
+                                        ]),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Mollie,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Nuvei,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate:HashMap::from([
+                                            (
+                                                "email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.first_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.first_name".to_string(),
+                                                    display_name: "billing_first_name".to_string(),
+                                                    field_type: enums::FieldType::UserBillingName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.last_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.last_name".to_string(),
+                                                    display_name: "billing_last_name".to_string(),
+                                                    field_type: enums::FieldType::UserBillingName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCountry{
+                                                        options: vec![
+                                                            "DE".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            )]
+                                        ),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Paypal,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            ("payment_method_data.bank_redirect.giropay.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.giropay.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserCountry {
+                                                    options: vec![
+                                                            "DE".to_string(),
+                                                        ]
+                                                },
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.bank_redirect.giropay.billing_details.billing_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.giropay.billing_details.billing_name".to_string(),
+                                                display_name: "billing_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Stripe,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            ("payment_method_data.bank_redirect.giropay.billing_details.billing_name".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.bank_redirect.giropay.billing_details.billing_name".to_string(),
+                                                display_name: "billing_name".to_string(),
+                                                field_type: enums::FieldType::UserBillingName,
+                                                value: None,
+                                            }
+                                        )
+                                        ]),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Shift4,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Trustpay,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "billing.address.first_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.first_name".to_string(),
+                                                    display_name: "billing_first_name".to_string(),
+                                                    field_type: enums::FieldType::UserBillingName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.line1".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.line1".to_string(),
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserAddressLine1,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.city".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.city".to_string(),
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCity,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.zip".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.zip".to_string(),
+                                                    display_name: "zip".to_string(),
+                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserAddressCountry {
+                                                        options: vec![
+                                                                "DE".to_string(),
+                                                            ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
                                         common: HashMap::new(),
                                     }
                                 ),
@@ -6143,6 +6370,44 @@ impl Default for super::settings::RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::Voucher,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::Boleto,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate : HashMap::from([
+                                            (
+                                                "payment_method_data.voucher.boleto.social_security_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.voucher.boleto.social_security_number".to_string(),
+                                                    display_name: "social_security_number".to_string(),
+                                                    field_type: enums::FieldType::Text,
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                        common : HashMap::new(),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Zen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::new(),
+                                    }
+                                )
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
                 enums::PaymentMethod::BankDebit,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::Ach,
@@ -6235,12 +6500,12 @@ impl Default for super::settings::RequiredFields {
 impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "kms")]
-            kms_encrypted_hash_key: KmsValue::default(),
+            #[cfg(feature = "aws_kms")]
+            kms_encrypted_hash_key: AwsKmsValue::default(),
 
             // Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             // hashes of API keys
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             hash_key: String::new(),
 
             // Specifies the number of days before API key expiry when email reminders should be sent

@@ -8,30 +8,34 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-release = ["kms", "vergen"]
-kms = ["external_services/kms"]
+release = ["aws_kms", "vergen"]
+aws_kms = ["external_services/aws_kms"]
 hashicorp-vault = ["external_services/hashicorp-vault"]
 vergen = ["router_env/vergen"]
 
 [dependencies]
+actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
 bb8 = "0.8"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 diesel = { version = "2.1.0", features = ["postgres"] }
 error-stack = "0.3.1"
+mime = "0.3.17"
 once_cell = "1.18.0"
+reqwest = { version = "0.11.18" }
 serde = "1.0.193"
 serde_json = "1.0.108"
 serde_path_to_error = "0.1.14"
 thiserror = "1.0.40"
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 async-trait = "0.1.74"
 
 # First Party Crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 external_services = { version = "0.1.0", path = "../external_services" }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }

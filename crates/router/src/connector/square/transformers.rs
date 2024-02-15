@@ -178,7 +178,7 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SquareSessionResponse {
     session_id: String,
@@ -203,7 +203,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquareTokenResponse {
     card_nonce: Secret<String>,
 }
@@ -347,7 +347,7 @@ pub struct SquarePaymentsResponseDetails {
     amount_money: SquarePaymentsAmountData,
     reference_id: Option<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponse {
     payment: SquarePaymentsResponseDetails,
 }
@@ -430,7 +430,7 @@ pub struct SquareRefundResponseDetails {
     status: RefundStatus,
     id: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     refund: SquareRefundResponseDetails,
 }

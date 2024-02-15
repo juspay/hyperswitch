@@ -8,13 +8,19 @@ use analytics::ReportConfig;
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-use external_services::file_storage::FileStorageConfig;
 #[cfg(feature = "hashicorp-vault")]
 use external_services::hashicorp_vault;
-#[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::{
+    file_storage::FileStorageConfig,
+    managers::{
+        encryption_management::EncryptionManagementConfig,
+        secrets_management::SecretsManagementConfig,
+    },
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -29,9 +35,9 @@ use crate::{
     env::{self, logger, Env},
     events::EventsConfig,
 };
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
+#[cfg(feature = "aws_kms")]
+pub type Password = aws_kms::core::AwsKmsValue;
+#[cfg(not(feature = "aws_kms"))]
 pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
@@ -53,8 +59,8 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
+#[cfg(feature = "aws_kms")]
+/// Store the decrypted aws kms secret values for active use in the application
 /// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
 /// allocations.
 /// note: we can consider adding such behaviour in the future with custom implementation
@@ -88,17 +94,20 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
+    #[cfg(feature = "aws_kms")]
+    pub kms: aws_kms::core::AwsKmsConfig,
     pub file_storage: FileStorageConfig,
+    pub encryption_management: EncryptionManagementConfig,
+    pub secrets_management: SecretsManagementConfig,
     #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub cors: CorsSettings,
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -235,8 +244,20 @@ pub struct DummyConnector {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct CorsSettings {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub origins: HashSet<String>,
+    #[serde(default)]
+    pub wildcard_origin: bool,
+    pub max_age: usize,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub allowed_methods: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -359,19 +380,19 @@ pub struct RequiredFieldFinal {
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub jwt_secret: String,
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub admin_api_key: String,
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub kms_encrypted_jwt_secret: aws_kms::core::AwsKmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub kms_encrypted_admin_api_key: aws_kms::core::AwsKmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub kms_encrypted_recon_admin_api_key: aws_kms::core::AwsKmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -441,7 +462,7 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[cfg(not(feature = "kms"))]
+#[cfg(not(feature = "aws_kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
         Self {
@@ -596,12 +617,12 @@ pub struct WebhookIgnoreErrorSettings {
 pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: kms::KmsValue,
+    #[cfg(feature = "aws_kms")]
+    pub kms_encrypted_hash_key: aws_kms::core::AwsKmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     pub hash_key: String,
 
     // Specifies the number of days before API key expiry when email reminders should be sent
@@ -705,6 +726,8 @@ impl Settings {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
 
+        self.cors.validate()?;
+
         self.scheduler
             .as_ref()
             .map(|scheduler_settings| scheduler_settings.validate())
@@ -712,7 +735,7 @@ impl Settings {
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
         self.api_keys.validate()?;
-        #[cfg(feature = "kms")]
+        #[cfg(feature = "aws_kms")]
         self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
@@ -723,6 +746,14 @@ impl Settings {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        self.encryption_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.secrets_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
     }
 }

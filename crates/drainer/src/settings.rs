@@ -1,22 +1,23 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::managers::{
+    encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
+};
+use hyperswitch_interfaces::{
+    encryption_interface::EncryptionManagementInterface,
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+};
+use masking::Secret;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::errors;
-
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
-pub type Password = masking::Secret<String>;
+use crate::{errors, secrets_transformers};
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -27,24 +28,58 @@ pub struct CmdLineConf {
     pub config_path: Option<PathBuf>,
 }
 
+#[derive(Clone)]
+pub struct AppState {
+    pub conf: Arc<Settings<RawSecret>>,
+    pub encryption_client: Box<dyn EncryptionManagementInterface>,
+}
+
+impl AppState {
+    /// # Panics
+    ///
+    /// Panics if secret or encryption management client cannot be initiated
+    pub async fn new(conf: Settings<SecuredSecret>) -> Self {
+        #[allow(clippy::expect_used)]
+        let secret_management_client = conf
+            .secrets_management
+            .get_secret_management_client()
+            .await
+            .expect("Failed to create secret management client");
+
+        let raw_conf =
+            secrets_transformers::fetch_raw_secrets(conf, secret_management_client).await;
+
+        #[allow(clippy::expect_used)]
+        let encryption_client = raw_conf
+            .encryption_management
+            .get_encryption_management_client()
+            .await
+            .expect("Failed to create encryption management client");
+
+        Self {
+            conf: Arc::new(raw_conf),
+            encryption_client,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct Settings {
-    pub master_database: Database,
+pub struct Settings<S: SecretState> {
+    pub server: Server,
+    pub master_database: SecretStateContainer<Database, S>,
     pub redis: redis::RedisSettings,
     pub log: Log,
     pub drainer: DrainerSettings,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
-    #[cfg(feature = "hashicorp-vault")]
-    pub hc_vault: hashicorp_vault::HashiCorpVaultConfig,
+    pub encryption_management: EncryptionManagementConfig,
+    pub secrets_management: SecretsManagementConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    pub password: Password,
+    pub password: Secret<String>,
     pub host: String,
     pub port: u16,
     pub dbname: String,
@@ -62,11 +97,29 @@ pub struct DrainerSettings {
     pub loop_interval: u32,     // in milliseconds
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct Server {
+    pub port: u16,
+    pub workers: usize,
+    pub host: String,
+}
+
+impl Server {
+    pub fn validate(&self) -> Result<(), errors::DrainerError> {
+        common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "server host must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl Default for Database {
     fn default() -> Self {
         Self {
             username: String::new(),
-            password: Password::default(),
+            password: String::new().into(),
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
@@ -84,6 +137,16 @@ impl Default for DrainerSettings {
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
             loop_interval: 100,      // in milliseconds
+        }
+    }
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            workers: 1,
         }
     }
 }
@@ -128,7 +191,7 @@ impl DrainerSettings {
     }
 }
 
-impl Settings {
+impl Settings<SecuredSecret> {
     pub fn new() -> Result<Self, errors::DrainerError> {
         Self::with_config_path(None)
     }
@@ -169,12 +232,26 @@ impl Settings {
     }
 
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
-        self.master_database.validate()?;
+        self.server.validate()?;
+        self.master_database.get_inner().validate()?;
         self.redis.validate().map_err(|error| {
             println!("{error}");
             errors::DrainerError::ConfigParsingError("invalid Redis configuration".into())
         })?;
         self.drainer.validate()?;
+        self.secrets_management.validate().map_err(|error| {
+            println!("{error}");
+            errors::DrainerError::ConfigParsingError(
+                "invalid secrets management configuration".into(),
+            )
+        })?;
+
+        self.encryption_management.validate().map_err(|error| {
+            println!("{error}");
+            errors::DrainerError::ConfigParsingError(
+                "invalid encryption management configuration".into(),
+            )
+        })?;
 
         Ok(())
     }
