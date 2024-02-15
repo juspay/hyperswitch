@@ -2,8 +2,7 @@ pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
+use masking::ExposeInterface;
 
 use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
 
@@ -13,42 +12,25 @@ pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
     _req: &actix_web::HttpRequest,
     body: verifications::ApplepayMerchantVerificationRequest,
-    kms_config: &aws_kms::core::AwsKmsConfig,
     merchant_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<ApplepayMerchantResponse>,
     api_error_response::ApiErrorResponse,
 > {
-    let encrypted_merchant_identifier = &state
-        .conf
-        .applepay_merchant_configs
-        .common_merchant_identifier;
-    let encrypted_cert = &state.conf.applepay_merchant_configs.merchant_cert;
-    let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
-    let applepay_endpoint = &state.conf.applepay_merchant_configs.applepay_endpoint;
+    let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
 
-    let applepay_internal_merchant_identifier = aws_kms::core::get_aws_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_merchant_identifier)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
-
-    let cert_data = aws_kms::core::get_aws_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_cert)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
-
-    let key_data = aws_kms::core::get_aws_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_key)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+    let applepay_internal_merchant_identifier = applepay_merchant_configs
+        .common_merchant_identifier
+        .clone()
+        .expose();
+    let cert_data = applepay_merchant_configs.merchant_cert.clone().expose();
+    let key_data = applepay_merchant_configs.merchant_cert_key.clone().expose();
+    let applepay_endpoint = &applepay_merchant_configs.applepay_endpoint;
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
         domain_names: body.domain_names.clone(),
-        encrypt_to: applepay_internal_merchant_identifier.to_string(),
-        partner_internal_merchant_identifier: applepay_internal_merchant_identifier.to_string(),
+        encrypt_to: applepay_internal_merchant_identifier.clone(),
+        partner_internal_merchant_identifier: applepay_internal_merchant_identifier,
         partner_merchant_name: APPLEPAY_INTERNAL_MERCHANT_NAME.to_string(),
     };
 

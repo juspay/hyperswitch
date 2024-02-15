@@ -1,21 +1,14 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "hashicorp-vault", feature = "aws_kms")
-))]
-use analytics::AnalyticsConfig;
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
+#[cfg(feature = "olap")]
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
-#[cfg(all(feature = "olap", feature = "hashicorp-vault"))]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-use hyperswitch_interfaces::encryption_interface::EncryptionManagementInterface;
-#[cfg(all(feature = "olap", feature = "aws_kms"))]
-use masking::PeekInterface;
+use hyperswitch_interfaces::{
+    encryption_interface::EncryptionManagementInterface,
+    secrets_interface::secret_state::{RawSecret, SecuredSecret},
+};
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
@@ -33,7 +26,7 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
-#[cfg(all(feature = "olap", feature = "aws_kms"))]
+#[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
@@ -45,6 +38,7 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -63,12 +57,10 @@ pub use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Arc<settings::Settings>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
-    #[cfg(feature = "aws_kms")]
-    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
@@ -84,7 +76,7 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> settings::Settings;
+    fn conf(&self) -> settings::Settings<RawSecret>;
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
@@ -96,7 +88,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings {
+    fn conf(&self) -> settings::Settings<RawSecret> {
         self.conf.as_ref().to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
@@ -133,7 +125,7 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
+pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
@@ -146,12 +138,22 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        #[cfg_attr(not(all(feature = "olap", feature = "aws_kms")), allow(unused_mut))]
-        mut conf: settings::Settings,
+        #[cfg_attr(not(feature = "olap"), allow(unused_mut))] conf: settings::Settings<
+            SecuredSecret,
+        >,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+        #[allow(clippy::expect_used)]
+        let secret_management_client = conf
+            .secrets_management
+            .get_secret_management_client()
+            .await
+            .expect("Failed to create secret management client");
+
+        let conf = secrets_transformers::kms_decryption(conf, secret_management_client).await;
+
         #[allow(clippy::expect_used)]
         let encryption_client = conf
             .encryption_management
@@ -160,14 +162,6 @@ impl AppState {
             .expect("Failed to create encryption client");
 
         Box::pin(async move {
-            #[cfg(feature = "aws_kms")]
-            let aws_kms_client = aws_kms::core::get_aws_kms_client(&conf.kms).await;
-            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            let hc_client =
-                external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
-                    .await
-                    .expect("Failed while creating hashicorp_client");
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -203,79 +197,8 @@ impl AppState {
                 ),
             };
 
-            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            match conf.analytics {
-                AnalyticsConfig::Clickhouse { .. } => {}
-                AnalyticsConfig::Sqlx { ref mut sqlx }
-                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
-                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = sqlx
-                        .password
-                        .clone()
-                        .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                        .await
-                        .expect("Failed while fetching from hashicorp vault");
-                }
-            };
-
-            #[cfg(all(feature = "aws_kms", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            match conf.analytics {
-                AnalyticsConfig::Clickhouse { .. } => {}
-                AnalyticsConfig::Sqlx { ref mut sqlx }
-                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
-                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = aws_kms_client
-                        .decrypt(&sqlx.password.peek())
-                        .await
-                        .expect("Failed to decrypt password")
-                        .into();
-                }
-            };
-
-            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            {
-                conf.connector_onboarding = conf
-                    .connector_onboarding
-                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                    .await
-                    .expect("Failed to decrypt connector onboarding credentials");
-            }
-
-            #[cfg(all(feature = "aws_kms", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            {
-                conf.connector_onboarding = conf
-                    .connector_onboarding
-                    .decrypt_inner(aws_kms_client)
-                    .await
-                    .expect("Failed to decrypt connector onboarding credentials");
-            }
-
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
-
-            #[cfg(all(feature = "hashicorp-vault", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            {
-                conf.jwekey = conf
-                    .jwekey
-                    .clone()
-                    .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                    .await
-                    .expect("Failed to decrypt connector onboarding credentials");
-            }
-
-            #[cfg(feature = "aws_kms")]
-            #[allow(clippy::expect_used)]
-            let kms_secrets = settings::ActiveKmsSecrets {
-                jwekey: conf.jwekey.clone().into(),
-            }
-            .decrypt_inner(aws_kms_client)
-            .await
-            .expect("Failed while performing AWS KMS decryption");
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -288,8 +211,6 @@ impl AppState {
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
-                #[cfg(feature = "aws_kms")]
-                kms_secrets: Arc::new(kms_secrets),
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
@@ -303,7 +224,7 @@ impl AppState {
     }
 
     pub async fn new(
-        conf: settings::Settings,
+        conf: settings::Settings<SecuredSecret>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
@@ -951,10 +872,10 @@ impl Gsm {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "aws_kms"))]
+#[cfg(feature = "olap")]
 pub struct Verify;
 
-#[cfg(all(feature = "olap", feature = "aws_kms"))]
+#[cfg(feature = "olap")]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")

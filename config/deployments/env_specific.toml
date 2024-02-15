@@ -21,7 +21,6 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
 [api_keys]
-kms_encrypted_hash_key = "base64_encoded_ciphertext"                          # Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key. Only applicable when KMS is disabled.
 
 [applepay_decrypt_keys]
@@ -98,11 +97,6 @@ redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once
 vault_encryption_key = ""       # public key in pem format, corresponding private key in rust locker
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in rust locker
-
-# KMS configuration. Only applicable when the `kms` feature flag is enabled.
-[kms]
-key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
-region = "" # The AWS region used by the KMS SDK for decrypting data.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -202,9 +196,7 @@ region = "report_download_config_region"                     # Region of the buc
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
 admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when KMS is disabled.
-kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
 jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when KMS is disabled.
-kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
 recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
 kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
 

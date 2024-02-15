@@ -30,6 +30,7 @@ use actix_web::{
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
+use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
@@ -142,7 +143,7 @@ pub fn mk_app(
             .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "aws_kms"))]
+    #[cfg(feature = "olap")]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
@@ -175,7 +176,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();

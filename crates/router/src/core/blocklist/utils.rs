@@ -6,8 +6,6 @@ use common_utils::{
 };
 use diesel_models::configs;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
 
 use super::{errors, AppState};
 use crate::{
@@ -47,16 +45,17 @@ pub async fn delete_entry_from_blocklist(
                     message: "blocklist record with given fingerprint id not found".to_string(),
                 })?;
 
-            #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                .await
-                .decrypt(blocklist_fingerprint.encrypted_fingerprint)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to kms decrypt fingerprint")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
+            let decrypted_fingerprint = String::from_utf8(
+                state
+                    .encryption_client
+                    .decrypt(blocklist_fingerprint.encrypted_fingerprint.as_bytes())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to kms decrypt fingerprint")?,
+            )
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to encode decrypted fingerprint into String")?;
 
             let blocklist_entry = state
                 .store
@@ -243,16 +242,17 @@ pub async fn insert_entry_into_blocklist(
                     message: "fingerprint not found".to_string(),
                 })?;
 
-            #[cfg(feature = "aws_kms")]
-            let decrypted_fingerprint = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-                .await
-                .decrypt(blocklist_fingerprint.encrypted_fingerprint)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to kms decrypt encrypted fingerprint")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let decrypted_fingerprint = blocklist_fingerprint.encrypted_fingerprint;
+            let decrypted_fingerprint = String::from_utf8(
+                state
+                    .encryption_client
+                    .decrypt(blocklist_fingerprint.encrypted_fingerprint.as_bytes())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to kms decrypt encrypted fingerprint")?,
+            )
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to encode decrypted fingerprint into String")?;
 
             state
                 .store
@@ -624,10 +624,9 @@ pub async fn generate_payment_fingerprint(
 
     let mut fingerprint_id = None;
     if let Some(encoded_hash) = card_number_fingerprint {
-        #[cfg(feature = "kms")]
-        let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
-            .await
-            .encrypt(encoded_hash)
+        let encrypted_fingerprint = state
+            .encryption_client
+            .encrypt(encoded_hash.as_bytes())
             .await
             .map_or_else(
                 |e| {
@@ -635,10 +634,12 @@ pub async fn generate_payment_fingerprint(
                     None
                 },
                 Some,
-            );
-
-        #[cfg(not(feature = "kms"))]
-        let encrypted_fingerprint = Some(encoded_hash);
+            )
+            .map(String::from_utf8)
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to encode decrypted fingerprint into String")?;
 
         if let Some(encrypted_fingerprint) = encrypted_fingerprint {
             fingerprint_id = db

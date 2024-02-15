@@ -63,7 +63,13 @@ pub async fn get_action_url_from_paypal(
 }
 
 fn merchant_onboarding_status_url(state: AppState, tracking_id: String) -> String {
-    let partner_id = state.conf.connector_onboarding.paypal.partner_id.to_owned();
+    let partner_id = state
+        .conf
+        .connector_onboarding
+        .get_inner()
+        .paypal
+        .partner_id
+        .to_owned();
     format!(
         "{}v1/customer/partners/{}/merchant-integrations?tracking_id={}",
         state.conf.connectors.paypal.base_url,
