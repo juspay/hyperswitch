@@ -32,9 +32,11 @@ impl RoleInfo {
     }
 
     pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups
-            .iter()
-            .any(|module| module.get_permissions_set().contains(required_permission))
+        self.groups.iter().any(|module| {
+            module
+                .get_permissions_groups()
+                .contains(required_permission)
+        })
     }
 }
 

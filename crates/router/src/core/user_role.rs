@@ -81,8 +81,9 @@ pub async fn get_role_from_token(
             .iter()
             .flat_map(|permission_group| {
                 permission_group
-                    .get_permissions_vec()
-                    .into_iter()
+                    .get_permissions_groups()
+                    .iter()
+                    .copied()
                     .map(Into::into)
             })
             .collect(),

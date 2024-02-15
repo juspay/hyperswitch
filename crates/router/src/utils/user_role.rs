@@ -20,8 +20,9 @@ pub fn get_role_name_and_permission_response(
                 .iter()
                 .flat_map(|permission_group| {
                     permission_group
-                        .get_permissions_vec()
-                        .into_iter()
+                        .get_permissions_groups()
+                        .iter()
+                        .cloned()
                         .map(Into::into)
                 })
                 .collect::<Vec<user_role_api::Permission>>(),

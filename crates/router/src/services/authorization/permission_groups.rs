@@ -1,7 +1,5 @@
-use once_cell::sync::Lazy;
-use std::collections::HashSet;
-
 use super::permissions::Permission;
+use once_cell::sync::Lazy;
 
 pub enum PermissionGroup {
     OperationsRead,
@@ -11,52 +9,59 @@ pub enum PermissionGroup {
 }
 
 impl PermissionGroup {
-    pub fn get_permissions_set(&self) -> &'static HashSet<Permission> {
+    pub fn get_permissions_groups(&self) -> &Lazy<Vec<Permission>> {
         match self {
-            Self::OperationsRead => &OPERATIONS_READ,
-            Self::OperationsWrite => &OPERATIONS_WRITE,
-            Self::UnnamedRead => &UNNAMED_READ,
-            Self::UnnamedWrite => &UNNAMED_WRITE,
+            PermissionGroup::OperationsRead => &OPERATIONS_READ,
+            PermissionGroup::OperationsWrite => &OPERATIONS_WRITE,
+            PermissionGroup::UnnamedRead => &UNNAMED_READ,
+            PermissionGroup::UnnamedWrite => &UNNAMED_WRITE,
         }
-    }
-
-    pub fn get_permissions_vec(&self) -> Vec<Permission> {
-        self.get_permissions_set().iter().cloned().collect()
     }
 }
 
-pub static OPERATIONS_READ: Lazy<HashSet<Permission>> = Lazy::new(|| {
-    HashSet::from([
+pub static OPERATIONS_READ: Lazy<Vec<Permission>> = Lazy::new(|| {
+    vec![
         Permission::PaymentRead,
         Permission::RefundRead,
         Permission::MandateRead,
         Permission::DisputeRead,
-    ])
+    ]
 });
 
-pub static OPERATIONS_WRITE: Lazy<HashSet<Permission>> = Lazy::new(|| {
-    HashSet::from([
+pub static OPERATIONS_WRITE: Lazy<Vec<Permission>> = Lazy::new(|| {
+    vec![
         Permission::PaymentWrite,
         Permission::RefundWrite,
         Permission::MandateWrite,
         Permission::DisputeWrite,
-    ])
+    ]
 });
 
-pub static UNNAMED_READ: Lazy<HashSet<Permission>> = Lazy::new(|| {
-    HashSet::from([
+pub static UNNAMED_READ: Lazy<Vec<Permission>> = Lazy::new(|| {
+    vec![
         Permission::PaymentRead,
         Permission::RefundRead,
         Permission::MandateRead,
         Permission::DisputeRead,
-    ])
+    ]
 });
 
-pub static UNNAMED_WRITE: Lazy<HashSet<Permission>> = Lazy::new(|| {
-    HashSet::from([
+pub static UNNAMED_WRITE: Lazy<Vec<Permission>> = Lazy::new(|| {
+    vec![
         Permission::PaymentWrite,
         Permission::RefundWrite,
         Permission::MandateWrite,
         Permission::DisputeWrite,
-    ])
+    ]
 });
+
+impl From<diesel_models::enums::PermissionGroup> for PermissionGroup {
+    fn from(value: diesel_models::enums::PermissionGroup) -> Self {
+        match value {
+            diesel_models::enums::PermissionGroup::OperationsRead => Self::OperationsRead,
+            diesel_models::enums::PermissionGroup::OperationsWrite => Self::OperationsWrite,
+            diesel_models::enums::PermissionGroup::UnnamedRead => Self::UnnamedRead,
+            diesel_models::enums::PermissionGroup::UnnamedWrite => Self::UnnamedWrite,
+        }
+    }
+}
