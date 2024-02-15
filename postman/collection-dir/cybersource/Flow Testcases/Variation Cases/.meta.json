@@ -1,0 +1,20 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Confirming the payment without PMD",
+    "Scenario3-Capture greater amount",
+    "Scenario4-Capture the succeeded payment",
+    "Scenario5-Void the success_slash_failure payment",
+    "Scenario7-Refund exceeds amount",
+    "Scenario8-Refund for unsuccessful payment",
+    "Scenario9-Create a recurring payment with greater mandate amount",
+    "Scenario10- Manual multiple capture",
+    "Scenario11-Failure card",
+    "Scenario12-Refund exceeds amount captured",
+    "Scenario13- Revoke for revoked mandates",
+    "Scenario14- Recurring payment for revoked mandates",
+    "Scenario15- Setup_future_usage is off_session for normal payments",
+    "Scenario16- Setup_future_usage is on_session for mandates payments -confirm false",
+    "Scenario17- Setup_future_usage is null for normal payments"
+  ]
+}
