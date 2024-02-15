@@ -230,9 +230,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = forte::FortePaymentsRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_router_data = forte::ForteRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -240,12 +237,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req,
         ))?;
         let connector_req = forte::FortePaymentsRequest::try_from(&connector_router_data)?;
-        let forte_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(forte_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

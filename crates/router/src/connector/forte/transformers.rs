@@ -79,17 +79,8 @@ impl<T>
     )> for ForteRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        if item.request.currency != enums::Currency::USD {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Forte"),
-            ))?
-        }
-        match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                let action = match item.request.is_auto_capture()? {
     fn try_from(
-        (_currency_unit, _currency, amount, item): (
+        (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -97,11 +88,12 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: amount as f64,
+            amount: utils::get_amount_as_f64(currency_unit, amount, currency)?,
             router_data: item,
         })
     }
 }
+
 impl
     TryFrom<
         &ForteRouterData<
@@ -122,8 +114,8 @@ impl
                 PaymentsResponseData,
             >,
         >,
-    ) -> Result<FortePaymentsRequest, Self::Error> {
-        let payment_data = match &item.router_data.request.payment_method_data {
+    ) -> Result<Self, Self::Error> {
+        match &item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(card) => {
                 let action = match item.router_data.request.is_auto_capture()? {
                     true => ForteAction::Sale,
@@ -133,14 +125,14 @@ impl
                 let address = item.router_data.get_billing_address()?;
                 let card = Card {
                     card_type,
-                    name_on_card: ccard
+                    name_on_card: card
                         .card_holder_name
                         .clone()
                         .unwrap_or(Secret::new("".to_string())),
-                    account_number: ccard.card_number.clone(),
-                    expire_month: ccard.card_exp_month.clone(),
-                    expire_year: ccard.card_exp_year.clone(),
-                    card_verification_value: ccard.card_cvc.clone(),
+                    account_number: card.card_number.clone(),
+                    expire_month: card.card_exp_month.clone(),
+                    expire_year: card.card_exp_year.clone(),
+                    card_verification_value: card.card_cvc.clone(),
                 };
                 let billing_address = BillingAddress {
                     first_name: address.get_first_name()?.to_owned(),
@@ -171,8 +163,7 @@ impl
                     utils::get_unimplemented_payment_method_error_message("Forte"),
                 ))?
             }
-        };
-        payment_data
+        }
     }
 }
 
