@@ -30,20 +30,8 @@
       "value": "application/json"
     },
     {
-      "key": "x-feature",
-      "value": "router-custom",
-      "type": "text",
-      "disabled": true
-    },
-    {
       "key": "Authorization",
       "value": "",
-      "type": "text",
-      "disabled": true
-    },
-    {
-      "key": "x-feature",
-      "value": "integ-custom",
       "type": "text",
       "disabled": true
     }
