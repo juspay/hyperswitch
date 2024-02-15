@@ -4,7 +4,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::{IntoReport, ResultExt};
 
-use super::{errors, transformers::generate_fingerprint_hs, AppState};
+use super::{errors, transformers::generate_fingerprint, AppState};
 use crate::{
     consts,
     core::{
@@ -316,7 +316,7 @@ where
     let card_number_fingerprint = if let Some(pm_data) = payment_data.payment_method_data.as_ref() {
         match pm_data {
             api_models::payments::PaymentMethodData::Card(card) => {
-                if let Some(payload) = generate_fingerprint_hs(
+                if let Some(payload) = generate_fingerprint(
                     state,
                     card.card_number.clone().get_card_no(),
                     merchant_fingerprint_secret.clone(),
@@ -471,7 +471,7 @@ pub async fn generate_payment_fingerprint(
 
     if let Some(api_models::payments::PaymentMethodData::Card(card)) = payment_method_data.as_ref()
     {
-        if let Some(payload) = generate_fingerprint_hs(
+        if let Some(payload) = generate_fingerprint(
             state,
             card.card_number.clone().get_card_no(),
             merchant_fingerprint_secret,

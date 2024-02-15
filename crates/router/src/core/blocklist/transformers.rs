@@ -15,7 +15,7 @@ use crate::{
     },
     headers, routes,
     services::{api as services, encryption},
-    types::{api, storage, transformers::ForeignFrom},
+    types::{storage, transformers::ForeignFrom},
     utils::{self, ConnectorResponseExt},
 };
 
@@ -49,7 +49,7 @@ pub struct GenerateFingerprintResponsePayload {
     pub card_fingerprint: String,
 }
 
-pub async fn mk_generate_fingerprint_request_hs<'a>(
+async fn generate_fingerprint_request<'a>(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
@@ -69,7 +69,7 @@ pub async fn mk_generate_fingerprint_request_hs<'a>(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
+    let jwe_payload = generate_jwe_payload_for_request(jwekey, &jws, locker_choice).await?;
     let mut url = match locker_choice {
         api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
         api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
@@ -81,7 +81,7 @@ pub async fn mk_generate_fingerprint_request_hs<'a>(
     Ok(request)
 }
 
-pub async fn mk_basilisk_req(
+async fn generate_jwe_payload_for_request(
     #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     jws: &str,
@@ -139,27 +139,9 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub fn mk_generate_fingerprint_request(
-    locker: &settings::Locker,
-    card_number: String,
-    hash_key: String,
-    _req: &api::PaymentMethodCreate,
-) -> CustomResult<services::Request, errors::VaultError> {
-    let generate_fingerprint_request = GenerateFingerprintRequest {
-        card: Card { card_number },
-        hash_key,
-    };
-    let mut url = locker.host.to_owned();
-    url.push_str(LOCKER_API_URL);
-    let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(RequestContent::FormUrlEncoded(Box::new(
-        generate_fingerprint_request,
-    )));
-    Ok(request)
-}
 
 #[instrument(skip_all)]
-pub async fn generate_fingerprint_hs(
+pub async fn generate_fingerprint(
     state: &routes::AppState,
     card_number: String,
     hash_key: String,
@@ -171,13 +153,13 @@ pub async fn generate_fingerprint_hs(
     };
 
     let generate_fingerprint_resp =
-        call_to_locker_for_fingerprint_hs(state, &payload, locker_choice).await?;
+        call_to_locker_for_fingerprint(state, &payload, locker_choice).await?;
 
     Ok(generate_fingerprint_resp)
 }
 
 #[instrument(skip_all)]
-pub async fn call_to_locker_for_fingerprint_hs(
+async fn call_to_locker_for_fingerprint(
     state: &routes::AppState,
     payload: &GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
@@ -189,7 +171,7 @@ pub async fn call_to_locker_for_fingerprint_hs(
     let jwekey = &state.kms_secrets;
 
     let request =
-        mk_generate_fingerprint_request_hs(jwekey, locker, payload, locker_choice).await?;
+        generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
     let response = services::call_connector_api(state, request)
         .await
         .change_context(errors::VaultError::GenerateFingerprintFailed);
@@ -198,7 +180,7 @@ pub async fn call_to_locker_for_fingerprint_hs(
         .change_context(errors::VaultError::GenerateFingerprintFailed)?;
 
     let decrypted_payload =
-        get_decrypted_response_fingerprint_payload(jwekey, jwe_body, Some(locker_choice))
+        decrypt_generate_fingerprint_response_payload(jwekey, jwe_body, Some(locker_choice))
             .await
             .change_context(errors::VaultError::GenerateFingerprintFailed)
             .attach_printable("Error getting decrypted fingerprint response payload")?;
@@ -209,7 +191,7 @@ pub async fn call_to_locker_for_fingerprint_hs(
     Ok(generate_fingerprint_response)
 }
 
-pub async fn get_decrypted_response_fingerprint_payload(
+async fn decrypt_generate_fingerprint_response_payload(
     #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
