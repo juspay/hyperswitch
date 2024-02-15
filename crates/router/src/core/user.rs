@@ -1070,10 +1070,9 @@ pub async fn verify_email_without_invite_checks(
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = req.token.clone().expose();
-    let email_token =
-        auth::decode_jwt::<email_types::EmailToken>(&token, &state)
-            .await
-            .change_context(UserErrors::LinkInvalid)?;
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
     let user = state
         .store
@@ -1103,10 +1102,9 @@ pub async fn verify_email(
     req: user_api::VerifyEmailRequest,
 ) -> UserResponse<user_api::SignInResponse> {
     let token = req.token.clone().expose();
-    let email_token =
-        auth::decode_jwt::<email_types::EmailToken>(&token, &state)
-            .await
-            .change_context(UserErrors::LinkInvalid)?;
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
 
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
