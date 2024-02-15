@@ -16,6 +16,8 @@ pub fn cors(config: settings::CorsSettings) -> actix_cors::Cors {
         for origin in &config.origins {
             cors = cors.allowed_origin(origin);
         }
+        // Only allow this in case if it's not wildcard origins. ref: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
+        cors = cors.supports_credentials();
     }
 
     cors
