@@ -120,7 +120,6 @@ async fn generate_jwe_payload_for_request(
     Ok(jwe_body)
 }
 
-
 #[instrument(skip_all)]
 pub async fn generate_fingerprint(
     state: &routes::AppState,
@@ -151,8 +150,7 @@ async fn call_to_locker_for_fingerprint(
     #[cfg(feature = "aws_kms")]
     let jwekey = &state.kms_secrets;
 
-    let request =
-        generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
+    let request = generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
     let response = services::call_connector_api(state, request)
         .await
         .change_context(errors::VaultError::GenerateFingerprintFailed);
