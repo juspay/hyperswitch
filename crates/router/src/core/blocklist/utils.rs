@@ -318,7 +318,7 @@ where
             api_models::payments::PaymentMethodData::Card(card) => {
                 if let Some(payload) = generate_fingerprint_hs(
                     state,
-                    card.card_number.to_string(),
+                    card.card_number.clone().get_card_no(),
                     merchant_fingerprint_secret.clone(),
                     api_models::enums::LockerChoice::Tartarus,
                 )

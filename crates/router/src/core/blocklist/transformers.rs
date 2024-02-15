@@ -29,6 +29,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
+const LOCKER_API_URL:&str = "/cards/fingerprint";
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct GenerateFingerprintRequest {
@@ -73,7 +74,7 @@ pub async fn mk_generate_fingerprint_request_hs<'a>(
         api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
         api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
     };
-    url.push_str("/cards/fingerprint");
+    url.push_str(LOCKER_API_URL);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
@@ -149,7 +150,7 @@ pub fn mk_generate_fingerprint_request(
         hash_key,
     };
     let mut url = locker.host.to_owned();
-    url.push_str("/cards/fingerprint");
+    url.push_str(LOCKER_API_URL);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.set_body(RequestContent::FormUrlEncoded(Box::new(
         generate_fingerprint_request,
@@ -214,7 +215,7 @@ pub async fn get_decrypted_response_fingerprint_payload(
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Tartarus);
 
     #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
