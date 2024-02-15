@@ -42,13 +42,10 @@ pub async fn update_config(
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
-pub async fn config_delete(
-    state: AppState,
-    key: String
-) -> RouterResponse<api::Config> {
+pub async fn config_delete(state: AppState, key: String) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
-        .delete_config_by_key(key)
+        .delete_config_by_key(&key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
     Ok(ApplicationResponse::Json(config.foreign_into()))
