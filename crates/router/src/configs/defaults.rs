@@ -1485,6 +1485,15 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.address.zip".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.zip".to_string(),
+                                                    display_name: "billing_zip".to_string(),
+                                                    field_type: enums::FieldType::UserAddressPincode,
+                                                    value: None,
+                                                }
+                                            ),
                                         ]
                                     ),
                                     common: HashMap::new(),
@@ -3531,6 +3540,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "billing.address.last_name".to_string(),
                                                     display_name: "billing_last_name".to_string(),
                                                     field_type: enums::FieldType::UserBillingName,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.address.zip".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "billing.address.zip".to_string(),
+                                                    display_name: "billing_zip".to_string(),
+                                                    field_type: enums::FieldType::UserAddressPincode,
                                                     value: None,
                                                 }
                                             ),
