@@ -1172,6 +1172,34 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let connector_name = mca.connector_name.as_ref();
+    let connector_enum = api_models::enums::Connector::from_str(connector_name)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
+        |err| match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The connector name is invalid".to_string(),
+                })
+            }
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("The {} is invalid", field_name),
+                }),
+            errors::ConnectorError::FailedToObtainAuthType => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The auth type is invalid for the connector".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The request body is invalid".to_string(),
+            }),
+        },
+    )?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
@@ -1206,7 +1234,7 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
-        connector_label: req.connector_label,
+        connector_label: req.connector_label.clone(),
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
@@ -1236,10 +1264,25 @@ pub async fn update_payment_connector(
         status: Some(connector_status),
     };
 
+    // Profile id should always be present
+    let profile_id = mca
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Missing `profile_id` in merchant connector account")?;
+
+    let request_connector_label = req.connector_label;
+
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector.into(), &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name: request_connector_label.unwrap_or_default(),
+            },
+        )
         .attach_printable_lazy(|| {
             format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
         })?;
@@ -1685,9 +1728,9 @@ pub(crate) fn validate_auth_and_metadata_type(
             checkout::transformers::CheckoutAuthType::try_from(val)?;
             Ok(())
         }
-
         api_enums::Connector::Coinbase => {
             coinbase::transformers::CoinbaseAuthType::try_from(val)?;
+            coinbase::transformers::CoinbaseConnectorMeta::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Cryptopay => {

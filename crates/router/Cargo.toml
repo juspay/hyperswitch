@@ -9,18 +9,19 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm", "recon"]
-s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
-kms = ["external_services/kms", "dep:aws-config"]
-email = ["external_services/email", "dep:aws-config", "olap"]
+default = ["kv_store", "stripe", "oltp", "olap", "backwards_compatibility", "accounts_cache", "dummy_connector", "payouts", "business_profile_routing", "connector_choice_mca_id", "profile_specific_fallback_routing", "retry", "frm"]
+aws_s3 = ["external_services/aws_s3"]
+aws_kms = ["external_services/aws_kms"]
+hashicorp-vault = ["external_services/hashicorp-vault"]
+email = ["external_services/email", "olap"]
 frm = []
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen"]
-olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap", "dep:analytics"]
+release = ["aws_kms", "stripe", "aws_s3", "email", "backwards_compatibility", "business_profile_routing", "accounts_cache", "kv_store", "connector_choice_mca_id", "profile_specific_fallback_routing", "vergen", "recon"]
+olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap","api_models/olap","dep:analytics"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
-openapi = ["olap", "oltp", "payouts"]
+openapi = ["olap", "oltp", "payouts", "dep:openapi"]
 vergen = ["router_env/vergen"]
 backwards_compatibility = ["api_models/backwards_compatibility"]
 business_profile_routing = ["api_models/business_profile_routing"]
@@ -30,7 +31,7 @@ connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connect
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
-recon = ["email"]
+recon = ["email", "api_models/recon"]
 retry = []
 
 [dependencies]
@@ -41,8 +42,6 @@ actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
 argon2 = { version = "0.5.0", features = ["std"] }
 async-trait = "0.1.68"
-aws-config = { version = "0.55.3", optional = true }
-aws-sdk-s3 = { version = "0.28.0", optional = true }
 base64 = "0.21.2"
 bb8 = "0.8"
 bigdecimal = "0.3.1"
@@ -91,11 +90,10 @@ strum = { version = "0.25", features = ["derive"] }
 tera = "1.19.1"
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.10.1"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
-utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
 validator = "0.16.0"
 x509-parser = "0.15.0"
@@ -114,6 +112,7 @@ diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 external_services = { version = "0.1.0", path = "../external_services" }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces" }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
@@ -121,9 +120,11 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
+openapi = { version = "0.1.0", path = "../openapi", optional = true }
 erased-serde = "0.3.31"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rdkafka = "0.36.0"
+actix-http = "3.3.1"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
@@ -135,8 +136,9 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "2.0.0"
 time = { version = "0.3.21", features = ["macros"] }
-tokio = "1.28.2"
+tokio = "1.36.0"
 wiremock = "0.5.18"
+
 
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }

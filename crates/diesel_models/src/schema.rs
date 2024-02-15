@@ -688,6 +688,7 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
+        mandate_data -> Nullable<Jsonb>,
     }
 }
 
@@ -1056,6 +1057,8 @@ diesel::table! {
         is_verified -> Bool,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        preferred_merchant_id -> Nullable<Varchar>,
     }
 }
 

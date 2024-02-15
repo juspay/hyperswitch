@@ -5,9 +5,9 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
-#[cfg(feature = "kms")]
+#[cfg(feature = "aws_kms")]
 counter_metric!(AWS_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Encryption failures
-#[cfg(feature = "kms")]
+#[cfg(feature = "aws_kms")]
 counter_metric!(AWS_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of AWS KMS Decryption failures
 
 // API Level Metrics
@@ -106,12 +106,16 @@ counter_metric!(APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 
 // Metrics for Auto Retries
+counter_metric!(AUTO_RETRY_CONNECTION_CLOSED, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_ELIGIBLE_REQUEST_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_MISS_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_PAYMENT_COUNT, GLOBAL_METER);
+
+counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
+counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
 pub mod request;
 pub mod utils;

@@ -52,7 +52,7 @@ jobs:
 
       - name: Generate the OpenAPI spec file
         shell: bash
-        run: cargo run --features openapi -- generate-openapi-spec
+        run: cargo run -p openapi
 
       - name: Install `swagger-cli`
         shell: bash

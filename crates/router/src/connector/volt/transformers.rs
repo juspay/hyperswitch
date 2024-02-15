@@ -46,7 +46,6 @@ pub mod webhook_headers {
     pub const X_VOLT_SIGNED: &str = "X-Volt-Signed";
     pub const X_VOLT_TIMED: &str = "X-Volt-Timed";
     pub const USER_AGENT: &str = "User-Agent";
-    pub const X_VOLT_TYPE: &str = "X-Volt-Type";
 }
 
 #[derive(Debug, Serialize)]
@@ -186,7 +185,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -452,7 +451,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -486,6 +485,15 @@ pub struct VoltPaymentWebhookBodyReference {
 pub struct VoltRefundWebhookBodyReference {
     pub refund: String,
     pub external_reference: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum WebhookResponse {
+    // the enum order shouldn't be changed as this is being used during serialization and deserialization
+    Refund(VoltRefundWebhookBodyReference),
+    Payment(VoltPaymentWebhookBodyReference),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -590,7 +598,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

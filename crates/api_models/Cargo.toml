@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["payouts", "frm", "recon"]
+default = ["payouts", "frm"]
 business_profile_routing = []
 connector_choice_bcompat = []
 errors = ["dep:actix-web", "dep:reqwest"]
@@ -18,6 +18,8 @@ dummy_connector = ["euclid/dummy_connector", "common_enums/dummy_connector"]
 detailed_errors = []
 payouts = []
 frm = []
+olap = []
+openapi = ["common_enums/openapi"]
 recon = []
 
 [dependencies]
@@ -39,5 +41,5 @@ cards = { version = "0.1.0", path = "../cards" }
 common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
-masking = { version = "0.1.0", path = "../masking" }
+masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
