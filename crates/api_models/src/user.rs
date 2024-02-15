@@ -142,7 +142,6 @@ pub struct GetUsersResponse(pub Vec<UserDetails>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserDetails {
-    pub user_id: String,
     pub email: pii::Email,
     pub name: Secret<String>,
     pub role_id: String,

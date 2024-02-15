@@ -226,9 +226,9 @@ where
             api_keys::get_hash_key(
                 &config.api_keys,
                 #[cfg(feature = "aws_kms")]
-                aws_kms::get_aws_kms_client(&config.kms).await,
+                aws_kms::core::get_aws_kms_client(&config.kms).await,
                 #[cfg(feature = "hashicorp-vault")]
-                external_services::hashicorp_vault::get_hashicorp_client(&config.hc_vault)
+                external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
             )
@@ -289,9 +289,9 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
@@ -308,7 +308,7 @@ pub async fn get_admin_api_key(
 
             #[cfg(feature = "hashicorp-vault")]
             let admin_api_key = masking::Secret::new(admin_api_key)
-                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt admin API key")?
@@ -369,9 +369,9 @@ where
         let admin_api_key = get_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "aws_kms")]
-            aws_kms::get_aws_kms_client(&conf.kms).await,
+            aws_kms::core::get_aws_kms_client(&conf.kms).await,
             #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::get_hashicorp_client(&conf.hc_vault)
+            external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting admin api key")?,
@@ -873,7 +873,7 @@ static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::On
 
 pub async fn get_jwt_secret(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     JWT_SECRET
         .get_or_try_init(|| async {
@@ -901,7 +901,7 @@ where
     let secret = get_jwt_secret(
         &conf.secrets,
         #[cfg(feature = "aws_kms")]
-        aws_kms::get_aws_kms_client(&conf.kms).await,
+        aws_kms::core::get_aws_kms_client(&conf.kms).await,
     )
     .await?
     .peek()
@@ -972,7 +972,7 @@ static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 #[cfg(feature = "recon")]
 pub async fn get_recon_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::core::AwsKmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     RECON_API_KEY
         .get_or_try_init(|| async {
@@ -1013,7 +1013,7 @@ where
         let admin_api_key = get_recon_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "aws_kms")]
-            aws_kms::get_aws_kms_client(&conf.kms).await,
+            aws_kms::core::get_aws_kms_client(&conf.kms).await,
         )
         .await?;
 
