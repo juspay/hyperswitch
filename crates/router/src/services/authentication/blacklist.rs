@@ -16,6 +16,9 @@ use crate::{
     routes::AppState,
 };
 
+#[cfg(feature = "email")]
+use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
+
 #[cfg(feature = "olap")]
 pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {
     let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
@@ -45,6 +48,33 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
+}
+
+#[cfg(feature = "email")]
+pub async fn insert_email_token_in_blacklist(state: &AppState, token: &str) -> UserResult<()> {
+    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
+    let expiry =
+        expiry_to_i64(EMAIL_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
+    redis_conn
+        .set_key_with_expiry(blacklist_key.as_str(), true, expiry)
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
+#[cfg(feature = "email")]
+pub async fn check_email_token_in_blacklist(state: &AppState, token: &str) -> UserResult<()> {
+    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
+    let key_exists = redis_conn
+        .exists::<()>(blacklist_key.as_str())
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    if key_exists {
+        return Err(UserErrors::LinkInvalid.into());
+    }
+    Ok(())
 }
 
 fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {

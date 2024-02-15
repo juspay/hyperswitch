@@ -174,6 +174,8 @@ impl EmailData for VerifyEmail {
         let verify_email_link =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
 
+        println!("rachit69 {verify_email_link}");
+
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
         });
@@ -202,6 +204,8 @@ impl EmailData for ResetPassword {
 
         let reset_password_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
+
+        println!("rachitt {reset_password_link}");
 
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
@@ -232,6 +236,8 @@ impl EmailData for MagicLink {
 
         let magic_link_login =
             get_link_with_token(&self.settings.email.base_url, token, "verify_email");
+
+        println!("rachitasdas {magic_link_login}");
 
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
