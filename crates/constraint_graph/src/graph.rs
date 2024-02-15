@@ -175,19 +175,18 @@ where
             ) {
                 unsatisfied.push(e.get_analysis_trace()?);
             }
-            if let Some((_resolved_strength, resolved_relation)) = vald.cycle_map.get(&vald.node_id)
+            if let Some((_resolved_strength, resolved_relation)) =
+                vald.cycle_map.remove(&vald.node_id)
             {
-                if resolved_relation == &RelationResolution::Contradiction {
+                if resolved_relation == RelationResolution::Contradiction {
                     let err = Arc::new(AnalysisTrace::Contradiction {
-                        relation: *resolved_relation,
+                        relation: resolved_relation,
                     });
                     vald.memo.insert(
                         (vald.node_id, vald.relation, vald.strength),
                         Err(Arc::clone(&err)),
                     );
                     return Err(GraphError::AnalysisError(Arc::downgrade(&err)));
-                } else {
-                    vald.cycle_map.remove(&vald.node_id);
                 }
             }
         }
@@ -237,11 +236,12 @@ where
             } else {
                 matched_one = true;
             }
-            if let Some((_resolved_strength, resolved_relation)) = vald.cycle_map.get(&vald.node_id)
+            if let Some((_resolved_strength, resolved_relation)) =
+                vald.cycle_map.remove(&vald.node_id)
             {
-                if resolved_relation == &RelationResolution::Contradiction {
+                if resolved_relation == RelationResolution::Contradiction {
                     let err = Arc::new(AnalysisTrace::Contradiction {
-                        relation: *resolved_relation,
+                        relation: resolved_relation,
                     });
                     vald.memo.insert(
                         (vald.node_id, vald.relation, vald.strength),
@@ -249,8 +249,6 @@ where
                     );
 
                     return Err(GraphError::AnalysisError(Arc::downgrade(&err)));
-                } else {
-                    vald.cycle_map.remove(&vald.node_id);
                 }
             }
         }
@@ -350,82 +348,79 @@ where
         let mut errors = Vec::<Weak<AnalysisTrace<V>>>::new();
         let mut matched_one = false;
 
-        if vald.node.preds.is_empty() {
-            self.context_analysis(
-                vald.node_id,
-                vald.relation,
-                vald.strength,
+        self.context_analysis(
+            vald.node_id,
+            vald.relation,
+            vald.strength,
+            vald.ctx,
+            val,
+            vald.memo,
+        )?;
+
+        for edge in self.get_predecessor_edges_by_domain(vald.node_id, vald.domains)? {
+            vald.cycle_map
+                .insert(vald.node_id, (vald.strength, vald.relation.into()));
+            let result = self.check_node_inner(
                 vald.ctx,
-                val,
+                edge.pred,
+                edge.relation,
+                edge.strength,
                 vald.memo,
-            )?
-        } else {
-            for edge in self.get_predecessor_edges_by_domain(vald.node_id, vald.domains)? {
-                vald.cycle_map
-                    .insert(vald.node_id, (vald.strength, vald.relation.into()));
-                let result = self.check_node_inner(
-                    vald.ctx,
-                    edge.pred,
-                    edge.relation,
-                    edge.strength,
-                    vald.memo,
-                    vald.cycle_map,
-                    vald.domains,
-                );
+                vald.cycle_map,
+                vald.domains,
+            );
 
-                if let Some((resolved_strength, resolved_relation)) =
-                    vald.cycle_map.get(&vald.node_id).cloned()
-                {
-                    if resolved_relation == RelationResolution::Contradiction {
-                        let err = Arc::new(AnalysisTrace::Contradiction {
-                            relation: resolved_relation,
-                        });
-                        vald.memo.insert(
-                            (vald.node_id, vald.relation, vald.strength),
-                            Err(Arc::clone(&err)),
-                        );
-                        return Err(GraphError::AnalysisError(Arc::downgrade(&err)));
-                    } else if resolved_strength != vald.strength {
-                        vald.cycle_map.remove(&vald.node_id);
-                        self.context_analysis(
-                            vald.node_id,
-                            vald.relation,
-                            resolved_strength,
-                            vald.ctx,
-                            val,
-                            vald.memo,
-                        )?
-                    }
+            if let Some((resolved_strength, resolved_relation)) =
+                vald.cycle_map.remove(&vald.node_id)
+            {
+                if resolved_relation == RelationResolution::Contradiction {
+                    let err = Arc::new(AnalysisTrace::Contradiction {
+                        relation: resolved_relation,
+                    });
+                    vald.memo.insert(
+                        (vald.node_id, vald.relation, vald.strength),
+                        Err(Arc::clone(&err)),
+                    );
+                    return Err(GraphError::AnalysisError(Arc::downgrade(&err)));
+                } else if resolved_strength != vald.strength {
+                    self.context_analysis(
+                        vald.node_id,
+                        vald.relation,
+                        resolved_strength,
+                        vald.ctx,
+                        val,
+                        vald.memo,
+                    )?
                 }
-                match (edge.strength, result) {
-                    (Strength::Strong, Err(trace)) => {
-                        let err = Arc::new(AnalysisTrace::Value {
-                            value: val.clone(),
-                            relation: vald.relation,
-                            info: self.node_info.get(vald.node_id).cloned().flatten(),
-                            metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
-                            predecessors: Some(error::ValueTracePredecessor::Mandatory(Box::new(
-                                trace.get_analysis_trace()?,
-                            ))),
-                        });
-                        vald.memo.insert(
-                            (vald.node_id, vald.relation, vald.strength),
-                            Err(Arc::clone(&err)),
-                        );
-                        Err(GraphError::AnalysisError(Arc::downgrade(&err)))?;
-                    }
+            }
+            match (edge.strength, result) {
+                (Strength::Strong, Err(trace)) => {
+                    let err = Arc::new(AnalysisTrace::Value {
+                        value: val.clone(),
+                        relation: vald.relation,
+                        info: self.node_info.get(vald.node_id).cloned().flatten(),
+                        metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
+                        predecessors: Some(error::ValueTracePredecessor::Mandatory(Box::new(
+                            trace.get_analysis_trace()?,
+                        ))),
+                    });
+                    vald.memo.insert(
+                        (vald.node_id, vald.relation, vald.strength),
+                        Err(Arc::clone(&err)),
+                    );
+                    Err(GraphError::AnalysisError(Arc::downgrade(&err)))?;
+                }
 
-                    (Strength::Strong, Ok(_)) => {
-                        matched_one = true;
-                    }
+                (Strength::Strong, Ok(_)) => {
+                    matched_one = true;
+                }
 
-                    (Strength::Normal | Strength::Weak, Err(trace)) => {
-                        errors.push(trace.get_analysis_trace()?);
-                    }
+                (Strength::Normal | Strength::Weak, Err(trace)) => {
+                    errors.push(trace.get_analysis_trace()?);
+                }
 
-                    (Strength::Normal | Strength::Weak, Ok(_)) => {
-                        matched_one = true;
-                    }
+                (Strength::Normal | Strength::Weak, Ok(_)) => {
+                    matched_one = true;
                 }
             }
         }

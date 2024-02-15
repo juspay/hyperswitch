@@ -8,6 +8,6 @@ pub use builder::ConstraintGraphBuilder;
 pub use error::{AnalysisTrace, GraphError};
 pub use graph::ConstraintGraph;
 pub use types::{
-    CheckingContext, CycleCheck, DomainIdentifier, Edge, EdgeId, KeyNode, Memoization, Node,
-    NodeId, NodeValue, Relation, Strength, ValueNode,
+    CheckingContext, CycleCheck, DomainId, DomainIdentifier, Edge, EdgeId, KeyNode, Memoization,
+    Node, NodeId, NodeValue, Relation, Strength, ValueNode,
 };

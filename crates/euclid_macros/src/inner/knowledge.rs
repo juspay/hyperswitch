@@ -603,7 +603,7 @@ impl GenContext {
             for (from_node, relation) in &node_details {
                 let relation = format_ident!("{}", relation.to_string());
                 tokens.extend(quote! {
-                    graph.make_edge(#from_node, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::#relation, None)
+                    graph.make_edge(#from_node, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::#relation, None::<cgraph::DomainId>)
                         .expect("Failed to make edge");
                 });
             }
@@ -622,7 +622,7 @@ impl GenContext {
                 let #agg_node_ident = graph.make_all_aggregator(&[#(#all_agg_nodes),*], None, None::<()>, None)
                     .expect("Failed to make all aggregator node");
 
-                graph.make_edge(#agg_node_ident, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::Positive, None)
+                graph.make_edge(#agg_node_ident, #rhs_ident, cgraph::Strength::#strength, cgraph::Relation::Positive, None::<cgraph::DomainId>)
                     .expect("Failed to create all aggregator edge");
 
             });

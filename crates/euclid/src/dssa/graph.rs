@@ -790,7 +790,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -799,7 +799,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to an edge");
         let graph = builder.build();
@@ -845,7 +845,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -854,7 +854,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to an edge");
         let graph = builder.build();
@@ -902,7 +902,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -911,7 +911,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_3 = builder
@@ -920,7 +920,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_4 = builder
@@ -929,7 +929,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Strong,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
 
@@ -994,7 +994,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_2 = builder
@@ -1003,7 +1003,7 @@ mod test {
                 _node_2,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_3 = builder
@@ -1012,7 +1012,7 @@ mod test {
                 _node_3,
                 cgraph::Strength::Weak,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_4 = builder
@@ -1021,7 +1021,7 @@ mod test {
                 _node_4,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_5 = builder
@@ -1030,7 +1030,7 @@ mod test {
                 _node_4,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
 
@@ -1040,7 +1040,7 @@ mod test {
                 _node_1,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
         let _edge_7 = builder
@@ -1049,7 +1049,7 @@ mod test {
                 _node_0,
                 cgraph::Strength::Normal,
                 cgraph::Relation::Positive,
-                None,
+                None::<cgraph::DomainId>,
             )
             .expect("Failed to make an edge");
 

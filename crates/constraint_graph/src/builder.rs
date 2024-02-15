@@ -12,6 +12,23 @@ use crate::{
     },
 };
 
+pub enum DomainIdOrIdentifier<'a> {
+    DomainId(DomainId),
+    DomainIdentifier(DomainIdentifier<'a>),
+}
+
+impl<'a> From<&'a str> for DomainIdOrIdentifier<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::DomainIdentifier(DomainIdentifier::new(value))
+    }
+}
+
+impl From<DomainId> for DomainIdOrIdentifier<'_> {
+    fn from(value: DomainId) -> Self {
+        Self::DomainId(value)
+    }
+}
+
 pub struct ConstraintGraphBuilder<'a, V: ValueNode> {
     domain: DenseMap<DomainId, DomainInfo<'a>>,
     nodes: DenseMap<NodeId, Node<V>>,
@@ -106,18 +123,25 @@ where
         })
     }
 
-    pub fn make_edge(
+    pub fn make_edge<'short, T: Into<DomainIdOrIdentifier<'short>>>(
         &mut self,
         pred_id: NodeId,
         succ_id: NodeId,
         strength: Strength,
         relation: Relation,
-        domain: Option<&str>,
+        domain: Option<T>,
     ) -> Result<EdgeId, GraphError<V>> {
         self.ensure_node_exists(pred_id)?;
         self.ensure_node_exists(succ_id)?;
         let domain_id = domain
-            .map(|d| self.retrieve_domain_from_identifier(DomainIdentifier::new(d)))
+            .map(|d| match d.into() {
+                DomainIdOrIdentifier::DomainIdentifier(ident) => {
+                    self.retrieve_domain_from_identifier(ident)
+                }
+                DomainIdOrIdentifier::DomainId(domain_id) => {
+                    self.ensure_domain_exists(domain_id).map(|_| domain_id)
+                }
+            })
             .transpose()?;
         self.edges_map
             .get(&(pred_id, succ_id, domain_id))
@@ -246,6 +270,14 @@ where
             Ok(())
         } else {
             Err(GraphError::NodeNotFound)
+        }
+    }
+
+    fn ensure_domain_exists(&self, id: DomainId) -> Result<(), GraphError<V>> {
+        if self.domain.contains_key(id) {
+            Ok(())
+        } else {
+            Err(GraphError::DomainNotFound)
         }
     }
 }

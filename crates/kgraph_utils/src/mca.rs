@@ -285,7 +285,7 @@ fn compile_merchant_connector_graph(
             connector_node_id,
             cgraph::Strength::Normal,
             cgraph::Relation::Positive,
-            None,
+            None::<cgraph::DomainId>,
         )
         .map_err(KgraphError::GraphConstructionError)?;
 
