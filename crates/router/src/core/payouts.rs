@@ -72,7 +72,7 @@ pub async fn get_connector_data(
                 .parse_value("StraightThroughAlgorithm")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid straight through routing rules format")?;
-            payout_data.payout_attempt.straight_through_algorithm = Some(straight_through);
+            payout_data.payout_attempt.routing_info = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
                 #[cfg(feature = "connector_choice_mca_id")]
@@ -140,10 +140,7 @@ pub async fn get_connector_data(
     payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
     let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
         connector: connector_data.connector_name.to_string(),
-        straight_through_algorithm: payout_data
-            .payout_attempt
-            .straight_through_algorithm
-            .clone(),
+        routing_info: payout_data.payout_attempt.routing_info.clone(),
     };
     let db = &*state.store;
     db.update_payout_attempt_by_merchant_id_payout_id(

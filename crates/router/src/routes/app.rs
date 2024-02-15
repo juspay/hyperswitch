@@ -6,6 +6,7 @@ use actix_web::{web, Scope};
     any(feature = "hashicorp-vault", feature = "aws_kms")
 ))]
 use analytics::AnalyticsConfig;
+use common_enums::TransactionType;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
@@ -478,8 +479,23 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::list_routing_configs))
-                    .route(web::post().to(cloud_routing::routing_create_config)),
+                    .route(web::get().to(|state, req, path| {
+                        cloud_routing::list_routing_configs(
+                            state,
+                            req,
+                            #[cfg(feature = "business_profile_routing")]
+                            path,
+                            &TransactionType::Payment,
+                        )
+                    }))
+                    .route(web::post().to(|state, req, payload| {
+                        cloud_routing::routing_create_config(
+                            state,
+                            req,
+                            payload,
+                            &TransactionType::Payment,
+                        )
+                    })),
             )
             .service(
                 web::resource("/default")
@@ -493,7 +509,7 @@ impl Routing {
                         req,
                         #[cfg(feature = "business_profile_routing")]
                         payload,
-                        &routing::TransactionType::Payment,
+                        &TransactionType::Payment,
                     )
                 },
             )))
@@ -510,33 +526,56 @@ impl Routing {
                     .route(
                         web::delete().to(cloud_routing::delete_surcharge_decision_manager_config),
                     ),
-            )
-            .service(
-                web::resource("/{algorithm_id}")
-                    .route(web::get().to(cloud_routing::routing_retrieve_config)),
-            )
-            .service(
-                web::resource("/{algorithm_id}/activate").route(web::post().to(
-                    |state, req, path| {
-                        cloud_routing::routing_link_config(
+            );
+
+        #[cfg(feature = "payouts")]
+        {
+            route = route.service(
+                web::resource("/payouts")
+                    .route(web::get().to(|state, req, path| {
+                        cloud_routing::list_routing_configs(
                             state,
                             req,
+                            #[cfg(feature = "business_profile_routing")]
                             path,
-                            &routing::TransactionType::Payment,
+                            &TransactionType::Payout,
                         )
-                    },
-                )),
-            )
-            .service(
-                web::resource("/default/profile/{profile_id}").route(
-                    web::post().to(cloud_routing::routing_update_default_config_for_profile),
-                ),
-            )
-            .service(
-                web::resource("/default/profile").route(
-                    web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
-                ),
+                    }))
+                    .route(web::post().to(|state, req, payload| {
+                        cloud_routing::routing_create_config(
+                            state,
+                            req,
+                            payload,
+                            &TransactionType::Payout,
+                        )
+                    })),
             );
+        }
+
+        route =
+            route
+                .service(
+                    web::resource("/{algorithm_id}")
+                        .route(web::get().to(cloud_routing::routing_retrieve_config)),
+                )
+                .service(
+                    web::resource("/{algorithm_id}/activate").route(web::post().to(
+                        |state, req, path| {
+                            cloud_routing::routing_link_config(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payment,
+                            )
+                        },
+                    )),
+                )
+                .service(web::resource("/default/profile/{profile_id}").route(
+                    web::post().to(cloud_routing::routing_update_default_config_for_profile),
+                ))
+                .service(web::resource("/default/profile").route(
+                    web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
+                ));
 
         #[cfg(feature = "payouts")]
         {
@@ -548,7 +587,7 @@ impl Routing {
                                 state,
                                 req,
                                 path,
-                                &routing::TransactionType::Payout,
+                                &TransactionType::Payout,
                             )
                         }),
                     ))
@@ -559,7 +598,7 @@ impl Routing {
                                 req,
                                 #[cfg(feature = "business_profile_routing")]
                                 payload,
-                                &routing::TransactionType::Payout,
+                                &TransactionType::Payout,
                             )
                         },
                     )));

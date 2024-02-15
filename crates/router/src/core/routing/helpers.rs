@@ -12,10 +12,7 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        routing,
-    },
+    core::errors::{self, RouterResult},
     db::StorageInterface,
     types::{domain, storage},
     utils::{self, StringExt},
@@ -238,16 +235,16 @@ pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
-    transaction_type: &routing::TransactionType,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
     let ref_val = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
 
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
-        routing::TransactionType::Payment => (Some(ref_val), None),
+        storage::enums::TransactionType::Payment => (Some(ref_val), None),
         #[cfg(feature = "payouts")]
-        routing::TransactionType::Payout => (None, Some(ref_val)),
+        storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
     let business_profile_update = BusinessProfileUpdateInternal {

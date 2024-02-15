@@ -9,7 +9,7 @@ use diesel_models::{
 };
 
 use crate::{
-    core::errors,
+    core::{errors, routing},
     types::transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
 };
 
@@ -81,6 +81,15 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::Priority => Self::Priority,
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
+        }
+    }
+}
+
+impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::TransactionType {
+    fn from(value: &routing::TransactionData<'_, F>) -> Self {
+        match value {
+            routing::TransactionData::Payment(_) => Self::Payment,
+            routing::TransactionData::Payout(_) => Self::Payout,
         }
     }
 }

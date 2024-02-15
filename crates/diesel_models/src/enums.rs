@@ -17,7 +17,8 @@ pub mod diesel_exports {
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbUserStatus as UserStatus,
+        DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbTransactionType as TransactionType,
+        DbUserStatus as UserStatus,
     };
 }
 pub use common_enums::*;
