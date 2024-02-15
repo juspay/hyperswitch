@@ -4,17 +4,21 @@ use error_stack::ResultExt;
 
 use super::types::AuthenticationData;
 use crate::{
-    core::errors::ApiErrorResponse,
+    consts,
+    core::{
+        errors::{ApiErrorResponse, ConnectorErrorExt, StorageErrorExt},
+        payments,
+    },
     errors::RouterResult,
     routes::AppState,
+    services::{self, execute_connector_processing_step},
     types::{
         self as router_types,
-        api::ConnectorCallType,
+        api::{self, ConnectorCallType},
         authentication::{AuthNFlowType, AuthenticationResponseData},
-        domain,
-        storage::{self, enums as storage_enums},
+        storage,
         transformers::ForeignFrom,
-        ConnectorAuthType, PaymentAddress, RouterData,
+        RouterData,
     },
 };
 pub fn is_separate_authn_supported_connector(connector: router_types::Connector) -> bool {
@@ -98,60 +102,6 @@ pub fn is_separate_authn_supported(connector_call_type: &ConnectorCallType) -> b
     }
 }
 
-pub fn construct_router_data<F: Clone, Req, Res>(
-    payment_id: Option<String>,
-    attempt_id: Option<String>,
-    merchant_id: Option<String>,
-    address: Option<PaymentAddress>,
-    request_data: Req,
-    response_data: Res,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
-) -> RouterResult<RouterData<F, Req, Res>> {
-    let auth_type: ConnectorAuthType = merchant_connector_account
-        .connector_account_details
-        .clone()
-        .parse_value("ConnectorAuthType")
-        .change_context(ApiErrorResponse::InternalServerError)?;
-    let empty_string = String::new();
-    Ok(RouterData {
-        flow: std::marker::PhantomData,
-        merchant_id: merchant_id.unwrap_or(empty_string.clone()),
-        customer_id: None,
-        connector_customer: None,
-        connector: merchant_connector_account.connector_name.clone(),
-        payment_id: payment_id.unwrap_or(empty_string.clone()),
-        attempt_id: attempt_id.unwrap_or(empty_string),
-        status: storage_enums::AttemptStatus::Pending,
-        payment_method: common_enums::PaymentMethod::Card,
-        connector_auth_type: auth_type,
-        description: None,
-        return_url: None,
-        address: address.unwrap_or_default(),
-        auth_type: storage_enums::AuthenticationType::NoThreeDs,
-        connector_meta_data: None,
-        amount_captured: None,
-        access_token: None,
-        session_token: None,
-        reference_id: None,
-        payment_method_token: None,
-        recurring_mandate_payment_data: None,
-        preprocessing_id: None,
-        payment_method_balance: None,
-        connector_api_version: None,
-        request: request_data,
-        response: Ok(response_data),
-        payment_method_id: None,
-        connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
-        payout_method_data: None,
-        quote_id: None,
-        test_mode: None,
-        connector_http_status_code: None,
-        external_latency: None,
-        apple_pay_flow: None,
-        frm_metadata: None,
-    })
-}
-
 pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
@@ -211,6 +161,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_data.authn_flow_type = Some(authn_flow_type.clone());
                 authentication_data.cavv = cavv.or(authentication_data.cavv);
+                authentication_data.trans_status = trans_status.clone();
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
@@ -222,16 +173,26 @@ pub async fn update_trackers<F: Clone, Req>(
                         AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
                         AuthNFlowType::Frictionless => DecoupledAuthenticationType::Frictionless,
                     }),
-                    authentication_status: match trans_status.as_str() {
-                        "Y" => Some(common_enums::AuthenticationStatus::Success),
-                        "N" => Some(common_enums::AuthenticationStatus::Failed),
+                    authentication_status: match trans_status.clone() {
+                        api_models::payments::TransStatus::Y => {
+                            Some(common_enums::AuthenticationStatus::Success)
+                        }
+                        api_models::payments::TransStatus::N => {
+                            Some(common_enums::AuthenticationStatus::Failed)
+                        }
                         _ => Some(common_enums::AuthenticationStatus::Pending),
                     },
                     authentication_lifecycle_status: None,
                 }
             }
-            AuthenticationResponseData::PostAuthNResponse { cavv } => {
-                authentication_data.cavv = Some(cavv);
+            AuthenticationResponseData::PostAuthNResponse {
+                trans_status,
+                authentication_value,
+                eci,
+            } => {
+                authentication_data.cavv = authentication_value;
+                authentication_data.eci = eci;
+                authentication_data.trans_status = trans_status;
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
@@ -278,4 +239,61 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
             common_enums::AuthenticationStatus::Failed => Self::AuthenticationFailed,
         }
     }
+}
+
+pub async fn create_new_authentication(
+    state: &AppState,
+    merchant_id: String,
+    authentication_connector: String,
+) -> RouterResult<storage::Authentication> {
+    let authentication_id =
+        common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+    let new_authorization = storage::AuthenticationNew {
+        authentication_id: authentication_id.clone(),
+        merchant_id,
+        authentication_connector,
+        authentication_connector_id: None,
+        authentication_data: None,
+        payment_method_id: "".into(),
+        authentication_type: None,
+        authentication_status: common_enums::AuthenticationStatus::Started,
+        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+    };
+    state
+        .store
+        .insert_authentication(new_authorization)
+        .await
+        .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
+            message: format!(
+                "Authentication with authentication_id {} already exists",
+                authentication_id
+            ),
+        })
+}
+
+pub async fn do_auth_connector_call<F, Req, Res>(
+    state: &AppState,
+    authentication_connector_name: String,
+    router_data: RouterData<F, Req, Res>,
+) -> RouterResult<RouterData<F, Req, Res>>
+where
+    Req: std::fmt::Debug + Clone + 'static,
+    Res: std::fmt::Debug + Clone + 'static,
+    F: std::fmt::Debug + Clone + 'static,
+    dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+{
+    let connector_data =
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
+    let connector_integration: services::BoxedConnectorIntegration<'_, F, Req, Res> =
+        connector_data.connector.get_connector_integration();
+    let router_data = execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
+    Ok(router_data)
 }

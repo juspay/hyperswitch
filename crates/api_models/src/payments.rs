@@ -3184,10 +3184,26 @@ pub struct SDKEphemPubKey {
     crv: String,
 }
 
+#[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+pub enum TransStatus {
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    #[default]
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+    C,
+}
+
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
     /// indicates the authentication status
-    pub trans_status: String,
+    pub trans_status: TransStatus,
     /// acs_url to be used for challenge
     pub acs_url: Option<Url>,
     /// challenge request which should be sent to acs_url

@@ -119,19 +119,18 @@ impl ConnectorCommon for Tokenex {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: tokenex::TokenexErrorResponse = res
+        let response: tokenex::TokenexAuthenticationResponse = res
             .response
-            .parse_struct("TokenexErrorResponse")
+            .parse_struct("TokenexAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        // let error_response =
+        //     tokenex::get_router_response_from_tokenex_authn_response(&response, res.status_code);
+        // match error_response {
+        //     Ok(_) => Err(errors::ConnectorError::ParsingFailed.into()),
+        //     Err(error_response) => Ok(error_response),
+        // }
+        //TODO
+        Err(errors::ConnectorError::ParsingFailed.into())
     }
 }
 
@@ -754,21 +753,22 @@ impl
         let response: Result<
             tokenex::TokenexAuthenticationResponse,
             error_stack::Report<ParsingError>,
-        > = res.response.parse_struct("tokenex PaymentsSyncResponse");
-        println!("response authn {:?}", response);
-        let response =
+        > = res
+            .response
+            .parse_struct("tokenex TokenexAuthenticationResponse");
+        let tokenex_response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        println!(
-            "creq_base64 authn {}",
-            &response.three_d_secure_response.encoded_c_req
-        );
+        // let response = tokenex::get_router_response_from_tokenex_authn_response(
+        //     &tokenex_response,
+        //     res.status_code,
+        // );
         Ok(types::ConnectorAuthenticationRouterData {
             // TODO
             response: Ok(
                 types::authentication::AuthenticationResponseData::AuthNResponse {
                     authn_flow_type: types::authentication::AuthNFlowType::Frictionless,
                     cavv: None,
-                    trans_status: "Y".to_string(),
+                    trans_status: api_models::payments::TransStatus::C,
                 },
             ),
             // response: Ok(types::ConnectorAuthenticationResponse {
@@ -810,7 +810,7 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::ConnectorPostAuthenticationRequestData,
-        types::ConnectorPostAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Tokenex
 {
     fn get_headers(
@@ -887,11 +887,13 @@ impl
         let response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ConnectorPostAuthenticationRouterData {
-            response: Ok(types::ConnectorPostAuthenticationResponse {
-                trans_status: response.three_d_secure_response.trans_status.clone(),
-                authentication_value: response.three_d_secure_response.authentication_value,
-                eci: response.three_d_secure_response.eci,
-            }),
+            response: Ok(
+                types::authentication::AuthenticationResponseData::PostAuthNResponse {
+                    trans_status: response.three_d_secure_response.trans_status.into(),
+                    authentication_value: response.three_d_secure_response.authentication_value,
+                    eci: response.three_d_secure_response.eci,
+                },
+            ),
             ..data.clone()
         })
     }

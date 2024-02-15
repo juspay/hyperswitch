@@ -25,7 +25,7 @@ pub struct AcquirerDetails {
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AuthenticationResponse {
-    pub trans_status: String,
+    pub trans_status: api_models::payments::TransStatus,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
     pub acs_reference_number: Option<String>,
@@ -69,7 +69,7 @@ pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
     types::ConnectorPostAuthenticationRequestData,
-    types::ConnectorPostAuthenticationResponse,
+    types::authentication::AuthenticationResponseData,
 >
 {
 }

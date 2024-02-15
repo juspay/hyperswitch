@@ -658,7 +658,9 @@ impl
             response: Ok(
                 types::authentication::AuthenticationResponseData::AuthNResponse {
                     trans_status: response.trans_status.clone(),
-                    authn_flow_type: if response.trans_status == "C" {
+                    authn_flow_type: if response.trans_status
+                        == api_models::payments::TransStatus::C
+                    {
                         AuthNFlowType::Challenge {
                             acs_url: response.acs_url,
                             challenge_request: Some(creq_base64),
@@ -793,7 +795,7 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::ConnectorPostAuthenticationRequestData,
-        types::ConnectorPostAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Threedsecureio
 {
     fn get_headers(
@@ -869,11 +871,13 @@ impl
         let response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ConnectorPostAuthenticationRouterData {
-            response: Ok(types::ConnectorPostAuthenticationResponse {
-                trans_status: response.trans_status.clone(),
-                authentication_value: response.authentication_value,
-                eci: response.eci,
-            }),
+            response: Ok(
+                types::authentication::AuthenticationResponseData::PostAuthNResponse {
+                    trans_status: response.trans_status.into(),
+                    authentication_value: response.authentication_value,
+                    eci: response.eci,
+                },
+            ),
             ..data.clone()
         })
     }

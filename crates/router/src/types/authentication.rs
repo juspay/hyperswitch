@@ -16,10 +16,12 @@ pub enum AuthenticationResponseData {
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
         cavv: Option<String>,
-        trans_status: String,
+        trans_status: api_models::payments::TransStatus,
     },
     PostAuthNResponse {
-        cavv: String,
+        trans_status: api_models::payments::TransStatus,
+        authentication_value: Option<String>,
+        eci: Option<String>,
     },
 }
 

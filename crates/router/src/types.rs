@@ -243,7 +243,7 @@ pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
 pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
     api::PostAuthentication,
     ConnectorPostAuthenticationRequestData,
-    ConnectorPostAuthenticationResponse,
+    AuthenticationResponseData,
 >;
 
 pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
@@ -284,7 +284,7 @@ pub type ConnectorAuthenticationRouterData =
 pub type ConnectorPostAuthenticationRouterData = RouterData<
     api::PostAuthentication,
     ConnectorPostAuthenticationRequestData,
-    ConnectorPostAuthenticationResponse,
+    AuthenticationResponseData,
 >;
 
 #[cfg(feature = "payouts")]
@@ -1081,12 +1081,12 @@ pub struct ConnectorPostAuthenticationRequestData {
     pub authentication_data: crate::core::authentication::types::AuthenticationData,
 }
 
-#[derive(Clone, Debug)]
-pub struct ConnectorPostAuthenticationResponse {
-    pub trans_status: String,
-    pub authentication_value: Option<String>,
-    pub eci: Option<String>,
-}
+// #[derive(Clone, Debug)]
+// pub struct ConnectorPostAuthenticationResponse {
+//     pub trans_status: String,
+//     pub authentication_value: Option<String>,
+//     pub eci: Option<String>,
+// }
 
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {

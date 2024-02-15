@@ -1,8 +1,11 @@
 use cards::CardNumber;
 use serde::{Deserialize, Serialize};
 
-use crate::{core::payments, types::authentication::AuthNFlowType};
-pub enum AuthenthenticationFlowInput<'a, F: Clone> {
+use crate::{
+    core::payments,
+    types::{authentication::AuthNFlowType, storage},
+};
+pub enum PreAuthenthenticationFlowInput<'a, F: Clone> {
     PaymentAuthNFlow {
         payment_data: &'a mut payments::PaymentData<F>,
         should_continue_confirm_transaction: &'a mut bool,
@@ -10,6 +13,16 @@ pub enum AuthenthenticationFlowInput<'a, F: Clone> {
     },
     PaymentMethodAuthNFlow {
         card_number: CardNumber,
+        other_fields: String, //should be expanded when implementation begins
+    },
+}
+
+pub enum PostAuthenthenticationFlowInput<'a, F: Clone> {
+    PaymentAuthNFlow {
+        payment_data: &'a mut payments::PaymentData<F>,
+        authentication_data: (storage::Authentication, AuthenticationData),
+    },
+    PaymentMethodAuthNFlow {
         other_fields: String, //should be expanded when implementation begins
     },
 }
@@ -23,15 +36,12 @@ pub struct AuthenticationData {
     pub three_ds_method_data: ThreeDsMethodData,
     pub message_version: String,
     pub eci: Option<String>,
+    pub trans_status: api_models::payments::TransStatus,
 }
 
 impl AuthenticationData {
     pub fn is_separate_authn_required(&self) -> bool {
-        if self.maximum_supported_version.0 == 2 {
-            true
-        } else {
-            false
-        }
+        self.maximum_supported_version.0 == 2
     }
 }
 

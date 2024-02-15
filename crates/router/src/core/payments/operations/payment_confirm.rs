@@ -641,14 +641,14 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         // if authentication has already happened, then payment_data.authentication will be Some.
         // We should do post authn call to fetch the authentication data from 3ds connector
-        let is_pre_authn_call = payment_data.authentication.is_none();
+        let is_post_authn_call = payment_data.authentication.clone();
         let separate_authentication_requested = payment_data
             .payment_intent
             .request_external_three_ds_authentication
             .unwrap_or(false);
         let connector_supports_separate_authn =
             authentication::utils::is_separate_authn_supported(connector_call_type);
-        print!("is_pre_authn_call {:?}", is_pre_authn_call);
+        print!("is_pre_authn_call {:?}", is_post_authn_call.is_none());
         print!(
             "separate_authentication_requested {:?}",
             separate_authentication_requested
@@ -690,7 +690,23 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         ),
                     },
                 )?;
-            if is_pre_authn_call {
+            if let Some(authentication_data) = is_post_authn_call {
+                // call post authn service
+                authentication::perform_post_authentication(
+                    state,
+                    merchant_connector_account.connector_name.clone(),
+                    merchant_account.clone(),
+                    helpers::MerchantConnectorAccountType::DbVal(
+                        merchant_connector_account.clone(),
+                    ),
+                    authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
+                        payment_data,
+                        authentication_data,
+                    },
+                )
+                .await?;
+            } else {
+                // call pre authn service
                 let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
                     if let api_models::payments::PaymentMethodData::Card(card) = pmd {
                         Some(card.card_number.clone())
@@ -700,68 +716,23 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 });
                 // External 3DS authentication is applicable only for cards
                 if let Some(card_number) = card_number {
-                    authentication::pre_authn::execute_pre_auth_flow(
+                    authentication::perform_pre_authentication(
                         state,
-                        authentication::types::AuthenthenticationFlowInput::PaymentAuthNFlow {
+                        merchant_connector_account.connector_name.clone(),
+                        authentication::types::PreAuthenthenticationFlowInput::PaymentAuthNFlow {
                             payment_data,
                             should_continue_confirm_transaction,
                             card_number,
                         },
                         merchant_account,
-                        &merchant_connector_account,
+                        helpers::MerchantConnectorAccountType::DbVal(
+                            merchant_connector_account.clone(),
+                        ),
                     )
                     .await?;
                 }
-                Ok(())
-            } else {
-                // call post authn service
-                let authentication = payment_data
-                    .authentication
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("authentication record is missing in payment_data")?;
-                let post_auth_response = authentication::perform_post_authentication(
-                    state,
-                    merchant_connector_account.connector_name.clone(),
-                    merchant_account.clone(),
-                    helpers::MerchantConnectorAccountType::DbVal(
-                        merchant_connector_account.clone(),
-                    ),
-                    authentication.1.clone(),
-                )
-                .await?;
-                let mut authentication_data = authentication.1.clone();
-                authentication_data.cavv = post_auth_response.authentication_value.clone();
-                authentication_data.eci = post_auth_response.eci.clone();
-                let auth_update = storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                    authentication_data: Some(
-                        Encode::<authentication::types::AuthenticationData>::encode_to_value(
-                            &authentication_data,
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                    ),
-                    authentication_connector_id: None,
-                    payment_method_id: None,
-                    authentication_type: None,
-                    authentication_status: if post_auth_response.trans_status == "Y" {
-                        Some(common_enums::AuthenticationStatus::Success)
-                    } else {
-                        Some(common_enums::AuthenticationStatus::Failed)
-                    },
-                    authentication_lifecycle_status: None,
-                };
-                let new_authentication = state
-                    .store
-                    .update_authentication_by_merchant_id_authentication_id(
-                        authentication.0,
-                        auth_update,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                payment_data.authentication = Some((new_authentication, authentication_data));
-                Ok(())
             }
+            Ok(())
         } else {
             Ok(())
         }

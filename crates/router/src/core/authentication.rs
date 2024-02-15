@@ -10,12 +10,12 @@ use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
-use super::errors::{self, ConnectorErrorExt};
+use super::{
+    errors::{self, ConnectorErrorExt},
+    payments::CallConnectorAction,
+};
 use crate::{
-    core::{
-        errors::ApiErrorResponse,
-        payments::{self as payments_core, CallConnectorAction},
-    },
+    core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     services,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
@@ -125,49 +125,88 @@ pub async fn perform_authentication(
     }
 }
 
-pub async fn perform_post_authentication(
+pub async fn perform_post_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector: String,
     merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
-    authentication_data: types::AuthenticationData,
-) -> CustomResult<core_types::api::authentication::PostAuthenticationResponse, ApiErrorResponse> {
-    let connector_data =
-        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector)?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        api::PostAuthentication,
-        core_types::ConnectorPostAuthenticationRequestData,
-        core_types::ConnectorPostAuthenticationResponse,
-    > = connector_data.connector.get_connector_integration();
-    let router_data = transformers::construct_post_authentication_router_data(
-        authentication_connector.clone(),
-        merchant_account,
-        merchant_connector_account,
-        authentication_data,
-    )?;
-    let response = services::execute_connector_processing_step(
+    authentication_flow_input: types::PostAuthenthenticationFlowInput<'_, F>,
+) -> CustomResult<(), ApiErrorResponse> {
+    match authentication_flow_input {
+        types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
+            payment_data,
+            authentication_data: (authentication, authentication_data),
+        } => {
+            let router_data = transformers::construct_post_authentication_router_data(
+                authentication_connector.clone(),
+                merchant_account,
+                merchant_connector_account,
+                authentication_data,
+            )?;
+            let router_data =
+                utils::do_auth_connector_call(state, authentication_connector, router_data).await?;
+            let updated_authentication = utils::update_trackers(
+                state,
+                router_data,
+                authentication,
+                payment_data.token.clone(),
+            )
+            .await?;
+            payment_data.authentication = Some(updated_authentication);
+        }
+        types::PostAuthenthenticationFlowInput::PaymentMethodAuthNFlow { other_fields: _ } => {
+            // todo!("Payment method post authN operation");
+        }
+    }
+    Ok(())
+}
+
+pub async fn perform_pre_authentication<F: Clone + Send>(
+    state: &AppState,
+    authentication_connector_name: String,
+    authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
+    merchant_account: &core_types::domain::MerchantAccount,
+    three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+) -> CustomResult<(), ApiErrorResponse> {
+    let authentication = utils::create_new_authentication(
         state,
-        connector_integration,
-        &router_data,
-        CallConnectorAction::Trigger,
-        None,
+        merchant_account.merchant_id.clone(),
+        authentication_connector_name.clone(),
     )
-    .await
-    .to_payment_failed_response()?;
-    let post_authentication_response =
-        response
-            .response
-            .map_err(|err| ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: authentication_connector,
-                status_code: err.status_code,
-                reason: err.reason,
-            })?;
-    Ok(core_types::api::PostAuthenticationResponse {
-        trans_status: post_authentication_response.trans_status,
-        authentication_value: post_authentication_response.authentication_value,
-        eci: post_authentication_response.eci,
-    })
+    .await?;
+    match authentication_flow_input {
+        types::PreAuthenthenticationFlowInput::PaymentAuthNFlow {
+            payment_data,
+            should_continue_confirm_transaction,
+            card_number,
+        } => {
+            let router_data = transformers::construct_pre_authentication_router_data(
+                authentication_connector_name.clone(),
+                card_number,
+                &three_ds_connector_account,
+                merchant_account.merchant_id.clone(),
+            )?;
+            let router_data =
+                utils::do_auth_connector_call(state, authentication_connector_name, router_data)
+                    .await?;
+            let (authentication, authentication_data) = utils::update_trackers(
+                state,
+                router_data,
+                authentication,
+                payment_data.token.clone(),
+            )
+            .await?;
+            if authentication_data.is_separate_authn_required() {
+                *should_continue_confirm_transaction = false;
+            }
+            payment_data.authentication = Some((authentication, authentication_data))
+        }
+        types::PreAuthenthenticationFlowInput::PaymentMethodAuthNFlow {
+            card_number: _,
+            other_fields: _,
+        } => {
+            // todo!("Payment method authN operation");
+        }
+    };
+    Ok(())
 }
