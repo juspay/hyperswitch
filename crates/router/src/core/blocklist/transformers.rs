@@ -163,9 +163,10 @@ async fn call_to_locker_for_fingerprint(
             .await
             .change_context(errors::VaultError::GenerateFingerprintFailed)
             .attach_printable("Error getting decrypted fingerprint response payload")?;
-    let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload = decrypted_payload
-        .parse_struct("GenerateFingerprintResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+    let generate_fingerprint_response: blocklist::GenerateFingerprintResponsePayload =
+        decrypted_payload
+            .parse_struct("GenerateFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
 
     Ok(generate_fingerprint_response)
 }
