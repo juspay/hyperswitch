@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData},
-    core::errors,
+    core::{authentication::types as authentication_types, errors},
     types::{
         self,
         api::{self, MessageCategory},
@@ -651,12 +651,38 @@ pub struct ThreedsecureioPostAuthenticationRequest {
     pub three_ds_server_trans_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioPostAuthenticationResponse {
     pub authentication_value: Option<String>,
-    pub trans_status: String,
+    pub trans_status: ThreedsecureioTransStatus,
     pub eci: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub enum ThreedsecureioTransStatus {
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+}
+
+impl From<ThreedsecureioTransStatus> for authentication_types::TransStatus {
+    fn from(value: ThreedsecureioTransStatus) -> Self {
+        match value {
+            ThreedsecureioTransStatus::Y => Self::Y,
+            ThreedsecureioTransStatus::N => Self::N,
+            ThreedsecureioTransStatus::U => Self::U,
+            ThreedsecureioTransStatus::A => Self::A,
+            ThreedsecureioTransStatus::R => Self::R,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

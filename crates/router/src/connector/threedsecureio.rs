@@ -789,7 +789,7 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::ConnectorPostAuthenticationRequestData,
-        types::ConnectorPostAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Threedsecureio
 {
     fn get_headers(
@@ -865,11 +865,13 @@ impl
         let response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ConnectorPostAuthenticationRouterData {
-            response: Ok(types::ConnectorPostAuthenticationResponse {
-                trans_status: response.trans_status.clone(),
-                authentication_value: response.authentication_value,
-                eci: response.eci,
-            }),
+            response: Ok(
+                types::authentication::AuthenticationResponseData::PostAuthNResponse {
+                    trans_status: response.trans_status.into(),
+                    authentication_value: response.authentication_value,
+                    eci: response.eci,
+                },
+            ),
             ..data.clone()
         })
     }

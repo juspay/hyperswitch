@@ -778,7 +778,7 @@ impl
     ConnectorIntegration<
         api::PostAuthentication,
         types::ConnectorPostAuthenticationRequestData,
-        types::ConnectorPostAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Tokenex
 {
     fn get_headers(
@@ -855,11 +855,13 @@ impl
         let response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ConnectorPostAuthenticationRouterData {
-            response: Ok(types::ConnectorPostAuthenticationResponse {
-                trans_status: response.three_d_secure_response.trans_status.clone(),
-                authentication_value: response.three_d_secure_response.authentication_value,
-                eci: response.three_d_secure_response.eci,
-            }),
+            response: Ok(
+                types::authentication::AuthenticationResponseData::PostAuthNResponse {
+                    trans_status: response.three_d_secure_response.trans_status.into(),
+                    authentication_value: response.three_d_secure_response.authentication_value,
+                    eci: response.three_d_secure_response.eci,
+                },
+            ),
             ..data.clone()
         })
     }

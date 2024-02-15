@@ -69,7 +69,7 @@ pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
     types::ConnectorPostAuthenticationRequestData,
-    types::ConnectorPostAuthenticationResponse,
+    types::authentication::AuthenticationResponseData,
 >
 {
 }

@@ -2,6 +2,7 @@ use cards::CardNumber;
 use serde::{Deserialize, Serialize};
 
 use super::{api, RouterData};
+use crate::core::authentication::types::TransStatus;
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
@@ -17,7 +18,9 @@ pub enum AuthenticationResponseData {
         authn_flow_type: AuthNFlowType,
     },
     PostAuthNResponse {
-        cavv: String,
+        trans_status: TransStatus,
+        authentication_value: Option<String>,
+        eci: Option<String>,
     },
 }
 

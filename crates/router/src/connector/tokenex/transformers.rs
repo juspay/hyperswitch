@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
+    core::{authentication::types as authentication_types, errors},
     types::{self, api, storage::enums, BrowserInformation},
 };
 
@@ -623,17 +623,43 @@ pub struct TokenexPostAuthenticationRequest {
     pub server_transaction_id: String,
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenexPostAuthenticationResponse {
     pub three_d_secure_response: TokenexThreeDSResponse,
 }
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenexThreeDSResponse {
     pub authentication_value: Option<String>,
-    pub trans_status: String,
+    pub trans_status: TokenexTransStatus,
     pub eci: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub enum TokenexTransStatus {
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+}
+
+impl From<TokenexTransStatus> for authentication_types::TransStatus {
+    fn from(value: TokenexTransStatus) -> Self {
+        match value {
+            TokenexTransStatus::Y => Self::Y,
+            TokenexTransStatus::N => Self::N,
+            TokenexTransStatus::U => Self::U,
+            TokenexTransStatus::A => Self::A,
+            TokenexTransStatus::R => Self::R,
+        }
+    }
 }
 
 pub fn get_router_response_from_tokenex_authn_response(
