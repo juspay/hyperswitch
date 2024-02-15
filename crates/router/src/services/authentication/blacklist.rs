@@ -5,6 +5,8 @@ use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
+#[cfg(feature = "email")]
+use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
@@ -15,9 +17,6 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
 };
-
-#[cfg(feature = "email")]
-use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 
 #[cfg(feature = "olap")]
 pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserResult<()> {

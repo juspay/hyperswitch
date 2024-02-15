@@ -1092,7 +1092,6 @@ pub async fn verify_email_without_invite_checks(
         .map_err(|e| logger::error!(?e));
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
-
     Ok(ApplicationResponse::Json(
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
     ))
