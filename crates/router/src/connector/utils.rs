@@ -86,7 +86,7 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
-    fn get_optional_billing_address(&self) -> Option<api::AddressDetails>;
+    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails>;
 }
 
 pub trait PaymentResponseRouterData {
@@ -183,7 +183,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing.address"))
     }
 
-    fn get_optional_billing_address(&self) -> Option<api::AddressDetails> {
+    fn get_billing_address_details_as_optional(&self) -> Option<api::AddressDetails> {
         self.address
             .billing
             .as_ref()
@@ -407,8 +407,6 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
     fn get_total_surcharge_amount(&self) -> Option<i64>;
-
-    fn get_optional_browser_info(&self) -> Option<BrowserInformation>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -438,10 +436,6 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
-    }
-
-    fn get_optional_browser_info(&self) -> Option<BrowserInformation> {
-        self.browser_info.as_ref().cloned()
     }
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details

@@ -896,14 +896,14 @@ fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let browser_information = item.request.get_optional_browser_info();
+    let browser_information = item.request.browser_info.clone();
     let related_transaction_id = if item.is_three_ds() {
         item.request.related_transaction_id.clone()
     } else {
         None
     };
 
-    let address = item.get_optional_billing_address();
+    let address = item.get_billing_address_details_as_optional();
 
     let billing_address = match address {
         Some(address) => Some(BillingAddress {
@@ -991,7 +991,7 @@ fn get_card_info<F>(
         is_rebilling,
         user_token_id,
         device_details: Option::<DeviceDetails>::foreign_try_from(
-            &item.request.get_optional_browser_info(),
+            &item.request.browser_info.clone(),
         )?,
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
@@ -1564,7 +1564,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             Ok(Self {
                 related_transaction_id,
                 device_details: Option::<DeviceDetails>::foreign_try_from(
-                    &item.request.get_optional_browser_info(),
+                    &item.request.browser_info.clone(),
                 )?,
                 is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
                 user_token_id: Some(item.request.get_email()?),
