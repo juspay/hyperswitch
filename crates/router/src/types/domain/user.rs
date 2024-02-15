@@ -28,7 +28,7 @@ use crate::{
     services::{
         authentication as auth,
         authentication::UserFromToken,
-        authorization::{info, predefined_permissions},
+        authorization::{info, roles::predefined_roles},
     },
     types::transformers::ForeignFrom,
     utils::{self, user::password},
@@ -835,7 +835,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
         };
 
         let role_id = user_and_role.1.role_id;
-        let role_name = predefined_permissions::get_role_name_from_id(role_id.as_str())
+        let role_name = predefined_roles::get_role_name_from_id(role_id.as_str())
             .ok_or(())?
             .to_string();
 

@@ -6,7 +6,7 @@ use crate::{
 pub mod info;
 pub mod permission_groups;
 pub mod permissions;
-pub mod predefined_permissions;
+pub mod roles;
 
 pub async fn get_permissions<A>(
     state: &A,
@@ -15,7 +15,7 @@ pub async fn get_permissions<A>(
 where
     A: AppStateInfo + Sync,
 {
-    if let Some(role_info) = predefined_permissions::PREDEFINED_PERMISSIONS.get(role_id) {
+    if let Some(role_info) = roles::predefined_roles::PREDEFINED_ROLES.get(role_id) {
         Ok(get_permissions_from_groups(
             role_info.get_permission_groups(),
         ))

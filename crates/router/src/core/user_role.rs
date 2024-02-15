@@ -10,7 +10,7 @@ use crate::{
     routes::AppState,
     services::{
         authentication::{self as auth},
-        authorization::{info, predefined_permissions},
+        authorization::{info, roles::predefined_roles},
         ApplicationResponse,
     },
     types::domain,
@@ -32,7 +32,7 @@ pub async fn get_authorization_info(
 
 pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRolesResponse> {
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
-        predefined_permissions::PREDEFINED_PERMISSIONS
+        predefined_roles::PREDEFINED_ROLES
             .iter()
             .filter(|(_, role_info)| role_info.is_invitable())
             .filter_map(|(role_id, role_info)| {
@@ -52,7 +52,7 @@ pub async fn get_role(
     _state: AppState,
     role: user_role_api::GetRoleRequest,
 ) -> UserResponse<user_role_api::RoleInfoResponse> {
-    let info = predefined_permissions::PREDEFINED_PERMISSIONS
+    let info = predefined_roles::PREDEFINED_ROLES
         .get_key_value(role.role_id.as_str())
         .and_then(|(role_id, role_info)| {
             utils::user_role::get_role_name_and_permission_response(role_info).map(
@@ -73,7 +73,7 @@ pub async fn get_role_from_token(
     user: auth::UserFromToken,
 ) -> UserResponse<Vec<user_role_api::Permission>> {
     Ok(ApplicationResponse::Json(
-        predefined_permissions::PREDEFINED_PERMISSIONS
+        predefined_roles::PREDEFINED_ROLES
             .get(user.role_id.as_str())
             .ok_or(UserErrors::InternalServerError.into())
             .attach_printable("Invalid Role Id in JWT")?
@@ -95,7 +95,7 @@ pub async fn update_user_role(
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
-    if !predefined_permissions::is_role_updatable(&req.role_id)? {
+    if !predefined_roles::is_role_updatable(&req.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable(format!("User role cannot be updated to {}", req.role_id));
     }
@@ -116,7 +116,7 @@ pub async fn update_user_role(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    if !predefined_permissions::is_role_updatable(&user_role_to_be_updated.role_id)? {
+    if !predefined_roles::is_role_updatable(&user_role_to_be_updated.role_id)? {
         return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
             "User role cannot be updated from {}",
             user_role_to_be_updated.role_id
@@ -276,7 +276,7 @@ pub async fn delete_user_role(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            if !predefined_permissions::is_role_deletable(&user_role.role_id)? {
+            if !predefined_roles::is_role_deletable(&user_role.role_id)? {
                 return Err(UserErrors::InvalidDeleteOperation.into())
                     .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
             }

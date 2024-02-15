@@ -4,10 +4,12 @@ use std::collections::HashMap;
 use error_stack::ResultExt;
 use once_cell::sync::Lazy;
 
-use super::{permission_groups::PermissionGroup, permissions::Permission};
-use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::{UserErrors, UserResult};
+use crate::{
+    consts,
+    services::authorization::{permission_groups::PermissionGroup, permissions::Permission},
+};
 
 #[allow(dead_code)]
 pub struct RoleInfo {
@@ -40,7 +42,7 @@ impl RoleInfo {
     }
 }
 
-pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
+pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
     roles.insert(
         consts::user_role::ROLE_ID_INTERNAL_ADMIN,
@@ -228,14 +230,14 @@ pub static PREDEFINED_PERMISSIONS: Lazy<HashMap<&'static str, RoleInfo>> = Lazy:
 });
 
 pub fn get_role_name_from_id(role_id: &str) -> Option<&'static str> {
-    PREDEFINED_PERMISSIONS
+    PREDEFINED_ROLES
         .get(role_id)
         .and_then(|role_info| role_info.name)
 }
 
 #[cfg(feature = "olap")]
 pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {
-    PREDEFINED_PERMISSIONS
+    PREDEFINED_ROLES
         .get(role_id)
         .map(|role_info| role_info.is_invitable)
         .ok_or(UserErrors::InvalidRoleId.into())
@@ -244,7 +246,7 @@ pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {
 
 #[cfg(feature = "olap")]
 pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
-    PREDEFINED_PERMISSIONS
+    PREDEFINED_ROLES
         .get(role_id)
         .map(|role_info| role_info.is_deletable)
         .ok_or(UserErrors::InvalidRoleId.into())
@@ -253,7 +255,7 @@ pub fn is_role_deletable(role_id: &str) -> UserResult<bool> {
 
 #[cfg(feature = "olap")]
 pub fn is_role_updatable(role_id: &str) -> UserResult<bool> {
-    PREDEFINED_PERMISSIONS
+    PREDEFINED_ROLES
         .get(role_id)
         .map(|role_info| role_info.is_updatable)
         .ok_or(UserErrors::InvalidRoleId.into())

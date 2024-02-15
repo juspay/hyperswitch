@@ -19,7 +19,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{
-        authentication as auth, authorization::predefined_permissions, ApplicationResponse,
+        authentication as auth, authorization::roles::predefined_roles, ApplicationResponse,
     },
     types::domain,
     utils,
@@ -431,7 +431,7 @@ pub async fn invite_user(
         .into());
     }
 
-    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+    if !predefined_roles::is_role_invitable(request.role_id.as_str())? {
         return Err(UserErrors::InvalidRoleId.into())
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
@@ -607,7 +607,7 @@ async fn handle_invitation(
         .into());
     }
 
-    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+    if !predefined_roles::is_role_invitable(request.role_id.as_str())? {
         return Err(UserErrors::InvalidRoleId.into())
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }

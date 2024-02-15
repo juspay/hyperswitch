@@ -2,7 +2,7 @@ use api_models::user_role as user_role_api;
 
 use crate::{
     consts,
-    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
+    services::authorization::{permissions::Permission, roles::predefined_roles::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
