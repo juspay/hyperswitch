@@ -5,7 +5,6 @@ use common_utils::errors::CustomResult;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use router_env::logger;
 
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
