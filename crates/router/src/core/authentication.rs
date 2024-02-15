@@ -8,8 +8,9 @@ pub mod types;
 use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
+use error_stack::ResultExt;
 
-use super::errors::ConnectorErrorExt;
+use super::errors::{self, ConnectorErrorExt};
 use crate::{
     core::{
         errors::ApiErrorResponse,
@@ -17,7 +18,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self as core_types, api, storage},
+    types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -28,13 +29,13 @@ pub async fn perform_authentication(
     payment_method: common_enums::PaymentMethod,
     billing_address: api_models::payments::Address,
     shipping_address: Option<api_models::payments::Address>,
-    browser_details: core_types::BrowserInformation,
+    browser_details: Option<core_types::BrowserInformation>,
     merchant_account: core_types::domain::MerchantAccount,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<i64>,
     currency: Option<Currency>,
     message_category: api::authentication::MessageCategory,
-    device_channel: String,
+    device_channel: payments::DeviceChannel,
     authentication_data: (types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
     sdk_information: Option<payments::SDKInformation>,
@@ -45,7 +46,7 @@ pub async fn perform_authentication(
         '_,
         api::Authentication,
         core_types::ConnectorAuthenticationRequestData,
-        core_types::ConnectorAuthenticationResponse,
+        AuthenticationResponseData,
     > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -60,7 +61,7 @@ pub async fn perform_authentication(
         device_channel,
         merchant_account,
         merchant_connector_account,
-        authentication_data,
+        authentication_data.clone(),
         return_url,
         sdk_information,
     )?;
@@ -73,7 +74,9 @@ pub async fn perform_authentication(
     )
     .await
     .to_payment_failed_response()?;
-    let submit_evidence_response =
+    let (_authentication, _authentication_data) =
+        utils::update_trackers(state, response.clone(), authentication_data.1, None).await?;
+    let authentication_response =
         response
             .response
             .map_err(|err| ApiErrorResponse::ExternalConnectorError {
@@ -83,15 +86,43 @@ pub async fn perform_authentication(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-    Ok(core_types::api::AuthenticationResponse {
-        trans_status: submit_evidence_response.trans_status,
-        acs_url: submit_evidence_response.acs_url,
-        challenge_request: submit_evidence_response.challenge_request,
-        acs_reference_number: submit_evidence_response.acs_reference_number,
-        acs_trans_id: submit_evidence_response.acs_trans_id,
-        three_dsserver_trans_id: submit_evidence_response.three_dsserver_trans_id,
-        acs_signed_content: submit_evidence_response.acs_signed_content,
-    })
+    match authentication_response {
+        AuthenticationResponseData::AuthNResponse {
+            authn_flow_type,
+            trans_status,
+            ..
+        } => Ok(match authn_flow_type {
+            core_types::authentication::AuthNFlowType::Challenge {
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                three_dsserver_trans_id,
+                acs_signed_content,
+            } => core_types::api::AuthenticationResponse {
+                trans_status,
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                three_dsserver_trans_id,
+                acs_signed_content,
+            },
+            core_types::authentication::AuthNFlowType::Frictionless => {
+                core_types::api::AuthenticationResponse {
+                    trans_status,
+                    acs_url: None,
+                    challenge_request: None,
+                    acs_reference_number: None,
+                    acs_trans_id: None,
+                    three_dsserver_trans_id: None,
+                    acs_signed_content: None,
+                }
+            }
+        }),
+        _ => Err(errors::ApiErrorResponse::InternalServerError.into())
+            .attach_printable("unexpected response in authentication flow")?,
+    }
 }
 
 pub async fn perform_post_authentication(
@@ -124,7 +155,7 @@ pub async fn perform_post_authentication(
     )
     .await
     .to_payment_failed_response()?;
-    let submit_evidence_response =
+    let post_authentication_response =
         response
             .response
             .map_err(|err| ApiErrorResponse::ExternalConnectorError {
@@ -135,8 +166,8 @@ pub async fn perform_post_authentication(
                 reason: err.reason,
             })?;
     Ok(core_types::api::PostAuthenticationResponse {
-        trans_status: submit_evidence_response.trans_status,
-        authentication_value: submit_evidence_response.authentication_value,
-        eci: submit_evidence_response.eci,
+        trans_status: post_authentication_response.trans_status,
+        authentication_value: post_authentication_response.authentication_value,
+        eci: post_authentication_response.eci,
     })
 }

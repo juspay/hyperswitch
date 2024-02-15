@@ -2078,7 +2078,7 @@ pub enum AuthenticationStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum DecoupledAuthenticationType {
     #[default]
-    Friction,
+    Challenge,
     Frictionless,
 }
 

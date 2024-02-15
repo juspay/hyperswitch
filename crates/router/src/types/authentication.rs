@@ -15,22 +15,25 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
+        cavv: Option<String>,
+        trans_status: String,
     },
     PostAuthNResponse {
         cavv: String,
     },
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthNFlowType {
-    #[default]
-    NotApplicable,
     Challenge {
-        challenge_url: String,
+        acs_url: Option<url::Url>,
+        challenge_request: Option<String>,
+        acs_reference_number: Option<String>,
+        acs_trans_id: Option<String>,
+        three_dsserver_trans_id: Option<String>,
+        acs_signed_content: Option<String>,
     },
-    Frictionless {
-        cavv: String,
-    },
+    Frictionless,
 }
 
 #[derive(Clone, Default, Debug)]

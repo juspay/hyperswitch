@@ -32,6 +32,7 @@ use serde::Serialize;
 
 use self::{
     api::{authentication as api_authentication, payments},
+    authentication::AuthenticationResponseData,
     storage::enums as storage_enums,
 };
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -236,7 +237,7 @@ pub type DefendDisputeType = dyn services::ConnectorIntegration<
 pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
     api::Authentication,
     ConnectorAuthenticationRequestData,
-    ConnectorAuthenticationResponse,
+    AuthenticationResponseData,
 >;
 
 pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
@@ -248,7 +249,7 @@ pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
 pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
     api::PreAuthentication,
     authentication::PreAuthNRequestData,
-    authentication::AuthenticationResponseData,
+    AuthenticationResponseData,
 >;
 
 pub type SetupMandateRouterData =
@@ -277,11 +278,8 @@ pub type DefendDisputeRouterData =
 pub type MandateRevokeRouterData =
     RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
 
-pub type ConnectorAuthenticationRouterData = RouterData<
-    api::Authentication,
-    ConnectorAuthenticationRequestData,
-    ConnectorAuthenticationResponse,
->;
+pub type ConnectorAuthenticationRouterData =
+    RouterData<api::Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
 
 pub type ConnectorPostAuthenticationRouterData = RouterData<
     api::PostAuthentication,
@@ -1065,28 +1063,17 @@ pub struct ConnectorAuthenticationRequestData {
     pub payment_method_data: payments::PaymentMethodData,
     pub billing_address: api_models::payments::Address,
     pub shipping_address: Option<api_models::payments::Address>,
-    pub browser_details: BrowserInformation,
+    pub browser_details: Option<BrowserInformation>,
     pub amount: Option<i64>,
     pub currency: Option<common_enums::Currency>,
     pub message_category: api_authentication::MessageCategory,
-    pub device_channel: String,
+    pub device_channel: api_models::payments::DeviceChannel,
     pub authentication_data: (
         crate::core::authentication::types::AuthenticationData,
         storage::Authentication,
     ),
     pub return_url: Option<String>,
     pub sdk_information: Option<api_models::payments::SDKInformation>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ConnectorAuthenticationResponse {
-    pub trans_status: String,
-    pub acs_url: Option<url::Url>,
-    pub challenge_request: Option<String>,
-    pub acs_reference_number: Option<String>,
-    pub acs_trans_id: Option<String>,
-    pub three_dsserver_trans_id: Option<String>,
-    pub acs_signed_content: Option<String>,
 }
 
 #[derive(Clone, Debug)]

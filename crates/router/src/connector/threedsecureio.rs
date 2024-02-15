@@ -22,6 +22,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        authentication::AuthNFlowType,
         transformers::ForeignTryFrom,
         ErrorResponse, RequestContent, Response,
     },
@@ -553,7 +554,7 @@ impl
     ConnectorIntegration<
         api::Authentication,
         types::ConnectorAuthenticationRequestData,
-        types::ConnectorAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Threedsecureio
 {
     fn get_headers(
@@ -654,21 +655,24 @@ impl
             .to_owned();
         println!("creq_base64 authn {}", creq_base64);
         Ok(types::ConnectorAuthenticationRouterData {
-            response: Ok(types::ConnectorAuthenticationResponse {
-                trans_status: response.trans_status.clone(),
-                acs_url: response.acs_url,
-                challenge_request: if response.trans_status != "Y"
-                    && response.acs_signed_content.is_none()
-                {
-                    Some(creq_base64)
-                } else {
-                    None
+            response: Ok(
+                types::authentication::AuthenticationResponseData::AuthNResponse {
+                    trans_status: response.trans_status.clone(),
+                    authn_flow_type: if response.trans_status == "C" {
+                        AuthNFlowType::Challenge {
+                            acs_url: response.acs_url,
+                            challenge_request: Some(creq_base64),
+                            acs_reference_number: Some(response.acs_reference_number.clone()),
+                            acs_trans_id: Some(response.acs_trans_id.clone()),
+                            three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
+                            acs_signed_content: response.acs_signed_content,
+                        }
+                    } else {
+                        AuthNFlowType::Frictionless
+                    },
+                    cavv: response.authentication_value,
                 },
-                acs_reference_number: Some(response.acs_reference_number.clone()),
-                acs_trans_id: Some(response.acs_trans_id.clone()),
-                three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
-                acs_signed_content: response.acs_signed_content,
-            }),
+            ),
             ..data.clone()
         })
     }

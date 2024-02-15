@@ -2338,7 +2338,7 @@ macro_rules! default_imp_for_connector_authentication {
             services::ConnectorIntegration<
             api::Authentication,
             types::ConnectorAuthenticationRequestData,
-            types::ConnectorAuthenticationResponse,
+            types::authentication::AuthenticationResponseData,
         > for $path::$connector
         {}
         impl
@@ -2374,7 +2374,7 @@ impl<const T: u8>
     services::ConnectorIntegration<
         api::Authentication,
         types::ConnectorAuthenticationRequestData,
-        types::ConnectorAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for connector::DummyConnector<T>
 {
 }

@@ -1,4 +1,4 @@
-use api_models::payments::SDKEphemPubKey;
+use api_models::payments::{DeviceChannel, SDKEphemPubKey};
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
@@ -282,6 +282,16 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
     fn try_from(
         item: &ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
+        let browser_details = match item.router_data.request.browser_details.clone() {
+            Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
+            None => {
+                if item.router_data.request.device_channel == DeviceChannel::BRW {
+                    Err(errors::ConnectorError::RequestEncodingFailed)?
+                } else {
+                    Ok(None)
+                }
+            }
+        }?;
         let card_details = get_card_details(item.router_data.request.payment_method_data.clone())?;
         let currency = item
             .router_data
@@ -400,7 +410,11 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .to_string(),
             bill_addr_state: billing_state.peek().to_string(),
             three_dsrequestor_authentication_ind: "01".to_string(),
-            device_channel: item.router_data.request.device_channel.clone(),
+            device_channel: match item.router_data.request.device_channel.clone() {
+                DeviceChannel::BRW => "02",
+                DeviceChannel::APP => "01",
+            }
+            .to_string(),
             message_category: if item.router_data.request.message_category
                 == MessageCategory::Payment
             {
@@ -408,56 +422,36 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             } else {
                 "02".to_string()
             },
-            browser_javascript_enabled: item
-                .router_data
-                .request
-                .browser_details
-                .java_script_enabled,
-            browser_accept_header: item
-                .router_data
-                .request
-                .browser_details
-                .accept_header
-                .clone(),
-            browser_ip: item
-                .router_data
-                .request
-                .browser_details
-                .ip_address
-                .map(|ip| ip.to_string()),
-            browser_java_enabled: item.router_data.request.browser_details.java_enabled,
-            browser_language: item.router_data.request.browser_details.language.clone(),
-            browser_color_depth: item
-                .router_data
-                .request
-                .browser_details
-                .color_depth
-                .map(|a| a.to_string()),
-            browser_screen_height: item
-                .router_data
-                .request
-                .browser_details
-                .screen_height
-                .map(|a| a.to_string()),
-            browser_screen_width: item
-                .router_data
-                .request
-                .browser_details
-                .screen_width
-                .map(|a| a.to_string()),
-            browser_tz: item
-                .router_data
-                .request
-                .browser_details
-                .time_zone
-                .map(|a| a.to_string()),
-            browser_user_agent: item
-                .router_data
-                .request
-                .browser_details
-                .user_agent
+            browser_javascript_enabled: browser_details
                 .clone()
-                .map(|a| a.to_string()),
+                .and_then(|details| details.java_script_enabled.clone()),
+            browser_accept_header: browser_details
+                .clone()
+                .and_then(|details| details.accept_header.clone()),
+            browser_ip: browser_details
+                .clone()
+                .and_then(|details| details.ip_address.clone().map(|ip| ip.to_string())),
+            browser_java_enabled: browser_details
+                .clone()
+                .and_then(|details| details.java_enabled.clone()),
+            browser_language: browser_details
+                .clone()
+                .and_then(|details| details.language.clone()),
+            browser_color_depth: browser_details
+                .clone()
+                .and_then(|details| details.color_depth.map(|a| a.to_string())),
+            browser_screen_height: browser_details
+                .clone()
+                .and_then(|details| details.screen_height.map(|a| a.to_string())),
+            browser_screen_width: browser_details
+                .clone()
+                .and_then(|details| details.screen_width.map(|a| a.to_string())),
+            browser_tz: browser_details
+                .clone()
+                .and_then(|details| details.time_zone.map(|a| a.to_string())),
+            browser_user_agent: browser_details
+                .clone()
+                .and_then(|details| details.user_agent.map(|a| a.to_string())),
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
@@ -566,6 +560,8 @@ pub struct ThreedsecureioAuthenticationResponse {
     pub trans_status: String,
     #[serde(rename = "acsSignedContent")]
     pub acs_signed_content: Option<String>,
+    #[serde(rename = "authenticationValue")]
+    pub authentication_value: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

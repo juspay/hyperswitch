@@ -3147,7 +3147,7 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub reason: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationRequest {
     /// The identifier for the payment
     #[serde(skip)]
@@ -3156,6 +3156,14 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub client_secret: String,
     /// SDKInformation
     pub sdk_information: Option<SDKInformation>,
+    /// DeviceChannel
+    pub device_channel: DeviceChannel,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+pub enum DeviceChannel {
+    APP,
+    BRW,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

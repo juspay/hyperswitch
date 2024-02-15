@@ -3153,11 +3153,14 @@ pub async fn payment_external_authentication(
         &payment_intent,
         &key_store,
     )
-    .await?;
+    .await?
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
+    .into_report()
+    .attach_printable("missing payment_method_details")?;
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
         .clone()
-        .map(|b| b.parse_value("BrowserInformation"))
+        .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "browser_info",
@@ -3165,38 +3168,33 @@ pub async fn payment_external_authentication(
     let payment_connector_name = payment_attempt
         .connector
         .as_ref()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("missing connector in payment_attempt")?;
     let return_url = Some(helpers::create_authorize_url(
         &state.conf.server.base_url,
         &payment_attempt.clone(),
         payment_connector_name,
     ));
-    let device_channel = if req.sdk_information.is_some() {
-        "01".to_string()
-    } else {
-        "02".to_string()
-    };
     let authentication_response = authentication_core::perform_authentication(
         &state,
         authentication_connector,
-        payment_method_details
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?
-            .0,
-        payment_attempt
-            .payment_method
-            .unwrap_or(storage_enums::PaymentMethod::Card),
+        payment_method_details.0,
+        payment_method_details.1,
         billing_address
             .as_ref()
-            .map(|a| a.into())
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?,
-        shipping_address.as_ref().map(|a| a.into()),
-        browser_info.ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            .map(|address| address.into())
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "billing_address",
+            })?,
+        shipping_address.as_ref().map(|address| address.into()),
+        browser_info,
         merchant_account,
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
         amount,
         Some(currency),
         authentication::MessageCategory::Payment,
-        device_channel,
+        req.device_channel,
         (authentication_data, authentication),
         return_url,
         req.sdk_information,

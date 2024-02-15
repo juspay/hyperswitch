@@ -330,7 +330,12 @@ impl TryFrom<&TokenexRouterData<&types::ConnectorAuthenticationRouterData>>
         value: &TokenexRouterData<&types::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &value.router_data.request;
-        let browser_info = TokenexBrowserInformation::from(&request.browser_details);
+        let browser_info = TokenexBrowserInformation::from(
+            &request
+                .browser_details
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+        );
         let card = get_card_details(&request.payment_method_data)?;
         let (card_expiry_date, account_type) = {
             let year = card.card_exp_year.expose();

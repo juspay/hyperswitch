@@ -1,3 +1,4 @@
+use common_enums::DecoupledAuthenticationType;
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 
@@ -7,8 +8,12 @@ use crate::{
     errors::RouterResult,
     routes::AppState,
     types::{
-        self as router_types, api::ConnectorCallType, authentication::AuthenticationResponseData,
-        domain, storage, storage::enums as storage_enums, transformers::ForeignFrom,
+        self as router_types,
+        api::ConnectorCallType,
+        authentication::{AuthNFlowType, AuthenticationResponseData},
+        domain,
+        storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
         ConnectorAuthType, PaymentAddress, RouterData,
     },
 };
@@ -199,8 +204,13 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_lifecycle_status: None,
                 }
             }
-            AuthenticationResponseData::AuthNResponse { authn_flow_type } => {
-                authentication_data.authn_flow_type = Some(authn_flow_type);
+            AuthenticationResponseData::AuthNResponse {
+                authn_flow_type,
+                cavv,
+                trans_status,
+            } => {
+                authentication_data.authn_flow_type = Some(authn_flow_type.clone());
+                authentication_data.cavv = cavv.or(authentication_data.cavv);
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
@@ -208,8 +218,15 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     authentication_connector_id: None,
                     payment_method_id: None,
-                    authentication_type: None,
-                    authentication_status: None,
+                    authentication_type: Some(match authn_flow_type {
+                        AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
+                        AuthNFlowType::Frictionless => DecoupledAuthenticationType::Frictionless,
+                    }),
+                    authentication_status: match trans_status.as_str() {
+                        "Y" => Some(common_enums::AuthenticationStatus::Success),
+                        "N" => Some(common_enums::AuthenticationStatus::Failed),
+                        _ => Some(common_enums::AuthenticationStatus::Pending),
+                    },
                     authentication_lifecycle_status: None,
                 }
             }

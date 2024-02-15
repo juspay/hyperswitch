@@ -51,7 +51,7 @@ pub trait ConnectorAuthentication:
     services::ConnectorIntegration<
     Authentication,
     types::ConnectorAuthenticationRequestData,
-    types::ConnectorAuthenticationResponse,
+    types::authentication::AuthenticationResponseData,
 >
 {
 }

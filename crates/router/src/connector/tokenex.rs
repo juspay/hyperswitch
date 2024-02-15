@@ -672,7 +672,7 @@ impl
     ConnectorIntegration<
         api::Authentication,
         types::ConnectorAuthenticationRequestData,
-        types::ConnectorAuthenticationResponse,
+        types::authentication::AuthenticationResponseData,
     > for Tokenex
 {
     fn get_headers(
@@ -763,29 +763,37 @@ impl
             &response.three_d_secure_response.encoded_c_req
         );
         Ok(types::ConnectorAuthenticationRouterData {
-            response: Ok(types::ConnectorAuthenticationResponse {
-                trans_status: response.three_d_secure_response.trans_status.clone(),
-                acs_url: response.three_d_secure_response.acs_url,
-                challenge_request: if response.three_d_secure_response.trans_status != "Y" {
-                    Some(response.three_d_secure_response.encoded_c_req)
-                } else {
-                    None
+            // TODO
+            response: Ok(
+                types::authentication::AuthenticationResponseData::AuthNResponse {
+                    authn_flow_type: types::authentication::AuthNFlowType::Frictionless,
+                    cavv: None,
+                    trans_status: "Y".to_string(),
                 },
-                acs_reference_number: Some(
-                    response
-                        .three_d_secure_response
-                        .acs_reference_number
-                        .clone(),
-                ),
-                acs_trans_id: Some(response.three_d_secure_response.acs_trans_id.clone()),
-                three_dsserver_trans_id: Some(
-                    response
-                        .three_d_secure_response
-                        .three_dsserver_trans_id
-                        .clone(),
-                ),
-                acs_signed_content: None,
-            }),
+            ),
+            // response: Ok(types::ConnectorAuthenticationResponse {
+            //     trans_status: response.three_d_secure_response.trans_status.clone(),
+            //     acs_url: response.three_d_secure_response.acs_url,
+            //     challenge_request: if response.three_d_secure_response.trans_status != "Y" {
+            //         Some(response.three_d_secure_response.encoded_c_req)
+            //     } else {
+            //         None
+            //     },
+            //     acs_reference_number: Some(
+            //         response
+            //             .three_d_secure_response
+            //             .acs_reference_number
+            //             .clone(),
+            //     ),
+            //     acs_trans_id: Some(response.three_d_secure_response.acs_trans_id.clone()),
+            //     three_dsserver_trans_id: Some(
+            //         response
+            //             .three_d_secure_response
+            //             .three_dsserver_trans_id
+            //             .clone(),
+            //     ),
+            //     acs_signed_content: None,
+            // }),
             ..data.clone()
         })
     }
