@@ -19,6 +19,20 @@ impl Default for super::settings::Server {
     }
 }
 
+impl Default for super::settings::CorsSettings {
+    fn default() -> Self {
+        Self {
+            origins: HashSet::from_iter(["http://localhost:8080".to_string()]),
+            allowed_methods: HashSet::from_iter(
+                ["GET", "PUT", "POST", "DELETE"]
+                    .into_iter()
+                    .map(ToString::to_string),
+            ),
+            wildcard_origin: false,
+            max_age: 30,
+        }
+    }
+}
 impl Default for super::settings::Database {
     fn default() -> Self {
         Self {

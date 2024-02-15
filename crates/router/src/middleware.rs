@@ -152,6 +152,7 @@ where
                     payment_id = Empty,
                     merchant_id = Empty,
                     connector_name = Empty,
+                    payment_method = Empty,
                     flow = "UNKNOWN"
                 )
                 .or_current(),
