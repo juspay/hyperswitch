@@ -177,7 +177,6 @@ pub async fn make_connector_decision(
 
             #[cfg(feature = "payout_retry")]
             {
-                println!("inside_retry_body");
                 use crate::core::payouts::retry::{self, GsmValidation};
                 let config_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
@@ -185,10 +184,7 @@ pub async fn make_connector_decision(
                 )
                 .await;
 
-                println!("retry_config {:?}", config_bool);
-
                 if config_bool && payout_data.should_call_gsm() {
-                    println!("inside_retry_logic");
                     payout_data = retry::do_gsm_actions(
                         state,
                         connectors,

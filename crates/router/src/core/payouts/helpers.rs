@@ -662,9 +662,9 @@ pub async fn get_gsm_record(
                         error_code,
                         error_message
                     );
-                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
                 } else {
-                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
                 };
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to fetch decision from gsm")
