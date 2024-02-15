@@ -26,6 +26,8 @@ pub struct AwsSes {
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct SESConfig {
     /// The arn of email role
+    /// This will be of the format arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>
+    /// - Attach [SESFullAccess](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonSESFullAccess.html) policy or ses:Sendemail Permission to the role.
     pub email_role_arn: String,
 
     /// The name of sts_session role
