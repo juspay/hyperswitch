@@ -2,6 +2,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
+use common_utils::request::RequestContent;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -10,6 +11,7 @@ use crate::{
     connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -21,7 +23,7 @@ use crate::{
         api::{self, ConnectorCommon},
         storage::enums as storage_enums,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -60,11 +62,16 @@ impl ConnectorCommon for Klarna {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         // KlarnaErrorResponse will either have error_messages or error_message field Ref: https://docs.klarna.com/api/errors/
         let reason = response
             .error_messages
@@ -75,6 +82,8 @@ impl ConnectorCommon for Klarna {
             code: response.error_code,
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 }
@@ -153,15 +162,11 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = klarna::KlarnaSessionRequest::try_from(req)?;
         // encode only for for urlencoded things.
-        let klarna_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(klarna_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -177,7 +182,9 @@ impl
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .set_body(types::PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -185,12 +192,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -202,8 +214,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -217,6 +230,20 @@ impl
     > for Klarna
 {
     // Not Implemented(R)
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Klarna".to_string())
+                .into(),
+        )
+    }
 }
 
 impl
@@ -319,6 +346,7 @@ impl
                     | api_models::enums::PaymentMethodType::BcaBankTransfer
                     | api_models::enums::PaymentMethodType::BniVa
                     | api_models::enums::PaymentMethodType::BriVa
+                    | api_models::enums::PaymentMethodType::CardRedirect
                     | api_models::enums::PaymentMethodType::CimbVa
                     | api_models::enums::PaymentMethodType::ClassicReward
                     | api_models::enums::PaymentMethodType::Credit
@@ -400,7 +428,8 @@ impl
             | api_payments::PaymentMethodData::Reward
             | api_payments::PaymentMethodData::Upi(_)
             | api_payments::PaymentMethodData::Voucher(_)
-            | api_payments::PaymentMethodData::GiftCard(_) => Err(error_stack::report!(
+            | api_payments::PaymentMethodData::GiftCard(_)
+            | api_payments::PaymentMethodData::CardToken(_) => Err(error_stack::report!(
                 errors::ConnectorError::MismatchedPaymentData
             )),
         }
@@ -409,7 +438,8 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = klarna::KlarnaRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
@@ -417,12 +447,7 @@ impl
             req,
         ))?;
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-        let klarna_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(klarna_req))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -440,7 +465,9 @@ impl
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -448,12 +475,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -465,8 +497,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -512,7 +545,7 @@ impl api::IncomingWebhook for Klarna {
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

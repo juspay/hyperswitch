@@ -39,7 +39,10 @@ impl
             types::PaymentsResponseData,
         >,
     > {
-        transformers::construct_payment_router_data::<api::Authorize, types::PaymentsAuthorizeData>(
+        Box::pin(transformers::construct_payment_router_data::<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -47,7 +50,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
-        )
+        ))
         .await
     }
 }
@@ -71,14 +74,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         > = connector.connector.get_connector_integration();
         connector
             .connector
-            .validate_capture_method(self.request.capture_method)
+            .validate_capture_method(
+                self.request.capture_method,
+                self.request.payment_method_type,
+            )
             .to_payment_failed_response()?;
-        if self.request.surcharge_details.is_some() {
-            connector
-                .connector
-                .validate_if_surcharge_implemented()
-                .to_payment_failed_response()?;
-        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -95,37 +95,60 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            let save_payment_result = tokenization::save_payment_method(
-                state,
-                connector,
-                resp.to_owned(),
-                maybe_customer,
-                merchant_account,
-                self.request.payment_method_type,
-                key_store,
-            )
-            .await;
+            let is_mandate = resp.request.setup_mandate_details.is_some();
 
-            let pm_id = match save_payment_result {
-                Ok(payment_method_id) => Ok(payment_method_id),
-                Err(error) => {
-                    if resp.request.setup_mandate_details.clone().is_some() {
-                        Err(error)
-                    } else {
-                        logger::error!(save_payment_method_error=?error);
-                        Ok(None)
+            if is_mandate {
+                let payment_method_id = Box::pin(tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                    self.request.payment_method_type,
+                    key_store,
+                    is_mandate,
+                ))
+                .await?;
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    payment_method_id,
+                    connector.merchant_connector_id.clone(),
+                )
+                .await?)
+            } else {
+                let connector = connector.clone();
+                let response = resp.clone();
+                let maybe_customer = maybe_customer.clone();
+                let merchant_account = merchant_account.clone();
+                let key_store = key_store.clone();
+                let state = state.clone();
+
+                logger::info!("Initiating async call to save_payment_method in locker");
+
+                tokio::spawn(async move {
+                    logger::info!("Starting async call to save_payment_method in locker");
+
+                    let result = Box::pin(tokenization::save_payment_method(
+                        &state,
+                        &connector,
+                        response,
+                        &maybe_customer,
+                        &merchant_account,
+                        self.request.payment_method_type,
+                        &key_store,
+                        is_mandate,
+                    ))
+                    .await;
+
+                    if let Err(err) = result {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
                     }
-                }
-            }?;
+                });
 
-            Ok(mandate::mandate_procedure(
-                state,
-                resp,
-                maybe_customer,
-                pm_id,
-                connector.merchant_connector_id.clone(),
-            )
-            .await?)
+                Ok(resp)
+            }
         } else {
             Ok(self.clone())
         }
@@ -358,7 +381,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
-            name: None,
+            name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
         })
     }
@@ -395,6 +418,32 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+            redirect_response: None,
+        })
+    }
+}
+
+impl TryFrom<types::CompleteAuthorizeData> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: Some(data.amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: None,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: data.connector_transaction_id,
+            redirect_response: data.redirect_response,
         })
     }
 }

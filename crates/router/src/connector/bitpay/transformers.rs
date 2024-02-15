@@ -60,6 +60,7 @@ pub struct BitpayPaymentsRequest {
     notification_url: String,
     transaction_speed: TransactionSpeed,
     token: Secret<String>,
+    order_id: String,
 }
 
 impl TryFrom<&BitpayRouterData<&types::PaymentsAuthorizeRouterData>> for BitpayPaymentsRequest {
@@ -133,6 +134,7 @@ pub struct BitpayPaymentResponseData {
     pub expiration_time: Option<i64>,
     pub current_time: Option<i64>,
     pub id: String,
+    pub order_id: Option<String>,
     pub low_fee_detected: Option<bool>,
     pub display_amount_paid: Option<String>,
     pub exception_status: ExceptionStatus,
@@ -161,7 +163,7 @@ impl<F, T>
             .data
             .url
             .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = item.response.data.status;
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
@@ -171,7 +173,12 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .data
+                    .order_id
+                    .or(Some(item.response.data.id)),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -259,7 +266,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BitpayErrorResponse {
     pub error: String,
     pub code: Option<String>,
@@ -279,6 +286,7 @@ fn get_crypto_specific_payment_data(
         ConnectorAuthType::HeaderKey { api_key } => api_key,
         _ => String::default().into(),
     };
+    let order_id = item.router_data.connector_request_reference_id.clone();
 
     Ok(BitpayPaymentsRequest {
         price,
@@ -287,6 +295,7 @@ fn get_crypto_specific_payment_data(
         notification_url,
         transaction_speed,
         token,
+        order_id,
     })
 }
 

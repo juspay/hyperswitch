@@ -9,18 +9,17 @@ license.workspace = true
 
 [features]
 dummy_connector = []
+openapi = []
 
 [dependencies]
 diesel = { version = "2.1.0", features = ["postgres"] }
-serde  = { version = "1.0.160", features = [ "derive" ] }
-serde_json = "1.0.96"
-strum  = { version = "0.25", features = [ "derive" ] }
-time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+strum = { version = "0.25", features = ["derive"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
 
 # First party crates
-common_utils = { version = "0.1.0", path = "../common_utils" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 
 [dev-dependencies]
-serde_json = "1.0.96"
+serde_json = "1.0.108"

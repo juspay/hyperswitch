@@ -339,7 +339,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
-                    db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
@@ -350,7 +350,7 @@ mod storage {
                             .try_into_hget()
                         },
                         database_call,
-                    )
+                    ))
                     .await
                 }
             }?;
@@ -656,7 +656,7 @@ impl AddressInterface for MockDb {
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -667,7 +667,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -687,7 +688,7 @@ impl AddressInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -698,7 +699,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -757,20 +759,22 @@ impl AddressInterface for MockDb {
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
             .iter_mut()
             .find(|address| {
-                address.customer_id == customer_id && address.merchant_id == merchant_id
+                address.customer_id == Some(customer_id.to_string())
+                    && address.merchant_id == merchant_id
             })
             .map(|a| {
                 let address_updated =
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address) => {
                 let address: domain::Address = address
                     .convert(key_store.key.get_inner())

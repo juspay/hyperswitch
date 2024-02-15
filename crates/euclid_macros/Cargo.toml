@@ -1,0 +1,16 @@
+[package]
+name = "euclid_macros"
+description = "Macros for Euclid DSL"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.51"
+quote = "1.0.23"
+rustc-hash = "1.1.0"
+strum = { version = "0.24", features = ["derive"] }
+syn = "1.0.109"

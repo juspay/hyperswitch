@@ -48,7 +48,7 @@ pub struct KlarnaPaymentsRequest {
     merchant_reference1: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
@@ -64,7 +64,7 @@ pub struct KlarnaSessionRequest {
     order_lines: Vec<OrderLines>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaSessionResponse {
     pub client_token: String,
     pub session_id: String,
@@ -167,6 +167,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
+                incremental_authorization_allowed: None,
             }),
             status: item.response.fraud_status.into(),
             ..item.data
@@ -224,7 +225,7 @@ impl From<KlarnaFraudStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaErrorResponse {
     pub error_code: String,
     pub error_messages: Option<Vec<String>>,

@@ -191,7 +191,8 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -199,7 +200,7 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SquareSessionResponse {
     session_id: String,
@@ -224,7 +225,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquareTokenResponse {
     card_nonce: Secret<String>,
 }
@@ -307,7 +308,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
             })?,
@@ -334,6 +336,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
             | types::ConnectorAuthType::SignatureKey { .. }
             | types::ConnectorAuthType::MultiAuthKey { .. }
             | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::TemporaryAuth { .. }
             | types::ConnectorAuthType::NoKey { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
@@ -370,7 +373,7 @@ pub struct SquarePaymentsResponseDetails {
     amount_money: SquarePaymentsAmountData,
     reference_id: Option<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponse {
     payment: SquarePaymentsResponseDetails,
 }
@@ -398,6 +401,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,
+                incremental_authorization_allowed: None,
             }),
             amount_captured,
             ..item.data
@@ -452,7 +456,7 @@ pub struct SquareRefundResponseDetails {
     status: RefundStatus,
     id: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
     refund: SquareRefundResponseDetails,
 }

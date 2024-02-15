@@ -9,19 +9,9 @@ use crate::{
         payments::helpers,
     },
     db::{get_and_deserialize_key, StorageInterface},
+    services::logger,
     types::{self, api, domain, PaymentAddress},
 };
-
-fn default_webhook_config() -> api::MerchantWebhookConfig {
-    std::collections::HashSet::from([
-        api::IncomingWebhookEvent::PaymentIntentSuccess,
-        api::IncomingWebhookEvent::PaymentIntentFailure,
-        api::IncomingWebhookEvent::PaymentIntentProcessing,
-        api::IncomingWebhookEvent::PaymentIntentCancelled,
-        api::IncomingWebhookEvent::PaymentActionRequired,
-        api::IncomingWebhookEvent::RefundSuccess,
-    ])
-}
 
 const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_payment_id_in_source_verification_flow";
@@ -30,38 +20,40 @@ const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_source_verification_flow";
 
-/// Check whether the merchant has configured to process the webhook `event` for the `connector`
+/// Check whether the merchant has configured to disable the webhook `event` for the `connector`
 /// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
-/// if not found, fetch from configs table in database, if not found use default
-pub async fn lookup_webhook_event(
+/// if not found, fetch from configs table in database
+pub async fn is_webhook_event_disabled(
     db: &dyn StorageInterface,
     connector_id: &str,
     merchant_id: &str,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_{merchant_id}_{connector_id}");
-    let merchant_webhook_config_result =
-        get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig")
-            .await
-            .map(|h| &h | &default_webhook_config());
+    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let merchant_webhook_disable_config_result: CustomResult<
+        api::MerchantWebhookConfig,
+        redis_interface::errors::RedisError,
+    > = get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig").await;
 
-    match merchant_webhook_config_result {
+    match merchant_webhook_disable_config_result {
         Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
         Err(..) => {
             //if failed to fetch from redis. fetch from db and populate redis
             db.find_config_by_key(&redis_key)
                 .await
                 .map(|config| {
-                    if let Ok(set) =
-                        serde_json::from_str::<api::MerchantWebhookConfig>(&config.config)
-                    {
-                        &set | &default_webhook_config()
-                    } else {
-                        default_webhook_config()
+                    match serde_json::from_str::<api::MerchantWebhookConfig>(&config.config) {
+                        Ok(set) => set.contains(event),
+                        Err(err) => {
+                            logger::warn!(?err, "error while parsing merchant webhook config");
+                            false
+                        }
                     }
                 })
-                .unwrap_or_else(|_| default_webhook_config())
-                .contains(event)
+                .unwrap_or_else(|err| {
+                    logger::warn!(?err, "error while fetching merchant webhook config");
+                    false
+                })
         }
     }
 }
@@ -121,6 +113,9 @@ pub async fn construct_webhook_router_data<'a>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     };
     Ok(router_data)
 }

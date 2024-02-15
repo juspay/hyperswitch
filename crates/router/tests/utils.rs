@@ -20,7 +20,7 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let server = router::start_server(conf)
+    let server = Box::pin(router::start_server(conf))
         .await
         .expect("failed to create server");
 
@@ -29,7 +29,7 @@ async fn spawn_server() -> bool {
 }
 
 pub async fn setup() {
-    SERVER.get_or_init(spawn_server).await;
+    Box::pin(SERVER.get_or_init(spawn_server)).await;
 }
 
 const STRIPE_MOCK: &str = "http://localhost:12111/";
@@ -48,6 +48,7 @@ pub async fn mk_service(
         conf.connectors.stripe.base_url = url;
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
+
     let app_state = AppState::with_storage(
         conf,
         router::db::StorageImpl::Mock,

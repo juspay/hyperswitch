@@ -77,8 +77,12 @@ impl Visit for Storage<'_> {
             // Skip fields which are already handled
             name if name.starts_with("log.") => (),
             name if name.starts_with("r#") => {
-                self.values
-                    .insert(&name[2..], serde_json::Value::from(format!("{value:?}")));
+                self.values.insert(
+                    #[allow(clippy::expect_used)]
+                    name.get(2..)
+                        .expect("field name must have a minimum of two characters"),
+                    serde_json::Value::from(format!("{value:?}")),
+                );
             }
             name => {
                 self.values
@@ -88,13 +92,22 @@ impl Visit for Storage<'_> {
     }
 }
 
-#[allow(clippy::expect_used)]
+const PERSISTENT_KEYS: [&str; 5] = [
+    "payment_id",
+    "connector_name",
+    "merchant_id",
+    "flow",
+    "payment_method",
+];
+
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for StorageSubscription
 {
     /// On new span.
     fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
+        #[allow(clippy::expect_used)]
         let span = ctx.span(id).expect("No span");
+        let mut extensions = span.extensions_mut();
 
         let mut visitor = if let Some(parent_span) = span.parent() {
             let mut extensions = parent_span.extensions_mut();
@@ -106,15 +119,16 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
             Storage::default()
         };
 
-        let mut extensions = span.extensions_mut();
         attrs.record(&mut visitor);
         extensions.insert(visitor);
     }
 
     /// On additional key value pairs store it.
     fn on_record(&self, span: &Id, values: &Record<'_>, ctx: Context<'_, S>) {
+        #[allow(clippy::expect_used)]
         let span = ctx.span(span).expect("No span");
         let mut extensions = span.extensions_mut();
+        #[allow(clippy::expect_used)]
         let visitor = extensions
             .get_mut::<Storage<'_>>()
             .expect("The span does not have storage");
@@ -123,6 +137,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
 
     /// On enter store time.
     fn on_enter(&self, span: &Id, ctx: Context<'_, S>) {
+        #[allow(clippy::expect_used)]
         let span = ctx.span(span).expect("No span");
         let mut extensions = span.extensions_mut();
         if extensions.get_mut::<Instant>().is_none() {
@@ -132,6 +147,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
 
     /// On close create an entry about how long did it take.
     fn on_close(&self, span: Id, ctx: Context<'_, S>) {
+        #[allow(clippy::expect_used)]
         let span = ctx.span(&span).expect("No span");
 
         let elapsed_milliseconds = {
@@ -142,7 +158,20 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
                 .unwrap_or(0)
         };
 
+        if let Some(s) = span.extensions().get::<Storage<'_>>() {
+            s.values.iter().for_each(|(k, v)| {
+                if PERSISTENT_KEYS.contains(k) {
+                    span.parent().and_then(|p| {
+                        p.extensions_mut()
+                            .get_mut::<Storage<'_>>()
+                            .map(|s| s.values.insert(k, v.to_owned()))
+                    });
+                }
+            })
+        };
+
         let mut extensions_mut = span.extensions_mut();
+        #[allow(clippy::expect_used)]
         let visitor = extensions_mut
             .get_mut::<Storage<'_>>()
             .expect("No visitor in extensions");

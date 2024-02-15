@@ -6,13 +6,18 @@ pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
 pub mod errors;
+#[allow(missing_docs)] // Todo: add docs
+pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod macros;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
+#[allow(missing_docs)] // Todo: add docs
+pub mod static_cache;
 pub mod types;
 pub mod validation;
 

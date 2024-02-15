@@ -9,41 +9,39 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-kms = ["external_services/kms"]
 default = ["olap", "oltp"]
-oltp = ["data_models/oltp"]
+oltp = []
 olap = ["data_models/olap"]
 
 [dependencies]
 # First Party dependencies
-common_utils = { version = "0.1.0", path = "../common_utils" }
 api_models = { version = "0.1.0", path = "../api_models" }
-diesel_models = { version = "0.1.0", path = "../diesel_models" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
+diesel_models = { version = "0.1.0", path = "../diesel_models" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
-router_env = { version = "0.1.0", path = "../router_env" }
-external_services = { version = "0.1.0", path = "../external_services" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+router_env = { version = "0.1.0", path = "../router_env" }
 
 # Third party crates
 actix-web = "4.3.1"
-async-bb8-diesel = "0.1.0"
+async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
 async-trait = "0.1.72"
 bb8 = "0.8.1"
 bytes = "1.4.0"
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-futures = "0.3.28"
 diesel = { version = "2.1.0", default-features = false, features = ["postgres"] }
 dyn-clone = "1.0.12"
 error-stack = "0.3.1"
+futures = "0.3.28"
 http = "0.2.9"
 mime = "0.3.17"
-moka = { version = "0.11.3", features = ["future"] }
+moka = { version = "0.12", features = ["future"] }
 once_cell = "1.18.0"
 ring = "0.16.20"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
 thiserror = "1.0.40"
-tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
-serde = { version = "1.0.185", features = ["derive"] }
-serde_json = "1.0.105"
+tokio = { version = "1.36.0", features = ["rt-multi-thread"] }

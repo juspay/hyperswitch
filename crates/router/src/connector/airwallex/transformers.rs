@@ -196,7 +196,8 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("airwallex"),
             )),
         }?;
@@ -258,7 +259,7 @@ fn get_wallet_details(
     Ok(wallet_details)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
@@ -367,7 +368,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     Succeeded,
@@ -412,7 +413,7 @@ pub enum AirwallexNextActionStage {
     WaitingUserInfoInput,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
     jwt: Option<String>,
@@ -423,7 +424,7 @@ pub struct AirwallexRedirectFormData {
     version: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
@@ -431,7 +432,7 @@ pub struct AirwallexPaymentsNextAction {
     stage: AirwallexNextActionStage,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
@@ -442,7 +443,7 @@ pub struct AirwallexPaymentsResponse {
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
@@ -554,6 +555,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -595,6 +597,7 @@ impl
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -824,7 +827,8 @@ pub enum AirwallexDisputeStage {
 
 #[derive(Debug, Deserialize)]
 pub struct AirwallexWebhookDataResource {
-    pub object: serde_json::Value,
+    // Should this be a secret by default since it represents webhook payload
+    pub object: Secret<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

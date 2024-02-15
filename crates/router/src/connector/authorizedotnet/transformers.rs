@@ -388,7 +388,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub enum AuthorizedotnetPaymentStatus {
     #[serde(rename = "1")]
     Approved,
@@ -403,7 +403,7 @@ pub enum AuthorizedotnetPaymentStatus {
     RequiresAction,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 pub enum AuthorizedotnetRefundStatus {
     #[serde(rename = "1")]
     Approved,
@@ -448,27 +448,27 @@ pub struct ResponseMessages {
     pub message: Vec<ResponseMessage>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorMessage {
     pub error_code: String,
     pub error_text: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TransactionResponse {
     AuthorizedotnetTransactionResponse(Box<AuthorizedotnetTransactionResponse>),
     AuthorizedotnetTransactionResponseError(Box<AuthorizedotnetTransactionResponseError>),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthorizedotnetTransactionResponseError {
     _supplemental_data_qualification_indicator: i64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetTransactionResponse {
     response_code: AuthorizedotnetPaymentStatus,
@@ -480,7 +480,7 @@ pub struct AuthorizedotnetTransactionResponse {
     secure_acceptance: Option<SecureAcceptance>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     response_code: AuthorizedotnetRefundStatus,
@@ -492,27 +492,27 @@ pub struct RefundResponse {
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SecureAcceptance {
     secure_acceptance_url: Option<url::Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetVoidResponse {
     pub transaction_response: Option<VoidResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoidResponse {
     response_code: AuthorizedotnetVoidStatus,
@@ -523,7 +523,7 @@ pub struct VoidResponse {
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum AuthorizedotnetVoidStatus {
     #[serde(rename = "1")]
     Approved,
@@ -573,6 +573,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -608,6 +610,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -616,7 +619,7 @@ impl<F, T>
             Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)),
+                    response: Err(get_err_response(item.http_code, item.response.messages)?),
                     ..item.data
                 })
             }
@@ -647,6 +650,8 @@ impl<F, T>
                         message: error.error_text.clone(),
                         reason: None,
                         status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
@@ -676,6 +681,7 @@ impl<F, T>
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -683,7 +689,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -767,7 +773,7 @@ impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetRefundResponse {
     pub transaction_response: RefundResponse,
@@ -789,6 +795,8 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 message: error.error_text.clone(),
                 reason: None,
                 status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         });
 
@@ -936,7 +944,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -971,13 +979,14 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
                     }),
                     status: payment_status,
                     ..item.data
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -1015,13 +1024,22 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
     }
 }
 
-fn get_err_response(status_code: u16, message: ResponseMessages) -> types::ErrorResponse {
-    types::ErrorResponse {
-        code: message.message[0].code.clone(),
-        message: message.message[0].text.clone(),
+fn get_err_response(
+    status_code: u16,
+    message: ResponseMessages,
+) -> Result<types::ErrorResponse, errors::ConnectorError> {
+    let response_message = message
+        .message
+        .first()
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(types::ErrorResponse {
+        code: response_message.code.clone(),
+        message: response_message.text.clone(),
         reason: None,
         status_code,
-    }
+        attempt_status: None,
+        connector_transaction_id: None,
+    })
 }
 
 #[derive(Debug, Deserialize)]

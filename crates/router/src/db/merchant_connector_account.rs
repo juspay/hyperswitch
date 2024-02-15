@@ -290,21 +290,40 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
-            &conn,
-            merchant_id,
-            merchant_connector_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
-        .async_and_then(|item| async {
-            item.convert(key_store.key.get_inner())
+        let find_call = || async {
+            let conn = connection::pg_connection_read(self).await?;
+            storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+                &conn,
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call()
+                .await?
+                .convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
-        })
-        .await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_in_memory(
+                self,
+                &format!("{}_{}", merchant_id, merchant_connector_id),
+                find_call,
+                &cache::ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(key_store.key.get_inner())
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+        }
     }
 
     async fn insert_merchant_connector_account(
@@ -367,6 +386,9 @@ impl MerchantConnectorAccountInterface for Store {
                 "profile_id".to_string(),
             ))?;
 
+        let _merchant_id = this.merchant_id.clone();
+        let _merchant_connector_id = this.merchant_connector_id.clone();
+
         let update_call = || async {
             let conn = connection::pg_connection_write(self).await?;
             Conversion::convert(this)
@@ -386,9 +408,17 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::publish_and_redact(
+            // Redact both the caches as any one or both might be used because of backwards compatibility
+            super::cache::publish_and_redact_multiple(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", _profile_id, _connector_name).into()),
+                [
+                    cache::CacheKind::Accounts(
+                        format!("{}_{}", _profile_id, _connector_name).into(),
+                    ),
+                    cache::CacheKind::Accounts(
+                        format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                    ),
+                ],
                 update_call,
             )
             .await
@@ -613,6 +643,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             profile_id: t.profile_id,
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
+            status: t.status,
         };
         accounts.push(account.clone());
         account
@@ -660,7 +691,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        match self
+        let mca_update_res = self
             .merchant_connector_accounts
             .lock()
             .await
@@ -678,8 +709,9 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
-            .await
-        {
+            .await;
+
+        match mca_update_res {
             Some(result) => result,
             None => {
                 return Err(errors::StorageError::ValueNotFound(
@@ -809,6 +841,7 @@ mod merchant_connector_account_cache_tests {
             profile_id: Some(profile_id.to_string()),
             applepay_verified_domains: None,
             pm_auth_config: None,
+            status: common_enums::ConnectorStatus::Inactive,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)
@@ -858,6 +891,7 @@ mod merchant_connector_account_cache_tests {
                 "{}_{}",
                 merchant_id, connector_label
             ),)
+            .await
             .is_none())
     }
 }

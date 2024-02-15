@@ -1,9 +1,17 @@
+#[cfg(feature = "olap")]
+pub mod connector_onboarding;
+pub mod currency;
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
-
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+#[cfg(feature = "olap")]
+pub mod user;
+#[cfg(feature = "olap")]
+pub mod user_role;
+#[cfg(feature = "olap")]
+pub mod verify_connector;
 
 use std::fmt::Debug;
 
@@ -22,6 +30,7 @@ use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -42,7 +51,7 @@ use crate::{
             types::{encrypt_optional, AsyncLift},
         },
         storage,
-        transformers::{ForeignTryFrom, ForeignTryInto},
+        transformers::ForeignFrom,
     },
 };
 
@@ -187,16 +196,6 @@ impl QrImage {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
-    }
-}
-
 pub async fn find_payment_intent_from_payment_id_type(
     db: &dyn StorageInterface,
     payment_id_type: payments::PaymentIdType,
@@ -327,14 +326,26 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
-pub async fn get_profile_id_using_object_reference_id(
+pub async fn get_mca_from_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let merchant_id = merchant_account.merchant_id.clone();
+
     match merchant_account.default_profile.as_ref() {
-        Some(profile_id) => Ok(profile_id.clone()),
+        Some(profile_id) => db
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+            }),
         _ => {
             let payment_intent = match object_reference_id {
                 webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
@@ -356,19 +367,56 @@ pub async fn get_profile_id_using_object_reference_id(
                 }
             };
 
-            let profile_id = utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?;
+            let payment_attempt = db
+                .find_payment_attempt_by_attempt_id_merchant_id(
+                    &payment_intent.active_attempt.get_id(),
+                    &merchant_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            Ok(profile_id)
+            match payment_attempt.merchant_connector_id {
+                Some(merchant_connector_id) => db
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        &merchant_id,
+                        &merchant_connector_id,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id,
+                        },
+                    ),
+                None => {
+                    let profile_id = utils::get_profile_id_from_business_details(
+                        payment_intent.business_country,
+                        payment_intent.business_label.as_ref(),
+                        merchant_account,
+                        payment_intent.profile_id.as_ref(),
+                        db,
+                        false,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("profile_id is not set in payment_intent")?;
+
+                    db.find_merchant_connector_account_by_profile_id_connector_name(
+                        &profile_id,
+                        connector_name,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {profile_id} and connector_name {connector_name}"
+                            ),
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -401,6 +449,8 @@ pub fn handle_json_response_deserialization_failure(
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
             })
         }
     }
@@ -566,7 +616,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
-                customer_id: customer_id.to_string(),
+                customer_id: Some(customer_id.to_string()),
                 merchant_id: merchant_id.to_string(),
                 address_id: generate_id(consts::ID_LENGTH, "add"),
                 payment_id: None,
@@ -680,23 +730,6 @@ pub fn add_apple_pay_payment_status_metrics(
     }
 }
 
-impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(value: enums::IntentStatus) -> Result<Self, Self::Error> {
-        match value {
-            enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
-            enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
-            enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
-            enums::IntentStatus::RequiresMerchantAction
-            | enums::IntentStatus::RequiresCustomerAction => Ok(Self::ActionRequired),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "intent_status",
-            }),
-        }
-    }
-}
-
 pub async fn trigger_payments_webhook<F, Req, Op>(
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -725,7 +758,9 @@ where
 
     if matches!(
         status,
-        enums::IntentStatus::Succeeded | enums::IntentStatus::Failed
+        enums::IntentStatus::Succeeded
+            | enums::IntentStatus::Failed
+            | enums::IntentStatus::PartiallyCaptured
     ) {
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             req,
@@ -741,31 +776,68 @@ where
             None,
         )?;
 
-        let event_type: enums::EventType = status
-            .foreign_try_into()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("payment event type mapping failed")?;
+        let event_type = ForeignFrom::foreign_from(status);
 
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
-            Box::pin(
-                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                    state.clone(),
-                    merchant_account,
-                    business_profile,
-                    event_type,
-                    diesel_models::enums::EventClass::Payments,
-                    None,
-                    payment_id,
-                    diesel_models::enums::EventObjectType::PaymentDetails,
-                    webhooks::OutgoingWebhookContent::PaymentDetails(payments_response_json),
-                ),
-            )
-            .await?;
+            let m_state = state.clone();
+            // This spawns this futures in a background thread, the exception inside this future won't affect
+            // the current thread and the lifecycle of spawn thread is not handled by runtime.
+            // So when server shutdown won't wait for this thread's completion.
+
+            if let Some(event_type) = event_type {
+                tokio::spawn(
+                    async move {
+                        Box::pin(
+                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
+                                m_state,
+                                merchant_account,
+                                business_profile,
+                                event_type,
+                                diesel_models::enums::EventClass::Payments,
+                                None,
+                                payment_id,
+                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                webhooks::OutgoingWebhookContent::PaymentDetails(
+                                    payments_response_json,
+                                ),
+                            ),
+                        )
+                        .await
+                    }
+                    .in_current_span(),
+                );
+            } else {
+                logger::warn!(
+                    "Outgoing webhook not sent because of missing event type status mapping"
+                );
+            }
         }
     }
 
     Ok(())
+}
+
+type Handle<T> = tokio::task::JoinHandle<RouterResult<T>>;
+
+pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
+    match handle.await {
+        Ok(Ok(t)) => Ok(t),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(err)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Join Error"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils;
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
+        assert!(qr_image_data_source_url.is_ok());
+    }
 }

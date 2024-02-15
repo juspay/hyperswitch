@@ -24,7 +24,7 @@ use uuid::Uuid;
 #[ignore]
 // verify the API-KEY/merchant id has stripe as first choice
 async fn payments_create_stripe() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
@@ -93,7 +93,7 @@ async fn payments_create_stripe() {
 #[ignore]
 // verify the API-KEY/merchant id has adyen as first choice
 async fn payments_create_adyen() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "321");
@@ -162,7 +162,7 @@ async fn payments_create_adyen() {
 // verify the API-KEY/merchant id has stripe as first choice
 #[ignore]
 async fn payments_create_fail() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let payment_id = format!("test_{}", uuid::Uuid::new_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
@@ -221,7 +221,7 @@ async fn payments_create_fail() {
 #[actix_web::test]
 #[ignore]
 async fn payments_todo() {
-    utils::setup().await;
+    Box::pin(utils::setup()).await;
 
     let client = awc::Client::default();
     let mut response;
@@ -320,7 +320,7 @@ async fn payments_create_core() {
             card_number: "4242424242424242".to_string().try_into().unwrap(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
-            card_holder_name: "Arun Raj".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("Arun Raj".to_string())),
             card_cvc: "123".to_string().into(),
             card_issuer: None,
             card_network: None,
@@ -360,19 +360,26 @@ async fn payments_create_core() {
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
-    let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
-            state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-            api::HeaderPayload::default(),
-        )
-        .await
-        .unwrap();
+    let actual_response = Box::pin(payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        Oss,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        None,
+        api::HeaderPayload::default(),
+    ))
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -489,7 +496,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
-            card_holder_name: "JohnDoe".to_string().into(),
+            card_holder_name: Some(masking::Secret::new("JohnDoe".to_string())),
             card_cvc: "737".to_string().into(),
             card_issuer: None,
             card_network: None,
@@ -530,18 +537,25 @@ async fn payments_create_core_adyen_no_redirect() {
         },
         vec![],
     ));
-    let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
-            state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-            api::HeaderPayload::default(),
-        )
-        .await
-        .unwrap();
+    let actual_response = Box::pin(payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        Oss,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        None,
+        api::HeaderPayload::default(),
+    ))
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }

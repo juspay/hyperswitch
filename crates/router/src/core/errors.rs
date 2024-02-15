@@ -2,6 +2,8 @@ pub mod api_error_response;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
+#[cfg(feature = "olap")]
+pub mod user;
 pub mod utils;
 
 use std::fmt::Display;
@@ -13,9 +15,11 @@ use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
+#[cfg(feature = "olap")]
+pub use user::*;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
@@ -43,6 +47,24 @@ macro_rules! impl_error_display {
                 )
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! capture_method_not_supported {
+    ($connector:expr, $capture_method:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for selected payment method", $capture_method),
+            connector: $connector,
+        }
+        .into())
+    };
+    ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!("{} for {}", $capture_method, $payment_method_type),
+            connector: $connector,
+        }
+        .into())
     };
 }
 
@@ -183,6 +205,12 @@ pub enum ConnectorError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum HealthCheckOutGoing {
+    #[error("Outgoing call failed with error: {message}")]
+    OutGoingFailed { message: String },
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum VaultError {
     #[error("Failed to save card in card vault")]
     SaveCardFailed,
@@ -211,18 +239,18 @@ pub enum VaultError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum KmsError {
+pub enum AwsKmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
-    #[error("Failed to KMS decrypt input data")]
+    #[error("Failed to AWS KMS decrypt input data")]
     DecryptionFailed,
-    #[error("Missing plaintext KMS decryption output")]
+    #[error("Missing plaintext AWS KMS decryption output")]
     MissingPlaintextDecryptionOutput,
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
     MerchantConfigNotFound,
@@ -325,3 +353,69 @@ pub mod error_stack_parsing {
 }
 #[cfg(feature = "detailed_errors")]
 pub use error_stack_parsing::*;
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RoutingError {
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Final connector selection failed")]
+    ConnectorSelectionFailed,
+    #[error("[DSL] Missing required field in payment data: '{field_name}'")]
+    DslMissingRequiredField { field_name: String },
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error updating merchant with latest dsl cache contents")]
+    DslMerchantUpdateError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Final connector selection failed")]
+    DslFinalConnectorSelectionFailed,
+    #[error("[DSL] Received incorrect selection algorithm as DSL output")]
+    DslIncorrectSelectionAlgorithm,
+    #[error("there was an error saving/retrieving values from the kgraph cache")]
+    KgraphCacheFailure,
+    #[error("failed to refresh the kgraph cache")]
+    KgraphCacheRefreshFailed,
+    #[error("there was an error during the kgraph analysis phase")]
+    KgraphAnalysisError,
+    #[error("'profile_id' was not provided")]
+    ProfileIdMissing,
+    #[error("the profile was not found in the database")]
+    ProfileNotFound,
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("Invalid connector name received: '{0}'")]
+    InvalidConnectorName(String),
+    #[error("The routing algorithm in merchant account had invalid structure")]
+    InvalidRoutingAlgorithmStructure,
+    #[error("Volume split failed")]
+    VolumeSplitFailed,
+    #[error("Unable to parse metadata")]
+    MetadataParsingError,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ConditionalConfigError {
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Error constructing the Input")]
+    InputConstructionError,
+}
