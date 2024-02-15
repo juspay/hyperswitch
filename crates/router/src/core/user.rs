@@ -1071,7 +1071,7 @@ pub async fn verify_email_without_invite_checks(
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = req.token.clone().expose();
     let email_token =
-        auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
+        auth::decode_jwt::<email_types::EmailToken>(&token, &state)
             .await
             .change_context(UserErrors::LinkInvalid)?;
     auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
@@ -1104,7 +1104,7 @@ pub async fn verify_email(
 ) -> UserResponse<user_api::SignInResponse> {
     let token = req.token.clone().expose();
     let email_token =
-        auth::decode_jwt::<email_types::EmailToken>(&req.token.clone().expose(), &state)
+        auth::decode_jwt::<email_types::EmailToken>(&token, &state)
             .await
             .change_context(UserErrors::LinkInvalid)?;
 
