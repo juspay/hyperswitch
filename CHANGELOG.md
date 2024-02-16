@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.16.0
+
+### Features
+
+- **users:** Email JWT blacklist ([#3659](https://github.com/juspay/hyperswitch/pull/3659)) ([`a9e3d74`](https://github.com/juspay/hyperswitch/commit/a9e3d74cc160d35b75278e39faac5df3aebd16bb))
+
+### Bug Fixes
+
+- **env:** Add dashboard origin in toml file ([#3662](https://github.com/juspay/hyperswitch/pull/3662)) ([`cbd4039`](https://github.com/juspay/hyperswitch/commit/cbd40390b874dd91c53516d9370466fa1bdd5d15))
+- **user:** Add migration for force password change ([#3668](https://github.com/juspay/hyperswitch/pull/3668)) ([`2f473dd`](https://github.com/juspay/hyperswitch/commit/2f473dd4e73b53ee2a2ee462e9f4a51874d85a84))
+
+### Refactors
+
+- **connector:** [NMI] Add Zip code as mandatory field for 3DS ([#3666](https://github.com/juspay/hyperswitch/pull/3666)) ([`1ddaee4`](https://github.com/juspay/hyperswitch/commit/1ddaee44df6eca0f1068f41f82c57f80511b436b))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`e94930c`](https://github.com/juspay/hyperswitch/commit/e94930cf5cf4219b967a0b447d3c7503c6a7363d))
+
+**Full Changelog:** [`2024.02.15.1...2024.02.16.0`](https://github.com/juspay/hyperswitch/compare/2024.02.15.1...2024.02.16.0)
+
+- - -
+
 ## 2024.02.15.1
 
 ### Features
