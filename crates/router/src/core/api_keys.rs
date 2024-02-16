@@ -531,7 +531,7 @@ mod tests {
         let settings = settings::Settings::new().expect("invalid settings");
 
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = get_hash_key(&settings.api_keys).unwrap();
+        let hash_key = get_hash_key(settings.api_keys.get_inner()).unwrap();
         let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(

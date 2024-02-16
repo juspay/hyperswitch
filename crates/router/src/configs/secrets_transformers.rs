@@ -4,7 +4,6 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
-use masking::PeekInterface;
 
 use crate::settings::{self, Settings};
 
@@ -12,7 +11,7 @@ use crate::settings::{self, Settings};
 impl SecretsHandler for settings::Database {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let db = value.get_inner();
         let db_password = secret_management_client
@@ -30,7 +29,7 @@ impl SecretsHandler for settings::Database {
 impl SecretsHandler for settings::Jwekey {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let jwekey = value.get_inner();
         let (
@@ -58,7 +57,7 @@ impl SecretsHandler for settings::Jwekey {
 impl SecretsHandler for settings::ConnectorOnboarding {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let onboarding_config = &value.get_inner().paypal;
 
@@ -83,7 +82,7 @@ impl SecretsHandler for settings::ConnectorOnboarding {
 impl SecretsHandler for settings::ForexApi {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let forex_api = value.get_inner();
 
@@ -104,7 +103,7 @@ impl SecretsHandler for settings::ForexApi {
 impl SecretsHandler for settings::ApiKeys {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let api_keys = value.get_inner();
 
@@ -127,7 +126,7 @@ impl SecretsHandler for settings::ApiKeys {
 impl SecretsHandler for settings::ApplePayDecryptConifg {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let applepay_decrypt_keys = value.get_inner();
 
@@ -158,7 +157,7 @@ impl SecretsHandler for settings::ApplePayDecryptConifg {
 impl SecretsHandler for settings::ApplepayMerchantConfigs {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let applepay_merchant_configs = value.get_inner();
 
@@ -183,7 +182,7 @@ impl SecretsHandler for settings::ApplepayMerchantConfigs {
 impl SecretsHandler for settings::PaymentMethodAuth {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let payment_method_auth = value.get_inner();
 
@@ -202,7 +201,7 @@ impl SecretsHandler for settings::PaymentMethodAuth {
 impl SecretsHandler for settings::Secrets {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &Box<dyn SecretManagementInterface>,
+        secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secrets = value.get_inner();
         let (jwt_secret, admin_api_key, recon_admin_api_key, master_enc_key) = tokio::try_join!(
@@ -227,40 +226,40 @@ impl SecretsHandler for settings::Secrets {
 #[allow(clippy::unwrap_used)]
 pub async fn kms_decryption(
     conf: Settings<SecuredSecret>,
-    secret_management_client: Box<dyn SecretManagementInterface>,
+    secret_management_client: &dyn SecretManagementInterface,
 ) -> Settings<RawSecret> {
     #[allow(clippy::expect_used)]
     let master_database =
-        settings::Database::convert_to_raw_secret(conf.master_database, &secret_management_client)
+        settings::Database::convert_to_raw_secret(conf.master_database, secret_management_client)
             .await
             .expect("Failed to decrypt master database password");
 
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
     let replica_database =
-        settings::Database::convert_to_raw_secret(conf.replica_database, &secret_management_client)
+        settings::Database::convert_to_raw_secret(conf.replica_database, secret_management_client)
             .await
             .expect("Failed to decrypt replica database password");
 
     #[allow(clippy::expect_used)]
-    let secrets = settings::Secrets::convert_to_raw_secret(conf.secrets, &secret_management_client)
+    let secrets = settings::Secrets::convert_to_raw_secret(conf.secrets, secret_management_client)
         .await
         .expect("Failed to decrypt secrets");
 
     #[allow(clippy::expect_used)]
     let forex_api =
-        settings::ForexApi::convert_to_raw_secret(conf.forex_api, &secret_management_client)
+        settings::ForexApi::convert_to_raw_secret(conf.forex_api, secret_management_client)
             .await
             .expect("Failed to decrypt forex api configs");
 
     #[allow(clippy::expect_used)]
-    let jwekey = settings::Jwekey::convert_to_raw_secret(conf.jwekey, &secret_management_client)
+    let jwekey = settings::Jwekey::convert_to_raw_secret(conf.jwekey, secret_management_client)
         .await
         .expect("Failed to decrypt jwekey configs");
 
     #[allow(clippy::expect_used)]
     let api_keys =
-        settings::ApiKeys::convert_to_raw_secret(conf.api_keys, &secret_management_client)
+        settings::ApiKeys::convert_to_raw_secret(conf.api_keys, secret_management_client)
             .await
             .expect("Failed to decrypt api_keys configs");
 
@@ -268,7 +267,7 @@ pub async fn kms_decryption(
     #[allow(clippy::expect_used)]
     let connector_onboarding = settings::ConnectorOnboarding::convert_to_raw_secret(
         conf.connector_onboarding,
-        &secret_management_client,
+        secret_management_client,
     )
     .await
     .expect("Failed to decrypt connector_onboarding configs");
@@ -276,7 +275,7 @@ pub async fn kms_decryption(
     #[allow(clippy::expect_used)]
     let applepay_decrypt_keys = settings::ApplePayDecryptConifg::convert_to_raw_secret(
         conf.applepay_decrypt_keys,
-        &secret_management_client,
+        secret_management_client,
     )
     .await
     .expect("Failed to decrypt applepay configs");
@@ -284,7 +283,7 @@ pub async fn kms_decryption(
     #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
         conf.applepay_merchant_configs,
-        &secret_management_client,
+        secret_management_client,
     )
     .await
     .expect("Failed to decrypt applepay merchant configs");
@@ -292,7 +291,7 @@ pub async fn kms_decryption(
     #[allow(clippy::expect_used)]
     let payment_method_auth = settings::PaymentMethodAuth::convert_to_raw_secret(
         conf.payment_method_auth,
-        &secret_management_client,
+        secret_management_client,
     )
     .await
     .expect("Failed to decrypt payment method auth configs");

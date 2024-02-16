@@ -16,6 +16,6 @@ where
     /// Construct `Self` with raw secret value and transitions its type from `SecuredSecret` to `RawSecret`
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
-        kms_client: &Box<dyn SecretManagementInterface>,
+        kms_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError>;
 }
