@@ -1095,7 +1095,7 @@ where
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
@@ -1234,6 +1234,8 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", &response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
