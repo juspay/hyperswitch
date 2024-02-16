@@ -108,6 +108,7 @@ pub async fn construct_payout_router_data<'a, F>(
             api_models::payments::Address {
                 phone: Some(phone_details),
                 address: Some(address_details),
+                email: a.email.to_owned().map(|inner| Email::from(inner)),
             }
         }),
     };

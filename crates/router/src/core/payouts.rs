@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod validator;
 
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -1096,6 +1096,7 @@ pub async fn response_handler(
         api::payments::Address {
             phone: Some(phone_details),
             address: Some(address_details),
+            email: a.email.to_owned().map(|inner| pii::Email::from(inner)),
         }
     });
 
