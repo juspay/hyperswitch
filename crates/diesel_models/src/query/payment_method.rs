@@ -45,6 +45,23 @@ impl PaymentMethod {
     }
 
     #[instrument(skip(conn))]
+    pub async fn delete_by_merchant_id_customer_id_payment_method_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::customer_id.eq(customer_id.to_owned()))
+                .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,
@@ -99,6 +116,23 @@ impl PaymentMethod {
         .await
     }
 
+    #[instrument(skip(conn))]
+    pub async fn find_by_merchant_id_customer_id_payment_method_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::customer_id.eq(customer_id.to_owned()))
+                .and(dsl::payment_method_id.eq(payment_method_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
@@ -112,6 +146,34 @@ impl PaymentMethod {
         >(
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
+            payment_method::PaymentMethodUpdateInternal::from(payment_method),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    pub async fn update_with_merchant_id_customer_id_payment_method_id(
+        self,
+        conn: &PgPooledConn,
+        payment_method: payment_method::PaymentMethodUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(self.merchant_id.to_owned())
+                .and(dsl::customer_id.eq(self.customer_id.to_owned()))
+                .and(dsl::payment_method_id.eq(self.payment_method_id.to_owned())),
             payment_method::PaymentMethodUpdateInternal::from(payment_method),
         )
         .await

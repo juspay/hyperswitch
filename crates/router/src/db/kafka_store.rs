@@ -1241,6 +1241,21 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+                merchant_id,
+                customer_id,
+                payment_method_id,
+            )
+            .await
+    }
+
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -1268,6 +1283,19 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn update_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .update_payment_method_by_merchant_id_customer_id_payment_method_id(
+                payment_method,
+                payment_method_update,
+            )
+            .await
+    }
+
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
@@ -1275,6 +1303,21 @@ impl PaymentMethodInterface for KafkaStore {
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         self.diesel_store
             .delete_payment_method_by_merchant_id_payment_method_id(merchant_id, payment_method_id)
+            .await
+    }
+
+    async fn delete_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .delete_payment_method_by_merchant_id_customer_id_payment_method_id(
+                merchant_id,
+                customer_id,
+                payment_method_id,
+            )
             .await
     }
 }

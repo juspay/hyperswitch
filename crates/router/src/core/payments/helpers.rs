@@ -522,7 +522,11 @@ pub async fn get_token_for_recurring_mandate(
     )?;
 
     let payment_method = db
-        .find_payment_method(payment_method_id.as_str())
+        .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+            &merchant_account.merchant_id,
+            &customer,
+            &payment_method_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 

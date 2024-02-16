@@ -40,7 +40,11 @@ impl MandateResponseExt for MandateResponse {
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
-            .find_payment_method(&mandate.payment_method_id)
+            .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+                &mandate.merchant_id,
+                &mandate.customer_id,
+                &mandate.payment_method_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 

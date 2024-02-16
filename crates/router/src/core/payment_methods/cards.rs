@@ -187,7 +187,13 @@ pub async fn add_payment_method(
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {
-                let existing_pm = db.find_payment_method(&resp.payment_method_id).await;
+                let existing_pm = db
+                    .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+                        merchant_id,
+                        &customer_id,
+                        &resp.payment_method_id,
+                    )
+                    .await;
 
                 if let Err(err) = existing_pm {
                     if err.current_context().is_db_not_found() {
@@ -232,8 +238,9 @@ pub async fn add_payment_method(
 
                     if let Err(err) = add_card_resp {
                         logger::error!(vault_err=?err);
-                        db.delete_payment_method_by_merchant_id_payment_method_id(
+                        db.delete_payment_method_by_merchant_id_customer_id_payment_method_id(
                             merchant_id,
+                            &customer_id,
                             &resp.payment_method_id,
                         )
                         .await
@@ -243,7 +250,13 @@ pub async fn add_payment_method(
                             .attach_printable("Failed while updating card metadata changes"))?
                     };
 
-                    let existing_pm = db.find_payment_method(&resp.payment_method_id).await;
+                    let existing_pm = db
+                        .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+                            merchant_id,
+                            &customer_id,
+                            &resp.payment_method_id,
+                        )
+                        .await;
                     match existing_pm {
                         Ok(pm) => {
                             let updated_card = Some(api::CardDetailFromLocker {
@@ -276,10 +289,12 @@ pub async fn add_payment_method(
                                 payment_method_data: pm_data_encrypted,
                             };
 
-                            db.update_payment_method(pm, pm_update)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to add payment method in db")?;
+                            db.update_payment_method_by_merchant_id_customer_id_payment_method_id(
+                                pm, pm_update,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add payment method in db")?;
                         }
                         Err(err) => {
                             if err.current_context().is_db_not_found() {
@@ -361,8 +376,9 @@ pub async fn update_customer_payment_method(
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm = db
-        .delete_payment_method_by_merchant_id_payment_method_id(
+        .delete_payment_method_by_merchant_id_customer_id_payment_method_id(
             &merchant_account.merchant_id,
+            &req.customer_id,
             payment_method_id,
         )
         .await
@@ -872,7 +888,7 @@ pub async fn update_payment_method(
     let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
         metadata: Some(pm_metadata),
     };
-    db.update_payment_method(pm, pm_update)
+    db.update_payment_method_by_merchant_id_customer_id_payment_method_id(pm, pm_update)
         .await
         .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
@@ -3258,12 +3274,16 @@ impl TempLockerCardSupport {
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: routes::AppState,
-    pm: api::PaymentMethodId,
+    pm: api::PaymentMethodPayloadRequest,
     key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
     let pm = db
-        .find_payment_method(&pm.payment_method_id)
+        .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+            &pm.merchant_id,
+            &pm.customer_id,
+            &pm.payment_method_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -3311,11 +3331,15 @@ pub async fn retrieve_payment_method(
 pub async fn delete_payment_method(
     state: routes::AppState,
     merchant_account: domain::MerchantAccount,
-    pm_id: api::PaymentMethodId,
+    pm: api::PaymentMethodPayloadRequest,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
     let key = db
-        .find_payment_method(pm_id.payment_method_id.as_str())
+        .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+            &pm.merchant_id,
+            &pm.customer_id,
+            &pm.payment_method_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -3324,7 +3348,7 @@ pub async fn delete_payment_method(
             &state,
             &key.customer_id,
             &key.merchant_id,
-            pm_id.payment_method_id.as_str(),
+            pm.payment_method_id.as_str(),
         )
         .await?;
 
@@ -3336,9 +3360,10 @@ pub async fn delete_payment_method(
         }
     }
 
-    db.delete_payment_method_by_merchant_id_payment_method_id(
+    db.delete_payment_method_by_merchant_id_customer_id_payment_method_id(
         &merchant_account.merchant_id,
-        pm_id.payment_method_id.as_str(),
+        &pm.customer_id,
+        &pm.payment_method_id,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;

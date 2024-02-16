@@ -70,6 +70,10 @@ pub struct PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    /// The unique identifier of the customer.
+    #[schema(example = "cus_meowerunwiuwiwqw")]
+    pub customer_id: String,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -804,7 +808,9 @@ pub struct MaskedBankDetails {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentMethodId {
+pub struct PaymentMethodPayloadRequest {
+    pub merchant_id: String,
+    pub customer_id: String,
     pub payment_method_id: String,
 }
 

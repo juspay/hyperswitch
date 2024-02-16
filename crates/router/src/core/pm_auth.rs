@@ -468,7 +468,9 @@ async fn store_in_db(
 ) -> RouterResult<()> {
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| db.update_payment_method(pm, pm_update))
+        .map(|(pm, pm_update)| {
+            db.update_payment_method_by_merchant_id_customer_id_payment_method_id(pm, pm_update)
+        })
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
