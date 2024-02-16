@@ -3309,9 +3309,8 @@ pub fn get_redirection_error_response(
 pub fn get_qr_metadata(
     response: &QrCodeResponseResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let image_data =
-        crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone())
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data = crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone())
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
