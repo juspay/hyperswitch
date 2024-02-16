@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, Encode},
     generate_id_with_default_len,
 };
 use error_stack::{report, IntoReport, ResultExt};
@@ -19,7 +19,7 @@ use crate::{
         api, domain,
         storage::{self, enums, ProcessTrackerExt},
     },
-    utils::{self, StringExt},
+    utils::StringExt,
 };
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -54,7 +54,8 @@ impl Vaultable for api::Card {
             card_token: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value1")
     }
@@ -68,7 +69,8 @@ impl Vaultable for api::Card {
             payment_method_id: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value2")
     }
@@ -121,7 +123,8 @@ impl Vaultable for api_models::payments::BankTransferData {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank transfer data")
     }
@@ -129,7 +132,8 @@ impl Vaultable for api_models::payments::BankTransferData {
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank transfer supplementary data")
     }
@@ -165,7 +169,8 @@ impl Vaultable for api::WalletData {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet data value1")
     }
@@ -173,7 +178,8 @@ impl Vaultable for api::WalletData {
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedWalletValue2 { customer_id };
 
-        utils::Encode::<api::TokenizedWalletValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet data value2")
     }
@@ -209,7 +215,8 @@ impl Vaultable for api_models::payments::BankRedirectData {
             data: self.to_owned(),
         };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank redirect data")
     }
@@ -217,7 +224,8 @@ impl Vaultable for api_models::payments::BankRedirectData {
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
 
-        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode bank redirect supplementary data")
     }
@@ -272,7 +280,8 @@ impl Vaultable for api::PaymentMethodData {
                 .attach_printable("Payment method not supported")?,
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value1")
     }
@@ -292,7 +301,8 @@ impl Vaultable for api::PaymentMethodData {
                 .attach_printable("Payment method not supported")?,
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payment method value2")
     }
@@ -357,7 +367,8 @@ impl Vaultable for api::CardPayout {
             card_token: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value1")
     }
@@ -371,7 +382,8 @@ impl Vaultable for api::CardPayout {
             payment_method_id: None,
         };
 
-        utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode card value2")
     }
@@ -420,7 +432,8 @@ impl Vaultable for api::WalletPayout {
             },
         };
 
-        utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet value1")
     }
@@ -428,7 +441,8 @@ impl Vaultable for api::WalletPayout {
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value2 = api::TokenizedWalletValue2 { customer_id };
 
-        utils::Encode::<api::TokenizedWalletValue2>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode wallet value2")
     }
@@ -509,11 +523,10 @@ impl Vaultable for api::BankPayout {
             },
         };
 
-        utils::Encode::<TokenizedBankSensitiveValues>::encode_to_string_of_json(
-            &bank_sensitive_data,
-        )
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode wallet data bank_sensitive_data")
+        bank_sensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data bank_sensitive_data")
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
@@ -538,11 +551,10 @@ impl Vaultable for api::BankPayout {
             },
         };
 
-        utils::Encode::<TokenizedBankInsensitiveValues>::encode_to_string_of_json(
-            &bank_insensitive_data,
-        )
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode wallet data bank_insensitive_data")
+        bank_insensitive_data
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data bank_insensitive_data")
     }
 
     fn from_values(
@@ -619,7 +631,8 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        value1
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payout method value1")
     }
@@ -631,7 +644,8 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
         };
 
-        utils::Encode::<VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        value2
+            .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode payout method value2")
     }
@@ -822,10 +836,9 @@ pub async fn create_tokenize(
             service_name: VAULT_SERVICE_NAME.to_string(),
         };
 
-        let payload = utils::Encode::<api::TokenizePayloadRequest>::encode_to_string_of_json(
-            &payload_to_be_encrypted,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let payload = payload_to_be_encrypted
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let encrypted_payload = GcmAes256
             .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())

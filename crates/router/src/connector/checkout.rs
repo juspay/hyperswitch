@@ -2,7 +2,11 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{
+    crypto,
+    ext_traits::{ByteSliceExt, Encode},
+    request::RequestContent,
+};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -30,7 +34,6 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
     },
-    utils,
     utils::BytesExt,
 };
 
@@ -1297,7 +1300,8 @@ impl api::IncomingWebhook for Checkout {
         } else {
             // if payment_event, construct PaymentResponse and then serialize it to json and return.
             let payment_response = checkout::PaymentsResponse::try_from(request)?;
-            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+            payment_response
+                .encode_to_value()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         };
         // Ideally this should be a strict type that has type information

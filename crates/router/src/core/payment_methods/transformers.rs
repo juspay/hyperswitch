@@ -1,7 +1,11 @@
 use std::str::FromStr;
 
 use api_models::enums as api_enums;
-use common_utils::{ext_traits::StringExt, pii::Email, request::RequestContent};
+use common_utils::{
+    ext_traits::{Encode, StringExt},
+    pii::Email,
+    request::RequestContent,
+};
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
@@ -13,7 +17,7 @@ use crate::{
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
     types::{api, storage},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -261,7 +265,8 @@ pub async fn mk_basilisk_req(
 
     let jws_body = generate_jws_body(jws_payload).ok_or(errors::VaultError::SaveCardFailed)?;
 
-    let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
+    let payload = jws_body
+        .encode_to_vec()
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -306,7 +311,8 @@ pub async fn mk_add_locker_request_hs<'a>(
     payload: &StoreLockerReq<'a>,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = utils::Encode::<StoreLockerReq<'_>>::encode_to_vec(&payload)
+    let payload = payload
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -484,7 +490,8 @@ pub async fn mk_get_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
+    let payload = card_req_body
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -560,7 +567,8 @@ pub async fn mk_delete_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
+    let payload = card_req_body
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -672,7 +680,8 @@ pub fn mk_card_value1(
         card_last_four,
         card_token,
     };
-    let value1_req = utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+    let value1_req = value1
+        .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value1_req)
 }
@@ -691,7 +700,8 @@ pub fn mk_card_value2(
         customer_id,
         payment_method_id,
     };
-    let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+    let value2_req = value2
+        .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value2_req)
 }

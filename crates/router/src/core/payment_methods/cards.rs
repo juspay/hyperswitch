@@ -18,7 +18,7 @@ use api_models::{
 };
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, StringExt, ValueExt},
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id,
 };
 use diesel_models::{
@@ -1568,7 +1568,8 @@ pub async fn list_payment_methods(
 
         routing_info.pre_routing_results = Some(pre_routing_results);
 
-        let encoded = utils::Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_info)
+        let encoded = routing_info
+            .encode_to_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to serialize payment routing info to value")?;
 
@@ -3220,11 +3221,13 @@ impl TempLockerCardSupport {
         let value1 = vault::VaultPaymentMethod::Card(value1);
         let value2 = vault::VaultPaymentMethod::Card(value2);
 
-        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        let value1 = value1
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
 
-        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        let value2 = value2
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
@@ -3359,7 +3362,7 @@ pub async fn create_encrypted_payment_method_data(
 
     let pm_data_encrypted: Option<Encryption> = pm_data
         .as_ref()
-        .map(utils::Encode::<PaymentMethodsData>::encode_to_value)
+        .map(utils::Encode::encode_to_value)
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to convert payment method data to a value")
