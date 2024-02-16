@@ -1234,7 +1234,7 @@ where
     };
 
     let response_code = res.status().as_u16();
-    tracing::Span::current().record("status_code", &response_code);
+    tracing::Span::current().record("status_code", response_code);
 
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
