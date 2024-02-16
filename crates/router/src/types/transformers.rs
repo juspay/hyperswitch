@@ -244,12 +244,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })
                 .into_report()?
             }
-            api_enums::Connector::Tokenex => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "Tokenex is not a routable connector".to_string(),
-                })
-                .into_report()?
-            }
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,

@@ -145,7 +145,6 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
-tokenex.base_url = "https://test-api.tokenex.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -208,7 +207,6 @@ cards = [
     "stax",
     "stripe",
     "threedsecureio",
-    "tokenex",
     "trustpay",
     "tsys",
     "volt",

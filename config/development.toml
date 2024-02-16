@@ -134,7 +134,6 @@ cards = [
     "stax",
     "stripe",
     "threedsecureio",
-    "tokenex",
     "trustpay",
     "tsys",
     "volt",
@@ -213,7 +212,6 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
-tokenex.base_url = "https://test-api.tokenex.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
