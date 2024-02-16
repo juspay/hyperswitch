@@ -1,0 +1,30 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario2a-Create payment with confirm false card holder name null",
+    "Scenario2b-Create payment with confirm false card holder name empty",
+    "Scenario3-Create payment without PMD",
+    "Scenario4-Create payment with Manual capture",
+    "Scenario4a-Create payment with partial capture",
+    "Scenario5-Void the payment",
+    "Scenario6-Refund full payment",
+    "Scenario6a-Partial refund",
+    "Scenario7-Create a mandate and recurring payment",
+    "Scenario7a-Manual capture for recurring payments",
+    "Scenario8-Refund recurring payment",
+    "Scenario9-Add card flow",
+    "Scenario10-Don't Pass CVV for save card flow and verifysuccess payment",
+    "Scenario11-Save card payment with manual capture",
+    "Scenario12-Zero auth mandates",
+    "Scenario13-Incremental auth",
+    "Scenario14-Incremental auth for mandates",
+    "Scenario15-Incremental auth with partial capture",
+    "Scenario16-Verify PML for mandate",
+    "Scenario17-Revoke mandates",
+    "Scenario18-Update mandate card details",
+    "Scenario19-Create 3ds payment",
+    "Scenario20-Create 3ds mandate",
+    "Scenario21-Create a mandate without customer acceptance"
+  ]
+}
