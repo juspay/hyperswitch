@@ -238,10 +238,10 @@ impl ProcessTrackerInterface for MockDb {
 pub trait ProcessTrackerExt {
     fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool;
 
-    fn make_process_tracker_new<'a, T>(
+    fn make_process_tracker_new<T>(
         process_tracker_id: String,
-        task: &'a str,
-        runner: &'a str,
+        task: &str,
+        runner: crate::types::PTRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
@@ -274,10 +274,10 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         valid_statuses.iter().any(|x| x == &self.business_status)
     }
 
-    fn make_process_tracker_new<'a, T>(
+    fn make_process_tracker_new<T>(
         process_tracker_id: String,
-        task: &'a str,
-        runner: &'a str,
+        task: &str,
+        runner: crate::types::PTRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
@@ -290,7 +290,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
             id: process_tracker_id,
             name: Some(String::from(task)),
             tag: tag.into_iter().map(Into::into).collect(),
-            runner: Some(String::from(runner)),
+            runner: Some(runner.to_string()),
             retry_count: 0,
             schedule_time: Some(schedule_time),
             rule: String::new(),

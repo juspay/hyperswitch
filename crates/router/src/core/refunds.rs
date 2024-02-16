@@ -798,9 +798,9 @@ pub async fn schedule_refund_execution(
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
-    let runner = "REFUND_WORKFLOW_ROUTER";
+    let runner = scheduler::types::PTRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
-    let task_id = format!("{}_{}_{}", runner, task, refund.internal_reference_id);
+    let task_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
 
     let refund_process = db
         .find_process_by_id(&task_id)
@@ -1020,11 +1020,21 @@ pub async fn trigger_refund_execute_workflow(
                 None,
             )
             .await?;
-            add_refund_sync_task(db, &updated_refund, "REFUND_WORKFLOW_ROUTER").await?;
+            add_refund_sync_task(
+                db,
+                &updated_refund,
+                scheduler::types::PTRunner::RefundWorkflowRouter,
+            )
+            .await?;
         }
         (true, enums::RefundStatus::Pending) => {
             // create sync task
-            add_refund_sync_task(db, &refund, "REFUND_WORKFLOW_ROUTER").await?;
+            add_refund_sync_task(
+                db,
+                &refund,
+                scheduler::types::PTRunner::RefundWorkflowRouter,
+            )
+            .await?;
         }
         (_, _) => {
             //mark task as finished
@@ -1054,29 +1064,25 @@ pub fn refund_to_refund_core_workflow_model(
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: &str,
+    runner: scheduler::types::PTRunner,
 ) -> RouterResult<storage::ProcessTracker> {
-    let current_time = common_utils::date_time::now();
-    let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
+    let task = "SYNC_REFUND";
+    let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
+    let schedule_time = common_utils::date_time::now();
+    let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
+    let tag = ["REFUND"];
+    let process_tracker_entry =
+        <storage::ProcessTracker as ProcessTrackerExt>::make_process_tracker_new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            refund_workflow_tracking_data,
+            schedule_time,
+        )
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
-    let task = "SYNC_REFUND";
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
-        name: Some(String::from(task)),
-        tag: vec![String::from("REFUND")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: refund_workflow_model,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
+        .attach_printable("Failed to construct refund sync process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
@@ -1101,29 +1107,25 @@ pub async fn add_refund_sync_task(
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: &str,
+    runner: scheduler::types::PTRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
-    let current_time = common_utils::date_time::now();
-    let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
+    let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
+    let tag = ["REFUND"];
+    let schedule_time = common_utils::date_time::now();
+    let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
+    let process_tracker_entry =
+        <storage::ProcessTracker as ProcessTrackerExt>::make_process_tracker_new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            refund_workflow_tracking_data,
+            schedule_time,
+        )
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
-        name: Some(String::from(task)),
-        tag: vec![String::from("REFUND")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: refund_workflow_model,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
+        .attach_printable("Failed to construct refund execute process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
