@@ -247,7 +247,7 @@ impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
 }
 
 // Common struct used in Payment, Capture, Void, Refund
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseResponse {
     transaction_type: u8,
@@ -475,7 +475,7 @@ pub struct PowertranzErrorResponse {
     pub errors: Vec<Error>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Error {
     pub code: String,

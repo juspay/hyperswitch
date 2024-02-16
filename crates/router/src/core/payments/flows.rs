@@ -147,7 +147,6 @@ impl<const T: u8>
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Bankofamerica,
     connector::Bitpay,
     connector::Boku,
     connector::Cashtocode,
@@ -863,7 +862,6 @@ default_imp_for_pre_processing_steps!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
-    connector::Bankofamerica,
     connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
@@ -2249,7 +2247,6 @@ default_imp_for_revoking_mandates!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
-    connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,

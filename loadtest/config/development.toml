@@ -33,6 +33,7 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
 
 [forex_api]
 call_delay = 21600
@@ -185,6 +186,12 @@ cards = [
     "zen",
 ]
 
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+
+[pm_filters.adyen]
+boleto = { country = "BR", currency = "BRL" }
+
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -245,7 +252,20 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalp
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
-bank_redirect.ideal = {connector_list = "stripe,adyen"}
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
+
+[cors]
+max_age = 30
+origins = "http://localhost:8080"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
+
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
 
 [analytics]
 source = "sqlx"

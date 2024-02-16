@@ -26,8 +26,8 @@ where
 {
     let jwt_secret = authentication::get_jwt_secret(
         &settings.secrets,
-        #[cfg(feature = "kms")]
-        external_services::kms::get_kms_client(&settings.kms).await,
+        #[cfg(feature = "aws_kms")]
+        external_services::aws_kms::core::get_aws_kms_client(&settings.kms).await,
     )
     .await
     .change_context(UserErrors::InternalServerError)

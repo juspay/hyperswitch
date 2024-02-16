@@ -13,8 +13,12 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault;
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::decrypt::VaultFetch;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -475,6 +479,27 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
+    let original_payment_intent = mandate
+        .original_payment_id
+        .as_ref()
+        .async_map(|payment_id| async {
+            db.find_payment_intent_by_payment_id_merchant_id(
+                payment_id,
+                &mandate.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .map_err(|err| logger::error!(mandate_original_payment_not_found=?err))
+            .ok()
+        })
+        .await
+        .flatten();
+
+    let original_payment_authorized_amount = original_payment_intent.clone().map(|pi| pi.amount);
+    let original_payment_authorized_currency =
+        original_payment_intent.clone().and_then(|pi| pi.currency);
+
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
@@ -509,16 +534,23 @@ pub async fn get_token_for_recurring_mandate(
     };
 
     if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
-        let _ =
-            cards::get_lookup_key_from_locker(state, &token, &payment_method, merchant_key_store)
-                .await?;
+        if state.conf.locker.locker_enabled {
+            let _ = cards::get_lookup_key_from_locker(
+                state,
+                &token,
+                &payment_method,
+                merchant_key_store,
+            )
+            .await?;
+        }
+
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if pm != payment_method.payment_method {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message:
                         "payment method in request does not match previously provided payment \
-                                  method information"
+                        method information"
                             .into()
                 }))?
             }
@@ -529,6 +561,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
@@ -539,6 +573,8 @@ pub async fn get_token_for_recurring_mandate(
             Some(payment_method.payment_method),
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
+                original_payment_authorized_amount,
+                original_payment_authorized_currency,
             }),
             payment_method.payment_method_type,
             Some(mandate_connector_details),
@@ -804,7 +840,7 @@ fn validate_new_mandate_request(
     let mandate_details = match mandate_data.mandate_type {
         Some(api_models::payments::MandateType::SingleUse(details)) => Some(details),
         Some(api_models::payments::MandateType::MultiUse(details)) => details,
-        None => None,
+        _ => None,
     };
     mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
         utils::when (start_date >= end_date, || {
@@ -971,7 +1007,6 @@ pub fn payment_intent_status_fsm(
         None => storage_enums::IntentStatus::RequiresPaymentMethod,
     }
 }
-
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
@@ -986,14 +1021,30 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
+                    metrics::TASKS_ADDED_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "flow",
+                            format!("{:#?}", operation),
+                        )],
+                    );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
-                    // scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
+                    metrics::TASKS_RESET_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes(
+                            "flow",
+                            format!("{:#?}", operation),
+                        )],
+                    );
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
@@ -1034,6 +1085,10 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: card.card_holder_name.clone(),
                         nick_name: card.nick_name.clone(),
+                        card_issuing_country: card.card_issuing_country.clone(),
+                        card_network: card.card_network.clone(),
+                        card_issuer: card.card_issuer.clone(),
+                        card_type: card.card_type.clone(),
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
@@ -1041,6 +1096,8 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
+                        bank_transfer: None,
+                        wallet: None,
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: Some(customer_id),
@@ -1057,6 +1114,8 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
+                        bank_transfer: None,
+                        wallet: None,
                         card: None,
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
@@ -1222,6 +1281,7 @@ pub async fn get_connector_default(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     db: &dyn StorageInterface,
@@ -2830,7 +2890,7 @@ pub async fn get_merchant_connector_account(
                     },
                 )?;
 
-            #[cfg(feature = "kms")]
+            #[cfg(feature = "aws_kms")]
             let private_key = state
                 .kms_secrets
                 .jwekey
@@ -2838,7 +2898,7 @@ pub async fn get_merchant_connector_account(
                 .tunnel_private_key
                 .as_bytes();
 
-            #[cfg(not(feature = "kms"))]
+            #[cfg(not(feature = "aws_kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
@@ -2939,6 +2999,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         external_latency: router_data.external_latency,
         apple_pay_flow: router_data.apple_pay_flow,
         frm_metadata: router_data.frm_metadata,
+        refund_id: router_data.refund_id,
+        dispute_id: router_data.dispute_id,
     }
 }
 
@@ -3139,6 +3201,7 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
         }
     }
 
@@ -3341,21 +3404,23 @@ pub async fn get_additional_payment_data(
                             },
                         ))
                     });
-                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card(Box::new(
-                    api_models::payments::AdditionalCardInfo {
-                        card_issuer: None,
-                        card_network: None,
-                        bank_code: None,
-                        card_type: None,
-                        card_issuing_country: None,
-                        last4,
-                        card_isin,
-                        card_extended_bin,
-                        card_exp_month: Some(card_data.card_exp_month.clone()),
-                        card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.card_holder_name.clone(),
-                    },
-                )))
+                card_info.unwrap_or_else(|| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: None,
+                            card_network: None,
+                            bank_code: None,
+                            card_type: None,
+                            card_issuing_country: None,
+                            last4,
+                            card_isin,
+                            card_extended_bin,
+                            card_exp_month: Some(card_data.card_exp_month.clone()),
+                            card_exp_year: Some(card_data.card_exp_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                        },
+                    ))
+                })
             }
         }
         api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
@@ -3471,15 +3536,39 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        #[cfg(feature = "kms")]
-        let cert_data = kms::get_kms_client(&state.conf.kms)
+        let apple_pay_ppc = async {
+            #[cfg(feature = "hashicorp-vault")]
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
             .await
-            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
+
+            #[cfg(feature = "hashicorp-vault")]
+            let output =
+                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
+                    .expose();
+
+            #[cfg(not(feature = "hashicorp-vault"))]
+            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc.clone();
+
+            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
+        }
+        .await?;
+
+        #[cfg(feature = "aws_kms")]
+        let cert_data = aws_kms::core::get_aws_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        #[cfg(not(feature = "kms"))]
-        let cert_data = &state.conf.applepay_decrypt_keys.apple_pay_ppc;
+        #[cfg(not(feature = "aws_kms"))]
+        let cert_data = &apple_pay_ppc;
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3531,15 +3620,40 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        #[cfg(feature = "kms")]
-        let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
+        let apple_pay_ppc_key = async {
+            #[cfg(feature = "hashicorp-vault")]
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
             .await
-            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
+
+            #[cfg(feature = "hashicorp-vault")]
+            let output =
+                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
+                    .await
+                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+                    .attach_printable("Failed while creating client")?
+                    .expose();
+
+            #[cfg(not(feature = "hashicorp-vault"))]
+            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
+
+            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
+        }
+        .await?;
+
+        #[cfg(feature = "aws_kms")]
+        let decrypted_apple_pay_ppc_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        #[cfg(not(feature = "kms"))]
-        let decrypted_apple_pay_ppc_key = &state.conf.applepay_decrypt_keys.apple_pay_ppc_key;
+        #[cfg(not(feature = "aws_kms"))]
+        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

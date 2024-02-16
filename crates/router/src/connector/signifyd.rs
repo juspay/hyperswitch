@@ -19,6 +19,7 @@ use crate::{
 };
 #[cfg(feature = "frm")]
 use crate::{
+    events::connector_api_logs::ConnectorEvent,
     types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
@@ -76,11 +77,16 @@ impl ConnectorCommon for Signifyd {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: signifyd::SignifydErrorResponse = res
             .response
             .parse_struct("SignifydErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: crate::consts::NO_ERROR_CODE.to_string(),
@@ -251,12 +257,17 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmSaleRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmSaleRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
             .response
             .parse_struct("SignifydPaymentsResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         <frm_types::FrmSaleRouterData>::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -266,8 +277,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -335,12 +347,15 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmCheckoutRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmCheckoutRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
             .response
             .parse_struct("SignifydPaymentsResponse Checkout")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         <frm_types::FrmCheckoutRouterData>::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -350,8 +365,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -421,12 +437,15 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmTransactionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmTransactionRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsResponse = res
             .response
             .parse_struct("SignifydPaymentsResponse Transaction")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         <frm_types::FrmTransactionRouterData>::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -436,8 +455,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -507,12 +527,15 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmFulfillmentRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmFulfillmentRouterData, errors::ConnectorError> {
         let response: signifyd::FrmFullfillmentSignifydApiResponse = res
             .response
             .parse_struct("FrmFullfillmentSignifydApiResponse Sale")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         frm_types::FrmFulfillmentRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -522,8 +545,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -593,12 +617,15 @@ impl
     fn handle_response(
         &self,
         data: &frm_types::FrmRecordReturnRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<frm_types::FrmRecordReturnRouterData, errors::ConnectorError> {
         let response: signifyd::SignifydPaymentsRecordReturnResponse = res
             .response
             .parse_struct("SignifydPaymentsResponse Transaction")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         <frm_types::FrmRecordReturnRouterData>::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -608,8 +635,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 

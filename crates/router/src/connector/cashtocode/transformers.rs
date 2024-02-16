@@ -168,7 +168,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
@@ -176,24 +176,24 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CashtocodePaymentsResponse {
     CashtoCodeError(CashtocodeErrorResponse),
     CashtoCodeData(CashtocodePaymentsResponseData),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
     pub pay_url: url::Url,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsSyncResponse {
     pub transaction_id: String,
-    pub amount: i64,
+    pub amount: f64,
 }
 
 fn get_redirect_form_data(
@@ -314,13 +314,12 @@ impl<F, T>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
             }),
-            amount_captured: Some(item.response.amount),
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CashtocodeErrorResponse {
     pub error: serde_json::Value,
     pub error_description: String,
@@ -330,7 +329,7 @@ pub struct CashtocodeErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
-    pub amount: i64,
+    pub amount: f64,
     pub currency: String,
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]

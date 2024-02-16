@@ -52,7 +52,7 @@ pub async fn generate_sample_data(
 
     let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+    let profile_id = match crate::core::utils::get_profile_id_from_business_details(
         business_country_default,
         business_label_default.as_ref(),
         &merchant_from_db,
@@ -61,8 +61,25 @@ pub async fn generate_sample_data(
         false,
     )
     .await
-    .change_context(SampleDataError::InternalServerError)
-    .attach_printable("Failed to get business profile")?;
+    {
+        Ok(id) => id.clone(),
+        Err(error) => {
+            router_env::logger::error!(
+                "Profile ID not found in business details. Attempting to fetch from the database {error:?}"
+            );
+
+            state
+                .store
+                .list_business_profile_by_merchant_id(&merchant_id)
+                .await
+                .change_context(SampleDataError::InternalServerError)
+                .attach_printable("Failed to get business profile")?
+                .first()
+                .ok_or(SampleDataError::InternalServerError)?
+                .profile_id
+                .clone()
+        }
+    };
 
     // 10 percent payments should be failed
     #[allow(clippy::as_conversions)]
