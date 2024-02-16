@@ -48,12 +48,7 @@ pub fn construct_authentication_router_data(
         message_category,
         device_channel,
         authentication_data,
-        return_url: return_url.map(|url| {
-            url.replace(
-                "http://localhost:8080",
-                "https://6a58-219-65-110-2.ngrok-free.app",
-            )
-        }),
+        return_url,
         sdk_information,
     };
     construct_router_data(
