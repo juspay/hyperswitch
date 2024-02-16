@@ -346,7 +346,7 @@ async fn skip_saving_card_in_locker(
             };
             let pm_resp = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: customer_id,
+                customer_id,
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
@@ -365,7 +365,7 @@ async fn skip_saving_card_in_locker(
             let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: customer_id,
+                customer_id,
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
