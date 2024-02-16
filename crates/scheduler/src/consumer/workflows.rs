@@ -75,18 +75,3 @@ pub trait ProcessTrackerWorkflow<T>: Send + Sync {
         Err(errors::ProcessTrackerError::NotImplemented)?
     }
 }
-
-// #[cfg(test)]
-// mod workflow_tests {
-//     #![allow(clippy::unwrap_used)]
-//     use common_utils::ext_traits::StringExt;
-
-//     use super::PTRunner;
-
-//     #[test]
-//     fn test_enum_to_string() {
-//         let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
-//         let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();
-//         assert_eq!(enum_format, PTRunner::PaymentsSyncWorkflow)
-//     }
-// }

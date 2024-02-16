@@ -19,12 +19,10 @@ use router::{
 };
 use router_env::{instrument, tracing};
 use scheduler::{
-    consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
+    consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError, types::PTRunner,
     workflows::ProcessTrackerWorkflows, SchedulerAppState,
 };
-use serde::{Deserialize, Serialize};
 use storage_impl::errors::ApplicationError;
-use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
@@ -209,15 +207,6 @@ pub async fn deep_health_check_func(
     Ok(response)
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, EnumString)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum PTRunner {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct WorkflowRunner;
 
@@ -287,19 +276,4 @@ async fn start_scheduler(
         WorkflowRunner {},
     )
     .await
-}
-
-#[cfg(test)]
-mod workflow_tests {
-    #![allow(clippy::unwrap_used)]
-    use common_utils::ext_traits::StringExt;
-
-    use super::PTRunner;
-
-    #[test]
-    fn test_enum_to_string() {
-        let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
-        let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();
-        assert_eq!(enum_format, PTRunner::PaymentsSyncWorkflow)
-    }
 }
