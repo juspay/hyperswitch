@@ -7,7 +7,7 @@ pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct RoleInfoResponse {
-    pub role_id: &'static str,
+    pub role_id: String,
     pub permissions: Vec<Permission>,
     pub role_name: String,
 }

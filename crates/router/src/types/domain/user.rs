@@ -847,7 +847,7 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
             name: user_and_role.0.name,
             role_id,
             status,
-            role_name: role.get_name(),
+            role_name: role.get_name().to_string(),
             last_modified_at: user_and_role.0.last_modified_at,
         })
     }

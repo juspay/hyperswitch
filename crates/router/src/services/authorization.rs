@@ -25,9 +25,9 @@ where
             .find_role_by_role_id(role_id)
             .await
             .to_not_found_response(ApiErrorResponse::InvalidJwtToken)?;
-        let x = role.groups.into_iter().map(|x| x.into()).collect();
-        let y = get_permissions_from_groups(&x);
-        Ok(y)
+        Ok(get_permissions_from_groups(
+            &role.groups.into_iter().map(|x| x.into()).collect(),
+        ))
     }
 }
 
@@ -36,7 +36,7 @@ pub fn get_permissions_from_groups(
 ) -> Vec<permissions::Permission> {
     groups
         .iter()
-        .flat_map(|group| group.get_permissions_groups().iter().cloned())
+        .flat_map(|group| group.get_permissions_vec().iter().cloned())
         .collect()
 }
 

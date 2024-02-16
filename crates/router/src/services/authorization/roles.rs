@@ -7,9 +7,9 @@ pub mod predefined_roles;
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct RoleInfo {
-    groups: Vec<PermissionGroup>,
-    role_name: String,
     role_id: String,
+    role_name: String,
+    groups: Vec<PermissionGroup>,
     is_invitable: bool,
     is_deletable: bool,
     is_updatable: bool,
@@ -17,28 +17,45 @@ pub struct RoleInfo {
 }
 
 impl RoleInfo {
-    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
-        &self.groups
+    pub fn get_role_id(&self) -> &str {
+        &self.role_id
     }
 
-    pub fn get_name(&self) -> String {
-        self.role_name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.role_name
+    }
+
+    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
+        &self.groups
     }
 
     pub fn is_invitable(&self) -> bool {
         self.is_invitable
     }
 
+    pub fn is_deletable(&self) -> bool {
+        self.is_deletable
+    }
+
     pub fn is_internal(&self) -> bool {
         self.is_internal
     }
 
+    pub fn is_updatable(&self) -> bool {
+        self.is_updatable
+    }
+
+    pub fn get_permissions(&self) -> Vec<Permission> {
+        self.groups
+            .iter()
+            .flat_map(|group| group.get_permissions_vec().iter().copied())
+            .collect()
+    }
+
     pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups.iter().any(|module| {
-            module
-                .get_permissions_groups()
-                .contains(required_permission)
-        })
+        self.groups
+            .iter()
+            .any(|module| module.get_permissions_vec().contains(required_permission))
     }
 }
 

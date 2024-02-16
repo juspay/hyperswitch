@@ -18,7 +18,7 @@ pub enum PermissionGroup {
 }
 
 impl PermissionGroup {
-    pub fn get_permissions_groups(&self) -> &Lazy<Vec<Permission>> {
+    pub fn get_permissions_vec(&self) -> &Lazy<Vec<Permission>> {
         match self {
             PermissionGroup::OperationsView => &OPERATIONS_VIEW,
             PermissionGroup::OperationsManage => &OPERATIONS_MANAGE,
