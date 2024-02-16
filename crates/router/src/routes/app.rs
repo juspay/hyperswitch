@@ -6,6 +6,9 @@ use actix_web::{web, Scope};
     any(feature = "hashicorp-vault", feature = "aws_kms")
 ))]
 use analytics::AnalyticsConfig;
+#[cfg(all(feature = "business_profile_routing", feature = "olap"))]
+use api_models::routing::RoutingRetrieveQuery;
+#[cfg(any(feature = "olap", feature = "payouts"))]
 use common_enums::TransactionType;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
@@ -479,20 +482,25 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(|state, req, path| {
-                        cloud_routing::list_routing_configs(
-                            state,
-                            req,
-                            #[cfg(feature = "business_profile_routing")]
-                            path,
-                            &TransactionType::Payment,
-                        )
-                    }))
+                    .route(
+                        #[cfg(feature = "business_profile_routing")]
+                        web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
+                            cloud_routing::list_routing_configs(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payment,
+                            )
+                        }),
+                        #[cfg(not(feature = "business_profile_routing"))]
+                        web::get().to(cloud_routing::list_routing_configs),
+                    )
                     .route(web::post().to(|state, req, payload| {
                         cloud_routing::routing_create_config(
                             state,
                             req,
                             payload,
+                            #[cfg(feature = "business_profile_routing")]
                             &TransactionType::Payment,
                         )
                     })),
@@ -532,20 +540,27 @@ impl Routing {
         {
             route = route.service(
                 web::resource("/payouts")
-                    .route(web::get().to(|state, req, path| {
-                        cloud_routing::list_routing_configs(
-                            state,
-                            req,
-                            #[cfg(feature = "business_profile_routing")]
-                            path,
-                            &TransactionType::Payout,
-                        )
-                    }))
+                    .route(
+                        #[cfg(feature = "business_profile_routing")]
+                        web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
+                            cloud_routing::list_routing_configs(
+                                state,
+                                req,
+                                #[cfg(feature = "business_profile_routing")]
+                                path,
+                                #[cfg(feature = "business_profile_routing")]
+                                &TransactionType::Payout,
+                            )
+                        }),
+                        #[cfg(not(feature = "business_profile_routing"))]
+                        web::get().to(cloud_routing::list_routing_configs),
+                    )
                     .route(web::post().to(|state, req, payload| {
                         cloud_routing::routing_create_config(
                             state,
                             req,
                             payload,
+                            #[cfg(feature = "business_profile_routing")]
                             &TransactionType::Payout,
                         )
                     })),

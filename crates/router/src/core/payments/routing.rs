@@ -363,7 +363,15 @@ async fn ensure_algorithm_cached_v1(
     };
 
     #[cfg(not(feature = "business_profile_routing"))]
-    let key = format!("dsl_{merchant_id}");
+    let key = match transaction_type {
+        api_enums::TransactionType::Payment => {
+            format!("dsl_{merchant_id}")
+        }
+        #[cfg(feature = "payouts")]
+        api_enums::TransactionType::Payout => {
+            format!("dsl_po_{merchant_id}")
+        }
+    };
 
     let present = ROUTING_CACHE
         .present(&key)
@@ -546,22 +554,26 @@ pub async fn get_merchant_kgraph<'a>(
 ) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
     let merchant_id = &key_store.merchant_id;
 
-    let key = if cfg!(feature = "business_profile_routing") {
+    #[cfg(feature = "business_profile_routing")]
+    let key = {
         let profile_id = profile_id
             .clone()
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
         match transaction_type {
             api_enums::TransactionType::Payment => format!("kgraph_{}_{}", merchant_id, profile_id),
+            #[cfg(feature = "payouts")]
             api_enums::TransactionType::Payout => {
                 format!("kgraph_po_{}_{}", merchant_id, profile_id)
             }
         }
-    } else {
-        match transaction_type {
-            api_enums::TransactionType::Payment => format!("kgraph_{}", merchant_id),
-            api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
-        }
+    };
+
+    #[cfg(not(feature = "business_profile_routing"))]
+    let key = match transaction_type {
+        api_enums::TransactionType::Payment => format!("kgraph_{}", merchant_id),
+        #[cfg(feature = "payouts")]
+        api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
     };
 
     let kgraph_present = KGRAPH_CACHE

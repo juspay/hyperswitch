@@ -89,6 +89,7 @@ impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::Transac
     fn from(value: &routing::TransactionData<'_, F>) -> Self {
         match value {
             routing::TransactionData::Payment(_) => Self::Payment,
+            #[cfg(feature = "payouts")]
             routing::TransactionData::Payout(_) => Self::Payout,
         }
     }
