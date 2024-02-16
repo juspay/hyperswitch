@@ -287,7 +287,6 @@ where
     }
 
     /// Serialize entries of span.
-    #[cfg(feature = "log_active_span_json")]
     fn span_serialize<S>(
         &self,
         span: &SpanRef<'_, S>,
@@ -418,6 +417,16 @@ where
         let span = ctx.span(id).expect("No span");
         if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
             let _ = self.flush(serialized);
+        }
+    }
+
+    #[cfg(not(feature = "log_active_span_json"))]
+    fn on_close(&self, id: tracing::Id, ctx: Context<'_, S>) {
+        let span = ctx.span(&id).expect("No span");
+        if span.parent().is_none() {
+            if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {
+                let _ = self.flush(serialized);
+            }
         }
     }
 
