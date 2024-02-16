@@ -734,7 +734,7 @@ impl<F, T>
             .response
             .registration_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id.peek().to_owned()),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
 
