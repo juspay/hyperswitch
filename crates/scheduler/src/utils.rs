@@ -231,7 +231,7 @@ pub async fn get_batches(
 }
 
 pub fn get_process_tracker_id<'a>(
-    runner: crate::types::PTRunner,
+    runner: crate::types::ProcessTrackerRunner,
     task_name: &'a str,
     txn_id: &'a str,
     merchant_id: &'a str,

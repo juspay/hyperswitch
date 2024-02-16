@@ -241,7 +241,7 @@ pub trait ProcessTrackerExt {
     fn make_process_tracker_new<T>(
         process_tracker_id: String,
         task: &str,
-        runner: crate::types::PTRunner,
+        runner: crate::types::ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,
@@ -277,7 +277,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
     fn make_process_tracker_new<T>(
         process_tracker_id: String,
         task: &str,
-        runner: crate::types::PTRunner,
+        runner: crate::types::ProcessTrackerRunner,
         tag: impl IntoIterator<Item = impl Into<String>>,
         tracking_data: T,
         schedule_time: PrimitiveDateTime,

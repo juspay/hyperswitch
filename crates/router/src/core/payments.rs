@@ -2363,7 +2363,7 @@ pub async fn add_process_sync_task(
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         ..Default::default()
     };
-    let runner = scheduler::types::PTRunner::PaymentsSyncWorkflow;
+    let runner = scheduler::types::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let tag = ["SYNC", "PAYMENT"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
@@ -2390,7 +2390,7 @@ pub async fn reset_process_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = scheduler::types::PTRunner::PaymentsSyncWorkflow;
+    let runner = scheduler::types::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,

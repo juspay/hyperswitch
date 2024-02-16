@@ -26,8 +26,8 @@ const API_KEY_EXPIRY_TAG: &str = "API_KEY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
-const API_KEY_EXPIRY_RUNNER: scheduler::types::PTRunner =
-    scheduler::types::PTRunner::ApiKeyExpiryWorkflow;
+const API_KEY_EXPIRY_RUNNER: scheduler::types::ProcessTrackerRunner =
+    scheduler::types::ProcessTrackerRunner::ApiKeyExpiryWorkflow;
 
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::decrypt::AwsKmsDecrypt;

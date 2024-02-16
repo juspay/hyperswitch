@@ -985,7 +985,7 @@ pub async fn add_delete_tokenized_data_task(
     lookup_key: &str,
     pm: enums::PaymentMethod,
 ) -> RouterResult<()> {
-    let runner = scheduler::types::PTRunner::DeleteTokenizeDataWorkflow;
+    let runner = scheduler::types::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
     let process_tracker_id = format!("{runner}_{lookup_key}");
     let task = runner.to_string();
     let tag = ["BASILISK-V3"];

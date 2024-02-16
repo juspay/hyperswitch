@@ -16,7 +16,7 @@ pub use self::batch::ProcessTrackerBatch;
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum PTRunner {
+pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
@@ -28,12 +28,12 @@ mod tests {
     #![allow(clippy::unwrap_used)]
     use common_utils::ext_traits::StringExt;
 
-    use super::PTRunner;
+    use super::ProcessTrackerRunner;
 
     #[test]
     fn test_enum_to_string() {
         let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
-        let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();
-        assert_eq!(enum_format, PTRunner::PaymentsSyncWorkflow);
+        let enum_format: ProcessTrackerRunner = string_format.parse_enum("ProcessTrackerRunner").unwrap();
+        assert_eq!(enum_format, ProcessTrackerRunner::PaymentsSyncWorkflow);
     }
 }
