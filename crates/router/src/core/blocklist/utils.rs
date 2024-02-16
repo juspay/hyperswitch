@@ -438,10 +438,6 @@ where
             "Failed to update status in Payment Attempt to failed, due to it being blocklisted",
         )?;
 
-        println!(
-            ">>>>>>>>>>>>>>>>>>>????????>>>>>>>>>>>>>>>>Getting called {:?}",
-            payment_data.payment_attempt.fingerprint_id
-        );
         Err(errors::ApiErrorResponse::PaymentBlockedError {
             code: 200,
             message: "This payment method is blocked".to_string(),
