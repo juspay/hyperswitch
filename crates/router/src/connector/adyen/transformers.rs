@@ -3,7 +3,7 @@ use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
@@ -94,10 +94,10 @@ pub struct AdditionalData {
     pub recurring_processing_model: Option<AdyenRecurringModel>,
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
-    recurring_detail_reference: Option<String>,
+    recurring_detail_reference: Option<Secret<String>>,
     #[serde(rename = "recurring.shopperReference")]
     recurring_shopper_reference: Option<String>,
-    network_tx_reference: Option<String>,
+    network_tx_reference: Option<Secret<String>>,
     #[cfg(feature = "payouts")]
     payout_eligible: Option<PayoutEligibility>,
     funds_availability: Option<String>,
@@ -365,7 +365,7 @@ pub struct AdyenQrCodeAction {
     type_of_response: ActionType,
     #[serde(rename = "url")]
     qr_code_url: Option<Url>,
-    qr_code_data: String,
+    qr_code_data: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -552,7 +552,7 @@ pub struct JCSVoucherData {
     first_name: Secret<String>,
     last_name: Option<Secret<String>>,
     shopper_email: Email,
-    telephone_number: String,
+    telephone_number: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -601,14 +601,6 @@ pub struct BacsDirectDebitData {
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
     holder_name: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MandateData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-    stored_payment_method_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -673,7 +665,7 @@ impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
             first_name: jcs_data.first_name.clone(),
             last_name: jcs_data.last_name.clone(),
             shopper_email: jcs_data.email.clone(),
-            telephone_number: jcs_data.phone_number.clone(),
+            telephone_number: Secret::new(jcs_data.phone_number.clone()),
         })
     }
 }
@@ -1046,7 +1038,7 @@ pub struct BankRedirectionWithIssuer<'a> {
 pub struct AdyenMandate {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    stored_payment_method_id: String,
+    stored_payment_method_id: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1059,7 +1051,7 @@ pub struct AdyenCard {
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
-    network_payment_reference: Option<String>,
+    network_payment_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2356,7 +2348,9 @@ impl<'a>
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: PaymentType::try_from(payment_method_type)?,
-                    stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
+                    stored_payment_method_id: Secret::new(
+                        connector_mandate_ids.get_connector_mandate_id()?,
+                    ),
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
                     adyen_mandate,
@@ -2374,7 +2368,7 @@ impl<'a>
                             expiry_year: card.card_exp_year.clone(),
                             cvc: None,
                             brand: Some(brand),
-                            network_payment_reference: Some(network_mandate_id),
+                            network_payment_reference: Some(Secret::new(network_mandate_id)),
                         };
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
                     }
@@ -3046,12 +3040,14 @@ pub fn get_adyen_response(
         .as_ref()
         .and_then(|data| data.recurring_detail_reference.to_owned())
         .map(|mandate_id| types::MandateReference {
-            connector_mandate_id: Some(mandate_id),
+            connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
         });
-    let network_txn_id = response
-        .additional_data
-        .and_then(|additional_data| additional_data.network_tx_reference);
+    let network_txn_id = response.additional_data.and_then(|additional_data| {
+        additional_data
+            .network_tx_reference
+            .map(|network_tx_id| network_tx_id.expose())
+    });
 
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
@@ -3313,8 +3309,9 @@ pub fn get_redirection_error_response(
 pub fn get_qr_metadata(
     response: &QrCodeResponseResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let image_data = crate_utils::QrImage::new_from_data(response.action.qr_code_data.to_owned())
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    let image_data =
+        crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone().expose())
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
     let qr_code_url = response.action.qr_code_url.clone();
@@ -3645,7 +3642,7 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureResponse {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     payment_psp_reference: String,
     psp_reference: String,
     reference: String,
