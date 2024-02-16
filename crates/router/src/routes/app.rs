@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(feature = "olap")]
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
