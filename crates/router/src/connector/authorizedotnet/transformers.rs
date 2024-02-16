@@ -3,7 +3,7 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret, StrongSecret};
+use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -119,7 +119,7 @@ pub struct PayPalDetails {
 #[serde(rename_all = "camelCase")]
 pub struct WalletDetails {
     pub data_descriptor: WalletMethod,
-    pub data_value: String,
+    pub data_value: Secret<String>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -147,14 +147,12 @@ fn get_pm_and_subsequent_auth_detail(
         .to_owned()
         .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
     {
-        Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-            original_network_trans_id,
-        )) => {
+        Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
             let processing_options = Some(ProcessingOptions {
                 is_subsequent_auth: true,
             });
             let subseuent_auth_info = Some(SubsequentAuthInformation {
-                original_network_trans_id,
+                original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             });
             match item.router_data.request.payment_method_data {
@@ -225,7 +223,7 @@ pub struct ProcessingOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubsequentAuthInformation {
-    original_network_trans_id: String,
+    original_network_trans_id: Secret<String>,
     // original_auth_amount: String, Required for Discover, Diners Club, JCB, and China Union Pay transactions.
     reason: Reason,
 }
@@ -474,8 +472,8 @@ pub struct AuthorizedotnetTransactionResponse {
     response_code: AuthorizedotnetPaymentStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
-    network_trans_id: Option<String>,
-    pub(super) account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub(super) account_number: Option<Secret<String>>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
 }
@@ -487,8 +485,8 @@ pub struct RefundResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     #[allow(dead_code)]
-    network_trans_id: Option<String>,
-    pub account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
@@ -518,8 +516,8 @@ pub struct VoidResponse {
     response_code: AuthorizedotnetVoidStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
-    network_trans_id: Option<String>,
-    pub account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
@@ -582,7 +580,7 @@ impl<F, T>
                     .as_ref()
                     .map(|acc_no| {
                         Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
+                            &construct_refund_payment_details(acc_no.clone().expose()),
                         )
                     })
                     .transpose()
@@ -606,7 +604,10 @@ impl<F, T>
                             redirection_data,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -659,7 +660,7 @@ impl<F, T>
                     .as_ref()
                     .map(|acc_no| {
                         Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
+                            &construct_refund_payment_details(acc_no.clone().expose()),
                         )
                     })
                     .transpose()
@@ -677,7 +678,10 @@ impl<F, T>
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -1156,13 +1160,13 @@ fn get_wallet_data(
         api_models::payments::WalletData::GooglePay(_) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Googlepay,
-                data_value: wallet_data.get_encoded_wallet_token()?,
+                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
             }))
         }
         api_models::payments::WalletData::ApplePay(applepay_token) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
-                data_value: applepay_token.payment_data.clone(),
+                data_value: Secret::new(applepay_token.payment_data.clone()),
             }))
         }
         api_models::payments::WalletData::PaypalRedirect(_) => {
