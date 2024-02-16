@@ -25,7 +25,7 @@ pub fn get_role_name_and_permission_response(
                     .map(Into::into)
             })
             .collect::<Vec<user_role_api::Permission>>(),
-        role_info.get_name().to_string(),
+        role_info.get_role_name().to_string(),
     )
 }
 

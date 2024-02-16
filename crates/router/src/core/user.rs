@@ -19,7 +19,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{authentication as auth, authorization::roles, ApplicationResponse},
-    types::domain,
+    types::{domain, transformers::ForeignInto},
     utils,
 };
 pub mod dashboard_metadata;
@@ -1038,17 +1038,42 @@ pub async fn get_users_for_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::GetUsersResponse> {
-    let users = state
+    let users_and_user_roles = state
         .store
         .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("No users for given merchant id")?
+        .attach_printable("No users for given merchant id")?;
+
+    let users_user_roles_and_roles =
+        futures::future::try_join_all(users_and_user_roles.into_iter().map(
+            |(user, user_role)| async {
+                let role_info = roles::get_role_info_from_role_id(&state, &user_role.role_id)
+                    .await
+                    .to_not_found_response(UserErrors::InternalServerError)?;
+                Ok::<_, error_stack::Report<UserErrors>>((user, user_role, role_info))
+            },
+        ))
+        .await?;
+
+    let user_details_vec = users_user_roles_and_roles
         .into_iter()
-        .filter_map(|(user, role)| domain::UserAndRoleJoined(user, role).try_into().ok())
+        .map(|(user, user_role, role_info)| {
+            let user = domain::UserFromStorage::from(user);
+            user_api::UserDetails {
+                email: user.get_email(),
+                name: user.get_name(),
+                role_id: user_role.role_id,
+                role_name: role_info.get_role_name().to_string(),
+                status: user_role.status.clone().foreign_into(),
+                last_modified_at: user_role.last_modified.clone(),
+            }
+        })
         .collect();
 
-    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(users)))
+    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(
+        user_details_vec,
+    )))
 }
 
 #[cfg(feature = "email")]

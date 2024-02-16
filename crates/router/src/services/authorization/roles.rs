@@ -21,7 +21,7 @@ impl RoleInfo {
         &self.role_id
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn get_role_name(&self) -> &str {
         &self.role_name
     }
 

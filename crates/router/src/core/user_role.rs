@@ -70,7 +70,7 @@ pub async fn get_role(
     Ok(ApplicationResponse::Json(user_role_api::RoleInfoResponse {
         permissions,
         role_id: role.role_id,
-        role_name: role_info.get_name().to_string(),
+        role_name: role_info.get_role_name().to_string(),
     }))
 }
 
