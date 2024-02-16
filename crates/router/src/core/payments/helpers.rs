@@ -184,7 +184,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         email: address
                             .email
                             .as_ref()
-                            .map(|inner| inner.clone())
+                            .cloned()
                             .async_lift(|inner| {
                                 types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                             })
@@ -381,7 +381,7 @@ pub async fn get_domain_address_for_payments(
             email: address
                 .email
                 .as_ref()
-                .map(|inner| inner.clone())
+                .cloned()
                 .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
                 .await?,
         })

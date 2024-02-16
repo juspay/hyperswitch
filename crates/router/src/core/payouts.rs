@@ -1096,7 +1096,7 @@ pub async fn response_handler(
         api::payments::Address {
             phone: Some(phone_details),
             address: Some(address_details),
-            email: a.email.to_owned().map(|inner| pii::Email::from(inner)),
+            email: a.email.to_owned().map(pii::Email::from),
         }
     });
 

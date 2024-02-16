@@ -568,7 +568,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 email: self
                     .email
                     .as_ref()
-                    .map(|inner| inner.clone())
+                    .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
             })
@@ -633,7 +633,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 email: self
                     .email
                     .as_ref()
-                    .map(|inner| inner.clone())
+                    .cloned()
                     .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
                     .await?,
             })
