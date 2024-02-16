@@ -141,7 +141,7 @@ impl ConnectorCommon for Noon {
                 };
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: consts::NO_ERROR_CODE.to_string(),
+                    code: noon_error_response.result_code.to_string(),
                     message: noon_error_response.class_description,
                     reason: Some(noon_error_response.message),
                     attempt_status,
