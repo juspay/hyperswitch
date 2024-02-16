@@ -1,6 +1,7 @@
 use super::permissions::Permission;
 use once_cell::sync::Lazy;
 
+#[derive(Clone)]
 pub enum PermissionGroup {
     OperationsView,
     OperationsManage,

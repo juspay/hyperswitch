@@ -34,15 +34,15 @@ pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRol
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
         predefined_roles::PREDEFINED_ROLES
             .iter()
-            .filter(|(_, role_info)| role_info.is_invitable())
-            .filter_map(|(role_id, role_info)| {
-                utils::user_role::get_role_name_and_permission_response(role_info).map(
-                    |(permissions, role_name)| user_role_api::RoleInfoResponse {
-                        permissions,
-                        role_id,
-                        role_name,
-                    },
-                )
+            .filter(|(_, role_info)| role_info.is_invitable() && !role_info.is_internal())
+            .map(|(role_id, role_info)| {
+                let (permissions, role_name) =
+                    utils::user_role::get_role_name_and_permission_response(role_info);
+                user_role_api::RoleInfoResponse {
+                    permissions,
+                    role_id,
+                    role_name,
+                }
             })
             .collect(),
     )))
@@ -54,14 +54,14 @@ pub async fn get_role(
 ) -> UserResponse<user_role_api::RoleInfoResponse> {
     let info = predefined_roles::PREDEFINED_ROLES
         .get_key_value(role.role_id.as_str())
-        .and_then(|(role_id, role_info)| {
-            utils::user_role::get_role_name_and_permission_response(role_info).map(
-                |(permissions, role_name)| user_role_api::RoleInfoResponse {
-                    permissions,
-                    role_id,
-                    role_name,
-                },
-            )
+        .map(|(role_id, role_info)| {
+            let (permissions, role_name) =
+                utils::user_role::get_role_name_and_permission_response(role_info);
+            user_role_api::RoleInfoResponse {
+                permissions,
+                role_id,
+                role_name,
+            }
         })
         .ok_or(UserErrors::InvalidRoleId)?;
 

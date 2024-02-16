@@ -6,41 +6,9 @@ use once_cell::sync::Lazy;
 
 #[cfg(feature = "olap")]
 use crate::core::errors::{UserErrors, UserResult};
-use crate::{
-    consts,
-    services::authorization::{permission_groups::PermissionGroup, permissions::Permission},
-};
+use crate::{consts, services::authorization::permission_groups::PermissionGroup};
 
-#[allow(dead_code)]
-pub struct RoleInfo {
-    groups: Vec<PermissionGroup>,
-    name: Option<&'static str>,
-    is_invitable: bool,
-    is_deletable: bool,
-    is_updatable: bool,
-}
-
-impl RoleInfo {
-    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
-        &self.groups
-    }
-
-    pub fn get_name(&self) -> Option<&'static str> {
-        self.name
-    }
-
-    pub fn is_invitable(&self) -> bool {
-        self.is_invitable
-    }
-
-    pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups.iter().any(|module| {
-            module
-                .get_permissions_groups()
-                .contains(required_permission)
-        })
-    }
-}
+use super::RoleInfo;
 
 pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
@@ -61,10 +29,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
             ],
-            name: None,
+            role_id: consts::user_role::ROLE_ID_INTERNAL_ADMIN.to_string(),
+            role_name: "Internal Admin".to_string(),
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
+            is_internal: true,
         },
     );
     roles.insert(
@@ -78,10 +48,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            name: None,
+            role_id: consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
+            role_name: "Internal View Only".to_string(),
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
+            is_internal: true,
         },
     );
 
@@ -102,10 +74,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
             ],
-            name: Some("Organization Admin"),
+            role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            role_name: "Organization Admin".to_string(),
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
+            is_internal: false,
         },
     );
 
@@ -126,10 +100,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
             ],
-            name: Some("Admin"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
+            role_name: "Admin".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles.insert(
@@ -143,10 +119,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            name: Some("View Only"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY.to_string(),
+            role_name: "View Only".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles.insert(
@@ -161,10 +139,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersManage,
                 PermissionGroup::MerchantDetailsView,
             ],
-            name: Some("IAM"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_IAM_ADMIN.to_string(),
+            role_name: "IAM".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles.insert(
@@ -183,10 +163,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
             ],
-            name: Some("Developer"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_DEVELOPER.to_string(),
+            role_name: "Developer".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles.insert(
@@ -203,10 +185,12 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            name: Some("Operator"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_OPERATOR.to_string(),
+            role_name: "Operator".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles.insert(
@@ -220,20 +204,16 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            name: Some("Customer Support"),
+            role_id: consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT.to_string(),
+            role_name: "Customer Support".to_string(),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
+            is_internal: false,
         },
     );
     roles
 });
-
-pub fn get_role_name_from_id(role_id: &str) -> Option<&'static str> {
-    PREDEFINED_ROLES
-        .get(role_id)
-        .and_then(|role_info| role_info.name)
-}
 
 #[cfg(feature = "olap")]
 pub fn is_role_invitable(role_id: &str) -> UserResult<bool> {

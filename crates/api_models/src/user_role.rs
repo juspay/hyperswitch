@@ -9,7 +9,7 @@ pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 pub struct RoleInfoResponse {
     pub role_id: &'static str,
     pub permissions: Vec<Permission>,
-    pub role_name: &'static str,
+    pub role_name: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

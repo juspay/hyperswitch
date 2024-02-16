@@ -835,16 +835,19 @@ impl TryFrom<UserAndRoleJoined> for user_api::UserDetails {
         };
 
         let role_id = user_and_role.1.role_id;
-        let role_name = predefined_roles::get_role_name_from_id(role_id.as_str())
-            .ok_or(())?
-            .to_string();
+        let role = predefined_roles::PREDEFINED_ROLES
+            .get(role_id.as_str())
+            .ok_or(())?;
+        if role.is_internal() {
+            return Err(());
+        }
 
         Ok(Self {
             email: user_and_role.0.email,
             name: user_and_role.0.name,
             role_id,
             status,
-            role_name,
+            role_name: role.get_name(),
             last_modified_at: user_and_role.0.last_modified_at,
         })
     }

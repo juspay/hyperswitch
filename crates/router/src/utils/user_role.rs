@@ -2,7 +2,7 @@ use api_models::user_role as user_role_api;
 
 use crate::{
     consts,
-    services::authorization::{permissions::Permission, roles::predefined_roles::RoleInfo},
+    services::authorization::{permissions::Permission, roles::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
@@ -12,23 +12,21 @@ pub fn is_internal_role(role_id: &str) -> bool {
 
 pub fn get_role_name_and_permission_response(
     role_info: &RoleInfo,
-) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
-    role_info.get_name().map(|name| {
-        (
-            role_info
-                .get_permission_groups()
-                .iter()
-                .flat_map(|permission_group| {
-                    permission_group
-                        .get_permissions_groups()
-                        .iter()
-                        .cloned()
-                        .map(Into::into)
-                })
-                .collect::<Vec<user_role_api::Permission>>(),
-            name,
-        )
-    })
+) -> (Vec<user_role_api::Permission>, String) {
+    (
+        role_info
+            .get_permission_groups()
+            .iter()
+            .flat_map(|permission_group| {
+                permission_group
+                    .get_permissions_groups()
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+            })
+            .collect::<Vec<user_role_api::Permission>>(),
+        role_info.get_name(),
+    )
 }
 
 impl From<Permission> for user_role_api::Permission {
