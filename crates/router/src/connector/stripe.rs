@@ -1719,8 +1719,8 @@ impl
     > {
         let response = res.response;
 
-        event_builder.map(|event| event.set_response_body(&serde_json::json!({"connector_response": response.escape_ascii().to_string(), "status_code": res.status_code})));
-        router_env::logger::info!(connector_response=?response.escape_ascii().to_string());
+        event_builder.map(|event| event.set_response_body(&serde_json::json!({"connector_response_type": "file", "status_code": res.status_code})));
+        router_env::logger::info!(connector_response_type=?"file");
 
         Ok(types::RetrieveFileRouterData {
             response: Ok(types::RetrieveFileResponse {
