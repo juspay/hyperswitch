@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{
     crypto::{self, SignMessage},
-    ext_traits::{AsyncExt, Encode},
+    ext_traits::{AsyncExt, Encode, ValueExt},
 };
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
@@ -657,15 +657,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
                 .authentication_details
                 .clone()
-                .parse_value("authentication details")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .get_required_value("authentication_details")
+                .attach_printable("authentication_details not configured by the merchant")?
+                .parse_value("AuthenticationDetails")
+                .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Invalid data format found for authentication_details".into(),
+                })
                 .attach_printable(
                     "Error while parsing authentication_details from merchant_account",
                 )?;
             let authentication_connector = authentication_details
                 .authentication_connectors
                 .first()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for merchant_id {}", merchant_account.merchant_id) })
                 .into_report()
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?;
             let profile_id = payment_data
@@ -673,7 +677,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .profile_id
                 .as_ref()
                 .get_required_value("profile_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("'profile_id' not set in payment intent")?;
             let merchant_connector_account = state
                 .store

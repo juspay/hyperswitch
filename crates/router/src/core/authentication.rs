@@ -10,14 +10,10 @@ use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
-use super::{
-    errors::{self, ConnectorErrorExt},
-    payments::CallConnectorAction,
-};
+use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
-    services,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
 };
 
@@ -40,14 +36,6 @@ pub async fn perform_authentication(
     return_url: Option<String>,
     sdk_information: Option<payments::SDKInformation>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
-    let connector_data =
-        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector)?;
-    let connector_integration: services::BoxedConnectorIntegration<
-        '_,
-        api::Authentication,
-        core_types::ConnectorAuthenticationRequestData,
-        AuthenticationResponseData,
-    > = connector_data.connector.get_connector_integration();
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
         payment_method_data,
@@ -65,15 +53,8 @@ pub async fn perform_authentication(
         return_url,
         sdk_information,
     )?;
-    let response = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        CallConnectorAction::Trigger,
-        None,
-    )
-    .await
-    .to_payment_failed_response()?;
+    let response =
+        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
     let (_authentication, _authentication_data) =
         utils::update_trackers(state, response.clone(), authentication_data.1, None).await?;
     let authentication_response =
