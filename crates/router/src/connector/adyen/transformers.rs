@@ -365,7 +365,7 @@ pub struct AdyenQrCodeAction {
     type_of_response: ActionType,
     #[serde(rename = "url")]
     qr_code_url: Option<Url>,
-    qr_code_data: Secret<String>,
+    qr_code_data: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3310,7 +3310,7 @@ pub fn get_qr_metadata(
     response: &QrCodeResponseResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let image_data =
-        crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone().expose())
+        crate_utils::QrImage::new_from_data(response.action.qr_code_data.clone())
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str()).ok();
