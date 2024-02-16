@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::enums::BankNames;
 use common_utils::pii::Email;
 use error_stack::report;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
