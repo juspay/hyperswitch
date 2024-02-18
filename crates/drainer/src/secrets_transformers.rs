@@ -28,7 +28,6 @@ impl SecretsHandler for Database {
 /// # Panics
 ///
 /// Will panic even if fetching raw secret fails for at least one config value
-#[allow(clippy::unwrap_used)]
 pub async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,

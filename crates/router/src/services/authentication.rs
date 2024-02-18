@@ -218,7 +218,7 @@ where
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
-            api_keys::get_hash_key(config.api_keys.get_inner())?
+            config.api_keys.get_inner().get_hash_key().await?
         };
         let hashed_api_key = api_key.keyed_hash(hash_key.peek());
 

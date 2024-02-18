@@ -137,9 +137,7 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        #[cfg_attr(not(feature = "olap"), allow(unused_mut))] conf: settings::Settings<
-            SecuredSecret,
-        >,
+        conf: settings::Settings<SecuredSecret>,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
@@ -151,7 +149,7 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let conf = secrets_transformers::kms_decryption(conf, &*secret_management_client).await;
+        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf

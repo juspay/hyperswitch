@@ -24,20 +24,29 @@ const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
 
-pub fn get_hash_key(
-    api_key_config: &settings::ApiKeys,
-) -> errors::RouterResult<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
-    <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
-        hex::decode(api_key_config.hash_key.peek())
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("API key hash key has invalid hexadecimal data")?
-            .as_slice(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("The API hashing key has incorrect length")
-    .map(StrongSecret::new)
+static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
+    tokio::sync::OnceCell::const_new();
+
+impl settings::ApiKeys {
+    pub async fn get_hash_key(
+        &self,
+    ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
+        HASH_KEY
+            .get_or_try_init(|| async {
+                <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
+                    hex::decode(self.hash_key.peek())
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("API key hash key has invalid hexadecimal data")?
+                        .as_slice(),
+                )
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("The API hashing key has incorrect length")
+                .map(StrongSecret::new)
+            })
+            .await
+    }
 }
 
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
@@ -124,7 +133,7 @@ pub async fn create_api_key(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let hash_key = get_hash_key(api_key_config)?;
+    let hash_key = api_key_config.get_hash_key().await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
         key_id: PlaintextApiKey::new_key_id(),
@@ -531,7 +540,7 @@ mod tests {
         let settings = settings::Settings::new().expect("invalid settings");
 
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = get_hash_key(settings.api_keys.get_inner()).unwrap();
+        let hash_key = settings.api_keys.get_inner().get_hash_key().await.unwrap();
         let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(

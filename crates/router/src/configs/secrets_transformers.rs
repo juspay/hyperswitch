@@ -223,8 +223,7 @@ impl SecretsHandler for settings::Secrets {
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
-#[allow(clippy::unwrap_used)]
-pub async fn kms_decryption(
+pub(crate) async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
 ) -> Settings<RawSecret> {
@@ -232,14 +231,14 @@ pub async fn kms_decryption(
     let master_database =
         settings::Database::convert_to_raw_secret(conf.master_database, secret_management_client)
             .await
-            .expect("Failed to decrypt master database password");
+            .expect("Failed to decrypt master database configuration");
 
     #[cfg(feature = "olap")]
     #[allow(clippy::expect_used)]
     let replica_database =
         settings::Database::convert_to_raw_secret(conf.replica_database, secret_management_client)
             .await
-            .expect("Failed to decrypt replica database password");
+            .expect("Failed to decrypt replica database configuration");
 
     #[allow(clippy::expect_used)]
     let secrets = settings::Secrets::convert_to_raw_secret(conf.secrets, secret_management_client)
@@ -278,7 +277,7 @@ pub async fn kms_decryption(
         secret_management_client,
     )
     .await
-    .expect("Failed to decrypt applepay configs");
+    .expect("Failed to decrypt applepay decrypt configs");
 
     #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
