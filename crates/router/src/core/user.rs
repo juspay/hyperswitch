@@ -464,7 +464,7 @@ pub async fn invite_user(
             .store
             .insert_user_role(UserRoleNew {
                 user_id: invitee_user_from_db.get_user_id().to_owned(),
-                merchant_id: user_from_token.merchant_id,
+                merchant_id: user_from_token.merchant_id.clone(),
                 role_id: request.role_id,
                 org_id: user_from_token.org_id,
                 status: {
@@ -488,8 +488,34 @@ pub async fn invite_user(
                 }
             })?;
 
+        let is_email_sent;
+        #[cfg(feature = "email")]
+        {
+            let email_contents = email_types::ActivateInvitedUser {
+                recipient_email: invitee_email,
+                user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
+                settings: state.conf.clone(),
+                subject: "You have been invited to join Hyperswitch Community!",
+                merchant_id: user_from_token.merchant_id.clone(),
+            };
+
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+
+            logger::info!(?send_email_result);
+            is_email_sent = send_email_result.is_ok();
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            is_email_sent = false;
+        }
         Ok(ApplicationResponse::Json(user_api::InviteUserResponse {
-            is_email_sent: false,
+            is_email_sent,
             password: None,
         }))
     } else if invitee_user
@@ -838,6 +864,61 @@ pub async fn resend_invite(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+#[cfg(feature = "email")]
+pub async fn activate_from_email(
+    state: AppState,
+    request: user_api::ActivateFromEmailRequest,
+) -> UserResponse<user_api::DashboardEntryResponse> {
+    let token =
+        auth::decode_jwt::<email_types::EmailToken>(&request.token.clone().expose(), &state)
+            .await
+            .change_context(UserErrors::LinkInvalid)?;
+
+    let user: domain::UserFromStorage = state
+        .store
+        .find_user_by_email(token.get_email())
+        .await
+        .map_err(|e| {
+            if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+                    .attach_printable("User not found in the records")
+            } else {
+                e.change_context(UserErrors::InternalServerError)
+            }
+        })?
+        .into();
+
+    if let Some(inviter_merchant_id) = token.get_merchant_id() {
+        let update_status_result = state
+            .store
+            .update_user_role_by_user_id_merchant_id(
+                user.get_user_id(),
+                inviter_merchant_id,
+                UserRoleUpdate::UpdateStatus {
+                    status: UserStatus::Active,
+                    modified_by: user.get_user_id().to_string().clone(),
+                },
+            )
+            .await;
+        logger::info!(?update_status_result);
+    }
+
+    let user = state
+        .store
+        .update_user_by_user_id(user.get_user_id(), storage_user::UserUpdate::VerifyUser)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_from_db: domain::UserFromStorage = user.into();
+
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+    Ok(ApplicationResponse::Json(
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+    ))
 }
 
 pub async fn create_internal_user(
