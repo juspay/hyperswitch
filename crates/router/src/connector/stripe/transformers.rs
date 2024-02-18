@@ -419,7 +419,7 @@ pub enum BankDebitData {
     #[serde(rename = "us_bank_account")]
     Ach {
         #[serde(rename = "payment_method_data[us_bank_account][account_holder_type]")]
-        account_holder_type: Secret<String>,
+        account_holder_type: String,
         #[serde(rename = "payment_method_data[us_bank_account][account_number]")]
         account_number: Secret<String>,
         #[serde(rename = "payment_method_data[us_bank_account][routing_number]")]
@@ -1197,15 +1197,10 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             routing_number,
-            bank_account_holder_name,
             ..
         } => {
             let ach_data = BankDebitData::Ach {
-                account_holder_type: bank_account_holder_name.to_owned().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "ach_bank_debit.bank_account_holder_name",
-                    },
-                )?,
+                account_holder_type: "individual".to_string(),
                 account_number: account_number.to_owned(),
                 routing_number: routing_number.to_owned(),
             };
