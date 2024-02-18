@@ -1190,8 +1190,7 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
 
 fn get_bank_debit_data(
     bank_debit_data: &payments::BankDebitData,
-) -> Result<(StripePaymentMethodType, BankDebitData, StripeBillingAddress), errors::ConnectorError>
-{
+) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
     match bank_debit_data {
         payments::BankDebitData::AchBankDebit {
             billing_details,
@@ -1206,7 +1205,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            Ok((StripePaymentMethodType::Ach, ach_data, billing_data))
+            (StripePaymentMethodType::Ach, ach_data, billing_data)
         }
         payments::BankDebitData::SepaBankDebit {
             billing_details,
@@ -1218,7 +1217,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            Ok((StripePaymentMethodType::Sepa, sepa_data, billing_data))
+            (StripePaymentMethodType::Sepa, sepa_data, billing_data)
         }
         payments::BankDebitData::BecsBankDebit {
             billing_details,
@@ -1232,7 +1231,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            Ok((StripePaymentMethodType::Becs, becs_data, billing_data))
+            (StripePaymentMethodType::Becs, becs_data, billing_data)
         }
         payments::BankDebitData::BacsBankDebit {
             billing_details,
@@ -1246,7 +1245,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            Ok((StripePaymentMethodType::Bacs, bacs_data, billing_data))
+            (StripePaymentMethodType::Bacs, bacs_data, billing_data)
         }
     }
 }
@@ -1309,7 +1308,7 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-            let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data)?;
+            let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
 
             let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
                 bank_specific_data: bank_debit_data,
@@ -3519,7 +3518,7 @@ impl
                 Ok(Self::try_from((wallet_data, None))?)
             }
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
-                let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data)?;
+                let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     bank_specific_data: bank_data,
