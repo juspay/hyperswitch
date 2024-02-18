@@ -707,9 +707,36 @@ async fn handle_existing_user_invitation(
             }
         })?;
 
+    let is_email_sent;
+    #[cfg(feature = "email")]
+    {
+        let email_contents = email_types::ActivateInvitedUser {
+            recipient_email: invitee_email,
+            user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
+            settings: state.conf.clone(),
+            subject: "You have been invited to join Hyperswitch Community!",
+            merchant_id: user_from_token.merchant_id.clone(),
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+        is_email_sent = send_email_result.is_ok();
+    }
+    #[cfg(not(feature = "email"))]
+    {
+        is_email_sent = false;
+    }
+
     Ok(InviteMultipleUserResponse {
         email: request.email.clone(),
-        is_email_sent: false,
+        is_email_sent,
         password: None,
         error: None,
     })
