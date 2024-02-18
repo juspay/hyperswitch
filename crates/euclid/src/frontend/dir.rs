@@ -306,7 +306,7 @@ pub enum DirKeyKind {
     #[serde(rename = "setup_future_usage")]
     SetupFutureUsage,
     #[strum(
-        serialize = "card_redirect_type",
+        serialize = "card_redirect",
         detailed_message = "Supported types of Card Redirect payment method",
         props(Category = "Payment Method Types")
     )]
@@ -559,7 +559,7 @@ impl DirValue {
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
-            Self::BillingCountry(_) => (DirKeyKind::CardBin, None),
+            Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
             Self::BankTransferType(_) => (DirKeyKind::BankTransferType, None),
             Self::UpiType(_) => (DirKeyKind::UpiType, None),
             Self::CardType(_) => (DirKeyKind::CardType, None),

@@ -22,6 +22,7 @@ payouts = []
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+constraint_graph = { version = "0.1.0", path = "../constraint_graph" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 euclid = { path = "../euclid", features = [] }
