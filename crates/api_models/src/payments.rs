@@ -2301,6 +2301,9 @@ pub struct PaymentsResponse {
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
+    /// Details of external authentication if requested
+    pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
+
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -2308,6 +2311,15 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+}
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct ExternalAuthenticationDetailsResponse {
+    pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
+    pub electronic_commerce_indicator: Option<String>,
+    pub status: enums::AuthenticationStatus,
+    pub ds_transaction_id: Option<String>,
+    pub version: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
