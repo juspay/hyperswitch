@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-ALTER TABLE payment_attempt DROP COLUMN IF NOT EXISTS fingerprint_id VARCHAR(64);
+ALTER TABLE payment_attempt DROP COLUMN IF EXISTS fingerprint_id;
