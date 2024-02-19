@@ -314,9 +314,8 @@ where
         get_merchant_fingerprint_secret(state, merchant_id.as_str()).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
-    let card_number_fingerprint = if let Some(pm_data) = payment_data.payment_method_data.as_ref() {
-        match pm_data {
-            api_models::payments::PaymentMethodData::Card(card) => generate_fingerprint(
+    let card_number_fingerprint = if let Some(api_models::payments::PaymentMethodData::Card(card)) = payment_data.payment_method_data.as_ref() {
+            generate_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.clone().get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret.clone()),
@@ -331,9 +330,7 @@ where
                 },
                 Some,
             )
-            .map(|payload| payload.card_fingerprint),
-            _ => None,
-        }
+            .map(|payload| payload.card_fingerprint)
     } else {
         None
     };
@@ -442,14 +439,12 @@ where
         }
         .into())
     } else {
-        let res = generate_payment_fingerprint(
+        payment_data.payment_attempt.fingerprint_id  = generate_payment_fingerprint(
             state,
             payment_data.payment_attempt.merchant_id.clone(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
-
-        payment_data.payment_attempt.fingerprint_id = res.clone();
         Ok(false)
     }
 }
