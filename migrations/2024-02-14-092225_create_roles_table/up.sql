@@ -15,5 +15,4 @@ CREATE TABLE IF NOT EXISTS roles (
     last_modified_by VARCHAR(64) NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS  role_id_index ON roles (role_id);
-
+CREATE INDEX IF NOT EXISTS role_id_index ON roles (role_id);
