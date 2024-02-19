@@ -1,4 +1,4 @@
-
+-- Your SQL goes here
 CREATE TYPE "RoleScope" AS ENUM ('merchant','organization');
 
 CREATE TABLE IF NOT EXISTS roles (
