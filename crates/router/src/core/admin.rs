@@ -1280,7 +1280,7 @@ pub async fn update_payment_connector(
         .change_context(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name: request_connector_label.unwrap_or_default(),
+                connector_label: request_connector_label.unwrap_or_default(),
             },
         )
         .attach_printable_lazy(|| {

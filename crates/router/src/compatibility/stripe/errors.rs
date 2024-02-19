@@ -194,9 +194,7 @@ pub enum StripeErrorCode {
         states: String,
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
-    PaymentIntentMandateInvalid {
-        message: std::borrow::Cow<'static, str>,
-    },
+    PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
     DuplicatePayment { payment_id: String },

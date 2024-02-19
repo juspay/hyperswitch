@@ -76,7 +76,7 @@ pub struct Extra {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connector: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<Cow<'static, str>>,
+    pub reason: Option<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]
