@@ -3,6 +3,7 @@ use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::{IntoReport, ResultExt};
+use masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, AppState};
 use crate::{
@@ -315,27 +316,22 @@ where
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint = if let Some(pm_data) = payment_data.payment_method_data.as_ref() {
         match pm_data {
-            api_models::payments::PaymentMethodData::Card(card) => {
-                if let Some(payload) = generate_fingerprint(
-                    state,
-                    card.card_number.clone().get_card_no(),
-                    merchant_fingerprint_secret.clone(),
-                    api_models::enums::LockerChoice::Tartarus,
-                )
-                .await
-                .attach_printable("error in pm fingerprint creation")
-                .map_or_else(
-                    |err| {
-                        logger::error!(error=?err);
-                        None
-                    },
-                    Some,
-                ) {
-                    Some(payload.card_fingerprint)
-                } else {
+            api_models::payments::PaymentMethodData::Card(card) => generate_fingerprint(
+                state,
+                StrongSecret::new(card.card_number.clone().get_card_no()),
+                StrongSecret::new(merchant_fingerprint_secret.clone()),
+                api_models::enums::LockerChoice::Tartarus,
+            )
+            .await
+            .attach_printable("error in pm fingerprint creation")
+            .map_or_else(
+                |err| {
+                    logger::error!(error=?err);
                     None
-                }
-            }
+                },
+                Some,
+            )
+            .map(|payload| payload.card_fingerprint),
             _ => None,
         }
     } else {
@@ -465,26 +461,29 @@ pub async fn generate_payment_fingerprint(
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
 
-    if let Some(api_models::payments::PaymentMethodData::Card(card)) = payment_method_data.as_ref()
-    {
-        if let Some(payload) = generate_fingerprint(
-            state,
-            card.card_number.clone().get_card_no(),
-            merchant_fingerprint_secret,
-            api_models::enums::LockerChoice::Tartarus,
-        )
-        .await
-        .attach_printable("error in pm fingerprint creation")
-        .map_or_else(
-            |err| {
-                logger::error!(error=?err);
-                None
-            },
-            Some,
-        ) {
-            return Ok(Some(payload.card_fingerprint));
-        }
-    }
-    logger::error!("failed to retrieve card fingerprint");
-    Ok(None)
+    Ok(
+        if let Some(api_models::payments::PaymentMethodData::Card(card)) =
+            payment_method_data.as_ref()
+        {
+            generate_fingerprint(
+                state,
+                StrongSecret::new(card.card_number.clone().get_card_no()),
+                StrongSecret::new(merchant_fingerprint_secret),
+                api_models::enums::LockerChoice::Tartarus,
+            )
+            .await
+            .attach_printable("error in pm fingerprint creation")
+            .map_or_else(
+                |err| {
+                    logger::error!(error=?err);
+                    None
+                },
+                Some,
+            )
+            .map(|payload| payload.card_fingerprint)
+        } else {
+            logger::error!("failed to retrieve card fingerprint");
+            None
+        },
+    )
 }

@@ -4,6 +4,7 @@ use error_stack::ResultExt;
 use josekit::jwe;
 #[cfg(feature = "aws_kms")]
 use masking::PeekInterface;
+use masking::StrongSecret;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -18,7 +19,7 @@ use crate::{
     utils::{self, ConnectorResponseExt},
 };
 
-const LOCKER_API_URL: &str = "/cards/fingerprint";
+const LOCKER_FINGERPRINT_PATH: &str = "/cards/fingerprint";
 
 impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     fn foreign_from(from: storage::Blocklist) -> Self {
@@ -55,7 +56,7 @@ async fn generate_fingerprint_request<'a>(
         api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
         api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
     };
-    url.push_str(LOCKER_API_URL);
+    url.push_str(LOCKER_FINGERPRINT_PATH);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
@@ -123,8 +124,8 @@ async fn generate_jwe_payload_for_request(
 #[instrument(skip_all)]
 pub async fn generate_fingerprint(
     state: &routes::AppState,
-    card_number: String,
-    hash_key: String,
+    card_number: StrongSecret<String>,
+    hash_key: StrongSecret<String>,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let payload = blocklist::GenerateFingerprintRequest {

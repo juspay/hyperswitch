@@ -1,5 +1,6 @@
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
+use masking::StrongSecret;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -13,11 +14,11 @@ pub enum BlocklistRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GenerateFingerprintRequest {
     pub card: Card,
-    pub hash_key: String,
+    pub hash_key: StrongSecret<String>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Card {
-    pub card_number: String,
+    pub card_number: StrongSecret<String>,
 }
 pub type AddToBlocklistRequest = BlocklistRequest;
 pub type DeleteFromBlocklistRequest = BlocklistRequest;
