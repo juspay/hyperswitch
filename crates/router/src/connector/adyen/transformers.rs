@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
@@ -208,7 +209,7 @@ pub struct AdyenBalanceRequest<'a> {
     pub merchant_account: Secret<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBalanceResponse {
     pub psp_reference: String,
@@ -297,7 +298,7 @@ pub struct AdyenThreeDS {
     pub result_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Box<Response>),
@@ -328,7 +329,7 @@ pub struct RedirectionErrorResponse {
     refusal_reason: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectionResponse {
     result_code: AdyenStatus,
@@ -337,7 +338,7 @@ pub struct RedirectionResponse {
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PresentToShopperResponse {
     psp_reference: Option<String>,
@@ -347,7 +348,7 @@ pub struct PresentToShopperResponse {
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QrCodeResponseResponse {
     result_code: AdyenStatus,
@@ -1077,14 +1078,14 @@ pub struct AdyenCancelRequest {
     reference: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelResponse {
     psp_reference: String,
     status: CancelStatus,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CancelStatus {
     Received,
@@ -3331,32 +3332,26 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
         let qr_code_info = payments::QrCodeInformation::QrCodeImageUrl {
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
         let qr_code_info = payments::QrCodeInformation::QrDataUrl {
             image_data_url,
             display_to_timestamp,
         };
 
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else {
         Ok(None)
     }
@@ -3481,11 +3476,9 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
             };
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::VoucherNextStepData,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::PermataBankTransfer
         | PaymentType::BcaBankTransfer
@@ -3503,11 +3496,9 @@ pub fn get_present_to_shopper_metadata(
                 }),
             );
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::DokuBankTransferInstructions,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::Affirm
         | PaymentType::Afterpaytouch

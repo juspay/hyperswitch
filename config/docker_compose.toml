@@ -81,6 +81,11 @@ max_in_flight_commands = 5000
 default_command_timeout = 0
 max_feed_count = 200
 
+[cors]
+max_age = 30
+origins = "http://localhost:8080,http://localhost:9000"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
 
 [refund]
 max_attempts = 10
@@ -378,6 +383,7 @@ refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
+dispute_analytics_topic = "hyperswitch-dispute-events"
 
 [analytics]
 source = "sqlx"
