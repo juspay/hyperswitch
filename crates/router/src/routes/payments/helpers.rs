@@ -73,7 +73,8 @@ pub fn populate_ip_into_browser_info(
             .or_else(|| ip_address_from_header.map(|ip| masking::Secret::new(ip.to_string())));
     }
 
-    let encoded = Encode::<types::BrowserInformation>::encode_to_value(&browser_info)
+    let encoded = browser_info
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "failed to re-encode browser information to json after setting ip address",
