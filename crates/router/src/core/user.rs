@@ -899,19 +899,22 @@ pub async fn activate_from_email(
     state: AppState,
     request: user_api::ActivateFromEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
-    let token =
-        auth::decode_jwt::<email_types::EmailToken>(&request.token.clone().expose(), &state)
-            .await
-            .change_context(UserErrors::LinkInvalid)?;
+    let token = request.token.clone().expose();
+
+    let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
+        .await
+        .change_context(UserErrors::LinkInvalid)?;
+
+    auth::blacklist::check_email_token_in_blacklist(&state, &token).await?;
 
     let user: domain::UserFromStorage = state
         .store
-        .find_user_by_email(token.get_email())
+        .find_user_by_email(email_token.get_email())
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let merchant_id = token
+    let merchant_id = email_token
         .get_merchant_id()
         .ok_or(UserErrors::InternalServerError)?;
 
@@ -927,6 +930,10 @@ pub async fn activate_from_email(
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    let _ = auth::blacklist::insert_email_token_in_blacklist(&state, &token)
+        .await
+        .map_err(|e| logger::error!(?e));
 
     let user = state
         .store
