@@ -819,17 +819,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .in_current_span(),
     );
 
-    // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
+    // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
     let m_db = state.clone().store;
+    let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
     let m_router_data_merchant_id = router_data.merchant_id.clone();
-    let m_payment_data_mandate_id = payment_data.mandate_id.clone();
+    let m_payment_data_mandate_id =
+        payment_data
+            .payment_attempt
+            .mandate_id
+            .clone()
+            .or(payment_data
+                .mandate_id
+                .clone()
+                .map(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
     let mandate_update_fut = tokio::spawn(
         async move {
             mandate::update_connector_mandate_id(
                 m_db.as_ref(),
-                m_router_data_merchant_id,
+                m_router_data_merchant_id.clone(),
                 m_payment_data_mandate_id,
+                m_payment_method_id,
                 m_router_data_response,
             )
             .await

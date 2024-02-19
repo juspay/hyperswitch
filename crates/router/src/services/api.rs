@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
@@ -73,6 +73,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -265,7 +266,7 @@ pub enum CaptureSyncMethod {
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all, fields(payment_method))]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -285,6 +286,7 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    tracing::Span::current().record("connector_name", &req.connector);
     tracing::Span::current().record("payment_method", &req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
@@ -1093,7 +1095,7 @@ where
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
@@ -1232,6 +1234,8 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
