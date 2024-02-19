@@ -138,7 +138,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id} already exists").into()), ..Default::default()})))
+                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
@@ -168,7 +168,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
             Self::MerchantConnectorAccountNotFound {id } => {
-                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist").into()), ..Default::default()})))
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
             }
             Self::MerchantConnectorAccountDisabled => {
                 AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
@@ -187,7 +187,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 3, format!("This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"), None))
             }
             Self::MandateValidationFailed { reason } => {
-                AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.to_owned().into()), ..Default::default() })))
+                AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.to_owned()), ..Default::default() })))
             }
             Self::PaymentNotSucceeded => AER::BadRequest(ApiError::new("HE", 3, "The payment has not succeeded yet. Please pass a successful payment to initiate refund", None)),
             Self::PaymentBlockedError {
@@ -211,7 +211,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
             }
             Self::NotSupported { message } => {
-                AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned().into()), ..Default::default()})))
+                AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
             },
             Self::InvalidCardIin => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None)),
             Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
