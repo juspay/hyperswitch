@@ -523,10 +523,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_label: connector_name,
+                connector_label,
             } => Self::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_label: connector_name,
+                connector_label,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::PaymentBlockedError {
