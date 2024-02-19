@@ -174,7 +174,9 @@ impl super::settings::ApiKeys {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key expiry reminder days must not be empty".into(),
             ))
-        })
+        })?;
+
+        Ok(())
     }
 }
 
