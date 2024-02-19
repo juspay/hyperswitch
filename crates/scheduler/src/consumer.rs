@@ -58,7 +58,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
         .map_err(|error| {
-            logger::error!("Signal Handler Error: {:?}", error);
+            logger::error!(?error, "Signal Handler Error");
             errors::ProcessTrackerError::ConfigurationError
         })
         .into_report()
@@ -79,8 +79,8 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                 pt_utils::consumer_operation_handler(
                     state.clone(),
                     settings.clone(),
-                    |err| {
-                        logger::error!(%err);
+                    |error| {
+                        logger::error!(?error, "Failed to perform consumer operation");
                     },
                     sync::Arc::clone(&consumer_operation_counter),
                     workflow_selector,
@@ -93,7 +93,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
                 loop {
                     shutdown_interval.tick().await;
                     let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-                    logger::error!("{}", active_tasks);
+                    logger::info!("Active tasks: {active_tasks}");
                     match active_tasks {
                         0 => {
                             logger::info!("Terminating consumer");
@@ -129,7 +129,7 @@ pub async fn consumer_operations<T: SchedulerAppState + 'static>(
         .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
         .await;
     if group_created.is_err() {
-        logger::info!("Consumer group already exists");
+        logger::info!("Consumer group {group_name} already exists");
     }
 
     let mut tasks = state
@@ -147,7 +147,7 @@ pub async fn consumer_operations<T: SchedulerAppState + 'static>(
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
         metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
-        // let runner = workflow_selector(task)?.ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
+
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
             task.clone(),
@@ -208,15 +208,20 @@ pub async fn start_workflow<T>(
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
-) -> Result<(), errors::ProcessTrackerError>
+) -> CustomResult<(), errors::ProcessTrackerError>
 where
     T: SchedulerAppState,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
-    logger::info!("{:?}", process.name.as_ref());
+    logger::info!(pt.name=?process.name, pt.id=%process.id);
+
     let res = workflow_selector
         .trigger_workflow(&state.clone(), process.clone())
-        .await;
+        .await
+        .map_err(|error| {
+            logger::error!(?error, "Failed to trigger workflow");
+            error
+        });
     metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
     res
 }
@@ -227,7 +232,7 @@ pub async fn consumer_error_handler(
     process: storage::ProcessTracker,
     error: errors::ProcessTrackerError,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    logger::error!(pt.name = ?process.name, pt.id = %process.id, ?error, "ERROR: Failed while executing workflow");
+    logger::error!(pt.name=?process.name, pt.id=%process.id, ?error, "Failed to execute workflow");
 
     state
         .process_tracker_update_process_status_by_ids(

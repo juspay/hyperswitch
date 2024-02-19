@@ -215,26 +215,51 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
         &'a self,
         state: &'a routes::AppState,
         process: storage::ProcessTracker,
-    ) -> Result<(), ProcessTrackerError> {
-        let runner = process.runner.clone().get_required_value("runner")?;
-        let runner: Option<storage::ProcessTrackerRunner> =
-            runner.parse_enum("ProcessTrackerRunner").ok();
-        let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState>> = match runner {
-            Some(storage::ProcessTrackerRunner::PaymentsSyncWorkflow) => {
-                Box::new(workflows::payment_sync::PaymentsSyncWorkflow)
+    ) -> CustomResult<(), ProcessTrackerError> {
+        let runner = process
+            .runner
+            .clone()
+            .get_required_value("runner")
+            .change_context(ProcessTrackerError::MissingRequiredField)
+            .attach_printable("Missing runner field in process information")?;
+        let runner: storage::ProcessTrackerRunner = runner
+            .parse_enum("ProcessTrackerRunner")
+            .change_context(ProcessTrackerError::UnexpectedFlow)
+            .attach_printable("Failed to parse workflow runner name")?;
+
+        let get_operation = |runner: storage::ProcessTrackerRunner| -> CustomResult<
+            Box<dyn ProcessTrackerWorkflow<routes::AppState>>,
+            ProcessTrackerError,
+        > {
+            match runner {
+                storage::ProcessTrackerRunner::PaymentsSyncWorkflow => {
+                    Ok(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
+                }
+                storage::ProcessTrackerRunner::RefundWorkflowRouter => {
+                    Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
+                }
+                storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow => Ok(Box::new(
+                    workflows::tokenized_data::DeleteTokenizeDataWorkflow,
+                )),
+                storage::ProcessTrackerRunner::ApiKeyExpiryWorkflow => {
+                    #[cfg(feature = "email")]
+                    {
+                        Ok(Box::new(workflows::api_key_expiry::ApiKeyExpiryWorkflow))
+                    }
+
+                    #[cfg(not(feature = "email"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run API key expiry workflow when email feature is disabled",
+                            )
+                    }
+                }
             }
-            Some(storage::ProcessTrackerRunner::RefundWorkflowRouter) => {
-                Box::new(workflows::refund_router::RefundWorkflowRouter)
-            }
-            Some(storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow) => {
-                Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
-            }
-            #[cfg(feature = "email")]
-            Some(storage::ProcessTrackerRunner::ApiKeyExpiryWorkflow) => {
-                Box::new(workflows::api_key_expiry::ApiKeyExpiryWorkflow)
-            }
-            _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };
+
+        let operation = get_operation(runner)?;
+
         let app_state = &state.clone();
         let output = operation.execute_workflow(app_state, process.clone()).await;
         match output {
