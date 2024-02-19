@@ -196,7 +196,7 @@ function boot() {
     var charges = 0;
 
     for (var i = 0; i < orderDetails.length; i++) {
-      charges += parseFloat(orderDetails[i].amount);
+      charges += parseFloat(orderDetails[i].amount * orderDetails[i].quantity);
     }
     orderDetails.push({
       "amount": (paymentDetails.amount - charges).toFixed(2),
