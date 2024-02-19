@@ -61,7 +61,7 @@ pub use self::app::Recon;
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, ConnectorOnboarding, Customers,
-    Disputes, EphemeralKey, Files, Gsm, Health, LockerMigrate, Mandates, MerchantAccount,
+    Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
     MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Refunds, User, Webhooks,
 };
 #[cfg(feature = "stripe")]
