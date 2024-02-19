@@ -17,6 +17,7 @@ pub enum AnalyticsDomain {
     Refunds,
     SdkEvents,
     ApiEvents,
+    Dispute,
 }
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
@@ -28,6 +29,7 @@ pub enum AnalyticsCollection {
     PaymentIntent,
     ConnectorEvents,
     OutgoingWebhookEvent,
+    Dispute,
 }
 
 #[allow(dead_code)]
