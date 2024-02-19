@@ -1,5 +1,5 @@
 use api_models::{blocklist, enums as api_enums};
-use common_utils::{ext_traits::StringExt, request::RequestContent};
+use common_utils::{ext_traits::{Encode, StringExt}, request::RequestContent};
 use error_stack::ResultExt;
 use josekit::jwe;
 #[cfg(feature = "aws_kms")]
@@ -16,7 +16,7 @@ use crate::{
     headers, routes,
     services::{api as services, encryption},
     types::{storage, transformers::ForeignFrom},
-    utils::{self, ConnectorResponseExt},
+    utils::ConnectorResponseExt,
 };
 
 const LOCKER_FINGERPRINT_PATH: &str = "/cards/fingerprint";
@@ -38,7 +38,7 @@ async fn generate_fingerprint_request<'a>(
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = utils::Encode::<blocklist::GenerateFingerprintRequest>::encode_to_vec(&payload)
+    let payload = payload.encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "aws_kms")]
@@ -81,7 +81,7 @@ async fn generate_jwe_payload_for_request(
     let jws_body =
         generate_jws_body(jws_payload).ok_or(errors::VaultError::GenerateFingerprintFailed)?;
 
-    let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
+    let payload = jws_body.encode_to_vec()
         .change_context(errors::VaultError::GenerateFingerprintFailed)?;
 
     #[cfg(feature = "aws_kms")]

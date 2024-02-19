@@ -2553,10 +2553,11 @@ where
     )
     .await?;
 
-    let encoded_info =
-        Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error serializing payment routing info to serde value")?;
+    let encoded_info = routing_data
+        .routing_info
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
     #[cfg(feature = "connector_choice_mca_id")]

@@ -7,14 +7,13 @@ pub use api_models::admin::{
     PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
     ToggleKVResponse, WebhookDetails,
 };
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use masking::Secret;
 
 use crate::{
     core::errors,
     types::{domain, storage, transformers::ForeignTryFrom},
-    utils::{self},
 };
 
 impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
@@ -95,10 +94,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
             .webhook_details
             .as_ref()
             .map(|webhook_details| {
-                common_utils::ext_traits::Encode::<WebhookDetails>::encode_to_value(webhook_details)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                webhook_details.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "webhook details",
-                    })
+                    },
+                )
             })
             .transpose()?;
 
@@ -110,12 +110,11 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
         let payment_link_config_value = request
             .payment_link_config
             .map(|pl_config| {
-                utils::Encode::<api_models::admin::BusinessPaymentLinkConfig>::encode_to_value(
-                    &pl_config,
+                pl_config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_link_config_value",
+                    },
                 )
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config_value",
-                })
             })
             .transpose()?;
 
