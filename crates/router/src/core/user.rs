@@ -710,6 +710,7 @@ async fn handle_existing_user_invitation(
     let is_email_sent;
     #[cfg(feature = "email")]
     {
+        let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let email_contents = email_types::ActivateInvitedUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
@@ -907,30 +908,25 @@ pub async fn activate_from_email(
         .store
         .find_user_by_email(token.get_email())
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation)
-                    .attach_printable("User not found in the records")
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?
+        .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if let Some(inviter_merchant_id) = token.get_merchant_id() {
-        let update_status_result = state
-            .store
-            .update_user_role_by_user_id_merchant_id(
-                user.get_user_id(),
-                inviter_merchant_id,
-                UserRoleUpdate::UpdateStatus {
-                    status: UserStatus::Active,
-                    modified_by: user.get_user_id().to_string().clone(),
-                },
-            )
-            .await;
-        logger::info!(?update_status_result);
-    }
+    let merchant_id = token
+        .get_merchant_id()
+        .ok_or(UserErrors::InternalServerError)?;
+
+    let _update_status_result = state
+        .store
+        .update_user_role_by_user_id_merchant_id(
+            user.get_user_id(),
+            merchant_id,
+            UserRoleUpdate::UpdateStatus {
+                status: UserStatus::Active,
+                modified_by: user.get_user_id().to_string(),
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let user = state
         .store
@@ -940,7 +936,11 @@ pub async fn activate_from_email(
 
     let user_from_db: domain::UserFromStorage = user.into();
 
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let user_role = user_from_db
+        .get_role_from_db_by_merchant_id(&state.clone(), merchant_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
 
     Ok(ApplicationResponse::Json(
