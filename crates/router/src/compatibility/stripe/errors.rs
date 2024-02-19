@@ -209,6 +209,14 @@ pub enum StripeErrorCode {
         status_code: u16,
     },
 
+    #[error(error_type = StripeErrorType::CardError, code = "", message = "{code}: {message}")]
+    PaymentBlockedError {
+        code: u16,
+        message: String,
+        status: String,
+        reason: String,
+    },
+
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
@@ -470,7 +478,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
             | errors::ApiErrorResponse::MandateDeserializationFailed
-            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            | errors::ApiErrorResponse::InternalServerError
+            | errors::ApiErrorResponse::HealthCheckError { .. } => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,
@@ -522,6 +531,17 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 connector_label: connector_name,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
+            errors::ApiErrorResponse::PaymentBlockedError {
+                code,
+                message,
+                status,
+                reason,
+            } => Self::PaymentBlockedError {
+                code,
+                message,
+                status,
+                reason,
+            },
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
             },
@@ -679,6 +699,9 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            Self::PaymentBlockedError { code, .. } => {
+                StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
             Self::LockTimeout => StatusCode::LOCKED,
         }

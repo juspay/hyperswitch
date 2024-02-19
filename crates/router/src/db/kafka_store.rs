@@ -43,7 +43,7 @@ use crate::{
         events::EventInterface,
         file::FileMetadataInterface,
         gsm::GsmInterface,
-        health_check::HealthCheckInterface,
+        health_check::HealthCheckDbInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -58,7 +58,6 @@ use crate::{
         routing_algorithm::RoutingAlgorithmInterface,
         MasterKeyInterface, StorageInterface,
     },
-    routes,
     services::{authentication, kafka::KafkaProducer, Store},
     types::{
         domain,
@@ -375,9 +374,15 @@ impl CustomerInterface for KafkaStore {
 impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
         &self,
-        dispute: storage::DisputeNew,
+        dispute_new: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.insert_dispute(dispute).await
+        let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
+
+        if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute:?}", error_message=?er);
+        };
+
+        Ok(dispute)
     }
 
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
@@ -420,7 +425,19 @@ impl DisputeInterface for KafkaStore {
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.update_dispute(this, dispute).await
+        let dispute_new = self
+            .diesel_store
+            .update_dispute(this.clone(), dispute)
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_dispute(&dispute_new, Some(this))
+            .await
+        {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute_new:?}", error_message=?er);
+        };
+
+        Ok(dispute_new)
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -1896,6 +1913,16 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_by_email(
+        &self,
+        user_email: &str,
+        user: storage::UserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store
+            .update_user_by_email(user_email, user)
+            .await
+    }
+
     async fn delete_user_by_user_id(
         &self,
         user_id: &str,
@@ -1927,12 +1954,24 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
+
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.find_user_role_by_user_id(user_id).await
     }
+
+    async fn find_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
+    }
+
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -1943,14 +1982,44 @@ impl UserRoleInterface for KafkaStore {
             .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
             .await
     }
-    async fn delete_user_role(&self, user_id: &str) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.delete_user_role(user_id).await
+
+    async fn update_user_roles_by_user_id_org_id(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        update: user_storage::UserRoleUpdate,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .update_user_roles_by_user_id_org_id(user_id, org_id, update)
+            .await
     }
+
+    async fn delete_user_role_by_user_id_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
+            .await
+    }
+
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.list_user_roles_by_user_id(user_id).await
+    }
+
+    async fn transfer_org_ownership_between_users(
+        &self,
+        from_user_id: &str,
+        to_user_id: &str,
+        org_id: &str,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id)
+            .await
     }
 }
 
@@ -1993,6 +2062,7 @@ impl DashboardMetadataInterface for KafkaStore {
             .find_user_scoped_dashboard_metadata(user_id, merchant_id, org_id, data_keys)
             .await
     }
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -2001,6 +2071,31 @@ impl DashboardMetadataInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
             .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
+            .await
+    }
+
+    async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_all_user_scoped_dashboard_metadata_by_merchant_id(user_id, merchant_id)
+            .await
+    }
+
+    async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+        &self,
+        user_id: &str,
+        merchant_id: &str,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
+        self.diesel_store
+            .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+                user_id,
+                merchant_id,
+                data_key,
+            )
             .await
     }
 }
@@ -2156,22 +2251,8 @@ impl AuthorizationInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl HealthCheckInterface for KafkaStore {
+impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
-    }
-
-    async fn health_check_redis(
-        &self,
-        db: &dyn StorageInterface,
-    ) -> CustomResult<(), errors::HealthCheckRedisError> {
-        self.diesel_store.health_check_redis(db).await
-    }
-
-    async fn health_check_locker(
-        &self,
-        state: &routes::AppState,
-    ) -> CustomResult<(), errors::HealthCheckLockerError> {
-        self.diesel_store.health_check_locker(state).await
     }
 }

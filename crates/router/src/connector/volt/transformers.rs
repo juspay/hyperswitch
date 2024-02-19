@@ -185,7 +185,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -318,8 +318,8 @@ pub enum VoltPaymentStatus {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum VoltPaymentsResponseData {
-    WebhookResponse(VoltWebhookObjectResource),
     PsyncResponse(VoltPsyncResponse),
+    WebhookResponse(VoltPaymentWebhookObjectResource),
 }
 
 #[derive(Debug, Serialize, Clone, Deserialize)]
@@ -418,13 +418,16 @@ impl<F, T>
         }
     }
 }
-
-impl From<VoltWebhookStatus> for enums::AttemptStatus {
-    fn from(status: VoltWebhookStatus) -> Self {
+impl From<VoltWebhookPaymentStatus> for enums::AttemptStatus {
+    fn from(status: VoltWebhookPaymentStatus) -> Self {
         match status {
-            VoltWebhookStatus::Completed | VoltWebhookStatus::Received => Self::Charged,
-            VoltWebhookStatus::Failed | VoltWebhookStatus::NotReceived => Self::Failure,
-            VoltWebhookStatus::Pending => Self::Pending,
+            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
+                Self::Charged
+            }
+            VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
+                Self::Failure
+            }
+            VoltWebhookPaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -432,6 +435,7 @@ impl From<VoltWebhookStatus> for enums::AttemptStatus {
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VoltRefundRequest {
     pub amount: i64,
     pub external_reference: String,
@@ -447,29 +451,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -492,35 +474,87 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
-pub struct VoltWebhookBodyReference {
+#[serde(rename_all = "camelCase")]
+pub struct VoltPaymentWebhookBodyReference {
     pub payment: String,
     pub merchant_internal_reference: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltRefundWebhookBodyReference {
+    pub refund: String,
+    pub external_reference: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum WebhookResponse {
+    // the enum order shouldn't be changed as this is being used during serialization and deserialization
+    Refund(VoltRefundWebhookBodyReference),
+    Payment(VoltPaymentWebhookBodyReference),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum VoltWebhookBodyEventType {
+    Payment(VoltPaymentsWebhookBodyEventType),
+    Refund(VoltRefundsWebhookBodyEventType),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VoltWebhookBodyEventType {
-    pub status: VoltWebhookStatus,
+pub struct VoltPaymentsWebhookBodyEventType {
+    pub status: VoltWebhookPaymentStatus,
+    pub detailed_status: Option<VoltDetailedStatus>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltRefundsWebhookBodyEventType {
+    pub status: VoltWebhookRefundsStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum VoltWebhookObjectResource {
+    Payment(VoltPaymentWebhookObjectResource),
+    Refund(VoltRefundWebhookObjectResource),
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltPaymentWebhookObjectResource {
+    pub payment: String,
+    pub merchant_internal_reference: Option<String>,
+    pub status: VoltWebhookPaymentStatus,
     pub detailed_status: Option<VoltDetailedStatus>,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VoltWebhookObjectResource {
-    pub payment: String,
-    pub merchant_internal_reference: Option<String>,
-    pub status: VoltWebhookStatus,
-    pub detailed_status: Option<VoltDetailedStatus>,
+pub struct VoltRefundWebhookObjectResource {
+    pub refund: String,
+    pub external_reference: Option<String>,
+    pub status: VoltWebhookRefundsStatus,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum VoltWebhookStatus {
+pub enum VoltWebhookPaymentStatus {
     Completed,
     Failed,
     Pending,
     Received,
     NotReceived,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VoltWebhookRefundsStatus {
+    RefundConfirmed,
+    RefundFailed,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -539,16 +573,22 @@ pub enum VoltDetailedStatus {
     AwaitingCheckoutAuthorisation,
 }
 
-impl From<VoltWebhookStatus> for api::IncomingWebhookEvent {
-    fn from(status: VoltWebhookStatus) -> Self {
+impl From<VoltWebhookBodyEventType> for api::IncomingWebhookEvent {
+    fn from(status: VoltWebhookBodyEventType) -> Self {
         match status {
-            VoltWebhookStatus::Completed | VoltWebhookStatus::Received => {
-                Self::PaymentIntentSuccess
-            }
-            VoltWebhookStatus::Failed | VoltWebhookStatus::NotReceived => {
-                Self::PaymentIntentFailure
-            }
-            VoltWebhookStatus::Pending => Self::PaymentIntentProcessing,
+            VoltWebhookBodyEventType::Payment(payment_data) => match payment_data.status {
+                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
+                    Self::PaymentIntentSuccess
+                }
+                VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
+                    Self::PaymentIntentFailure
+                }
+                VoltWebhookPaymentStatus::Pending => Self::PaymentIntentProcessing,
+            },
+            VoltWebhookBodyEventType::Refund(refund_data) => match refund_data.status {
+                VoltWebhookRefundsStatus::RefundConfirmed => Self::RefundSuccess,
+                VoltWebhookRefundsStatus::RefundFailed => Self::RefundFailure,
+            },
         }
     }
 }
@@ -558,7 +598,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

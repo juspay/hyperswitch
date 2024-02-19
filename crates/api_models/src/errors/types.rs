@@ -94,6 +94,7 @@ pub enum ApiErrorResponse {
     NotFound(ApiError),
     MethodNotAllowed(ApiError),
     BadRequest(ApiError),
+    DomainError(ApiError),
 }
 
 impl ::core::fmt::Display for ApiErrorResponse {
@@ -122,6 +123,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -139,6 +141,7 @@ impl ApiErrorResponse {
             | Self::NotFound(i)
             | Self::MethodNotAllowed(i)
             | Self::BadRequest(i)
+            | Self::DomainError(i)
             | Self::ConnectorError(i, _) => i,
         }
     }
@@ -156,6 +159,7 @@ impl ApiErrorResponse {
             | Self::NotFound(_)
             | Self::BadRequest(_) => "invalid_request",
             Self::InternalServerError(_) => "api",
+            Self::DomainError(_) => "blocked",
             Self::ConnectorError(_, _) => "connector",
         }
     }

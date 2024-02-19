@@ -55,6 +55,8 @@ pub enum StorageError {
     SerializationFailed,
     #[error("MockDb error")]
     MockDbError,
+    #[error("Kafka error")]
+    KafkaError,
     #[error("Customer with this id is Redacted")]
     CustomerRedacted,
     #[error("Deserialization failure")]
@@ -103,6 +105,7 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::KVError => DataStorageError::KVError,
             StorageError::SerializationFailed => DataStorageError::SerializationFailed,
             StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::KafkaError => DataStorageError::KafkaError,
             StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
             StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
             StorageError::EncryptionError => DataStorageError::EncryptionError,
@@ -264,7 +267,7 @@ pub enum ApiClientError {
     RequestTimeoutReceived,
 
     #[error("connection closed before a message could complete")]
-    ConnectionClosed,
+    ConnectionClosedIncompleteMessage,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
@@ -282,8 +285,8 @@ impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
-    pub fn is_connection_closed(&self) -> bool {
-        self == &Self::ConnectionClosed
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
     }
 }
 
@@ -391,6 +394,10 @@ pub enum HealthCheckDBError {
     UnknownError,
     #[error("Error in database transaction")]
     TransactionError,
+    #[error("Error while executing query in Sqlx Analytics")]
+    SqlxAnalyticsError,
+    #[error("Error while executing query in Clickhouse Analytics")]
+    ClickhouseAnalyticsError,
 }
 
 impl From<diesel::result::Error> for HealthCheckDBError {

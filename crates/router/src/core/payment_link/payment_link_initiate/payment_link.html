@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payments requested by HyperSwitch</title>
+    <style>
+      {{rendered_css}}
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
+    />
+  </head>
+  <body class="hide-scrollbar">
+    <!-- SVG ICONS -->
+    <svg xmlns="http://www.w3.org/2000/svg" display="none">
+      <defs>
+        <symbol id="cart-icon-small">
+            <image href="https://live.hyperswitch.io/payment-link-assets/icons/cart-small.svg"/>
+        </symbol>
+        <symbol id="cart-icon-big">
+            <image href="https://live.hyperswitch.io/payment-link-assets/icons/cart-big.svg"/>
+        </symbol>
+        <symbol id="cart-close">
+          <image href="https://live.hyperswitch.io/payment-link-assets/icons/close.svg"/>
+        </symbol>
+        <symbol id="hyperswitch-brand">
+            <image href="https://live.hyperswitch.io/payment-link-assets/icons/powered-by-hyperswitch.svg" opacity="0.4"/>
+        </symbol>
+        <symbol id="arrow-down">
+            <image href="https://live.hyperswitch.io/payment-link-assets/icons/arrow-down.svg"/>
+        </symbol>
+        <symbol id="arrow-up">
+            <image href="https://live.hyperswitch.io/payment-link-assets/icons/arrow-up.svg"/>
+        </symbol>
+      </defs>
+    </svg>
+    <div id="page-spinner" class="page-spinner hidden">
+      <div class="spinner">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+    </div>
+    <div class="hyper-checkout hide-scrollbar">
+      <div class="main hidden" id="hyper-checkout-status-canvas">
+        <div class="hyper-checkout-status-wrap">
+          <div id="hyper-checkout-status-header"></div>
+          <div id="hyper-checkout-status-content"></div>
+        </div>
+        <div id="hyper-checkout-status-redirect-message"></div>
+      </div>
+      <div class="main" id="hyper-checkout-details">
+        <div id="hyper-checkout-payment" class="hyper-checkout-payment">
+          <div class="hyper-checkout-payment-content-details">
+            <div class="content-details-wrap">
+              <div id="hyper-checkout-payment-context">
+                <div id="hyper-checkout-payment-merchant-details"></div>
+              </div>
+              <div class="hyper-checkout-image-header">
+                <div id="hyper-checkout-merchant-image"></div>
+                <div
+                  id="hyper-checkout-cart-image"
+                  onclick="viewCartInMobileView()"
+                >
+                  <svg
+                    width="30"
+                    height="30"
+                    viewBox="0 0 30 30"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="cart-icon"
+                  >
+                    <use
+                      xlink:href="#cart-icon-big"
+                      x="0"
+                      y="0"
+                      width="30"
+                      height="30"
+                    ></use>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div id="hyper-checkout-payment-footer"></div>
+          </div>
+        </div>
+        <div id="hyper-checkout-cart" class="">
+          <div
+            id="hyper-checkout-cart-header"
+            class="hyper-checkout-cart-header"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="cart-icon"
+            >
+              <use
+                xlink:href="#cart-icon-small"
+                x="0"
+                y="0"
+                width="16"
+                height="16"
+              ></use>
+            </svg>
+            <span>Your Cart</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 50 50"
+              width="25"
+              height="25"
+              class="cart-close"
+              onclick="hideCartInMobileView()"
+            >
+              <use
+                xlink:href="#cart-close"
+                x="0"
+                y="0"
+                width="50"
+                height="50"
+              ></use>
+            </svg>
+          </div>
+          <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
+          <div id="hyper-checkout-merchant-description"></div>
+          <div class="powered-by-hyper">
+            <svg class="fill-current" height="18" width="130">
+              <use
+                xlink:href="#hyperswitch-brand"
+                x="0"
+                y="0"
+                height="18"
+                width="130"
+              ></use>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
+        <div id="payment-form-wrap">
+          <div id="sdk-spinner" class="sdk-spinner">
+            <div class="spinner">
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+              <div></div>
+            </div>
+          </div>
+          <form id="payment-form" onclick="handleSubmit(); return false;">
+            <div id="unified-checkout"></div>
+            <button id="submit" class="hidden">
+              <span id="submit-spinner" class="hidden"></span>
+              <span id="submit-button-text">Pay now</span>
+            </button>
+            <div id="payment-message" class="hidden"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div id="hyper-footer" class="hidden">
+      <svg class="fill-current" height="18" width="130">
+        <use
+          xlink:href="#hyperswitch-brand"
+          x="0"
+          y="0"
+          height="18"
+          width="130"
+        ></use>
+      </svg>
+    </div>
+    <script>
+      {{rendered_js}}
+    </script>
+    {{ hyperloader_sdk_link }}
+  </body>
+</html>

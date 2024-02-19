@@ -203,10 +203,19 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
             ],
         );
 
+        let mut router_data_request = router_data.request.to_owned();
+
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata, ..
+        }) = &resp.response
+        {
+            router_data_request.connector_meta = connector_metadata.to_owned();
+        };
+
         let authorize_router_data =
             payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
                 resp.clone(),
-                router_data.request.to_owned(),
+                router_data_request,
                 resp.response,
             );
 

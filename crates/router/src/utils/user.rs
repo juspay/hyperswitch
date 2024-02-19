@@ -1,13 +1,16 @@
+use std::collections::HashMap;
+
 use api_models::user as user_api;
-use diesel_models::user_role::UserRole;
+use common_utils::errors::CustomResult;
+use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
-    core::errors::{UserErrors, UserResult},
+    core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
     services::authentication::{AuthToken, UserFromToken},
-    types::domain::{MerchantAccount, UserFromStorage},
+    types::domain::{self, MerchantAccount, UserFromStorage},
 };
 
 pub mod dashboard_metadata;
@@ -45,7 +48,7 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
@@ -56,7 +59,7 @@ impl UserFromToken {
 }
 
 pub async fn generate_jwt_auth_token(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     user_role: &UserRole,
 ) -> UserResult<Secret<String>> {
@@ -89,17 +92,13 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     Ok(Secret::new(token))
 }
 
-#[allow(unused_variables)]
 pub fn get_dashboard_entry_response(
-    state: AppState,
+    state: &AppState,
     user: UserFromStorage,
     user_role: UserRole,
     token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
-    #[cfg(feature = "email")]
-    let verification_days_left = user.get_verification_days_left(state)?;
-    #[cfg(not(feature = "email"))]
-    let verification_days_left = None;
+    let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
         merchant_id: user_role.merchant_id,
@@ -110,4 +109,52 @@ pub fn get_dashboard_entry_response(
         verification_days_left,
         user_role: user_role.role_id,
     })
+}
+
+#[allow(unused_variables)]
+pub fn get_verification_days_left(
+    state: &AppState,
+    user: &UserFromStorage,
+) -> UserResult<Option<i64>> {
+    #[cfg(feature = "email")]
+    return user.get_verification_days_left(state);
+    #[cfg(not(feature = "email"))]
+    return Ok(None);
+}
+
+pub fn get_multiple_merchant_details_with_status(
+    user_roles: Vec<UserRole>,
+    merchant_accounts: Vec<MerchantAccount>,
+) -> UserResult<Vec<user_api::UserMerchantAccount>> {
+    let roles: HashMap<_, _> = user_roles
+        .into_iter()
+        .map(|user_role| (user_role.merchant_id.clone(), user_role))
+        .collect();
+
+    merchant_accounts
+        .into_iter()
+        .map(|merchant| {
+            let role = roles
+                .get(merchant.merchant_id.as_str())
+                .ok_or(UserErrors::InternalServerError.into())
+                .attach_printable("Merchant exists but user role doesn't")?;
+
+            Ok(user_api::UserMerchantAccount {
+                merchant_id: merchant.merchant_id.clone(),
+                merchant_name: merchant.merchant_name.clone(),
+                is_active: role.status == UserStatus::Active,
+            })
+        })
+        .collect()
+}
+
+pub async fn get_user_from_db_by_email(
+    state: &AppState,
+    email: domain::UserEmail,
+) -> CustomResult<UserFromStorage, StorageError> {
+    state
+        .store
+        .find_user_by_email(email.get_secret().expose().as_str())
+        .await
+        .map(UserFromStorage::from)
 }
