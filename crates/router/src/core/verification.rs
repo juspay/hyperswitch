@@ -10,7 +10,6 @@ const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
-    _req: &actix_web::HttpRequest,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: String,
 ) -> CustomResult<

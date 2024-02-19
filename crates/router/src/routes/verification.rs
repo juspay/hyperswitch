@@ -25,7 +25,6 @@ pub async fn apple_pay_merchant_registration(
         |state, _, body| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
-                &req,
                 body,
                 merchant_id.clone(),
             )
