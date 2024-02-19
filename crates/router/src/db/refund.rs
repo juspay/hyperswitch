@@ -267,7 +267,7 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{date_time, fallback_reverse_lookup_not_found};
+    use common_utils::{date_time, ext_traits::Encode, fallback_reverse_lookup_not_found};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
@@ -279,7 +279,7 @@ mod storage {
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{self as storage_types, enums, kv},
-        utils::{self, db_utils},
+        utils::db_utils,
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
@@ -520,10 +520,8 @@ mod storage {
                     let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
-                    let redis_value =
-                        utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
-                            &updated_refund,
-                        )
+                    let redis_value = updated_refund
+                        .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
                     let redis_entry = kv::TypedSql {

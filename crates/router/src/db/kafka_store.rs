@@ -374,9 +374,15 @@ impl CustomerInterface for KafkaStore {
 impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
         &self,
-        dispute: storage::DisputeNew,
+        dispute_new: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.insert_dispute(dispute).await
+        let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
+
+        if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute:?}", error_message=?er);
+        };
+
+        Ok(dispute)
     }
 
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
@@ -419,7 +425,19 @@ impl DisputeInterface for KafkaStore {
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.update_dispute(this, dispute).await
+        let dispute_new = self
+            .diesel_store
+            .update_dispute(this.clone(), dispute)
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_dispute(&dispute_new, Some(this))
+            .await
+        {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute_new:?}", error_message=?er);
+        };
+
+        Ok(dispute_new)
     }
 
     async fn find_disputes_by_merchant_id_payment_id(

@@ -1,3 +1,4 @@
+use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
@@ -86,7 +87,8 @@ impl ProcessTrackerNew {
             retry_count: 0,
             schedule_time: Some(schedule_time),
             rule: String::new(),
-            tracking_data: common_utils::ext_traits::Encode::<T>::encode_to_value(&tracking_data)
+            tracking_data: tracking_data
+                .encode_to_value()
                 .change_context(errors::DatabaseError::Others)
                 .attach_printable("Failed to serialize process tracker tracking data")?,
             business_status: String::from(BUSINESS_STATUS_PENDING),

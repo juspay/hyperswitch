@@ -229,6 +229,10 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             Some(storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow) => {
                 Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
             }
+            #[cfg(feature = "email")]
+            Some(storage::ProcessTrackerRunner::ApiKeyExpiryWorkflow) => {
+                Box::new(workflows::api_key_expiry::ApiKeyExpiryWorkflow)
+            }
             _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };
         let app_state = &state.clone();
