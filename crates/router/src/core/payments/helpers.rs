@@ -1121,6 +1121,7 @@ pub(crate) async fn get_payment_method_create_request(
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
                     };
+
                     Ok(payment_method_request)
                 }
             },
@@ -1546,7 +1547,6 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::UnprocessableEntity {
             message: "no customer id provided for the payment".to_string(),
         })?;
-
     let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, token)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1583,7 +1583,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-
+    let _ = cards::update_last_used_at(token, state).await?;
     Ok(api::PaymentMethodData::Card(api_card))
 }
 

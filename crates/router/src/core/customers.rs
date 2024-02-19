@@ -208,6 +208,7 @@ pub async fn delete_customer(
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
     {

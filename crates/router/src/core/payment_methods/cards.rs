@@ -25,7 +25,7 @@ use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
     payment_method,
 };
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -126,7 +126,8 @@ pub fn store_default_payment_method(
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           //[#219]
         installment_payment_enabled: false, //[#219]
-        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()), //[#219]
     };
     (payment_method_response, None)
 }
@@ -2663,6 +2664,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = state.store.as_ref();
+    let limit = req.clone().and_then(|pml_req| pml_req.limit);
+
     if let Some(customer_id) = customer_id {
         Box::pin(list_customer_payment_method(
             &state,
@@ -2670,6 +2673,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             key_store,
             None,
             customer_id,
+            limit,
         ))
         .await
     } else {
@@ -2692,6 +2696,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             key_store,
             payment_intent,
             &customer_id,
+            limit,
         ))
         .await
     }
@@ -2703,6 +2708,7 @@ pub async fn list_customer_payment_method(
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &str,
+    limit: Option<i64>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
@@ -2739,6 +2745,7 @@ pub async fn list_customer_payment_method(
         .find_payment_method_by_customer_id_merchant_id_list(
             customer_id,
             &merchant_account.merchant_id,
+            limit,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2837,6 +2844,7 @@ pub async fn list_customer_payment_method(
             bank: bank_details,
             surcharge_details: None,
             requires_cvv,
+            last_used_at: pm.last_used_at,
         };
         customer_pms.push(pma.to_owned());
 
@@ -3304,9 +3312,10 @@ pub async fn retrieve_payment_method(
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),
-            recurring_enabled: false,           //[#219]
-            installment_payment_enabled: false, //[#219]
-            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219],
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+            last_used_at: pm.last_used_at,
         },
     ))
 }
@@ -3383,4 +3392,26 @@ pub async fn create_encrypted_payment_method_data(
         .map(|details| details.into());
 
     pm_data_encrypted
+}
+
+pub async fn update_last_used_at(
+    pm_id: &str,
+    state: &routes::AppState,
+) -> errors::RouterResult<()> {
+    let udpate_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
+        last_used_at: Some(common_utils::date_time::now()),
+    };
+    let payment_method = state
+        .store
+        .find_payment_method(pm_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    state
+        .store
+        .update_payment_method(payment_method, udpate_last_used)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the last_used_at in db")?;
+
+    Ok(())
 }
