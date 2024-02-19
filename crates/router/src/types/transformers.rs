@@ -13,9 +13,12 @@ use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
-    core::errors,
+    core::{authentication::types::AuthenticationData, errors},
     services::authentication::get_header_value_by_key,
-    types::{api as api_types, api::routing as routing_types, storage},
+    types::{
+        api::{self as api_types, routing as routing_types},
+        storage,
+    },
 };
 
 pub trait ForeignInto<T> {
@@ -241,12 +244,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Threedsecureio => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Threedsecureio is not a routable connector".to_string(),
-                })
-                .into_report()?
-            }
-            api_enums::Connector::Tokenex => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "Tokenex is not a routable connector".to_string(),
                 })
                 .into_report()?
             }
@@ -722,6 +719,33 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
             error_code: authorization.error_code,
             error_message: authorization.error_message,
             previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
+impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
+    for payments::ExternalAuthenticationDetailsResponse
+{
+    fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
+        let (version, ds_transaction_id) = if authn_data.0.authentication_data.is_some() {
+            (
+                Some(authn_data.1.threeds_server_transaction_id.clone()),
+                Some(format!(
+                    "{}.{}.{}",
+                    authn_data.1.maximum_supported_version.0,
+                    authn_data.1.maximum_supported_version.1,
+                    authn_data.1.maximum_supported_version.2
+                )),
+            )
+        } else {
+            (None, None)
+        };
+        Self {
+            authentication_flow: authn_data.0.authentication_type,
+            electronic_commerce_indicator: authn_data.1.eci.clone(),
+            status: authn_data.0.authentication_status,
+            ds_transaction_id,
+            version,
         }
     }
 }

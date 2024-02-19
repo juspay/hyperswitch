@@ -405,6 +405,11 @@ where
         )
     };
 
+    let external_authentication_details = payment_data
+        .authentication
+        .as_ref()
+        .map(ForeignInto::foreign_into);
+
     let attempts_response = payment_data.attempts.map(|attempts| {
         attempts
             .into_iter()
@@ -736,6 +741,7 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_external_authentication_details(external_authentication_details)
                         .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
@@ -806,6 +812,7 @@ where
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 authorization_count: payment_intent.authorization_count,
                 incremental_authorizations: incremental_authorizations_response,
+                external_authentication_details,
                 expires_on: payment_intent.session_expiry,
                 ..Default::default()
             },

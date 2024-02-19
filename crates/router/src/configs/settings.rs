@@ -629,7 +629,6 @@ pub struct Connectors {
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub threedsecureio: ConnectorParams,
-    pub tokenex: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,

@@ -79,7 +79,6 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Plaid
         | api_models::enums::Connector::Riskified
         | api_models::enums::Connector::Threedsecureio
-        | api_models::enums::Connector::Tokenex
         | api_models::enums::Connector::Cybersource
         | api_models::enums::Connector::Noon
         | api_models::enums::Connector::Stripe => false,

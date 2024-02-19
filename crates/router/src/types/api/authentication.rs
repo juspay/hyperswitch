@@ -107,7 +107,6 @@ impl AuthenticationConnectorData {
         connector_name: enums::AuthenticationConnectors,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
-            enums::AuthenticationConnectors::Tokenex => Ok(Box::new(&connector::Tokenex)),
             enums::AuthenticationConnectors::Threedsecureio => {
                 Ok(Box::new(&connector::Threedsecureio))
             }
