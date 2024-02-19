@@ -884,7 +884,7 @@ pub struct SaleQuery {
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
     buyer_key: Option<Secret<String>>,
     status_error_details: Option<String>,
     status_error_code: Option<u32>,
@@ -894,7 +894,7 @@ pub struct PaymePaySaleResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PaymeMetadata {
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
 }
 
 impl<F, T>
@@ -983,7 +983,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
     status_error_code: i64,
 }
 
@@ -1003,11 +1003,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
                 reason: Some(payme_response.status_error_code.to_string()),
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
             })
         } else {
             Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.payme_transaction_id,
+                connector_refund_id: item
+                    .response
+                    .payme_transaction_id
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                 refund_status,
             })
         };
@@ -1133,7 +1136,7 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
         Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
-            payme_transaction_id: value.payme_transaction_id,
+            payme_transaction_id: Some(value.payme_transaction_id),
             buyer_key: value.buyer_key,
             sale_3ds: None,
             redirect_url: None,
