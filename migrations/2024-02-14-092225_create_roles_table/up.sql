@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS roles (
     groups TEXT[] NOT NULL,
     scope "RoleScope" NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
-	created_by VARCHAR(64) NOT NULL,
+    created_by VARCHAR(64) NOT NULL,
     last_modified_at TIMESTAMP NOT NULL DEFAULT now(),
-	last_modified_by VARCHAR(64) NOT NULL
+    last_modified_by VARCHAR(64) NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS  role_id_index ON roles (role_id);

@@ -538,8 +538,16 @@ pub enum RoleScope {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PermissionGroup {
-    OperationsRead,
-    OperationsWrite,
-    UnnamedRead,
-    UnnamedWrite,
+    OperationsView,
+    OperationsManage,
+    ConnectorsView,
+    ConnectorsManage,
+    WorkflowsView,
+    WorkflowsManage,
+    AnalyticsView,
+    UsersView,
+    UsersManage,
+    MerchantDetailsView,
+    MerchantDetailsManage,
+    OrganizationManage,
 }
