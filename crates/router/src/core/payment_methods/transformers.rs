@@ -197,11 +197,12 @@ pub async fn get_decrypted_response_payload(
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
     let public_key = match target_locker {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.peek().as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.peek().as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.vault_encryption_key.peek().as_bytes()
+        }
     };
 
     let private_key = jwekey.vault_private_key.peek().as_bytes();
@@ -250,8 +251,9 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     let public_key = match locker_choice {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.peek().as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.peek().as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.vault_encryption_key.peek().as_bytes()
+        }
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
@@ -292,8 +294,7 @@ pub async fn mk_add_locker_request_hs<'a>(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
     let mut url = match locker_choice {
-        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
-        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
     };
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -463,12 +464,11 @@ pub async fn mk_get_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
     let mut url = match target_locker {
-        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
-        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
     };
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -534,7 +534,8 @@ pub async fn mk_delete_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
 
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");

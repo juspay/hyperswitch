@@ -153,6 +153,7 @@ where
                     merchant_id = Empty,
                     connector_name = Empty,
                     payment_method = Empty,
+                    status_code = Empty,
                     flow = "UNKNOWN",
                     golden_log_line = Empty
                 )
