@@ -43,7 +43,11 @@ pub async fn rust_locker_migration(
 
     for customer in domain_customers {
         let result = db
-            .find_payment_method_by_customer_id_merchant_id_list(&customer.customer_id, merchant_id)
+            .find_payment_method_by_customer_id_merchant_id_list(
+                &customer.customer_id,
+                merchant_id,
+                None,
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
                 call_to_locker(

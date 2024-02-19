@@ -81,20 +81,16 @@ impl PaymentMethod {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
+        limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::customer_id
                 .eq(customer_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+            limit,
             None,
-            None,
-            None,
+            Some(dsl::last_used_at.desc()),
         )
         .await
     }

@@ -157,6 +157,7 @@ pub async fn list_customer_payment_method_api_client(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,

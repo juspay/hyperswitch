@@ -33,9 +33,10 @@ pub struct PaymentMethod {
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
+    pub last_used_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
     pub customer_id: String,
@@ -59,6 +60,7 @@ pub struct PaymentMethodNew {
     pub last_modified: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
+    pub last_used_at: Option<PrimitiveDateTime>,
 }
 
 impl Default for PaymentMethodNew {
@@ -87,6 +89,7 @@ impl Default for PaymentMethodNew {
             last_modified: now,
             metadata: Option::default(),
             payment_method_data: Option::default(),
+            last_used_at: Some(now),
         }
     }
 }
@@ -105,6 +108,9 @@ pub enum PaymentMethodUpdate {
     PaymentMethodDataUpdate {
         payment_method_data: Option<Encryption>,
     },
+    LastUsedUpdate {
+        last_used_at: Option<PrimitiveDateTime>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -112,6 +118,7 @@ pub enum PaymentMethodUpdate {
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
+    last_used_at: Option<PrimitiveDateTime>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -128,12 +135,19 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::MetadataUpdate { metadata } => Self {
                 metadata,
                 payment_method_data: None,
+                last_used_at: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
             } => Self {
                 metadata: None,
                 payment_method_data,
+                last_used_at: None,
+            },
+            PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at,
             },
         }
     }

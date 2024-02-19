@@ -1068,7 +1068,7 @@ where
         customer,
     )
     .await?;
-
+    println!("tok_Act{:?}", tokenization_action);
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
@@ -1137,7 +1137,6 @@ where
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
-
     if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
             payment_method_token,
@@ -1842,7 +1841,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,

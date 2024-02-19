@@ -185,6 +185,10 @@ pub struct PaymentMethodResponse {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
+
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -550,6 +554,10 @@ pub struct PaymentMethodListRequest {
     /// Indicates whether the payment method is eligible for card netwotks
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+
+    /// Indicates the limit of last used payment methods
+    #[schema(example = 1)]
+    pub limit: Option<i64>,
 }
 
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
@@ -618,6 +626,9 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
                             Some(inner) => inner.push(map.next_value()?),
                             None => output.card_networks = Some(vec![map.next_value()?]),
                         },
+                        "limit" => {
+                            set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
+                        }
                         _ => {}
                     }
                 }
@@ -796,6 +807,11 @@ pub struct CustomerPaymentMethod {
     /// Whether this payment method requires CVV to be collected
     #[schema(example = true)]
     pub requires_cvv: bool,
+
+    ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
+    #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
