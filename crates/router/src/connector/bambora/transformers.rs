@@ -365,7 +365,7 @@ pub struct AddressData {
     city: String,
     province: String,
     country: String,
-    postal_code: String,
+    postal_code: Secret<String>,
     phone_number: Secret<String>,
     email_address: Secret<String>,
 }
