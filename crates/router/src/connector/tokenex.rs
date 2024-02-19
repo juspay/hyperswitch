@@ -119,7 +119,7 @@ impl ConnectorCommon for Tokenex {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: tokenex::TokenexAuthenticationResponse = res
+        let _response: tokenex::TokenexAuthenticationResponse = res
             .response
             .parse_struct("TokenexAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -756,7 +756,7 @@ impl
         > = res
             .response
             .parse_struct("tokenex TokenexAuthenticationResponse");
-        let tokenex_response =
+        let _tokenex_response =
             response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         // let response = tokenex::get_router_response_from_tokenex_authn_response(
         //     &tokenex_response,

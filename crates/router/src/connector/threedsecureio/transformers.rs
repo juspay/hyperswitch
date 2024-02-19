@@ -7,7 +7,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
+    consts::NO_ERROR_MESSAGE,
     core::errors,
     types::{
         self,
@@ -60,45 +61,80 @@ impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ThreedsecureioPaymentsRequest {
-    amount: i64,
-    card: ThreedsecureioCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ThreedsecureioCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&ThreedsecureioRouterData<&types::PaymentsAuthorizeRouterData>>
-    for ThreedsecureioPaymentsRequest
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::Authentication,
+            ThreedsecureioAuthenticationResponse,
+            types::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
+    > for types::ConnectorAuthenticationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ThreedsecureioRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: types::ResponseRouterData<
+            api::Authentication,
+            ThreedsecureioAuthenticationResponse,
+            types::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = ThreedsecureioCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    card,
+        let response = match item.response {
+            ThreedsecureioAuthenticationResponse::Success(response) => {
+                let creq = serde_json::json!({
+                    "threeDSServerTransID": response.three_dsserver_trans_id,
+                    "acsTransID": response.acs_trans_id,
+                    "messageVersion": response.message_version,
+                    "messageType": "CReq",
+                    "challengeWindowSize": "01",
+                });
+                println!("creq authn {}", creq);
+                let creq_str = serde_json::to_string(&creq)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("error while constructing creq_str")?;
+                let creq_base64 = base64::Engine::encode(&crate::consts::BASE64_ENGINE, creq_str)
+                    .trim_end_matches('=')
+                    .to_owned();
+                println!("creq_base64 authn {}", creq_base64);
+                Ok(
+                    types::authentication::AuthenticationResponseData::AuthNResponse {
+                        trans_status: response.trans_status.clone().into(),
+                        authn_flow_type: if response.trans_status == ThreedsecureioTransStatus::C {
+                            types::authentication::AuthNFlowType::Challenge {
+                                acs_url: response.acs_url,
+                                challenge_request: Some(creq_base64),
+                                acs_reference_number: Some(response.acs_reference_number.clone()),
+                                acs_trans_id: Some(response.acs_trans_id.clone()),
+                                three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
+                                acs_signed_content: response.acs_signed_content,
+                            }
+                        } else {
+                            types::authentication::AuthNFlowType::Frictionless
+                        },
+                        cavv: response.authentication_value,
+                    },
+                )
+            }
+            ThreedsecureioAuthenticationResponse::Error(err_response) => {
+                Err(types::ErrorResponse {
+                    code: err_response.error_code,
+                    message: err_response
+                        .error_description
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                    reason: err_response.error_description,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        };
+        Ok(Self {
+            response,
+            ..item.data.clone()
+        })
     }
 }
 
@@ -271,7 +307,11 @@ fn get_card_details(
 ) -> Result<api_models::payments::Card, errors::ConnectorError> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Card(details) => Ok(details),
-        _ => Err(errors::ConnectorError::RequestEncodingFailed)?,
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: SELECTED_PAYMENT_METHOD.to_string(),
+            connector: "threedsecureio",
+        }
+        .into())?,
     }
 }
 
@@ -282,146 +322,117 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
     fn try_from(
         item: &ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
-        let browser_details = match item.router_data.request.browser_details.clone() {
+        let request = &item.router_data.request;
+        //browser_details are mandatory for Browser flows
+        let browser_details = match request.browser_details.clone() {
             Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
             None => {
-                if item.router_data.request.device_channel == DeviceChannel::BRW {
-                    Err(errors::ConnectorError::RequestEncodingFailed)?
+                if request.device_channel == DeviceChannel::BRW {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info",
+                    })?
                 } else {
                     Ok(None)
                 }
             }
         }?;
-        let card_details = get_card_details(item.router_data.request.payment_method_data.clone())?;
-        let currency = item
-            .router_data
-            .request
+        let card_details = get_card_details(request.payment_method_data.clone())?;
+        let currency = request
             .currency
             .map(|currency| currency.to_string())
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
+            .into_report()
+            .attach_printable("missing field currency")?;
         let purchase_currency: Currency = iso_currency::Currency::from_code(&currency)
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let address = item
-            .router_data
-            .request
-            .billing_address
-            .address
-            .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let billing_state = address.clone().to_state_code()?;
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
+            .into_report()
+            .attach_printable("error while parsing Currency")?;
+        let billing_address = request.billing_address.address.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "billing_address.address",
+            },
+        )?;
+        let billing_state = billing_address.clone().to_state_code()?;
         let billing_country = isocountry::CountryCode::for_alpha2(
-            &item
-                .router_data
-                .request
-                .billing_address
-                .address
-                .clone()
-                .and_then(|address| address.country)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            &billing_address
+                .country
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_address.address.country",
+                })?
                 .to_string(),
         )
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Error parsing billing country type2")?;
+        .attach_printable("Error parsing billing_address.address.country")?;
         let connector_meta_data: ThreeDSecureIoMetaData = item
             .router_data
             .connector_meta_data
             .clone()
             .parse_value("ThreeDSecureIoMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("connector_meta_data {:?}", connector_meta_data);
+        let authentication_data = &request.authentication_data.0;
+        let sdk_information = match request.device_channel {
+            DeviceChannel::APP => Some(item.router_data.request.sdk_information.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "sdk_information",
+                },
+            )?),
+            DeviceChannel::BRW => None,
+        };
         Ok(Self {
-            ds_start_protocol_version: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .message_version
-                .clone(),
-            ds_end_protocol_version: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .message_version
-                .clone(),
-            acs_start_protocol_version: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .message_version
-                .clone(),
-            acs_end_protocol_version: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .message_version
-                .clone(),
-            three_dsserver_trans_id: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .threeds_server_transaction_id
-                .clone(),
+            ds_start_protocol_version: authentication_data.message_version.clone(),
+            ds_end_protocol_version: authentication_data.message_version.clone(),
+            acs_start_protocol_version: authentication_data.message_version.clone(),
+            acs_end_protocol_version: authentication_data.message_version.clone(),
+            three_dsserver_trans_id: authentication_data.threeds_server_transaction_id.clone(),
             acct_number: card_details.card_number.clone(),
-            notification_url: item
-                .router_data
-                .request
+            notification_url: request
                 .return_url
                 .clone()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .into_report()
+                .attach_printable("missing return_url")?,
             three_dscomp_ind: "Y".to_string(),
             three_dsrequestor_url: "https::/google.com".to_string(),
             acquirer_bin: connector_meta_data.acquirer_bin,
             acquirer_merchant_id: connector_meta_data.acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
-            bill_addr_city: item
-                .router_data
-                .request
-                .billing_address
-                .address
+            bill_addr_city: billing_address
+                .city
                 .clone()
-                .and_then(|address| address.city)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_address.address.city",
+                })?
                 .to_string(),
             bill_addr_country: billing_country.numeric_id().to_string(),
-            bill_addr_line1: item
-                .router_data
-                .request
-                .billing_address
-                .address
+            bill_addr_line1: billing_address
+                .line1
                 .clone()
-                .and_then(|address| address.line1)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_address.address.line1",
+                })?
                 .expose()
                 .to_string(),
-            bill_addr_post_code: item
-                .router_data
-                .request
-                .billing_address
-                .address
+            bill_addr_post_code: billing_address
+                .zip
                 .clone()
-                .and_then(|address| address.zip)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_address.address.zip",
+                })?
                 .expose()
                 .to_string(),
             bill_addr_state: billing_state.peek().to_string(),
             three_dsrequestor_authentication_ind: "01".to_string(),
             device_channel: match item.router_data.request.device_channel.clone() {
-                DeviceChannel::BRW => "02",
                 DeviceChannel::APP => "01",
+                DeviceChannel::BRW => "02",
             }
             .to_string(),
-            message_category: if item.router_data.request.message_category
-                == MessageCategory::Payment
-            {
-                "01".to_string()
-            } else {
-                "02".to_string()
-            },
+            message_category: match item.router_data.request.message_category.clone() {
+                MessageCategory::Payment => "01",
+                MessageCategory::NonPayment => "02",
+            }
+            .to_string(),
             browser_javascript_enabled: browser_details
                 .clone()
                 .and_then(|details| details.java_script_enabled.clone()),
@@ -456,62 +467,40 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
-            message_version: item
-                .router_data
-                .request
-                .authentication_data
-                .0
-                .message_version
-                .clone(),
+            message_version: authentication_data.message_version.clone(),
             purchase_amount: item.amount.to_string(),
             purchase_currency: purchase_currency.numeric().to_string(),
-            trans_type: "01".to_string(),       //TODO
-            purchase_exponent: "2".to_string(), //TODO
+            trans_type: "01".to_string(),
+            purchase_exponent: purchase_currency
+                .exponent()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)
+                .into_report()
+                .attach_printable("missing purchase_exponent")?
+                .to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
                 .to_string(),
-            sdk_app_id: item
-                .router_data
-                .request
-                .sdk_information
-                .clone()
-                .map(|sdk_info| sdk_info.sdk_app_id),
-            sdk_enc_data: item
-                .router_data
-                .request
-                .sdk_information
+            sdk_app_id: sdk_information.clone().map(|sdk_info| sdk_info.sdk_app_id),
+            sdk_enc_data: sdk_information
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_enc_data),
-            sdk_ephem_pub_key: item
-                .router_data
-                .request
-                .sdk_information
+            sdk_ephem_pub_key: sdk_information
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_ephem_pub_key),
-            sdk_reference_number: item
-                .router_data
-                .request
-                .sdk_information
+            sdk_reference_number: sdk_information
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_reference_number),
-            sdk_trans_id: item
-                .router_data
-                .request
-                .sdk_information
+            sdk_trans_id: sdk_information
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_trans_id),
-            sdk_max_timeout: item
-                .router_data
-                .request
-                .sdk_information
+            sdk_max_timeout: sdk_information
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_max_timeout),
-            device_render_options: if item.router_data.request.sdk_information.is_some() {
-                Some(DeviceRenderOptions {
+            device_render_options: match request.device_channel {
+                DeviceChannel::APP => Some(DeviceRenderOptions {
                     sdk_interface: "01".to_string(),
                     sdk_ui_type: vec!["01".to_string()],
-                })
-            } else {
-                None
+                }),
+                DeviceChannel::BRW => None,
             },
             cardholder_name: card_details.card_holder_name,
         })
@@ -522,22 +511,29 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioErrorResponse {
     pub error_code: String,
-    pub error_component: String,
-    pub error_description: String,
-    pub error_detail: String,
-    pub error_message_type: String,
-    pub message_type: String,
-    pub message_version: String,
-    pub three_dsserver_trans_id: String,
+    pub error_component: Option<String>,
+    pub error_description: Option<String>,
+    pub error_detail: Option<String>,
+    pub error_message_type: Option<String>,
+    pub message_type: Option<String>,
+    pub message_version: Option<String>,
+    pub three_dsserver_trans_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum ThreedsecureioAuthenticationResponse {
+    Success(Box<ThreedsecureioAuthenticationSuccessResponse>),
+    Error(Box<ThreedsecureioErrorResponse>),
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreedsecureioAuthenticationResponse {
+pub struct ThreedsecureioAuthenticationSuccessResponse {
     #[serde(rename = "acsChallengeMandated")]
     pub acs_challenge_mandated: Option<String>,
     #[serde(rename = "acsOperatorID")]
-    pub acs_operator_id: String,
+    pub acs_operator_id: Option<String>,
     #[serde(rename = "acsReferenceNumber")]
     pub acs_reference_number: String,
     #[serde(rename = "acsTransID")]
@@ -557,7 +553,7 @@ pub struct ThreedsecureioAuthenticationResponse {
     #[serde(rename = "threeDSServerTransID")]
     pub three_dsserver_trans_id: String,
     #[serde(rename = "transStatus")]
-    pub trans_status: api_models::payments::TransStatus,
+    pub trans_status: ThreedsecureioTransStatus,
     #[serde(rename = "acsSignedContent")]
     pub acs_signed_content: Option<String>,
     #[serde(rename = "authenticationValue")]
@@ -655,7 +651,7 @@ pub struct ThreedsecureioPostAuthenticationResponse {
     pub eci: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub enum ThreedsecureioTransStatus {
     /// Authentication/ Account Verification Successful
     Y,
@@ -667,6 +663,7 @@ pub enum ThreedsecureioTransStatus {
     A,
     /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
     R,
+    C,
 }
 
 impl From<ThreedsecureioTransStatus> for api_models::payments::TransStatus {
@@ -677,6 +674,7 @@ impl From<ThreedsecureioTransStatus> for api_models::payments::TransStatus {
             ThreedsecureioTransStatus::U => Self::U,
             ThreedsecureioTransStatus::A => Self::A,
             ThreedsecureioTransStatus::R => Self::R,
+            ThreedsecureioTransStatus::C => Self::C,
         }
     }
 }
@@ -705,8 +703,8 @@ pub struct ThreedsecureioPreAuthenticationResponse {
     pub threeds_method_url: Option<String>,
     #[serde(rename = "threeDSServerTransID")]
     pub threeds_server_trans_id: String,
-    pub scheme: String,
-    pub message_type: String,
+    pub scheme: Option<String>,
+    pub message_type: Option<String>,
 }
 
 impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterData>>

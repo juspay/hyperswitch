@@ -3,9 +3,9 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::errors::ParsingError;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
+use pm_auth::consts::NO_ERROR_MESSAGE;
 use serde_json::{json, to_string};
 use transformers as threedsecureio;
 
@@ -22,7 +22,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        authentication::AuthNFlowType,
         transformers::ForeignTryFrom,
         ErrorResponse, RequestContent, Response,
     },
@@ -115,22 +114,22 @@ impl ConnectorCommon for Threedsecureio {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.error_description.clone(),
-            reason: Some(response.error_description),
+            message: response
+                .error_description
+                .clone()
+                .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+            reason: response.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
         })
     }
 }
 
-impl ConnectorValidation for Threedsecureio {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Threedsecureio {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Threedsecureio
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -150,223 +149,16 @@ impl
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Threedsecureio
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = threedsecureio::ThreedsecureioRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
-        let req_obj =
-            threedsecureio::ThreedsecureioPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsAuthorizeRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioPaymentsResponse = res
-            .response
-            .parse_struct("Threedsecureio PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Threedsecureio
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioPaymentsResponse = res
-            .response
-            .parse_struct("threedsecureio PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Threedsecureio
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCaptureRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioPaymentsResponse = res
-            .response
-            .parse_struct("Threedsecureio PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
@@ -377,148 +169,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Threedsecureio
 {
-    fn get_headers(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = threedsecureio::ThreedsecureioRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
-        let connector_req =
-            threedsecureio::ThreedsecureioRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefundsRouterData<api::Execute>,
-        res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: threedsecureio::RefundResponse = res
-            .response
-            .parse_struct("threedsecureio RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Threedsecureio
 {
-    fn get_headers(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RefundSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: threedsecureio::RefundResponse = res
-            .response
-            .parse_struct("threedsecureio RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 #[async_trait::async_trait]
@@ -629,53 +284,14 @@ impl
         data: &types::ConnectorAuthenticationRouterData,
         res: Response,
     ) -> CustomResult<types::ConnectorAuthenticationRouterData, errors::ConnectorError> {
-        let response: Result<
-            threedsecureio::ThreedsecureioAuthenticationResponse,
-            error_stack::Report<ParsingError>,
-        > = res
+        let response = res
             .response
-            .parse_struct("threedsecureio PaymentsSyncResponse");
-        println!("response authn {:?}", response);
-        let response =
-            response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq = json!({
-            "threeDSServerTransID": response.three_dsserver_trans_id,
-            "acsTransID": response.acs_trans_id,
-            "messageVersion": response.message_version,
-            "messageType": "CReq",
-            "challengeWindowSize": "01",
-        });
-        println!("creq authn {}", creq);
-        let creq_str = to_string(&creq)
-            .ok()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq_base64 = BASE64_ENGINE
-            .encode(creq_str)
-            .trim_end_matches('=')
-            .to_owned();
-        println!("creq_base64 authn {}", creq_base64);
-        Ok(types::ConnectorAuthenticationRouterData {
-            response: Ok(
-                types::authentication::AuthenticationResponseData::AuthNResponse {
-                    trans_status: response.trans_status.clone(),
-                    authn_flow_type: if response.trans_status
-                        == api_models::payments::TransStatus::C
-                    {
-                        AuthNFlowType::Challenge {
-                            acs_url: response.acs_url,
-                            challenge_request: Some(creq_base64),
-                            acs_reference_number: Some(response.acs_reference_number.clone()),
-                            acs_trans_id: Some(response.acs_trans_id.clone()),
-                            three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
-                            acs_signed_content: response.acs_signed_content,
-                        }
-                    } else {
-                        AuthNFlowType::Frictionless
-                    },
-                    cavv: response.authentication_value,
-                },
-            ),
-            ..data.clone()
+            .parse_struct("ThreedsecureioAuthenticationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
         })
     }
 
@@ -755,16 +371,16 @@ impl
     ) -> CustomResult<types::authentication::PreAuthNRouterData, errors::ConnectorError> {
         let response: threedsecureio::ThreedsecureioPreAuthenticationResponse = res
             .response
-            .parse_struct("threedsecureio PaymentsSyncResponse")
+            .parse_struct("threedsecureio ThreedsecureioPreAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq = json!({
+        let three_ds_method_data = json!({
             "threeDSServerTransID": response.threeds_server_trans_id,
         });
-        //"threeDSMethodNotificationURL": 'https://webhook.site/e3e30c35-6fe6-455e-8c72-64d6075b164f'
-        let creq_str = to_string(&creq)
-            .ok()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let creq_base64 = BASE64_ENGINE.encode(creq_str);
+        let three_ds_method_data_str = to_string(&three_ds_method_data)
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("error while constructing three_ds_method_data_str")?;
+        let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
         Ok(types::authentication::PreAuthNRouterData {
             response: Ok(
                 types::authentication::AuthenticationResponseData::PreAuthNResponse {
@@ -773,7 +389,7 @@ impl
                         response.acs_end_protocol_version.clone(),
                     )?,
                     authentication_connector_id: response.threeds_server_trans_id,
-                    three_ds_method_data: creq_base64,
+                    three_ds_method_data: three_ds_method_data_base64,
                     three_ds_method_url: response.threeds_method_url,
                     message_version: response.acs_end_protocol_version.clone(),
                 },
@@ -861,15 +477,10 @@ impl
         data: &types::ConnectorPostAuthenticationRouterData,
         res: Response,
     ) -> CustomResult<types::ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
-        let response: Result<
-            threedsecureio::ThreedsecureioPostAuthenticationResponse,
-            error_stack::Report<ParsingError>,
-        > = res
+        let response: threedsecureio::ThreedsecureioPostAuthenticationResponse = res
             .response
-            .parse_struct("threedsecureio PaymentsSyncResponse");
-        println!("response post-authn {:?}", response);
-        let response =
-            response.change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("threedsecureio PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ConnectorPostAuthenticationRouterData {
             response: Ok(
                 types::authentication::AuthenticationResponseData::PostAuthNResponse {
