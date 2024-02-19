@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -7,48 +6,13 @@ use super::generics;
 use crate::{
     enums, errors,
     process_tracker::{
-        ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
-        ProcessTrackerUpdateInternal,
+        ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
     },
     schema::process_tracker::dsl,
     PgPooledConn, StorageResult,
 };
 
-const BUSINESS_STATUS_PENDING: &str = "Pending";
-
 impl ProcessTrackerNew {
-    #[instrument(skip_all)]
-    pub fn new<T>(
-        process_tracker_id: impl Into<String>,
-        task: impl Into<String>,
-        runner: ProcessTrackerRunner,
-        tag: impl IntoIterator<Item = impl Into<String>>,
-        tracking_data: T,
-        schedule_time: PrimitiveDateTime,
-    ) -> StorageResult<Self>
-    where
-        T: serde::Serialize + std::fmt::Debug,
-    {
-        let current_time = common_utils::date_time::now();
-        Ok(Self {
-            id: process_tracker_id.into(),
-            name: Some(task.into()),
-            tag: tag.into_iter().map(Into::into).collect(),
-            runner: Some(runner.to_string()),
-            retry_count: 0,
-            schedule_time: Some(schedule_time),
-            rule: String::new(),
-            tracking_data: common_utils::ext_traits::Encode::<T>::encode_to_value(&tracking_data)
-                .change_context(errors::DatabaseError::Others)
-                .attach_printable("Failed to serialize process tracker tracking data")?,
-            business_status: String::from(BUSINESS_STATUS_PENDING),
-            status: enums::ProcessTrackerStatus::New,
-            event: vec![],
-            created_at: current_time,
-            updated_at: current_time,
-        })
-    }
-
     #[instrument(skip(conn))]
     pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
         generics::generic_insert(conn, self).await

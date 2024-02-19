@@ -305,15 +305,3 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 }
-
-#[async_trait::async_trait]
-pub trait ProcessTrackerExt {
-    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool;
-}
-
-#[async_trait::async_trait]
-impl ProcessTrackerExt for storage::ProcessTracker {
-    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
-        valid_statuses.iter().any(|x| x == &self.business_status)
-    }
-}
