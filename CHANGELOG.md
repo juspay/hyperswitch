@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.09.1-hotfix3
+
+### Bug Fixes
+
+- **connector:** [Payme] payme_transaction_id converted to optional ([#3710](https://github.com/juspay/hyperswitch/pull/3710)) ([`b4584f1`](https://github.com/juspay/hyperswitch/commit/b4584f170a4bf1a0316d53a6fa3cd17bfd561b8a))
+
+### Refactors
+
+- **connector:** [NMI] Add Zip code as mandatory field for 3DS ([#3665](https://github.com/juspay/hyperswitch/pull/3665)) ([`682f4ed`](https://github.com/juspay/hyperswitch/commit/682f4ede8e957021bf0c01849406d1acd6bc17bb))
+
+- - -
+
 ## 2024.02.09.1-hotfix2
 
 ### Bug Fixes
