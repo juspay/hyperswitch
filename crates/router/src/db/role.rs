@@ -171,6 +171,15 @@ impl RoleInterface for MockDb {
                         last_modified_at,
                         ..role.to_owned()
                     },
+                    storage::RoleUpdate::UpdateRoleName {
+                        role_name,
+                        last_modified_by,
+                    } => storage::Role {
+                        role_name,
+                        last_modified_at,
+                        last_modified_by,
+                        ..role.to_owned()
+                    },
                 };
                 role.to_owned()
             })

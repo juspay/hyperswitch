@@ -40,6 +40,7 @@ pub struct RoleNew {
 #[diesel(table_name = roles)]
 pub struct RoleUpdateInternal {
     groups: Option<Vec<enums::PermissionGroup>>,
+    role_name: Option<String>,
     last_modified_by: String,
     last_modified_at: PrimitiveDateTime,
 }
@@ -47,6 +48,10 @@ pub struct RoleUpdateInternal {
 pub enum RoleUpdate {
     UpdateGroup {
         groups: Vec<enums::PermissionGroup>,
+        last_modified_by: String,
+    },
+    UpdateRoleName {
+        role_name: String,
         last_modified_by: String,
     },
 }
@@ -60,6 +65,16 @@ impl From<RoleUpdate> for RoleUpdateInternal {
                 last_modified_by,
             } => Self {
                 groups: Some(groups),
+                role_name: None,
+                last_modified_at,
+                last_modified_by,
+            },
+            RoleUpdate::UpdateRoleName {
+                role_name,
+                last_modified_by,
+            } => Self {
+                groups: None,
+                role_name: Some(role_name),
                 last_modified_at,
                 last_modified_by,
             },
