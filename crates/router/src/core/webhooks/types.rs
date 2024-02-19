@@ -1,5 +1,5 @@
 use api_models::webhooks;
-use common_utils::{crypto::SignMessage, ext_traits};
+use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
 use serde::Serialize;
 
@@ -21,10 +21,10 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
         &self,
         payment_response_hash_key: Option<String>,
     ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError> {
-        let webhook_signature_payload =
-            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(self)
-                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-                .attach_printable("failed encoding outgoing webhook payload")?;
+        let webhook_signature_payload = self
+            .encode_to_string_of_json()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("failed encoding outgoing webhook payload")?;
 
         Ok(payment_response_hash_key
             .map(|key| {

@@ -1,3 +1,4 @@
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -169,11 +170,9 @@ impl<F, T>
                     .qrcode_img
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
             };
-            let connector_metadata = Some(common_utils::ext_traits::Encode::<
-                GlobepayConnectorMetadata,
-            >::encode_to_value(&globepay_metadata))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let connector_metadata = Some(globepay_metadata.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             let globepay_status = item
                 .response
                 .result_code

@@ -20,21 +20,22 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
-    // async fn list_all_roles(
-    //     &self,
-    //     merchant_id: &str,
-    //     org_id: &str,
-    // ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
-    // async fn update_permissions_by_role_id(
-    //     &self,
-    //     user_id: &str,
-    //     merchant_id: &str,
-    //     update: storage::RoleUpdate,
-    // ) -> CustomResult<storage::Role, errors::StorageError>;
+    async fn update_role_by_role_id(
+        &self,
+        role_id: &str,
+        role_update: storage::RoleUpdate,
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
-    ) -> CustomResult<bool, errors::StorageError>;
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
+    async fn list_all_roles(
+        &self,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -52,7 +53,19 @@ impl RoleInterface for Store {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Role::find_by_role_id(&conn, role_id.to_owned())
+        storage::Role::find_by_role_id(&conn, role_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn update_role_by_role_id(
+        &self,
+        role_id: &str,
+        role_update: storage::RoleUpdate,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::update_by_role_id(&conn, role_id, role_update)
             .await
             .map_err(Into::into)
             .into_report()
@@ -61,9 +74,21 @@ impl RoleInterface for Store {
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
+    ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Role::delete_by_role_id(&conn, role_id.to_owned())
+        storage::Role::delete_by_role_id(&conn, role_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn list_all_roles(
+        &self,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::list_roles(&conn, merchant_id, org_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -124,18 +149,88 @@ impl RoleInterface for MockDb {
             )
     }
 
+    async fn update_role_by_role_id(
+        &self,
+        role_id: &str,
+        role_update: storage::RoleUpdate,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let mut roles = self.roles.lock().await;
+        let last_modified_at = common_utils::date_time::now();
+
+        roles
+            .iter_mut()
+            .find(|role| role.role_id == role_id)
+            .map(|role| {
+                *role = match role_update {
+                    storage::RoleUpdate::UpdateGroup {
+                        groups,
+                        last_modified_by,
+                    } => storage::Role {
+                        groups,
+                        last_modified_by,
+                        last_modified_at,
+                        ..role.to_owned()
+                    },
+                    storage::RoleUpdate::UpdateRoleName {
+                        role_name,
+                        last_modified_by,
+                    } => storage::Role {
+                        role_name,
+                        last_modified_at,
+                        last_modified_by,
+                        ..role.to_owned()
+                    },
+                };
+                role.to_owned()
+            })
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No role available for role_id = {role_id}"
+                ))
+                .into(),
+            )
+    }
+
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        let mut roles = self.user_roles.lock().await;
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let mut roles = self.roles.lock().await;
         let role_index = roles
             .iter()
-            .position(|role| role.user_id == role_id)
+            .position(|role| role.role_id == role_id)
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No user available for role_id = {role_id}"
+                "No role available for role_id = {role_id}"
             )))?;
-        roles.remove(role_index);
-        Ok(true)
+
+        Ok(roles.remove(role_index))
+    }
+
+    async fn list_all_roles(
+        &self,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let roles = self.roles.lock().await;
+
+        let roles_list: Vec<_> = roles
+            .iter()
+            .filter(|role| {
+                role.merchant_id == merchant_id
+                    || (role.org_id == org_id
+                        && role.scope == diesel_models::enums::RoleScope::Organization)
+            })
+            .cloned()
+            .collect();
+
+        if roles_list.is_empty() {
+            return Err(errors::StorageError::ValueNotFound(format!(
+                "No role found for merchant id = {} and org_id = {}",
+                merchant_id, org_id
+            ))
+            .into());
+        }
+
+        Ok(roles_list)
     }
 }

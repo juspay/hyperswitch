@@ -137,12 +137,18 @@ impl ConnectorCommon for Noon {
             Ok(noon_error_response) => {
                 event_builder.map(|i| i.set_error_response_body(&noon_error_response));
                 router_env::logger::info!(connector_response=?noon_error_response);
+                // Adding in case of timeouts, if psync gives 4xx with this code, fail the payment
+                let attempt_status = if noon_error_response.result_code == 19001 {
+                    Some(enums::AttemptStatus::Failure)
+                } else {
+                    None
+                };
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: consts::NO_ERROR_CODE.to_string(),
+                    code: noon_error_response.result_code.to_string(),
                     message: noon_error_response.class_description,
                     reason: Some(noon_error_response.message),
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                 })
             }
@@ -159,6 +165,7 @@ impl ConnectorValidation for Noon {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {

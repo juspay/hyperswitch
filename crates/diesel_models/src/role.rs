@@ -39,15 +39,45 @@ pub struct RoleNew {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = roles)]
 pub struct RoleUpdateInternal {
-    role_id: Option<String>,
-    groups: Vec<String>,
-    last_modified_by: Option<String>,
+    groups: Option<Vec<enums::PermissionGroup>>,
+    role_name: Option<String>,
+    last_modified_by: String,
     last_modified_at: PrimitiveDateTime,
 }
 
 pub enum RoleUpdate {
     UpdateGroup {
-        role_id: String,
-        modified_by: String,
+        groups: Vec<enums::PermissionGroup>,
+        last_modified_by: String,
     },
+    UpdateRoleName {
+        role_name: String,
+        last_modified_by: String,
+    },
+}
+
+impl From<RoleUpdate> for RoleUpdateInternal {
+    fn from(value: RoleUpdate) -> Self {
+        let last_modified_at = common_utils::date_time::now();
+        match value {
+            RoleUpdate::UpdateGroup {
+                groups,
+                last_modified_by,
+            } => Self {
+                groups: Some(groups),
+                role_name: None,
+                last_modified_at,
+                last_modified_by,
+            },
+            RoleUpdate::UpdateRoleName {
+                role_name,
+                last_modified_by,
+            } => Self {
+                groups: None,
+                role_name: Some(role_name),
+                last_modified_at,
+                last_modified_by,
+            },
+        }
+    }
 }
