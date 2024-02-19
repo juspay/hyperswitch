@@ -25,7 +25,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use scheduler::{db::process_tracker::ProcessTrackerExt, utils as pt_utils};
+use scheduler::utils as pt_utils;
 use time;
 
 pub use self::operations::{
@@ -2404,8 +2404,8 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process
-        .reset(db.as_scheduler(), schedule_time)
+    db.as_scheduler()
+        .reset_process(psync_process, schedule_time)
         .await?;
     Ok(())
 }

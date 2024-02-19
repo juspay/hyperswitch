@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, refunds},
         domain,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
@@ -910,9 +910,13 @@ pub async fn sync_refund_with_gateway_workflow(
     match response.refund_status {
         status if terminal_status.contains(&status) => {
             let id = refund_tracker.id.clone();
-            refund_tracker
-                .clone()
-                .finish_with_status(state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(
+                    refund_tracker.clone(),
+                    format!("COMPLETED_BY_PT_{id}"),
+                )
                 .await?
         }
         _ => {
@@ -1039,9 +1043,11 @@ pub async fn trigger_refund_execute_workflow(
         (_, _) => {
             //mark task as finished
             let id = refund_tracker.id.clone();
-            refund_tracker
-                .clone()
-                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    refund_tracker.clone(),
+                    format!("COMPLETED_BY_PT_{id}"),
+                )
                 .await?;
         }
     };
@@ -1175,7 +1181,11 @@ pub async fn retry_refund_sync_task(
 
     match schedule_time {
         Some(s_time) => {
-            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            let retry_schedule = db
+                .as_scheduler()
+                .retry_process(pt, s_time)
+                .await
+                .map_err(Into::into);
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
@@ -1183,9 +1193,10 @@ pub async fn retry_refund_sync_task(
             );
             retry_schedule
         }
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
-                .await
-        }
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .await
+            .map_err(Into::into),
     }
 }

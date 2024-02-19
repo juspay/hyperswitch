@@ -1385,6 +1385,32 @@ impl ProcessTrackerInterface for KafkaStore {
         self.diesel_store.insert_process(new).await
     }
 
+    async fn reset_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store.reset_process(this, schedule_time).await
+    }
+
+    async fn retry_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store.retry_process(this, schedule_time).await
+    }
+
+    async fn finish_process_with_business_status(
+        &self,
+        this: storage::ProcessTracker,
+        business_status: String,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_business_status(this, business_status)
+            .await
+    }
+
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,

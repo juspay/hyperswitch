@@ -17,7 +17,7 @@ use crate::{
     routes::metrics,
     types::{
         api, domain,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums},
     },
     utils::{self, StringExt},
 };
@@ -1042,9 +1042,11 @@ pub async fn start_tokenize_data_workflow(
             logger::info!("Card From locker deleted Successfully");
             //mark task as finished
             let id = tokenize_tracker.id.clone();
-            tokenize_tracker
-                .clone()
-                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    tokenize_tracker.clone(),
+                    format!("COMPLETED_BY_PT_{id}"),
+                )
                 .await?;
         }
         Err(err) => {
@@ -1089,7 +1091,11 @@ pub async fn retry_delete_tokenize(
 
     match schedule_time {
         Some(s_time) => {
-            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            let retry_schedule = db
+                .as_scheduler()
+                .retry_process(pt, s_time)
+                .await
+                .map_err(Into::into);
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
@@ -1100,10 +1106,11 @@ pub async fn retry_delete_tokenize(
             );
             retry_schedule
         }
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
-                .await
-        }
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .await
+            .map_err(Into::into),
     }
 }
 

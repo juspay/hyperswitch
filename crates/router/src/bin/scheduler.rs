@@ -14,7 +14,6 @@ use router::{
     },
     logger, routes,
     services::{self, api},
-    types::storage::ProcessTrackerExt,
     workflows,
 };
 use router_env::{instrument, tracing};
@@ -243,11 +242,10 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                 Ok(_) => (),
                 Err(error) => {
                     logger::error!(%error, "Failed while handling error");
-                    let status = process
-                        .finish_with_status(
-                            state.get_db().as_scheduler(),
-                            "GLOBAL_FAILURE".to_string(),
-                        )
+                    let status = state
+                        .get_db()
+                        .as_scheduler()
+                        .finish_process_with_business_status(process, "GLOBAL_FAILURE".to_string())
                         .await;
                     if let Err(err) = status {
                         logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");

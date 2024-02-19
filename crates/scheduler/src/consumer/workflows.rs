@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 pub use diesel_models::process_tracker as storage;
 
-use crate::{db::process_tracker::ProcessTrackerExt, errors, SchedulerAppState};
+use crate::{errors, SchedulerAppState};
 
 pub type WorkflowSelectorFn =
     fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
@@ -37,11 +37,10 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
                 Ok(_) => (),
                 Err(_error) => {
                     // logger::error!(%error, "Failed while handling error");
-                    let status = process
-                        .finish_with_status(
-                            state.get_db().as_scheduler(),
-                            "GLOBAL_FAILURE".to_string(),
-                        )
+                    let status = app_state
+                        .get_db()
+                        .as_scheduler()
+                        .finish_process_with_business_status(process, "GLOBAL_FAILURE".to_string())
                         .await;
                     if let Err(_err) = status {
                         // logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
