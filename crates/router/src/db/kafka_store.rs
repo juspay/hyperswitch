@@ -1377,15 +1377,6 @@ impl ProcessTrackerInterface for KafkaStore {
             .process_tracker_update_process_status_by_ids(task_ids, task_update)
             .await
     }
-    async fn update_process_tracker(
-        &self,
-        this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        self.diesel_store
-            .update_process_tracker(this, process)
-            .await
-    }
 
     async fn insert_process(
         &self,

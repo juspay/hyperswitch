@@ -31,11 +31,6 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
         task_ids: Vec<String>,
         task_update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<usize, errors::StorageError>;
-    async fn update_process_tracker(
-        &self,
-        this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError>;
 
     async fn insert_process(
         &self,
@@ -108,18 +103,6 @@ impl ProcessTrackerInterface for Store {
     }
 
     async fn update_process(
-        &self,
-        this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, process)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn update_process_tracker(
         &self,
         this: storage::ProcessTracker,
         process: storage::ProcessTrackerUpdate,
@@ -214,15 +197,6 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn update_process_tracker(
-        &self,
-        _this: storage::ProcessTracker,
-        _process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
-    }
-
     async fn process_tracker_update_process_status_by_ids(
         &self,
         _task_ids: Vec<String>,
@@ -267,7 +241,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         db: &dyn SchedulerInterface,
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
-        db.update_process_tracker(
+        db.update_process(
             self.clone(),
             storage::ProcessTrackerUpdate::StatusRetryUpdate {
                 status: storage_enums::ProcessTrackerStatus::New,
@@ -285,7 +259,7 @@ impl ProcessTrackerExt for storage::ProcessTracker {
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
-        db.update_process_tracker(
+        db.update_process(
             self.clone(),
             storage::ProcessTrackerUpdate::StatusRetryUpdate {
                 status: storage_enums::ProcessTrackerStatus::Pending,
