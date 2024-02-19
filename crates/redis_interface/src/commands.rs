@@ -75,7 +75,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
         self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), ttl)
             .await
@@ -90,7 +91,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_key(key, serialized.as_slice()).await
@@ -106,7 +108,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.pool
@@ -307,7 +310,8 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = Encode::<V>::encode_to_vec(&value)
+        let serialized = value
+            .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)

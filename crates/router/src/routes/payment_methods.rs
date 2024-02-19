@@ -299,7 +299,8 @@ impl ParentPaymentMethodToken {
         token: PaymentTokenData,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let token_json_str = Encode::<PaymentTokenData>::encode_to_string_of_json(&token)
+        let token_json_str = token
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to serialize hyperswitch token to json")?;
         let redis_conn = state

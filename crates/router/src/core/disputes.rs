@@ -1,5 +1,5 @@
 use api_models::{disputes as dispute_models, files as files_api_models};
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 pub mod transformers;
@@ -20,7 +20,6 @@ use crate::{
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
-    utils,
 };
 
 #[instrument(skip(state))]
@@ -384,7 +383,8 @@ pub async fn attach_evidence(
         file_id,
     );
     let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
-        evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
+        evidence: updated_dispute_evidence
+            .encode_to_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while encoding dispute evidence")?
             .into(),
@@ -446,7 +446,8 @@ pub async fn delete_evidence(
     let updated_dispute_evidence =
         transformers::delete_evidence_file(dispute_evidence, delete_evidence_request.evidence_type);
     let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
-        evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
+        evidence: updated_dispute_evidence
+            .encode_to_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while encoding dispute evidence")?
             .into(),
