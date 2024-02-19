@@ -798,7 +798,7 @@ pub async fn schedule_refund_execution(
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
-    let runner = scheduler::types::ProcessTrackerRunner::RefundWorkflowRouter;
+    let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
     let task_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
 
@@ -1023,7 +1023,7 @@ pub async fn trigger_refund_execute_workflow(
             add_refund_sync_task(
                 db,
                 &updated_refund,
-                scheduler::types::ProcessTrackerRunner::RefundWorkflowRouter,
+                storage::ProcessTrackerRunner::RefundWorkflowRouter,
             )
             .await?;
         }
@@ -1032,7 +1032,7 @@ pub async fn trigger_refund_execute_workflow(
             add_refund_sync_task(
                 db,
                 &refund,
-                scheduler::types::ProcessTrackerRunner::RefundWorkflowRouter,
+                storage::ProcessTrackerRunner::RefundWorkflowRouter,
             )
             .await?;
         }
@@ -1064,7 +1064,7 @@ pub fn refund_to_refund_core_workflow_model(
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: scheduler::types::ProcessTrackerRunner,
+    runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
@@ -1107,7 +1107,7 @@ pub async fn add_refund_sync_task(
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: scheduler::types::ProcessTrackerRunner,
+    runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);

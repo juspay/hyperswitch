@@ -20,7 +20,7 @@ use router::{
 use router_env::{instrument, tracing};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
-    types::ProcessTrackerRunner, workflows::ProcessTrackerWorkflows, SchedulerAppState,
+    workflows::ProcessTrackerWorkflows, SchedulerAppState,
 };
 use storage_impl::errors::ApplicationError;
 use tokio::sync::{mpsc, oneshot};
@@ -218,15 +218,16 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
         process: storage::ProcessTracker,
     ) -> Result<(), ProcessTrackerError> {
         let runner = process.runner.clone().get_required_value("runner")?;
-        let runner: Option<ProcessTrackerRunner> = runner.parse_enum("ProcessTrackerRunner").ok();
+        let runner: Option<storage::ProcessTrackerRunner> =
+            runner.parse_enum("ProcessTrackerRunner").ok();
         let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState>> = match runner {
-            Some(ProcessTrackerRunner::PaymentsSyncWorkflow) => {
+            Some(storage::ProcessTrackerRunner::PaymentsSyncWorkflow) => {
                 Box::new(workflows::payment_sync::PaymentsSyncWorkflow)
             }
-            Some(ProcessTrackerRunner::RefundWorkflowRouter) => {
+            Some(storage::ProcessTrackerRunner::RefundWorkflowRouter) => {
                 Box::new(workflows::refund_router::RefundWorkflowRouter)
             }
-            Some(ProcessTrackerRunner::DeleteTokenizeDataWorkflow) => {
+            Some(storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow) => {
                 Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
             }
             _ => Err(ProcessTrackerError::UnexpectedFlow)?,

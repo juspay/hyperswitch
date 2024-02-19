@@ -42,7 +42,9 @@ pub use data_models::payments::{
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
-pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
+pub use diesel_models::{
+    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
+};
 pub use scheduler::db::process_tracker;
 
 pub use self::{
