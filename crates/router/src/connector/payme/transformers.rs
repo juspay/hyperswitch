@@ -882,7 +882,7 @@ pub struct SaleQuery {
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
     buyer_key: Option<Secret<String>>,
     status_error_details: Option<String>,
     status_error_code: Option<u32>,
@@ -892,7 +892,7 @@ pub struct PaymePaySaleResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PaymeMetadata {
-    payme_transaction_id: String,
+    payme_transaction_id: Option<String>,
 }
 
 impl<F, T>
@@ -982,6 +982,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
     payme_transaction_id: String,
+    status_error_code: i64,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
@@ -1105,7 +1106,7 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
         Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
-            payme_transaction_id: value.payme_transaction_id,
+            payme_transaction_id: Some(value.payme_transaction_id),
             buyer_key: value.buyer_key,
             sale_3ds: None,
             redirect_url: None,
