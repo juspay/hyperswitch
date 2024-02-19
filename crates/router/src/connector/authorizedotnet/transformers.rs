@@ -579,9 +579,7 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone().expose()),
-                        )
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -659,9 +657,7 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone().expose()),
-                        )
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {

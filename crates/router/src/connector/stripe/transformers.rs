@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref};
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::ByteSliceExt,
+    ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::RequestContent,
 };
@@ -2437,11 +2437,7 @@ pub fn get_connector_metadata(
                     },
                 };
 
-                Some(common_utils::ext_traits::Encode::<
-                    SepaAndBacsBankTransferInstructions,
-                >::encode_to_value(
-                    &bank_transfer_instructions
-                ))
+                Some(bank_transfer_instructions.encode_to_value())
             }
             StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
                 let wechat_pay_instructions = QrCodeNextInstructions {
@@ -2449,22 +2445,14 @@ pub fn get_connector_metadata(
                     display_to_timestamp: None,
                 };
 
-                Some(
-                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
-                        &wechat_pay_instructions,
-                    ),
-                )
+                Some(wechat_pay_instructions.encode_to_value())
             }
             StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(response) => {
                 let cashapp_qr_instructions: QrCodeNextInstructions = QrCodeNextInstructions {
                     image_data_url: response.qr_code.image_url_png.to_owned(),
                     display_to_timestamp: response.qr_code.expires_at.to_owned(),
                 };
-                Some(
-                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
-                        &cashapp_qr_instructions,
-                    ),
-                )
+                Some(cashapp_qr_instructions.encode_to_value())
             }
             _ => None,
         })
@@ -3149,10 +3137,8 @@ impl<F, T>
         item: types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_source_response = item.response.to_owned();
-        let connector_metadata =
-            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
-                &connector_source_response,
-            )
+        let connector_metadata = connector_source_response
+            .encode_to_value()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         // We get pending as the status from stripe, but hyperswitch should give it as requires_customer_action as
         // customer has to make payment to the virtual account number given in the source response
@@ -3206,10 +3192,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
         item: types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_source_response = item.response.to_owned();
-        let connector_metadata =
-            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
-                &connector_source_response.source,
-            )
+        let connector_metadata = connector_source_response
+            .source
+            .encode_to_value()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(item.response.status);
         let response = if connector_util::is_payment_failure(status) {
