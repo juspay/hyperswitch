@@ -909,13 +909,12 @@ pub async fn sync_refund_with_gateway_workflow(
     ];
     match response.refund_status {
         status if terminal_status.contains(&status) => {
-            let id = refund_tracker.id.clone();
             state
                 .store
                 .as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    format!("COMPLETED_BY_PT_{id}"),
+                    "COMPLETED_BY_PT".to_string(),
                 )
                 .await?
         }
@@ -1042,11 +1041,10 @@ pub async fn trigger_refund_execute_workflow(
         }
         (_, _) => {
             //mark task as finished
-            let id = refund_tracker.id.clone();
             db.as_scheduler()
                 .finish_process_with_business_status(
                     refund_tracker.clone(),
-                    format!("COMPLETED_BY_PT_{id}"),
+                    "COMPLETED_BY_PT".to_string(),
                 )
                 .await?;
         }

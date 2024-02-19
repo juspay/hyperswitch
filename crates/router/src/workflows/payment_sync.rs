@@ -90,11 +90,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         ];
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
-                let id = process.id.clone();
                 state
                     .get_db()
                     .as_scheduler()
-                    .finish_process_with_business_status(process, format!("COMPLETED_BY_PT_{id}"))
+                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                     .await?
             }
             _ => {

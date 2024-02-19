@@ -1041,11 +1041,10 @@ pub async fn start_tokenize_data_workflow(
         Ok(()) => {
             logger::info!("Card From locker deleted Successfully");
             //mark task as finished
-            let id = tokenize_tracker.id.clone();
             db.as_scheduler()
                 .finish_process_with_business_status(
                     tokenize_tracker.clone(),
-                    format!("COMPLETED_BY_PT_{id}"),
+                    "COMPLETED_BY_PT".to_string(),
                 )
                 .await?;
         }
