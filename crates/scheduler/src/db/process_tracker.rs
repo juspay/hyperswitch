@@ -2,7 +2,6 @@ use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
-use serde::Serialize;
 use storage_impl::{connection, errors, mock_db::MockDb};
 use time::PrimitiveDateTime;
 
@@ -238,17 +237,6 @@ impl ProcessTrackerInterface for MockDb {
 pub trait ProcessTrackerExt {
     fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool;
 
-    fn make_process_tracker_new<T>(
-        process_tracker_id: String,
-        task: &str,
-        runner: storage::ProcessTrackerRunner,
-        tag: impl IntoIterator<Item = impl Into<String>>,
-        tracking_data: T,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
-    where
-        T: Serialize;
-
     async fn reset(
         self,
         db: &dyn SchedulerInterface,
@@ -272,36 +260,6 @@ pub trait ProcessTrackerExt {
 impl ProcessTrackerExt for storage::ProcessTracker {
     fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
         valid_statuses.iter().any(|x| x == &self.business_status)
-    }
-
-    fn make_process_tracker_new<T>(
-        process_tracker_id: String,
-        task: &str,
-        runner: storage::ProcessTrackerRunner,
-        tag: impl IntoIterator<Item = impl Into<String>>,
-        tracking_data: T,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
-    where
-        T: Serialize,
-    {
-        let current_time = common_utils::date_time::now();
-        Ok(storage::ProcessTrackerNew {
-            id: process_tracker_id,
-            name: Some(String::from(task)),
-            tag: tag.into_iter().map(Into::into).collect(),
-            runner: Some(runner.to_string()),
-            retry_count: 0,
-            schedule_time: Some(schedule_time),
-            rule: String::new(),
-            tracking_data: serde_json::to_value(tracking_data)
-                .map_err(|_| sch_errors::ProcessTrackerError::SerializationFailed)?,
-            business_status: String::from("Pending"),
-            status: storage_enums::ProcessTrackerStatus::New,
-            event: vec![],
-            created_at: current_time,
-            updated_at: current_time,
-        })
     }
 
     async fn reset(

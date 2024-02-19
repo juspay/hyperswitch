@@ -25,7 +25,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
+use scheduler::{db::process_tracker::ProcessTrackerExt, utils as pt_utils};
 use time;
 
 pub use self::operations::{
@@ -2356,7 +2356,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), sch_errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
@@ -2372,14 +2372,16 @@ pub async fn add_process_sync_task(
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
         runner,
         tag,
         tracking_data,
         schedule_time,
-    )?;
+    )
+    .map_err(errors::StorageError::from)
+    .into_report()?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())

@@ -263,16 +263,16 @@ pub async fn add_api_key_expiry_task(
     };
 
     let process_tracker_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
-    let process_tracker_entry = <storage::ProcessTracker as scheduler::db::process_tracker::ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            API_KEY_EXPIRY_NAME,
-            API_KEY_EXPIRY_RUNNER,
-            [API_KEY_EXPIRY_TAG],
-            api_key_expiry_tracker,
-            schedule_time,
-        ).into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct API key expiry process tracker task")?;
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        API_KEY_EXPIRY_NAME,
+        API_KEY_EXPIRY_RUNNER,
+        [API_KEY_EXPIRY_TAG],
+        api_key_expiry_tracker,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct API key expiry process tracker task")?;
 
     store
         .insert_process(process_tracker_entry)

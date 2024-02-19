@@ -1071,18 +1071,16 @@ pub async fn add_refund_sync_task(
     let schedule_time = common_utils::date_time::now();
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
     let tag = ["REFUND"];
-    let process_tracker_entry =
-        <storage::ProcessTracker as ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            task,
-            runner,
-            tag,
-            refund_workflow_tracking_data,
-            schedule_time,
-        )
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct refund sync process tracker task")?;
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        refund_workflow_tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct refund sync process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
@@ -1114,18 +1112,16 @@ pub async fn add_refund_execute_task(
     let tag = ["REFUND"];
     let schedule_time = common_utils::date_time::now();
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
-    let process_tracker_entry =
-        <storage::ProcessTracker as ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            task,
-            runner,
-            tag,
-            refund_workflow_tracking_data,
-            schedule_time,
-        )
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct refund execute process tracker task")?;
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        refund_workflow_tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct refund execute process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
