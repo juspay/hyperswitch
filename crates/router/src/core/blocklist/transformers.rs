@@ -53,8 +53,7 @@ async fn generate_fingerprint_request<'a>(
 
     let jwe_payload = generate_jwe_payload_for_request(jwekey, &jws, locker_choice).await?;
     let mut url = match locker_choice {
-        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
-        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
     };
     url.push_str(LOCKER_FINGERPRINT_PATH);
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -87,16 +86,12 @@ async fn generate_jwe_payload_for_request(
 
     #[cfg(feature = "aws_kms")]
     let public_key = match locker_choice {
-        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => {
-            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
-        }
+        api_enums::LockerChoice::HyperswitchCardVault => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
     };
 
     #[cfg(not(feature = "aws_kms"))]
     let public_key = match locker_choice {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
@@ -178,13 +173,12 @@ async fn decrypt_generate_fingerprint_response_payload(
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Tartarus);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
     #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
-        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => {
-            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
         }
     };
 
@@ -193,8 +187,7 @@ async fn decrypt_generate_fingerprint_response_payload(
 
     #[cfg(not(feature = "aws_kms"))]
     let public_key = match target_locker {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
     };
 
     #[cfg(not(feature = "aws_kms"))]
