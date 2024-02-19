@@ -983,7 +983,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
-    payme_transaction_id: Option<String>,
+    payme_transaction_id: String,
     status_error_code: i64,
 }
 
