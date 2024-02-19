@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -112,10 +112,10 @@ pub struct MerchantDefinedInformation {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    cavv: Option<Secret<String>>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
 }
 
@@ -889,7 +889,7 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationResponse {
-    access_token: String,
+    access_token: Secret<String>,
     device_data_collection_url: String,
     reference_id: String,
 }
@@ -1066,7 +1066,8 @@ impl<F>
                     redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .expose(),
                         ddc_url: info_response
                             .consumer_authentication_information
                             .device_data_collection_url,
@@ -1321,11 +1322,11 @@ pub enum BankOfAmericaAuthEnrollmentStatus {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    cavv: Option<Secret<String>>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
 }
 
@@ -1337,7 +1338,7 @@ pub struct BankOfAmericaThreeDSMetadata {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationEnrollmentResponse {
-    access_token: Option<String>,
+    access_token: Option<Secret<String>>,
     step_up_url: Option<String>,
     //Added to segregate the three_ds_data in a separate struct
     #[serde(flatten)]
@@ -1420,7 +1421,8 @@ impl<F>
                     let redirection_data = match (
                         info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .map(|access_token| access_token.expose()),
                         info_response
                             .consumer_authentication_information
                             .step_up_url,
