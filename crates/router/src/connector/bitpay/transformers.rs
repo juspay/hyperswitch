@@ -141,7 +141,7 @@ pub struct BitpayPaymentResponseData {
     pub redirect_url: Option<String>,
     pub refund_address_request_pending: Option<bool>,
     pub merchant_name: Option<String>,
-    pub token: Option<String>,
+    pub token: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
