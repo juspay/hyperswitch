@@ -1,0 +1,115 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "connector_type": "payment_processor",
+      "connector_name": "cybersource",
+      "connector_account_details": {
+        "auth_type": "SignatureKey",
+        "api_secret": "{{connector_api_secret}}",
+        "api_key": "{{connector_api_key}}",
+        "key1": "{{connector_key1}}"
+      },
+      "test_mode": false,
+      "disabled": false,
+      "payment_methods_enabled": [
+        {
+          "payment_method": "card",
+          "payment_method_types": [
+            {
+              "payment_method_type": "credit",
+              "card_networks": [
+                "AmericanExpress",
+                "Discover",
+                "Interac",
+                "JCB",
+                "Mastercard",
+                "Visa",
+                "DinersClub",
+                "UnionPay",
+                "RuPay"
+              ],
+              "minimum_amount": 1,
+              "maximum_amount": 68607706,
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
+            },
+            {
+              "payment_method_type": "debit",
+              "card_networks": [
+                "AmericanExpress",
+                "Discover",
+                "Interac",
+                "JCB",
+                "Mastercard",
+                "Visa",
+                "DinersClub",
+                "UnionPay",
+                "RuPay"
+              ],
+              "minimum_amount": 1,
+              "maximum_amount": 68607706,
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/account/:account_id/connectors",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
+    "variable": [
+      {
+        "key": "account_id",
+        "value": "{{merchant_id}}",
+        "description": "(Required) The unique identifier for the merchant account"
+      }
+    ]
+  },
+  "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+}
