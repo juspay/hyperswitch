@@ -491,12 +491,12 @@ pub async fn invite_user(
         let is_email_sent;
         #[cfg(feature = "email")]
         {
-            let email_contents = email_types::ActivateInvitedUser {
+            let email_contents = email_types::InviteRegistedUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
                 settings: state.conf.clone(),
                 subject: "You have been invited to join Hyperswitch Community!",
-                merchant_id: user_from_token.merchant_id.clone(),
+                merchant_id: user_from_token.merchant_id,
             };
 
             let send_email_result = state
@@ -711,7 +711,7 @@ async fn handle_existing_user_invitation(
     #[cfg(feature = "email")]
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-        let email_contents = email_types::ActivateInvitedUser {
+        let email_contents = email_types::InviteRegistedUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
             settings: state.conf.clone(),
@@ -918,7 +918,7 @@ pub async fn activate_from_email(
         .get_merchant_id()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let _update_status_result = state
+    let update_status_result = state
         .store
         .update_user_role_by_user_id_merchant_id(
             user.get_user_id(),
@@ -942,15 +942,16 @@ pub async fn activate_from_email(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = user_from_db
-        .get_role_from_db_by_merchant_id(&state.clone(), merchant_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token(&state, &user_from_db, &update_status_result).await?;
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
+        utils::user::get_dashboard_entry_response(
+            &state,
+            user_from_db,
+            update_status_result,
+            token,
+        )?,
     ))
 }
 
