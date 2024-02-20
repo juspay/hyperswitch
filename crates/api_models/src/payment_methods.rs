@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cards::CardNumber;
 use common_utils::{
@@ -861,6 +861,19 @@ pub struct TokenizedCardValue1 {
     pub card_token: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodCountryCurrencyList {
+    pub connector: String,
+    pub payment_method_type: api_enums::PaymentMethodType,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CurrenciesCountriesBasedOnPm {
+    pub currency: Option<HashSet<api_enums::Currency>>,
+    pub country: Option<HashSet<api_enums::CountryAlpha2>>,
+}
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue2 {

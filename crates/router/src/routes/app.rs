@@ -621,7 +621,8 @@ impl PaymentMethods {
             .service(
                 web::resource("")
                     .route(web::post().to(create_payment_method_api))
-                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+                    .route(web::get().to(list_payment_method_api)) // TODO : added for sdk compatibility for now, need to deprecate this later
+                    .route(web::get().to(payment_method_countries_currencies_retrieve_api)),
             )
             .service(
                 web::resource("/{payment_method_id}")
@@ -809,7 +810,11 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
-            .service(web::resource("/").route(web::post().to(config_key_create)))
+            .service(
+                web::resource("/")
+                    .route(web::post().to(config_key_create))
+                    .route(web::get().to(payment_method_countries_currencies_retrieve_api)),
+            )
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))

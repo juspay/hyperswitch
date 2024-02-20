@@ -252,6 +252,27 @@ pub async fn payment_method_delete_api(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCountriesCurrenciesRetrieve))]
+pub async fn payment_method_countries_currencies_retrieve_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::PaymentMethodCountryCurrencyList>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodCountriesCurrenciesRetrieve;
+    let payload = query_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _auth, req| cards::retrieve_countries_currencies_based_on_pmt(state, req),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

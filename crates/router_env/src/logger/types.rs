@@ -110,6 +110,8 @@ pub enum Flow {
     CustomerPaymentMethodsList,
     /// List Customers for a merchant
     CustomersList,
+    /// Payment methods countries and currencies retrieve flow.
+    PaymentMethodCountriesCurrenciesRetrieve,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.

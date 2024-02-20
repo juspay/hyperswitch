@@ -2,7 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::{
     payment_methods::{
-        CustomerPaymentMethodsListResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
+        CurrenciesCountriesBasedOnPm, CustomerPaymentMethodsListResponse,
+        PaymentMethodCountryCurrencyList, PaymentMethodDeleteResponse, PaymentMethodListRequest,
         PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
@@ -119,6 +120,19 @@ impl ApiEventMetric for PaymentMethodListRequest {
     }
 }
 
+impl ApiEventMetric for PaymentMethodCountryCurrencyList {
+    // fn get_api_event_type(&self) -> Option<ApiEventsType> {
+    //     Some(ApiEventsType::PaymentMethodList {
+    //         payment_id: self
+    //             .client_secret
+    //             .as_ref()
+    //             .and_then(|cs| cs.rsplit_once("_secret_"))
+    //             .map(|(pid, _)| pid.to_string()),
+    //     })
+    // }
+}
+
+impl ApiEventMetric for CurrenciesCountriesBasedOnPm {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 impl ApiEventMetric for PaymentListFilterConstraints {

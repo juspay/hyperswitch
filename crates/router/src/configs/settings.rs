@@ -25,7 +25,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -328,22 +328,22 @@ pub struct BanksVector {
     pub banks: HashSet<api_models::enums::BankNames>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(transparent)]
 pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(transparent)]
 pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFlowFilter>);
 
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum PaymentMethodFilterKey {
     PaymentMethodType(api_models::enums::PaymentMethodType),
     CardNetwork(api_models::enums::CardNetwork),
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "deserialize_optional_hashset")]
@@ -353,7 +353,7 @@ pub struct CurrencyCountryFlowFilter {
     pub not_available_flows: Option<NotAvailableFlows>,
 }
 
-#[derive(Debug, Deserialize, Copy, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Copy, Clone, Default)]
 #[serde(default)]
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,

@@ -7,9 +7,10 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes, MaskedBankDetails,
-        PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes,
+        CurrenciesCountriesBasedOnPm, MaskedBankDetails, PaymentExperienceTypes,
+        PaymentMethodCountryCurrencyList, PaymentMethodsData, RequestPaymentMethodTypes,
+        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
@@ -2204,6 +2205,12 @@ pub async fn filter_payment_methods(
                         true
                     };
 
+                    // let filter_10 = filter_pm_based_on_config1(
+                    //     config,
+                    //     &connector,
+                    //     &payment_method_object.payment_method_type,
+                    // );
+
                     let filter5 = filter_pm_based_on_config(
                         config,
                         &connector,
@@ -3379,4 +3386,29 @@ pub async fn create_encrypted_payment_method_data(
         .map(|details| details.into());
 
     pm_data_encrypted
+}
+
+pub async fn retrieve_countries_currencies_based_on_pmt(
+    state: routes::AppState,
+    // config:  crate::configs::settings::ConnectorFilters,
+    req: PaymentMethodCountryCurrencyList,
+) -> errors::RouterResponse<CurrenciesCountriesBasedOnPm> {
+    let config = &state.conf.pm_filters;
+
+    let connector = req.connector;
+    let payment_method_type = req.payment_method_type;
+    let pm_filter = config.0.get(&connector).or_else(|| config.0.get("default"));
+    let key = settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type);
+
+    let b = pm_filter
+        .and_then(|f| {
+            f.0.get(&key).map(|cc| CurrenciesCountriesBasedOnPm {
+                country: cc.country.clone(),
+                currency: cc.currency.clone(),
+            })
+        })
+        .unwrap_or_default();
+
+    println!("filter_pm{:?}", b);
+    Ok(services::ApplicationResponse::Json(b))
 }
