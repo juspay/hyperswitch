@@ -159,8 +159,8 @@ impl ModuleInfo {
                 module: module_name,
                 description,
                 permissions: PermissionInfo::new(&[
-                    Permission::ThreeDsDecisionManagerWrite,
                     Permission::ThreeDsDecisionManagerRead,
+                    Permission::ThreeDsDecisionManagerWrite,
                 ]),
             },
 
@@ -168,8 +168,8 @@ impl ModuleInfo {
                 module: module_name,
                 description,
                 permissions: PermissionInfo::new(&[
-                    Permission::SurchargeDecisionManagerWrite,
                     Permission::SurchargeDecisionManagerRead,
+                    Permission::SurchargeDecisionManagerWrite,
                 ]),
             },
             PermissionModule::AccountCreate => Self {

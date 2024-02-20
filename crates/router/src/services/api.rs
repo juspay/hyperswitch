@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
@@ -73,6 +73,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -184,6 +185,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn handle_response(
         &self,
         data: &types::RouterData<T, Req, Resp>,
+        event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
     where
@@ -191,20 +193,25 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Req: Clone,
         Resp: Clone,
     {
+        event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
         Ok(data.clone())
     }
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         Ok(ErrorResponse::get_not_implemented())
     }
 
     fn get_5xx_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         let error_message = match res.status_code {
             500 => "internal_server_error",
             501 => "not_implemented",
@@ -259,7 +266,7 @@ pub enum CaptureSyncMethod {
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -279,6 +286,8 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    tracing::Span::current().record("connector_name", &req.connector);
+    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
@@ -288,8 +297,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
-
-            connector_integration.handle_response(req, response)
+            connector_integration.handle_response(req, None, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
@@ -379,21 +387,10 @@ where
                                 .map_or_else(|value| value.status_code, |value| value.status_code)
                         })
                         .unwrap_or_default();
-                    let connector_event = ConnectorEvent::new(
+                    let mut connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        response
-                            .as_ref()
-                            .map(|response| {
-                                response
-                                    .as_ref()
-                                    .map_or_else(|value| value, |value| value)
-                                    .response
-                                    .escape_ascii()
-                                    .to_string()
-                            })
-                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
@@ -405,22 +402,13 @@ where
                         status_code,
                     );
 
-                    match connector_event.try_into() {
-                        Ok(event) => {
-                            state.event_handler().log_event(event);
-                        }
-                        Err(err) => {
-                            logger::error!(error=?err, "Error Logging Connector Event");
-                        }
-                    }
-
                     match response {
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
-                                    let mut data = connector_integration
-                                        .handle_response(req, body)
+                                    let handle_response_result = connector_integration
+                                        .handle_response(req, Some(&mut connector_event), body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -435,14 +423,43 @@ where
                                             )
                                         }
                                             error
-                                        })?;
-                                    data.connector_http_status_code = connector_http_status_code;
-                                    // Add up multiple external latencies in case of multiple external calls within the same request.
-                                    data.external_latency = Some(
-                                        data.external_latency
-                                            .map_or(external_latency, |val| val + external_latency),
-                                    );
-                                    data
+                                        });
+                                    match handle_response_result {
+                                        Ok(mut data) => {
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            data.connector_http_status_code =
+                                                connector_http_status_code;
+                                            // Add up multiple external latencies in case of multiple external calls within the same request.
+                                            data.external_latency = Some(
+                                                data.external_latency
+                                                    .map_or(external_latency, |val| {
+                                                        val + external_latency
+                                                    }),
+                                            );
+                                            Ok(data)
+                                        }
+                                        Err(err) => {
+                                            connector_event
+                                                .set_error(json!({"error": err.to_string()}));
+
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            }
+                                            Err(err)
+                                        }
+                                    }?
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
@@ -459,13 +476,30 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
+
                                     let error = match body.status_code {
                                         500..=511 => {
-                                            connector_integration.get_5xx_error_response(body)?
+                                            let error_res = connector_integration
+                                                .get_5xx_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            error_res
                                         }
                                         _ => {
-                                            let error_res =
-                                                connector_integration.get_error_response(body)?;
+                                            let error_res = connector_integration
+                                                .get_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
@@ -481,6 +515,15 @@ where
                             Ok(response)
                         }
                         Err(error) => {
+                            connector_event.set_error(json!({"error": error.to_string()}));
+                            match connector_event.try_into() {
+                                Ok(event) => {
+                                    state.event_handler().log_event(event);
+                                }
+                                Err(err) => {
+                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                }
+                            };
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -1055,7 +1098,7 @@ where
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
@@ -1083,7 +1126,7 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
-    let res = match metrics::request::record_request_time_metric(
+    let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
             &flow,
             state.clone(),
@@ -1099,7 +1142,9 @@ where
     .map(|response| {
         logger::info!(api_response =? response);
         response
-    }) {
+    });
+
+    let res = match server_wrap_util_res {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -1192,6 +1237,8 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(

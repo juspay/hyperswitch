@@ -520,7 +520,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -681,6 +681,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_payment_method_fields_present(request)?;
+
+        if request.mandate_data.is_none()
+            && request
+                .setup_future_usage
+                .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
+                .unwrap_or(false)
+        {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
+            }))?
+        }
 
         let mandate_type = helpers::validate_mandate(request, false)?;
 

@@ -234,7 +234,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CoinbaseErrorData {
     #[serde(rename = "type")]
     pub error_type: String,
@@ -242,7 +242,7 @@ pub struct CoinbaseErrorData {
     pub code: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CoinbaseErrorResponse {
     pub error: CoinbaseErrorData,
 }

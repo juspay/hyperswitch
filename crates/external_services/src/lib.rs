@@ -13,6 +13,10 @@ pub mod file_storage;
 #[cfg(feature = "hashicorp-vault")]
 pub mod hashicorp_vault;
 
+pub mod no_encryption;
+
+pub mod managers;
+
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]
 pub mod consts {

@@ -1,0 +1,130 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    },
+    {
+      "key": "Authorization",
+      "value": "",
+      "type": "text",
+      "disabled": true
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1000,
+      "currency": "USD",
+      "confirm": true,
+      "capture_method": "manual",
+      "customer_id": "{{customer_id}}",
+      "email": "p143@example.com",
+      "amount_to_capture": 1000,
+      "description": "Its my first payment request",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "return_url": "https://google.com",
+      "name": "Preetam",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "authentication_type": "no_three_ds",
+      "payment_method": "card",
+      "payment_method_type": "debit",
+      "payment_method_data": {
+        "card": {
+          "card_number": "4111111111111111",
+          "card_exp_month": "09",
+          "card_exp_year": "2027",
+          "card_holder_name": "",
+          "card_cvc": "975"
+        }
+      },
+      "connector_metadata": {
+        "noon": {
+          "order_category": "pay"
+        }
+      },
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "language": "nl-NL",
+        "color_depth": 24,
+        "screen_height": 723,
+        "screen_width": 1536,
+        "time_zone": 0,
+        "java_enabled": true,
+        "java_script_enabled": true,
+        "ip_address": "128.0.0.1"
+      },
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "PL",
+          "first_name": "preetam",
+          "last_name": "revankar"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "shipping": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "PL",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "order_details": [
+        {
+          "product_name": "Apple iphone 15",
+          "quantity": 1,
+          "amount": 1000,
+          "account_name": "transaction_processing"
+        }
+      ],
+      "statement_descriptor_name": "joseph",
+      "statement_descriptor_suffix": "JS",
+      "request_incremental_authorization": true,
+      "metadata": {
+        "count_tickets": 1,
+        "transaction_number": "5590045"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}
