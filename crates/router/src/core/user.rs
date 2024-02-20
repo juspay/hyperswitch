@@ -926,7 +926,7 @@ pub async fn switch_merchant_id(
         .filter(|role| role.status == UserStatus::Active)
         .collect::<Vec<_>>();
 
-    let user = user_from_token.get_user_from_db(&state).await?.into();
+    let user = user_from_token.get_user_from_db(&state).await?;
 
     let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
         let key_store = state
