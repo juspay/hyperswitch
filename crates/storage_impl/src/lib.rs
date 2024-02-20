@@ -19,11 +19,10 @@ pub mod refund;
 mod reverse_lookup;
 mod utils;
 
+use common_utils::errors::CustomResult;
 use database::store::PgPool;
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, SaddReply};
-
-use common_utils::errors::CustomResult;
 
 pub use crate::database::store::DatabaseStore;
 
