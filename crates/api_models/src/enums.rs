@@ -13,11 +13,9 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    ToSchema,
 )]
 
 /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-#[schema(example = "custom")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithm {
@@ -27,6 +25,7 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
+/// A connector is an integration to fulfill payments
 #[derive(
     Clone,
     Copy,
@@ -503,8 +502,7 @@ pub enum RetryAction {
 
 #[derive(Clone, Copy)]
 pub enum LockerChoice {
-    Basilisk,
-    Tartarus,
+    HyperswitchCardVault,
 }
 
 #[derive(

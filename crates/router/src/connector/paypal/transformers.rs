@@ -315,7 +315,12 @@ fn get_payment_source(
             country,
             ..
         } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details.get_billing_name()?,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "giropay.billing_details",
+                })?
+                .get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "giropay.country",
             })?,
@@ -360,8 +365,15 @@ fn get_payment_source(
             preferred_language: _,
             billing_details,
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: billing_details.get_billing_name()?,
-            country_code: *country,
+            name: billing_details
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "sofort.billing_details",
+                })?
+                .get_billing_name()?,
+            country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "sofort.country",
+            })?,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
                 cancel_url: item.request.complete_authorize_url.clone(),
@@ -389,11 +401,9 @@ fn get_payment_source(
         | BankRedirectData::Trustly { .. }
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. } => {
-            Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "Paypal",
-            }
-            .into())
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            ))?
         }
     }
 }
@@ -537,10 +547,9 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector: "Paypal",
-                    })?
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    ))?
                 }
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
@@ -604,10 +613,9 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -622,10 +630,9 @@ impl TryFrom<&api_models::payments::CardRedirectData> for PaypalPaymentsRequest 
             | api_models::payments::CardRedirectData::Benefit {}
             | api_models::payments::CardRedirectData::MomoAtm {}
             | api_models::payments::CardRedirectData::CardRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -644,10 +651,9 @@ impl TryFrom<&api_models::payments::PayLaterData> for PaypalPaymentsRequest {
             | api_models::payments::PayLaterData::WalleyRedirect {}
             | api_models::payments::PayLaterData::AlmaRedirect {}
             | api_models::payments::PayLaterData::AtomeRedirect {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -662,10 +668,9 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaypalPaymentsRequest {
             | api_models::payments::BankDebitData::SepaBankDebit { .. }
             | api_models::payments::BankDebitData::BecsBankDebit { .. }
             | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -689,10 +694,9 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest 
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
             | api_models::payments::BankTransferData::Pix {}
             | api_models::payments::BankTransferData::Pse {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -717,10 +721,9 @@ impl TryFrom<&api_models::payments::VoucherData> for PaypalPaymentsRequest {
             | api_models::payments::VoucherData::FamilyMart(_)
             | api_models::payments::VoucherData::Seicomart(_)
             | api_models::payments::VoucherData::PayEasy(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -733,10 +736,9 @@ impl TryFrom<&api_models::payments::GiftCardData> for PaypalPaymentsRequest {
         match value {
             api_models::payments::GiftCardData::Givex(_)
             | api_models::payments::GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "Paypal",
-                }
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
                 .into())
             }
         }
@@ -760,7 +762,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PaypalAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -1061,7 +1063,7 @@ pub enum PaypalAuthResponse {
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaypalSyncResponse {
     PaypalOrdersSyncResponse(PaypalOrdersResponse),
@@ -1740,7 +1742,7 @@ pub struct PaypalPaymentErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

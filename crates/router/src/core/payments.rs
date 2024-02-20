@@ -68,7 +68,7 @@ use crate::{
     workflows::payment_sync,
 };
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
@@ -129,6 +129,7 @@ where
             &merchant_account,
             &key_store,
             auth_flow,
+            header_payload.payment_confirm_source,
         )
         .await?;
 
@@ -366,7 +367,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -599,7 +599,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -643,10 +642,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -1076,6 +1071,9 @@ where
 
     *payment_data = pd;
 
+    // Validating the blocklist guard and generate the fingerprint
+    blocklist_guard(state, merchant_account, operation, payment_data).await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -1232,6 +1230,45 @@ where
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
     router_data_res
+}
+
+async fn blocklist_guard<F, ApiRequest, Ctx>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<bool, errors::ApiErrorResponse>
+where
+    F: Send + Clone + Sync,
+    Ctx: PaymentMethodRetrieve,
+{
+    let merchant_id = &payment_data.payment_attempt.merchant_id;
+    let blocklist_enabled_key = format!("guard_blocklist_for_{merchant_id}");
+    let blocklist_guard_enabled = state
+        .store
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .await;
+
+    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
+        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+
+        // If it is not present in db we are defaulting it to false
+        Err(inner) => {
+            if !inner.current_context().is_db_not_found() {
+                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
+            }
+            false
+        }
+    };
+
+    if blocklist_guard_enabled {
+        Ok(operation
+            .to_domain()?
+            .guard_payment_against_blocklist(state, merchant_account, payment_data)
+            .await?)
+    } else {
+        Ok(false)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2045,6 +2082,8 @@ pub struct IncrementalAuthorizationDetails {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2514,10 +2553,11 @@ where
     )
     .await?;
 
-    let encoded_info =
-        Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error serializing payment routing info to serde value")?;
+    let encoded_info = routing_data
+        .routing_info
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
     #[cfg(feature = "connector_choice_mca_id")]

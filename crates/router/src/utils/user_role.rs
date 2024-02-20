@@ -1,43 +1,13 @@
 use api_models::user_role as user_role_api;
-use diesel_models::enums::UserStatus;
-use error_stack::ResultExt;
 
 use crate::{
     consts,
-    core::errors::{UserErrors, UserResult},
-    routes::AppState,
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
 };
 
 pub fn is_internal_role(role_id: &str) -> bool {
     role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
         || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub async fn get_merchant_ids_for_user(state: &AppState, user_id: &str) -> UserResult<Vec<String>> {
-    Ok(state
-        .store
-        .list_user_roles_by_user_id(user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|ele| {
-            if ele.status == UserStatus::Active {
-                return Some(ele.merchant_id);
-            }
-            None
-        })
-        .collect())
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
 }
 
 pub fn get_role_name_and_permission_response(

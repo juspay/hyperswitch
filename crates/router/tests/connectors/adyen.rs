@@ -71,6 +71,8 @@ impl AdyenTest {
 
     #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
+        use common_utils::pii::Email;
+
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
@@ -105,6 +107,11 @@ impl AdyenTest {
                         bank_name: Some("Deutsche Bank".to_string()),
                         bank_country_code: Some(enums::CountryAlpha2::NL),
                         bank_city: Some("Amsterdam".to_string()),
+                    }),
+                )),
+                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
+                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                        email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
                     }),
                 )),
             },
@@ -147,6 +154,7 @@ impl AdyenTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             payment_experience: None,
             payment_method_type: None,
             session_token: None,

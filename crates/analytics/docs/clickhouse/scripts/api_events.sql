@@ -23,7 +23,8 @@ CREATE TABLE api_events_queue (
     `ip_addr` String,
     `hs_latency` Nullable(UInt128),
     `http_method` LowCardinality(String),
-    `url_path` String
+    `url_path` String,
+    `dispute_id` Nullable(String)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-api-log-events',
 kafka_group_name = 'hyper-c1',
@@ -57,6 +58,7 @@ CREATE TABLE api_events_dist (
     `hs_latency` Nullable(UInt128),
     `http_method` LowCardinality(String),
     `url_path` String,
+    `dispute_id` Nullable(String)
     INDEX flowIndex flow_type TYPE bloom_filter GRANULARITY 1,
     INDEX apiIndex api_flow TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
@@ -92,7 +94,8 @@ CREATE MATERIALIZED VIEW api_events_mv TO api_events_dist (
     `ip_addr` String,
     `hs_latency` Nullable(UInt128),
     `http_method` LowCardinality(String),
-    `url_path` String
+    `url_path` String,
+    `dispute_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -120,7 +123,8 @@ SELECT
     ip_addr,
     hs_latency,
     http_method,
-    url_path
+    url_path,
+    dispute_id
 FROM
     api_events_queue
 where length(_error) = 0;

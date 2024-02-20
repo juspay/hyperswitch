@@ -222,6 +222,54 @@ pub async fn get_dispute_evidence_block(
     })
 }
 
+pub fn delete_evidence_file(
+    dispute_evidence: DisputeEvidence,
+    evidence_type: EvidenceType,
+) -> DisputeEvidence {
+    match evidence_type {
+        EvidenceType::CancellationPolicy => DisputeEvidence {
+            cancellation_policy: None,
+            ..dispute_evidence
+        },
+        EvidenceType::CustomerCommunication => DisputeEvidence {
+            customer_communication: None,
+            ..dispute_evidence
+        },
+        EvidenceType::CustomerSignature => DisputeEvidence {
+            customer_signature: None,
+            ..dispute_evidence
+        },
+        EvidenceType::Receipt => DisputeEvidence {
+            receipt: None,
+            ..dispute_evidence
+        },
+        EvidenceType::RefundPolicy => DisputeEvidence {
+            refund_policy: None,
+            ..dispute_evidence
+        },
+        EvidenceType::ServiceDocumentation => DisputeEvidence {
+            service_documentation: None,
+            ..dispute_evidence
+        },
+        EvidenceType::ShippingDocumentation => DisputeEvidence {
+            shipping_documentation: None,
+            ..dispute_evidence
+        },
+        EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
+            invoice_showing_distinct_transactions: None,
+            ..dispute_evidence
+        },
+        EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
+            recurring_transaction_agreement: None,
+            ..dispute_evidence
+        },
+        EvidenceType::UncategorizedFile => DisputeEvidence {
+            uncategorized_file: None,
+            ..dispute_evidence
+        },
+    }
+}
+
 pub async fn get_dispute_evidence_vec(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
