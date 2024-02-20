@@ -1243,7 +1243,6 @@ where
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
         tag = ?Tag::EndRequest,
-        status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
     res
