@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.16.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Payme] payme_transaction_id converted to optional ([#3720](https://github.com/juspay/hyperswitch/pull/3720)) ([`f0f2b24`](https://github.com/juspay/hyperswitch/commit/f0f2b24308207b0dc5187e7e9f3402fc2564e757))
+
+**Full Changelog:** [`2024.02.16.0...2024.02.16.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2024.02.16.0...2024.02.16.0-hotfix1)
+
+- - -
+
 ## 2024.02.16.0
 
 ### Features
