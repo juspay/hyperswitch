@@ -11,6 +11,7 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{self, domain, storage},
+    utils::ext_traits::OptionExt,
 };
 
 const IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW: &str =
@@ -39,6 +40,16 @@ pub fn construct_authentication_router_data(
     sdk_information: Option<api_models::payments::SDKInformation>,
     email: Option<common_utils::pii::Email>,
 ) -> RouterResult<types::ConnectorAuthenticationRouterData> {
+    let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
+        .authentication_details
+        .clone()
+        .get_required_value("authentication_details")
+        .attach_printable("authentication_details not configured by the merchant")?
+        .parse_value("AuthenticationDetails")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Invalid data format found for authentication_details".into(),
+        })
+        .attach_printable("Error while parsing authentication_details from merchant_account")?;
     let router_request = types::ConnectorAuthenticationRequestData {
         payment_method_data,
         billing_address,
@@ -52,6 +63,7 @@ pub fn construct_authentication_router_data(
         return_url,
         sdk_information,
         email,
+        three_ds_requestor_url: authentication_details.three_ds_requestor_url,
     };
     construct_router_data(
         authentication_connector,

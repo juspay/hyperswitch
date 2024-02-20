@@ -7,7 +7,7 @@ pub mod types;
 
 use api_models::payments;
 use common_enums::Currency;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use masking::PeekInterface;
 
@@ -181,8 +181,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                     .get_metadata()
                     .get_required_value("merchant_connector_account.metadata")?
                     .peek()
-                    .get("acquirer_details")
-                    .cloned()
+                    .clone()
                     .parse_value("AcquirerDetails")
                     .change_context(ApiErrorResponse::InvalidDataFormat {
                         field_name: "merchant_connector_account.metadata.acquirer_details"

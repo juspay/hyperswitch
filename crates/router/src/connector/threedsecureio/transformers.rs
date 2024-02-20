@@ -401,7 +401,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .into_report()
                 .attach_printable("missing return_url")?,
             three_dscomp_ind: "Y".to_string(),
-            three_dsrequestor_url: "https::/google.com".to_string(),
+            three_dsrequestor_url: request.three_ds_requestor_url.clone(),
             acquirer_bin: acquirer_details.acquirer_bin,
             acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
