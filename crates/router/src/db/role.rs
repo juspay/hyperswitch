@@ -20,6 +20,13 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
@@ -54,6 +61,19 @@ impl RoleInterface for Store {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id(&conn, role_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -144,6 +164,30 @@ impl RoleInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No role available role_id  = {role_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        roles
+            .iter()
+            .find(|role| {
+                role.role_id == role_id
+                    && (role.merchant_id == merchant_id
+                        || (role.org_id == org_id
+                            && role.scope == diesel_models::enums::RoleScope::Organization))
+            })
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No role available for role_id = {role_id}"
                 ))
                 .into(),
             )
