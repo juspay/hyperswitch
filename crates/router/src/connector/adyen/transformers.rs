@@ -3134,7 +3134,7 @@ pub fn get_redirection_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
@@ -3200,7 +3200,7 @@ pub fn get_present_to_shopper_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
@@ -3254,7 +3254,7 @@ pub fn get_qr_code_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
