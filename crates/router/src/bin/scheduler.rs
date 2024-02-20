@@ -216,6 +216,8 @@ pub enum PTRunner {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
+    #[cfg(feature = "email")]
+    ApiKeyExpiryWorkflow,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -239,6 +241,10 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             }
             Some(PTRunner::DeleteTokenizeDataWorkflow) => {
                 Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
+            }
+            #[cfg(feature = "email")]
+            Some(PTRunner::ApiKeyExpiryWorkflow) => {
+                Box::new(workflows::api_key_expiry::ApiKeyExpiryWorkflow)
             }
             _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };

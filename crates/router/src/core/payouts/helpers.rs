@@ -273,7 +273,7 @@ pub async fn save_payout_data_to_locker(
         state,
         &locker_req,
         &payout_attempt.customer_id,
-        api_enums::LockerChoice::Basilisk,
+        api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;

@@ -407,11 +407,7 @@ impl<F, T>
         let metadata = item
             .response
             .transaction_tag
-            .map(|txn_tag| {
-                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(
-                    &construct_payeezy_payments_metadata(txn_tag),
-                )
-            })
+            .map(|txn_tag| construct_payeezy_payments_metadata(txn_tag).encode_to_value())
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 

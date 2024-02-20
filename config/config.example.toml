@@ -445,7 +445,7 @@ pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -559,6 +559,7 @@ refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
 api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 
 # File storage configuration
 [file_storage]
