@@ -1,38 +1,21 @@
 use super::permissions::Permission;
+use common_enums::PermissionGroup;
 use once_cell::sync::Lazy;
 
-#[derive(Clone)]
-pub enum PermissionGroup {
-    OperationsView,
-    OperationsManage,
-    ConnectorsView,
-    ConnectorsManage,
-    WorkflowsView,
-    WorkflowsManage,
-    AnalyticsView,
-    UsersView,
-    UsersManage,
-    MerchantDetailsView,
-    MerchantDetailsManage,
-    OrganizationManage,
-}
-
-impl PermissionGroup {
-    pub fn get_permissions_vec(&self) -> &Lazy<Vec<Permission>> {
-        match self {
-            PermissionGroup::OperationsView => &OPERATIONS_VIEW,
-            PermissionGroup::OperationsManage => &OPERATIONS_MANAGE,
-            PermissionGroup::ConnectorsView => &CONNECTORS_VIEW,
-            PermissionGroup::ConnectorsManage => &CONNECTORS_MANAGE,
-            PermissionGroup::WorkflowsView => &WORKFLOWS_VIEW,
-            PermissionGroup::WorkflowsManage => &WORKFLOWS_MANAGE,
-            PermissionGroup::AnalyticsView => &ANALYTICS_VIEW,
-            PermissionGroup::UsersView => &USERS_VIEW,
-            PermissionGroup::UsersManage => &USERS_MANAGE,
-            PermissionGroup::MerchantDetailsView => &MERCHANT_DETAILS_VIEW,
-            PermissionGroup::MerchantDetailsManage => &MERCHANT_DETAILS_MANAGE,
-            PermissionGroup::OrganizationManage => &ORGANIZATION_MANAGE,
-        }
+pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &Lazy<Vec<Permission>> {
+    match permission_group {
+        PermissionGroup::OperationsView => &OPERATIONS_VIEW,
+        PermissionGroup::OperationsManage => &OPERATIONS_MANAGE,
+        PermissionGroup::ConnectorsView => &CONNECTORS_VIEW,
+        PermissionGroup::ConnectorsManage => &CONNECTORS_MANAGE,
+        PermissionGroup::WorkflowsView => &WORKFLOWS_VIEW,
+        PermissionGroup::WorkflowsManage => &WORKFLOWS_MANAGE,
+        PermissionGroup::AnalyticsView => &ANALYTICS_VIEW,
+        PermissionGroup::UsersView => &USERS_VIEW,
+        PermissionGroup::UsersManage => &USERS_MANAGE,
+        PermissionGroup::MerchantDetailsView => &MERCHANT_DETAILS_VIEW,
+        PermissionGroup::MerchantDetailsManage => &MERCHANT_DETAILS_MANAGE,
+        PermissionGroup::OrganizationManage => &ORGANIZATION_MANAGE,
     }
 }
 
@@ -94,24 +77,3 @@ pub static MERCHANT_DETAILS_MANAGE: Lazy<Vec<Permission>> =
 
 pub static ORGANIZATION_MANAGE: Lazy<Vec<Permission>> =
     Lazy::new(|| vec![Permission::MerchantAccountCreate]);
-
-impl From<diesel_models::enums::PermissionGroup> for PermissionGroup {
-    fn from(value: diesel_models::enums::PermissionGroup) -> Self {
-        match value {
-            diesel_models::enums::PermissionGroup::OperationsView => Self::OperationsView,
-            diesel_models::enums::PermissionGroup::OperationsManage => Self::OperationsManage,
-            diesel_models::enums::PermissionGroup::ConnectorsView => Self::ConnectorsView,
-            diesel_models::enums::PermissionGroup::ConnectorsManage => Self::ConnectorsManage,
-            diesel_models::enums::PermissionGroup::WorkflowsView => Self::WorkflowsView,
-            diesel_models::enums::PermissionGroup::WorkflowsManage => Self::WorkflowsManage,
-            diesel_models::enums::PermissionGroup::AnalyticsView => Self::AnalyticsView,
-            diesel_models::enums::PermissionGroup::UsersView => Self::UsersView,
-            diesel_models::enums::PermissionGroup::UsersManage => Self::UsersManage,
-            diesel_models::enums::PermissionGroup::MerchantDetailsView => Self::MerchantDetailsView,
-            diesel_models::enums::PermissionGroup::MerchantDetailsManage => {
-                Self::MerchantDetailsManage
-            }
-            diesel_models::enums::PermissionGroup::OrganizationManage => Self::OrganizationManage,
-        }
-    }
-}

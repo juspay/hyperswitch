@@ -521,33 +521,3 @@ pub enum RoleScope {
     Merchant,
     Organization,
 }
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PermissionGroup {
-    OperationsView,
-    OperationsManage,
-    ConnectorsView,
-    ConnectorsManage,
-    WorkflowsView,
-    WorkflowsManage,
-    AnalyticsView,
-    UsersView,
-    UsersManage,
-    MerchantDetailsView,
-    MerchantDetailsManage,
-    OrganizationManage,
-}

@@ -2167,3 +2167,32 @@ pub enum ConnectorStatus {
     Inactive,
     Active,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PermissionGroup {
+    OperationsView,
+    OperationsManage,
+    ConnectorsView,
+    ConnectorsManage,
+    WorkflowsView,
+    WorkflowsManage,
+    AnalyticsView,
+    UsersView,
+    UsersManage,
+    MerchantDetailsView,
+    MerchantDetailsManage,
+    OrganizationManage,
+}

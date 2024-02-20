@@ -30,23 +30,50 @@ pub async fn get_authorization_info(
     ))
 }
 
-pub async fn list_roles(_state: AppState) -> UserResponse<user_role_api::ListRolesResponse> {
-    // Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
-    //     predefined_roles::PREDEFINED_ROLES
-    //         .iter()
-    //         .filter(|(_, role_info)| role_info.is_invitable() && !role_info.is_internal())
-    //         .map(|(role_id, role_info)| {
-    //             let (permissions, role_name) =
-    //                 utils::user_role::get_role_name_and_permission_response(role_info);
-    //             user_role_api::RoleInfoResponse {
-    //                 permissions,
-    //                 role_id: role_id.to_string(),
-    //                 role_name,
-    //             }
-    //         })
-    //         .collect(),
-    // )))
-    todo!()
+pub async fn list_roles(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_role_api::ListRolesResponse> {
+    let mut roles = Vec::new();
+
+    roles.extend(
+        roles::predefined_roles::PREDEFINED_ROLES
+            .iter()
+            .filter(|(_, role_info)| role_info.is_invitable())
+            .map(|(role_id, role_info)| user_role_api::RoleInfoResponse {
+                permissions: role_info
+                    .get_permissions()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+                role_id: role_id.to_string(),
+                role_name: role_info.get_role_name().to_string(),
+            }),
+    );
+
+    roles.extend(
+        state
+            .store
+            .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .map(roles::RoleInfo::from)
+            .filter(|role_info| role_info.is_invitable())
+            .map(|role_info| user_role_api::RoleInfoResponse {
+                permissions: role_info
+                    .get_permissions()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+                role_id: role_info.get_role_id().to_string(),
+                role_name: role_info.get_role_name().to_string(),
+            }),
+    );
+
+    Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
+        roles.into_iter().collect(),
+    )))
 }
 
 pub async fn get_role(

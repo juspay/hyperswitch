@@ -1,5 +1,6 @@
-use super::{permission_groups::PermissionGroup, permissions::Permission};
+use super::{permission_groups::get_permissions_vec, permissions::Permission};
 use crate::{core::errors, routes::AppState};
+use common_enums::PermissionGroup;
 use common_utils::errors::CustomResult;
 
 pub mod predefined_roles;
@@ -48,14 +49,14 @@ impl RoleInfo {
     pub fn get_permissions(&self) -> Vec<Permission> {
         self.groups
             .iter()
-            .flat_map(|group| group.get_permissions_vec().iter().copied())
+            .flat_map(|group| get_permissions_vec(group).iter().copied())
             .collect()
     }
 
     pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
         self.groups
             .iter()
-            .any(|module| module.get_permissions_vec().contains(required_permission))
+            .any(|group| get_permissions_vec(group).contains(required_permission))
     }
 }
 

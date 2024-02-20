@@ -1,3 +1,4 @@
+use common_enums::PermissionGroup;
 use crate::{
     core::errors::{ApiErrorResponse, RouterResult, StorageErrorExt},
     routes::app::AppStateInfo,
@@ -31,12 +32,14 @@ where
     }
 }
 
-pub fn get_permissions_from_groups(
-    groups: &Vec<permission_groups::PermissionGroup>,
-) -> Vec<permissions::Permission> {
+pub fn get_permissions_from_groups(groups: &Vec<PermissionGroup>) -> Vec<permissions::Permission> {
     groups
         .iter()
-        .flat_map(|group| group.get_permissions_vec().iter().cloned())
+        .flat_map(|group| {
+            permission_groups::get_permissions_vec(group)
+                .iter()
+                .cloned()
+        })
         .collect()
 }
 

@@ -1,5 +1,6 @@
 use super::RoleInfo;
-use crate::{consts, services::authorization::permission_groups::PermissionGroup};
+use crate::consts;
+use common_enums::PermissionGroup;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
