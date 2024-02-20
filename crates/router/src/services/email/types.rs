@@ -299,7 +299,7 @@ impl EmailData for InviteUser {
         })
     }
 }
-pub struct InviteRegistedUser {
+pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::settings::Settings>,
@@ -308,7 +308,7 @@ pub struct InviteRegistedUser {
 }
 
 #[async_trait::async_trait]
-impl EmailData for InviteRegistedUser {
+impl EmailData for InviteRegisteredUser {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),

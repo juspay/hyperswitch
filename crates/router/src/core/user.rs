@@ -491,7 +491,7 @@ pub async fn invite_user(
         let is_email_sent;
         #[cfg(feature = "email")]
         {
-            let email_contents = email_types::InviteRegistedUser {
+            let email_contents = email_types::InviteRegisteredUser {
                 recipient_email: invitee_email,
                 user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
                 settings: state.conf.clone(),
@@ -711,7 +711,7 @@ async fn handle_existing_user_invitation(
     #[cfg(feature = "email")]
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-        let email_contents = email_types::InviteRegistedUser {
+        let email_contents = email_types::InviteRegisteredUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
             settings: state.conf.clone(),
