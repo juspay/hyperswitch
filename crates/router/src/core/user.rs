@@ -442,9 +442,14 @@ pub async fn invite_user(
         .into());
     }
 
-    let role_info = roles::get_role_info_from_role_id(&state, request.role_id.as_str())
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        request.role_id.as_str(),
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
@@ -628,9 +633,14 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::get_role_info_from_role_id(state, request.role_id.as_str())
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::get_role_info_from_role_id(
+        state,
+        request.role_id.as_str(),
+        user_from_token.merchant_id.as_str(),
+        user_from_token.org_id.as_str(),
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
@@ -923,9 +933,14 @@ pub async fn switch_merchant_id(
 
     let user = user_from_token.get_user_from_db(&state).await?;
 
-    let role_info = roles::get_role_info_from_role_id(&state, &user_from_token.role_id)
-        .await
-        .to_not_found_response(UserErrors::InternalServerError)?;
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        &user_from_token.role_id,
+        user_from_token.merchant_id.as_str(),
+        user_from_token.org_id.as_str(),
+    )
+    .await
+    .to_not_found_response(UserErrors::InternalServerError)?;
 
     let (token, role_id) = if role_info.is_internal() {
         let key_store = state
@@ -1071,9 +1086,14 @@ pub async fn get_users_for_merchant_account(
     let users_user_roles_and_roles =
         futures::future::try_join_all(users_and_user_roles.into_iter().map(
             |(user, user_role)| async {
-                let role_info = roles::get_role_info_from_role_id(&state, &user_role.role_id)
-                    .await
-                    .to_not_found_response(UserErrors::InternalServerError)?;
+                let role_info = roles::get_role_info_from_role_id(
+                    &state,
+                    &user_role.role_id,
+                    user_role.merchant_id.as_str(),
+                    user_role.org_id.as_str(),
+                )
+                .await
+                .to_not_found_response(UserErrors::InternalServerError)?;
                 Ok::<_, error_stack::Report<UserErrors>>((user, user_role, role_info))
             },
         ))

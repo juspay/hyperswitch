@@ -76,11 +76,17 @@ pub async fn list_invitable_roles(
 
 pub async fn get_role(
     state: AppState,
+    user_from_token: auth::UserFromToken,
     role: user_role_api::GetRoleRequest,
 ) -> UserResponse<user_role_api::RoleInfoResponse> {
-    let role_info = roles::get_role_info_from_role_id(&state, &role.role_id)
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        &role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -120,9 +126,14 @@ pub async fn update_user_role(
     user_from_token: auth::UserFromToken,
     req: user_role_api::UpdateUserRoleRequest,
 ) -> UserResponse<()> {
-    let role_info = roles::get_role_info_from_role_id(&state, &req.role_id)
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        &req.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_updatable() {
         return Err(UserErrors::InvalidRoleOperation.into())
@@ -145,10 +156,14 @@ pub async fn update_user_role(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let role_to_be_updated =
-        roles::get_role_info_from_role_id(&state, &user_role_to_be_updated.role_id)
-            .await
-            .change_context(UserErrors::InternalServerError)?;
+    let role_to_be_updated = roles::get_role_info_from_role_id(
+        &state,
+        &user_role_to_be_updated.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
 
     if !role_to_be_updated.is_updatable() {
         return Err(UserErrors::InvalidRoleOperation.into()).attach_printable(format!(
@@ -310,9 +325,14 @@ pub async fn delete_user_role(
         .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
     {
         Some(user_role) => {
-            let role_info = roles::get_role_info_from_role_id(&state, &user_role.role_id)
-                .await
-                .change_context(UserErrors::InternalServerError)?;
+            let role_info = roles::get_role_info_from_role_id(
+                &state,
+                &user_role.role_id,
+                &user_from_token.merchant_id,
+                &user_from_token.org_id,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
             if !role_info.is_deletable() {
                 return Err(UserErrors::InvalidDeleteOperation.into())
                     .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));

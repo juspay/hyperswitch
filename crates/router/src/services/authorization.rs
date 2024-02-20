@@ -5,6 +5,8 @@ use crate::{
     routes::app::AppStateInfo,
 };
 
+use super::authentication::AuthToken;
+
 pub mod info;
 pub mod permission_groups;
 pub mod permissions;
@@ -12,19 +14,23 @@ pub mod roles;
 
 pub async fn get_permissions<A>(
     state: &A,
-    role_id: &str,
+    token: &AuthToken,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
     A: AppStateInfo + Sync,
 {
-    if let Some(role_info) = roles::predefined_roles::PREDEFINED_ROLES.get(role_id) {
+    if let Some(role_info) = roles::predefined_roles::PREDEFINED_ROLES.get(token.role_id.as_str()) {
         Ok(get_permissions_from_groups(
             role_info.get_permission_groups(),
         ))
     } else {
         let role = state
             .store()
-            .find_role_by_role_id(role_id)
+            .find_role_by_role_id_in_merchant_scope(
+                &token.role_id,
+                &token.merchant_id,
+                &token.org_id,
+            )
             .await
             .to_not_found_response(ApiErrorResponse::InvalidJwtToken)?;
         Ok(get_permissions_from_groups(&role.groups))

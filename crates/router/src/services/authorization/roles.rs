@@ -69,11 +69,16 @@ impl RoleInfo {
 pub async fn get_role_info_from_role_id(
     state: &AppState,
     role_id: &str,
+    merchant_id: &str,
+    org_id: &str,
 ) -> CustomResult<RoleInfo, errors::StorageError> {
     if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
         Ok(role.clone())
     } else {
-        let role = state.store.find_role_by_role_id(role_id).await?;
+        let role = state
+            .store
+            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+            .await?;
         Ok(role.into())
     }
 }

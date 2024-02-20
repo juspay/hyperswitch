@@ -57,7 +57,7 @@ pub async fn get_role(
         state.clone(),
         &req,
         request_payload,
-        |state, _: (), req| user_role_core::get_role(state, req),
+        user_role_core::get_role,
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
