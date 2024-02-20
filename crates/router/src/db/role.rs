@@ -1,3 +1,4 @@
+use common_enums::enums;
 use diesel_models::role as storage;
 use error_stack::{IntoReport, ResultExt};
 
@@ -181,13 +182,13 @@ impl RoleInterface for MockDb {
             .find(|role| {
                 role.role_id == role_id
                     && (role.merchant_id == merchant_id
-                        || (role.org_id == org_id
-                            && role.scope == diesel_models::enums::RoleScope::Organization))
+                        || (role.org_id == org_id && role.scope == enums::RoleScope::Organization))
             })
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No role available for role_id = {role_id}"
+                    "No role available in merchant scope for role_id = {role_id}, \
+                    merchant_id = {merchant_id} and org_id = {org_id}"
                 ))
                 .into(),
             )

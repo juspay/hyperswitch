@@ -995,8 +995,7 @@ pub async fn create_merchant_account(
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<()> {
-    let user_from_db: domain::UserFromStorage =
-        user_from_token.get_user_from_db(&state).await?.into();
+    let user_from_db = user_from_token.get_user_from_db(&state).await?.into();
 
     let new_user = domain::NewUser::try_from((user_from_db, req, user_from_token))?;
     let new_merchant = new_user.get_new_merchant();
