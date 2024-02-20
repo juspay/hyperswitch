@@ -61,7 +61,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "connector_auth.toml.gpg"
-          S3_SOURCE_FILE_NAME: "cf05a6ab-525e-4888-98b3-3b4a443b87c0.toml.gpg"
+          S3_SOURCE_FILE_NAME: "d1d5ed07-01cc-4c1a-b86a-095b52fc8a90.toml.gpg"
         shell: bash
         run: |
           mkdir -p ${HOME}/target/secrets ${HOME}/target/test
