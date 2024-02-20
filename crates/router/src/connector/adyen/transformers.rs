@@ -1023,7 +1023,7 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
 pub struct BlikRedirectionData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    blik_code: String,
+    blik_code: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1135,7 +1135,7 @@ pub struct AdyenRefundRequest {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRefundResponse {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     psp_reference: String,
     payment_psp_reference: String,
     reference: String,
@@ -2123,11 +2123,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
-                    blik_code: blik_code.clone().ok_or(
+                    blik_code: Secret::new(blik_code.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "blik_code",
                         },
-                    )?,
+                    )?),
                 })))
             }
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
@@ -3785,7 +3785,7 @@ pub enum DisputeStatus {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
-    pub hmac_signature: String,
+    pub hmac_signature: Secret<String>,
     pub dispute_status: Option<DisputeStatus>,
     pub chargeback_reason_code: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]

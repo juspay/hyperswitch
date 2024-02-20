@@ -7,6 +7,7 @@ use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -1517,7 +1518,7 @@ impl api::IncomingWebhook for Adyen {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let base64_signature = notif_item.additional_data.hmac_signature;
+        let base64_signature = notif_item.additional_data.hmac_signature.expose();
         Ok(base64_signature.as_bytes().to_vec())
     }
 
