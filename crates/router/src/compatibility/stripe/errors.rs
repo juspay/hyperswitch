@@ -129,10 +129,10 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_label '{connector_label}' already exists in our records")]
     DuplicateMerchantConnectorAccount {
         profile_id: String,
-        connector_name: String,
+        connector_label: String,
     },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
@@ -523,10 +523,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             } => Self::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name,
+                connector_label,
             },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::PaymentBlockedError {

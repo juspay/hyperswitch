@@ -45,6 +45,7 @@ pub struct MockDb {
     pub user_roles: Arc<Mutex<Vec<store::user_role::UserRole>>>,
     pub authorizations: Arc<Mutex<Vec<store::authorization::Authorization>>>,
     pub dashboard_metadata: Arc<Mutex<Vec<store::user::dashboard_metadata::DashboardMetadata>>>,
+    pub roles: Arc<Mutex<Vec<store::role::Role>>>,
 }
 
 impl MockDb {
@@ -82,6 +83,7 @@ impl MockDb {
             user_roles: Default::default(),
             authorizations: Default::default(),
             dashboard_metadata: Default::default(),
+            roles: Default::default(),
         })
     }
 }
