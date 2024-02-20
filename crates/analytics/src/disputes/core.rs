@@ -43,7 +43,7 @@ pub async fn get_filters(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics filters")
                     },
                     _ => {}
                 };
@@ -66,7 +66,7 @@ pub async fn get_filters(
                 .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
-                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics filters")
+                        router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics filters")
                     },
                     _ => {}
                 };
