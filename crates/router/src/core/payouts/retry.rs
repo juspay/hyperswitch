@@ -45,12 +45,12 @@ pub async fn do_gsm_actions(
 
                 if retries.is_none() || retries == Some(0) {
                     metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
-                    logger::info!("retries exhausted for auto_retry payment");
+                    logger::info!("retries exhausted for auto_retry payout");
                     break;
                 }
 
                 if connectors.len() == 0 {
-                    logger::info!("connectors exhausted for auto_retry payment");
+                    logger::info!("connectors exhausted for auto_retry payout");
                     metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
                     break;
                 }

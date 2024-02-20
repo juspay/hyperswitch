@@ -653,23 +653,27 @@ pub async fn call_connector_payout(
     let payouts: &diesel_models::payouts::Payouts = &payout_data.payouts.to_owned();
 
     // update connector_name
-    payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
-    let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
-        connector: connector_data.connector_name.to_string(),
-        straight_through_algorithm: payout_data
-            .payout_attempt
-            .straight_through_algorithm
-            .clone(),
+    if payout_data.payout_attempt.connector.is_none()
+        || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
+    {
+        payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
+        let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
+            connector: connector_data.connector_name.to_string(),
+            straight_through_algorithm: payout_data
+                .payout_attempt
+                .straight_through_algorithm
+                .clone(),
+        };
+        let db = &*state.store;
+        db.update_payout_attempt_by_merchant_id_payout_id(
+            &payout_attempt.merchant_id,
+            &payout_attempt.payout_id,
+            updated_payout_attempt,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating routing info in payout_attempt")?;
     };
-    let db = &*state.store;
-    db.update_payout_attempt_by_merchant_id_payout_id(
-        &payout_attempt.merchant_id,
-        &payout_attempt.payout_id,
-        updated_payout_attempt,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error updating routing info in payout_attempt")?;
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
