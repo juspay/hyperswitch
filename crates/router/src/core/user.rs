@@ -921,20 +921,13 @@ pub async fn switch_merchant_id(
         .into());
     }
 
-    let user_roles = state
-        .store
-        .list_user_roles_by_user_id(&user_from_token.user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let active_user_roles = user_roles
-        .into_iter()
-        .filter(|role| role.status == UserStatus::Active)
-        .collect::<Vec<_>>();
-
     let user = user_from_token.get_user_from_db(&state).await?;
 
-    let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
+    let role_info = roles::get_role_info_from_role_id(&state, &user_from_token.role_id)
+        .await
+        .to_not_found_response(UserErrors::InternalServerError)?;
+
+    let (token, role_id) = if role_info.is_internal() {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -973,6 +966,17 @@ pub async fn switch_merchant_id(
         .await?;
         (token, user_from_token.role_id)
     } else {
+        let user_roles = state
+            .store
+            .list_user_roles_by_user_id(&user_from_token.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let active_user_roles = user_roles
+            .into_iter()
+            .filter(|role| role.status == UserStatus::Active)
+            .collect::<Vec<_>>();
+
         let user_role = active_user_roles
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)

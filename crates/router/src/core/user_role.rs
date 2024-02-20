@@ -30,7 +30,7 @@ pub async fn get_authorization_info(
     ))
 }
 
-pub async fn list_roles(
+pub async fn list_invitable_roles(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_role_api::ListRolesResponse> {

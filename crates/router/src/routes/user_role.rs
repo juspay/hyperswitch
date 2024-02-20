@@ -36,7 +36,7 @@ pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state.clone(),
         &req,
         (),
-        |state, user, _| user_role_core::list_roles(state, user),
+        |state, user, _| user_role_core::list_invitable_roles(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
