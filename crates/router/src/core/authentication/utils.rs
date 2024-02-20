@@ -213,13 +213,11 @@ pub async fn update_trackers<F: Clone, Req>(
                 }
             }
         }),
-        Err(_error) => Some(storage::AuthenticationUpdate::AuthenticationDataUpdate {
-            authentication_data: None,
-            authentication_connector_id: None,
-            payment_method_id: None,
-            authentication_type: None,
-            authentication_status: Some(common_enums::AuthenticationStatus::Failed),
-            authentication_lifecycle_status: None,
+        Err(error) => Some(storage::AuthenticationUpdate::ErrorUpdate {
+            authentication_connector_id: error.connector_transaction_id,
+            authentication_status: common_enums::AuthenticationStatus::Failed,
+            error_message: Some(error.message),
+            error_code: Some(error.code),
         }),
     };
     let authentication_result = if let Some(authentication_update) = authentication_update {
@@ -265,6 +263,8 @@ pub async fn create_new_authentication(
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+        error_message: None,
+        error_code: None,
     };
     state
         .store
