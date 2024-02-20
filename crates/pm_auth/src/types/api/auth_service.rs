@@ -1,6 +1,7 @@
 use crate::types::{
     BankAccountCredentialsRequest, BankAccountCredentialsResponse, ExchangeTokenRequest,
-    ExchangeTokenResponse, LinkTokenRequest, LinkTokenResponse,
+    ExchangeTokenResponse, LinkTokenRequest, LinkTokenResponse, RecipientCreateRequest,
+    RecipientCreateResponse,
 };
 
 pub trait AuthService:
@@ -10,6 +11,8 @@ pub trait AuthService:
     + AuthServiceBankAccountCredentials
 {
 }
+
+pub trait PaymentInitiation:  super::ConnectorCommon + PaymentInitiationRecipientCreate {}
 
 #[derive(Debug, Clone)]
 pub struct LinkToken;
@@ -36,5 +39,13 @@ pub trait AuthServiceBankAccountCredentials:
     BankAccountCredentialsRequest,
     BankAccountCredentialsResponse,
 >
+{
+}
+
+#[derive(Debug, Clone)]
+pub struct RecipientCreate;
+
+pub trait PaymentInitiationRecipientCreate:
+    super::ConnectorIntegration<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>
 {
 }
