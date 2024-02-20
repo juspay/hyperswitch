@@ -78,7 +78,7 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference,
         })
     }
 }
