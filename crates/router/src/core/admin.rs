@@ -923,7 +923,7 @@ pub async fn create_payment_connector(
         disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: Some(connector_label),
+        connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label.clone(),
@@ -960,7 +960,7 @@ pub async fn create_payment_connector(
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id: profile_id.clone(),
-                connector_name: req.connector_name.to_string(),
+                connector_label,
             },
         )?;
 
@@ -1277,7 +1277,7 @@ pub async fn update_payment_connector(
         .change_context(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name: request_connector_label.unwrap_or_default(),
+                connector_label: request_connector_label.unwrap_or_default(),
             },
         )
         .attach_printable_lazy(|| {
