@@ -107,13 +107,15 @@ pub struct LogTelemetry {
 
 /// Telemetry / tracing.
 #[derive(Default, Debug, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum LogFormat {
     /// Default pretty log format
     Default,
     /// JSON based structured logging
     #[default]
     Json,
+    /// JSON based structured logging with pretty print
+    PrettyJson,
 }
 
 impl Config {

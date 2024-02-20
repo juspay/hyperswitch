@@ -24,6 +24,7 @@ use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
+    role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_role::UserRoleInterface,
 };
@@ -374,9 +375,15 @@ impl CustomerInterface for KafkaStore {
 impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
         &self,
-        dispute: storage::DisputeNew,
+        dispute_new: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.insert_dispute(dispute).await
+        let dispute = self.diesel_store.insert_dispute(dispute_new).await?;
+
+        if let Err(er) = self.kafka_producer.log_dispute(&dispute, None).await {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute:?}", error_message=?er);
+        };
+
+        Ok(dispute)
     }
 
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
@@ -419,7 +426,19 @@ impl DisputeInterface for KafkaStore {
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store.update_dispute(this, dispute).await
+        let dispute_new = self
+            .diesel_store
+            .update_dispute(this.clone(), dispute)
+            .await?;
+        if let Err(er) = self
+            .kafka_producer
+            .log_dispute(&dispute_new, Some(this))
+            .await
+        {
+            logger::error!(message="Failed to add analytics entry for Dispute {dispute_new:?}", error_message=?er);
+        };
+
+        Ok(dispute_new)
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -2261,5 +2280,47 @@ impl AuthorizationInterface for KafkaStore {
 impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
+    }
+}
+
+#[async_trait::async_trait]
+impl RoleInterface for KafkaStore {
+    async fn insert_role(
+        &self,
+        role: storage::RoleNew,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.insert_role(role).await
+    }
+
+    async fn find_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.find_role_by_role_id(role_id).await
+    }
+
+    async fn update_role_by_role_id(
+        &self,
+        role_id: &str,
+        role_update: storage::RoleUpdate,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .update_role_by_role_id(role_id, role_update)
+            .await
+    }
+
+    async fn delete_role_by_role_id(
+        &self,
+        role_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store.delete_role_by_role_id(role_id).await
+    }
+
+    async fn list_all_roles(
+        &self,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        self.diesel_store.list_all_roles(merchant_id, org_id).await
     }
 }

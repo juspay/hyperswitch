@@ -182,10 +182,10 @@ pub async fn create_routing_config(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let algorithm_str =
-            utils::Encode::<routing_types::RoutingAlgorithm>::encode_to_string_of_json(&algorithm)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to serialize routing algorithm to string")?;
+        let algorithm_str = algorithm
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to serialize routing algorithm to string")?;
 
         let mut algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
             .routing_algorithm
@@ -584,10 +584,10 @@ pub async fn unlink_routing_config(
         )
         .await?;
 
-        let ref_value =
-            Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&routing_algorithm)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed converting routing algorithm ref to json value")?;
+        let ref_value = routing_algorithm
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed converting routing algorithm ref to json value")?;
 
         let merchant_account_update = storage::MerchantAccountUpdate::Update {
             merchant_name: None,

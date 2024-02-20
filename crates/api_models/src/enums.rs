@@ -524,8 +524,7 @@ pub enum RetryAction {
 
 #[derive(Clone, Copy)]
 pub enum LockerChoice {
-    Basilisk,
-    Tartarus,
+    HyperswitchCardVault,
 }
 
 #[derive(
