@@ -4,12 +4,6 @@
     {
       "key": "Accept",
       "value": "application/json"
-    },
-    {
-      "key": "x-feature",
-      "value": "router-custom",
-      "type": "text",
-      "disabled": true
     }
   ],
   "url": {

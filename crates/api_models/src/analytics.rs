@@ -13,6 +13,7 @@ pub use crate::payments::TimeRange;
 
 pub mod api_event;
 pub mod connector_events;
+pub mod disputes;
 pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
