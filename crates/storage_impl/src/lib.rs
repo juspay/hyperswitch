@@ -272,7 +272,7 @@ pub trait UniqueConstraints {
         let constraints = self.unique_constraints();
         let sadd_result = redis_conn
             .sadd(
-                &format!("unique_constraint_{}", self.table_name()),
+                &format!("unique_constraint:{}", self.table_name()),
                 constraints,
             )
             .await?;
