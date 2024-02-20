@@ -9,12 +9,14 @@ use api_models::payments;
 use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use masking::PeekInterface;
 
 use super::errors;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::AppState,
     types::{self as core_types, api, authentication::AuthenticationResponseData, storage},
+    utils::OptionExt,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -58,7 +60,7 @@ pub async fn perform_authentication(
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
     let (_authentication, _authentication_data) =
-        utils::update_trackers(state, response.clone(), authentication_data.1, None).await?;
+        utils::update_trackers(state, response.clone(), authentication_data.1, None, None).await?;
     let authentication_response =
         response
             .response
@@ -133,6 +135,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                 router_data,
                 authentication,
                 payment_data.token.clone(),
+                None,
             )
             .await?;
             payment_data.authentication = Some(updated_authentication);
@@ -150,6 +153,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
     authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
     merchant_account: &core_types::domain::MerchantAccount,
     three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+    payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
 ) -> CustomResult<(), ApiErrorResponse> {
     let authentication = utils::create_new_authentication(
         state,
@@ -172,11 +176,32 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
             let router_data =
                 utils::do_auth_connector_call(state, authentication_connector_name, router_data)
                     .await?;
+            let acquired_details: types::AcquirerDetails = {
+                payment_connector_account
+                    .get_metadata()
+                    .get_required_value("merchant_connector_account.metadata")?
+                    .peek()
+                    .get("acquirer_details")
+                    .cloned()
+                    .parse_value("AcquirerDetails")
+                    .change_context(ApiErrorResponse::InvalidDataFormat {
+                        field_name: "merchant_connector_account.metadata.acquirer_details"
+                            .to_string(),
+                        expected_format: r#"
+                {
+                    "acquirer_bin": "123445",
+                    "acquirer_merchant_id": "12344"
+                }
+            "#
+                        .to_string(),
+                    })
+            }?;
             let (authentication, authentication_data) = utils::update_trackers(
                 state,
                 router_data,
                 authentication,
                 payment_data.token.clone(),
+                Some(acquired_details),
             )
             .await?;
             if authentication_data.is_separate_authn_required() {

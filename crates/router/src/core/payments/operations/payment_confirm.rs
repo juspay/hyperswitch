@@ -647,13 +647,18 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             .request_external_three_ds_authentication
             .unwrap_or(false);
         let connector_supports_separate_authn =
-            authentication::utils::is_separate_authn_supported(connector_call_type);
+            authentication::utils::get_connector_name_if_separate_authn_supported(
+                connector_call_type,
+            );
         print!("is_pre_authn_call {:?}", is_post_authn_call.is_none());
         print!(
             "separate_authentication_requested {:?}",
             separate_authentication_requested
         );
-        if separate_authentication_requested && connector_supports_separate_authn {
+        if let Some(payment_connector) = match connector_supports_separate_authn {
+            Some(payment_connector) if separate_authentication_requested => Some(payment_connector),
+            _ => None,
+        } {
             let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
                 .authentication_details
                 .clone()
@@ -709,6 +714,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 )
                 .await?;
             } else {
+                let payment_connector_mca = helpers::get_merchant_connector_account(
+                    state,
+                    &merchant_account.merchant_id,
+                    None,
+                    key_store,
+                    profile_id,
+                    &payment_connector,
+                    None,
+                )
+                .await?;
                 // call pre authn service
                 let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
                     if let api_models::payments::PaymentMethodData::Card(card) = pmd {
@@ -731,6 +746,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         helpers::MerchantConnectorAccountType::DbVal(
                             merchant_connector_account.clone(),
                         ),
+                        payment_connector_mca,
                     )
                     .await?;
                 }

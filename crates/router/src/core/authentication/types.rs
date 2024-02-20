@@ -37,6 +37,7 @@ pub struct AuthenticationData {
     pub message_version: String,
     pub eci: Option<String>,
     pub trans_status: api_models::payments::TransStatus,
+    pub acquirer_details: Option<AcquirerDetails>,
 }
 
 impl AuthenticationData {
@@ -50,4 +51,9 @@ pub struct ThreeDsMethodData {
     pub three_ds_method_data_submission: bool,
     pub three_ds_method_data: String,
     pub three_ds_method_url: Option<String>,
+}
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct AcquirerDetails {
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
 }
