@@ -71,7 +71,7 @@ pub struct MerchantAccountCreate {
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
     pub payment_response_hash_key: Option<String>,
 
-    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
@@ -79,7 +79,8 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<MerchantAccountMetadata>,
 
-    /// API key that will be used for server side API access
+    /// API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.
+    /// A `client_secret` can be obtained by creating a payment with `confirm` set to false
     #[schema(example = "AH3423bkjbkjdsfbkj")]
     pub publishable_key: Option<String>,
 
@@ -195,7 +196,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
     pub merchant_name: OptionalEncryptableName,
 
-    /// The URL to redirect after the completion of the operation
+    /// The URL to redirect after completion of the payment
     #[schema(max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<String>,
 

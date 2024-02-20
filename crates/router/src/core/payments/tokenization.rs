@@ -179,7 +179,7 @@ where
                                     &card,
                                     customer.customer_id.clone(),
                                     merchant_account,
-                                    api::enums::LockerChoice::Tartarus,
+                                    api::enums::LockerChoice::HyperswitchCardVault,
                                     Some(&locker_response.0.payment_method_id),
                                 )
                                 .await;

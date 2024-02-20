@@ -407,7 +407,7 @@ where
                             let response = match body {
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
-                                    match connector_integration
+                                    let handle_response_result = connector_integration
                                         .handle_response(req, Some(&mut connector_event), body)
                                         .map_err(|error| {
                                             if error.current_context()
@@ -423,40 +423,43 @@ where
                                             )
                                         }
                                             error
-                                        }) {
-                                            Ok(mut data) => {
-
-                                                match connector_event.try_into() {
-                                                    Ok(event) => {
-                                                        state.event_handler().log_event(event);
-                                                    }
-                                                    Err(err) => {
-                                                        logger::error!(error=?err, "Error Logging Connector Event");
-                                                    }
-                                                };
-                                                data.connector_http_status_code = connector_http_status_code;
-                                                // Add up multiple external latencies in case of multiple external calls within the same request.
-                                                data.external_latency = Some(
-                                                    data.external_latency
-                                                        .map_or(external_latency, |val| val + external_latency),
-                                                );
-                                                Ok(data)
-                                            },
-                                            Err(err) => {
-
-                                                connector_event.set_error(json!({"error": err.to_string()}));
-
-                                                match connector_event.try_into() {
-                                                    Ok(event) => {
-                                                        state.event_handler().log_event(event);
-                                                    }
-                                                    Err(err) => {
-                                                        logger::error!(error=?err, "Error Logging Connector Event");
-                                                    }
+                                        });
+                                    match handle_response_result {
+                                        Ok(mut data) => {
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
                                                 }
-                                                Err(err)
-                                            },
-                                        }?
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            data.connector_http_status_code =
+                                                connector_http_status_code;
+                                            // Add up multiple external latencies in case of multiple external calls within the same request.
+                                            data.external_latency = Some(
+                                                data.external_latency
+                                                    .map_or(external_latency, |val| {
+                                                        val + external_latency
+                                                    }),
+                                            );
+                                            Ok(data)
+                                        }
+                                        Err(err) => {
+                                            connector_event
+                                                .set_error(json!({"error": err.to_string()}));
+
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            }
+                                            Err(err)
+                                        }
+                                    }?
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
@@ -1095,7 +1098,7 @@ where
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
@@ -1234,11 +1237,12 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
         tag = ?Tag::EndRequest,
-        status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
     res

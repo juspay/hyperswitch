@@ -531,7 +531,7 @@ Within the `ConnectorIntegration` trait, you'll find the following methods imple
       let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
       let checkout_req = types::RequestBody::log_and_get_request_body(
           &connector_req,
-          utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
+          utils::Encode::encode_to_string_of_json,
       )
       .change_context(errors::ConnectorError::RequestEncodingFailed)?;
       Ok(Some(checkout_req))
