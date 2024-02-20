@@ -779,7 +779,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -950,7 +950,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -963,7 +963,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(false),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -975,7 +975,7 @@ pub fn verify_mandate_details(
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "cross currency mandates not supported".to_string()
+                reason: "cross currency mandates not supported".into()
             }))
         },
     )
@@ -1097,6 +1097,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: Some(card_detail),
                         metadata: None,
                         customer_id: Some(customer_id),
@@ -1114,6 +1115,7 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         bank_transfer: None,
+                        wallet: None,
                         card: None,
                         metadata: None,
                         customer_id: Some(customer.customer_id.to_owned()),
@@ -3199,6 +3201,7 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
         }
     }
 
@@ -3535,16 +3538,17 @@ impl ApplePayData {
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let apple_pay_ppc = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
                     .expose();
@@ -3557,7 +3561,7 @@ impl ApplePayData {
         .await?;
 
         #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
+        let cert_data = aws_kms::core::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc)
             .await
@@ -3618,16 +3622,17 @@ impl ApplePayData {
 
         let apple_pay_ppc_key = async {
             #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
+                &state.conf.hc_vault,
+            )
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
+            .attach_printable("Failed while creating client")?;
 
             #[cfg(feature = "hashicorp-vault")]
             let output =
                 masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
+                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
                     .await
                     .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
                     .attach_printable("Failed while creating client")?
@@ -3641,7 +3646,7 @@ impl ApplePayData {
         .await?;
 
         #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
+        let decrypted_apple_pay_ppc_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
             .await
             .decrypt(&apple_pay_ppc_key)
             .await

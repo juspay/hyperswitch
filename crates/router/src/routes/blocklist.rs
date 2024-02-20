@@ -117,3 +117,41 @@ pub async fn list_blocked_payment_methods(
     ))
     .await
 }
+
+#[utoipa::path(
+    post,
+    path = "/blocklist/toggle",
+    params (
+        ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
+    ),
+    responses(
+        (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
+        (status = 400, description = "Invalid Data")
+    ),
+    tag = "Blocklist",
+    operation_id = "Toggle blocklist guard for a particular merchant",
+    security(("api_key" = []))
+)]
+pub async fn toggle_blocklist_guard(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<api_blocklist::ToggleBlocklistQuery>,
+) -> HttpResponse {
+    let flow = Flow::ListBlocklist;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, query| {
+            blocklist::toggle_blocklist_guard(state, auth.merchant_account, query)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

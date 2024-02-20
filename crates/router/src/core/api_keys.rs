@@ -38,9 +38,9 @@ static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_K
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
@@ -57,7 +57,7 @@ pub async fn get_hash_key(
 
             #[cfg(feature = "hashicorp-vault")]
             let hash_key = hash_key
-                .fetch_inner::<external_services::hashicorp_vault::Kv2>(hc_client)
+                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -153,9 +153,9 @@ impl PlaintextApiKey {
 #[instrument(skip_all)]
 pub async fn create_api_key(
     state: AppState,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::AwsKmsClient,
+    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
     #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::HashiCorpVault,
+    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -253,7 +253,7 @@ pub async fn add_api_key_expiry_task(
         }
     }
 
-    let api_key_expiry_tracker = &storage::ApiKeyExpiryWorkflow {
+    let api_key_expiry_tracker = &storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
         // We need API key expiry too, because we need to decide on the schedule_time in
@@ -427,7 +427,7 @@ pub async fn update_api_key_expiry_task(
 
     let task_ids = vec![task_id.clone()];
 
-    let updated_tracking_data = &storage::ApiKeyExpiryWorkflow {
+    let updated_tracking_data = &storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
         api_key_expiry: api_key.expires_at,
@@ -590,9 +590,9 @@ mod tests {
         let hash_key = get_hash_key(
             &settings.api_keys,
             #[cfg(feature = "aws_kms")]
-            external_services::aws_kms::get_aws_kms_client(&settings.kms).await,
+            external_services::aws_kms::core::get_aws_kms_client(&settings.kms).await,
             #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::get_hashicorp_client(&settings.hc_vault)
+            external_services::hashicorp_vault::core::get_hashicorp_client(&settings.hc_vault)
                 .await
                 .unwrap(),
         )

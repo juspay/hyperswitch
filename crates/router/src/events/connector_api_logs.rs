@@ -1,6 +1,7 @@
 use common_utils::request::Method;
 use router_env::tracing_actix_web::RequestId;
 use serde::Serialize;
+use serde_json::json;
 use time::OffsetDateTime;
 
 use super::{EventType, RawEvent};
@@ -10,7 +11,8 @@ pub struct ConnectorEvent {
     connector_name: String,
     flow: String,
     request: String,
-    response: Option<String>,
+    masked_response: Option<String>,
+    error: Option<String>,
     url: String,
     method: String,
     payment_id: String,
@@ -29,7 +31,6 @@ impl ConnectorEvent {
         connector_name: String,
         flow: &str,
         request: serde_json::Value,
-        response: Option<String>,
         url: String,
         method: Method,
         payment_id: String,
@@ -48,7 +49,8 @@ impl ConnectorEvent {
                 .unwrap_or(flow)
                 .to_string(),
             request: request.to_string(),
-            response,
+            masked_response: None,
+            error: None,
             url,
             method: method.to_string(),
             payment_id,
@@ -62,6 +64,28 @@ impl ConnectorEvent {
             dispute_id,
             status_code,
         }
+    }
+
+    pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
+        match masking::masked_serialize(response) {
+            Ok(masked) => {
+                self.masked_response = Some(masked.to_string());
+            }
+            Err(er) => self.set_error(json!({"error": er.to_string()})),
+        }
+    }
+
+    pub fn set_error_response_body<T: Serialize>(&mut self, response: &T) {
+        match masking::masked_serialize(response) {
+            Ok(masked) => {
+                self.error = Some(masked.to_string());
+            }
+            Err(er) => self.set_error(json!({"error": er.to_string()})),
+        }
+    }
+
+    pub fn set_error(&mut self, error: serde_json::Value) {
+        self.error = Some(error.to_string());
     }
 }
 

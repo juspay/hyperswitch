@@ -1233,6 +1233,45 @@
         ]
       }
     },
+    "/blocklist/toggle": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Toggle blocklist guard for a particular merchant",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Boolean value to enable/disable blocklist",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blocklist guard enabled/disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleBlocklistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers": {
       "post": {
         "tags": [
@@ -1319,8 +1358,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Payment",
-        "description": "List payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
+        "summary": "List customer saved payment methods for a Payment",
+        "description": "List customer saved payment methods for a Payment\n\nLists all the applicable payment methods for a particular payment tied to the `client_secret`.",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -1560,6 +1599,39 @@
           },
           "404": {
             "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/mandates": {
+      "post": {
+        "tags": [
+          "Customers Mandates List"
+        ],
+        "summary": "Customers - Mandates List",
+        "description": "Customers - Mandates List\n\nLists all the mandates for a particular customer id.",
+        "operationId": "List all Mandates for a Customer",
+        "responses": {
+          "200": {
+            "description": "List of retrieved mandates for a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MandateResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
           }
         },
         "security": [
@@ -5155,12 +5227,16 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_account_bic": {
                     "type": "string",
@@ -6531,6 +6607,13 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -9059,6 +9142,11 @@
             "type": "string",
             "description": "The type of the payment card",
             "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The nick_name of the card holder",
+            "nullable": true
           }
         }
       },
@@ -9304,7 +9392,7 @@
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled.",
             "default": false,
             "example": true,
             "nullable": true
@@ -9316,7 +9404,7 @@
           },
           "publishable_key": {
             "type": "string",
-            "description": "API key that will be used for server side API access",
+            "description": "API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.\nA `client_secret` can be obtained by creating a payment with `confirm` set to false",
             "example": "AH3423bkjbkjdsfbkj",
             "nullable": true
           },
@@ -9392,7 +9480,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
+            "description": "The URL to redirect after completion of the payment",
             "example": "https://www.example.com/success",
             "nullable": true,
             "maxLength": 255
@@ -10219,6 +10307,7 @@
         "description": "Routing Algorithm specific to merchants",
         "required": [
           "id",
+          "profile_id",
           "name",
           "description",
           "algorithm",
@@ -10227,6 +10316,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -11413,6 +11505,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11637,6 +11737,7 @@
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
+          "currency",
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen"
@@ -11647,6 +11748,9 @@
             "description": "Redirect URL of the merchant",
             "example": "https://www.google.com",
             "nullable": true
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
           },
           "payment_methods": {
             "type": "array",
@@ -11886,6 +11990,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
               }
             ],
             "nullable": true
@@ -14481,6 +14593,7 @@
           "Company",
           "NonProfit",
           "PublicSector",
+          "NaturalPerson",
           "lowercase",
           "Personal"
         ]
@@ -14506,6 +14619,17 @@
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/Wallet"
               }
             }
           }
@@ -14596,11 +14720,34 @@
         "type": "string",
         "enum": [
           "card",
-          "bank"
+          "bank",
+          "wallet"
         ]
       },
+      "Paypal": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email linked with paypal account",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
       "PaypalRedirection": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "paypal's email address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
       },
       "PaypalSessionTokenResponse": {
         "type": "object",
@@ -15310,7 +15457,7 @@
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "sub_label": {
+          "merchant_connector_id": {
             "type": "string",
             "nullable": true
           }
@@ -15320,6 +15467,13 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -15519,6 +15673,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "kind",
           "description",
@@ -15527,6 +15682,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -16059,6 +16217,17 @@
           }
         }
       },
+      "ToggleBlocklistResponse": {
+        "type": "object",
+        "required": [
+          "blocklist_guard_status"
+        ],
+        "properties": {
+          "blocklist_guard_status": {
+            "type": "string"
+          }
+        }
+      },
       "TouchNGoRedirection": {
         "type": "object"
       },
@@ -16379,6 +16548,21 @@
             "properties": {
               "pay_easy": {
                 "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          }
+        ]
+      },
+      "Wallet": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/Paypal"
               }
             }
           }
