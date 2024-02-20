@@ -1,4 +1,4 @@
-use common_enums::PermissionGroup;
+use common_enums::{PermissionGroup, RoleScope};
 use common_utils::errors::CustomResult;
 
 use super::{permission_groups::get_permissions_vec, permissions::Permission};
@@ -12,6 +12,7 @@ pub struct RoleInfo {
     role_id: String,
     role_name: String,
     groups: Vec<PermissionGroup>,
+    scope: RoleScope,
     is_invitable: bool,
     is_deletable: bool,
     is_updatable: bool,
@@ -29,6 +30,10 @@ impl RoleInfo {
 
     pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
         &self.groups
+    }
+
+    pub fn get_scope(&self) -> RoleScope {
+        self.scope
     }
 
     pub fn is_invitable(&self) -> bool {
@@ -76,9 +81,10 @@ pub async fn get_role_info_from_role_id(
 impl From<diesel_models::role::Role> for RoleInfo {
     fn from(role: diesel_models::role::Role) -> Self {
         RoleInfo {
-            groups: role.groups.into_iter().map(Into::into).collect(),
-            role_name: role.role_name,
             role_id: role.role_id,
+            role_name: role.role_name,
+            groups: role.groups.into_iter().map(Into::into).collect(),
+            scope: role.scope,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

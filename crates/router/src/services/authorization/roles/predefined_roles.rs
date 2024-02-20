@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::PermissionGroup;
+use common_enums::{PermissionGroup, RoleScope};
 use once_cell::sync::Lazy;
 
 use super::RoleInfo;
@@ -27,6 +27,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_INTERNAL_ADMIN.to_string(),
             role_name: "Internal Admin".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -46,6 +47,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "Internal View Only".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -72,6 +74,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             role_name: "Organization Admin".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -98,6 +101,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
             role_name: "Admin".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -117,6 +121,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY.to_string(),
             role_name: "View Only".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -137,6 +142,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_IAM_ADMIN.to_string(),
             role_name: "IAM".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -161,6 +167,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_DEVELOPER.to_string(),
             role_name: "Developer".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -183,6 +190,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_OPERATOR.to_string(),
             role_name: "Operator".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -202,6 +210,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT.to_string(),
             role_name: "Customer Support".to_string(),
+            scope: RoleScope::Organization,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

@@ -48,6 +48,7 @@ pub async fn list_invitable_roles(
                     .collect(),
                 role_id: role_id.to_string(),
                 role_name: role_info.get_role_name().to_string(),
+                role_scope: role_info.get_scope(),
             }),
     );
 
@@ -68,6 +69,7 @@ pub async fn list_invitable_roles(
                     .collect(),
                 role_id: role_info.get_role_id().to_string(),
                 role_name: role_info.get_role_name().to_string(),
+                role_scope: role_info.get_scope(),
             }),
     );
 
@@ -98,6 +100,7 @@ pub async fn get_role(
         permissions,
         role_id: role.role_id,
         role_name: role_info.get_role_name().to_string(),
+        role_scope: role_info.get_scope(),
     }))
 }
 

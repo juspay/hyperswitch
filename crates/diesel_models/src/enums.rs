@@ -501,23 +501,3 @@ pub enum DashboardMetadata {
     IsMultipleConfiguration,
     IsChangePasswordRequired,
 }
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RoleScope {
-    Merchant,
-    Organization,
-}
