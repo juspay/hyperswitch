@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -179,12 +172,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "x-feature",
-                    "value": "router-custom",
-                    "type": "text",
-                    "disabled": true
                   }
                 ],
                 "body": {
@@ -949,11 +936,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text"
                       }
                     ],
                     "body": {
@@ -9292,12 +9274,6 @@
                         "value": "application/json"
                       },
                       {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
-                      },
-                      {
                         "key": "publishable_key",
                         "value": "pk_snd_8798c6a9114646f8b970b93ad5765ddf",
                         "type": "text",
@@ -9530,20 +9506,8 @@
                         "value": "application/json"
                       },
                       {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
-                      },
-                      {
                         "key": "Authorization",
                         "value": "",
-                        "type": "text",
-                        "disabled": true
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "integ-custom",
                         "type": "text",
                         "disabled": true
                       }
@@ -9683,12 +9647,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       }
                     ],
                     "url": {
@@ -10111,20 +10069,8 @@
                         "value": "application/json"
                       },
                       {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
-                      },
-                      {
                         "key": "Authorization",
                         "value": "",
-                        "type": "text",
-                        "disabled": true
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "integ-custom",
                         "type": "text",
                         "disabled": true
                       }
@@ -10264,12 +10210,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       }
                     ],
                     "url": {
@@ -10664,12 +10604,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       }
                     ],
                     "url": {
@@ -12949,11 +12883,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text"
                       }
                     ],
                     "body": {
@@ -13188,11 +13117,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text"
                       }
                     ],
                     "body": {
@@ -16793,11 +16717,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text"
                       }
                     ],
                     "body": {
