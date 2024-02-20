@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
@@ -8,6 +10,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{
     connector::utils::{
@@ -17,9 +20,15 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{
+        self, api,
+        storage::enums,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
     utils::{Encode, OptionExt},
 };
+
+const DISPLAY_METADATA: &str = "Y";
 
 #[derive(Debug, Serialize)]
 pub struct BluesnapRouterData<T> {
@@ -63,6 +72,21 @@ pub struct BluesnapPaymentsRequest {
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
     merchant_transaction_id: Option<String>,
+    transaction_meta_data: Option<BluesnapMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapMetadata {
+    meta_data: Vec<RequestMetadata>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestMetadata {
+    meta_key: Option<String>,
+    meta_value: Option<String>,
+    is_visible: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -241,6 +265,15 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
+        let transaction_meta_data =
+            item.router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|metadata| BluesnapMetadata {
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                });
+
         let (payment_method, card_holder_info) = match item
             .router_data
             .request
@@ -261,13 +294,10 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
-                    let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
-                        &BluesnapGooglePayObject {
-                            payment_method_data: utils::GooglePayWalletData::from(
-                                payment_method_data,
-                            ),
-                        },
-                    )
+                    let gpay_object = BluesnapGooglePayObject {
+                        payment_method_data: utils::GooglePayWalletData::from(payment_method_data),
+                    }
+                    .encode_to_string_of_json()
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
@@ -317,25 +347,21 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         address.push(add)
                     }
 
-                    let apple_pay_object = Encode::<EncodedPaymentToken>::encode_to_string_of_json(
-                        &EncodedPaymentToken {
-                            token: ApplepayPaymentData {
-                                payment_data: apple_pay_payment_data,
-                                payment_method: payment_method_data
-                                    .payment_method
-                                    .to_owned()
-                                    .into(),
-                                transaction_identifier: payment_method_data.transaction_identifier,
-                            },
-                            billing_contact: BillingDetails {
-                                country_code: billing_address.country,
-                                address_lines: Some(address),
-                                family_name: billing_address.last_name.to_owned(),
-                                given_name: billing_address.first_name.to_owned(),
-                                postal_code: billing_address.zip,
-                            },
+                    let apple_pay_object = EncodedPaymentToken {
+                        token: ApplepayPaymentData {
+                            payment_data: apple_pay_payment_data,
+                            payment_method: payment_method_data.payment_method.to_owned().into(),
+                            transaction_identifier: payment_method_data.transaction_identifier,
                         },
-                    )
+                        billing_contact: BillingDetails {
+                            country_code: billing_address.country,
+                            address_lines: Some(address),
+                            family_name: billing_address.last_name.to_owned(),
+                            given_name: billing_address.first_name.to_owned(),
+                            postal_code: billing_address.zip,
+                        },
+                    }
+                    .encode_to_string_of_json()
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                     Ok((
@@ -405,6 +431,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             }),
             card_holder_info,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
+            transaction_meta_data,
         })
     }
 }
@@ -529,7 +556,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 session_response,
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                            country_code: item.data.get_billing_country()?,
+                            country_code: item.data.request.country,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: payment_request_data.label,
@@ -569,6 +596,7 @@ pub struct BluesnapCompletePaymentsRequest {
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
     merchant_transaction_id: Option<String>,
+    transaction_meta_data: Option<BluesnapMetadata>,
 }
 
 impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -589,6 +617,15 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             })?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let transaction_meta_data =
+            item.router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|metadata| BluesnapMetadata {
+                    meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
+                });
 
         let pf_token = item
             .router_data
@@ -637,6 +674,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             )?,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
             pf_token,
+            transaction_meta_data,
         })
     }
 }
@@ -881,14 +919,14 @@ impl<F> TryFrom<&BluesnapRouterData<&types::RefundsRouterData<F>>> for BluesnapR
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum BluesnapRefundStatus {
     Success,
     #[default]
     Pending,
 }
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     refund_transaction_id: i32,
@@ -1021,7 +1059,7 @@ pub struct BluesnapWebhookObjectResource {
     reversal_ref_num: Option<String>,
 }
 
-impl TryFrom<BluesnapWebhookObjectResource> for serde_json::Value {
+impl TryFrom<BluesnapWebhookObjectResource> for Value {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(details: BluesnapWebhookObjectResource) -> Result<Self, Self::Error> {
         let (card_transaction_type, processing_status, transaction_id) = match details
@@ -1077,13 +1115,13 @@ pub struct ErrorDetails {
     pub error_name: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapErrorResponse {
     pub message: Vec<ErrorDetails>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
@@ -1091,7 +1129,7 @@ pub struct BluesnapAuthErrorResponse {
     pub error_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
     Payment(BluesnapErrorResponse),
@@ -1116,5 +1154,21 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
             error_code: error.code.to_string(),
             error_message: error.error_name.unwrap_or(error.code),
         }
+    }
+}
+
+impl ForeignFrom<Value> for Vec<RequestMetadata> {
+    fn foreign_from(metadata: Value) -> Self {
+        let hashmap: HashMap<Option<String>, Option<Value>> =
+            serde_json::from_str(&metadata.to_string()).unwrap_or(HashMap::new());
+        let mut vector: Self = Self::new();
+        for (key, value) in hashmap {
+            vector.push(RequestMetadata {
+                meta_key: key,
+                meta_value: value.map(|field_value| field_value.to_string()),
+                is_visible: Some(DISPLAY_METADATA.to_string()),
+            });
+        }
+        vector
     }
 }

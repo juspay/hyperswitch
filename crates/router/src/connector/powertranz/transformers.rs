@@ -218,9 +218,9 @@ impl TryFrom<&Card> for Source {
             cardholder_name: card
                 .card_holder_name
                 .clone()
-                .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                .unwrap_or(Secret::new("".to_string())),
             card_pan: card.card_number.clone(),
-            card_expiration: card.get_expiry_date_as_yymm(),
+            card_expiration: card.get_expiry_date_as_yymm()?,
             card_cvv: card.card_cvc.clone(),
         };
         Ok(Self::Card(card))
@@ -247,7 +247,7 @@ impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
 }
 
 // Common struct used in Payment, Capture, Void, Refund
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseResponse {
     transaction_type: u8,
@@ -475,7 +475,7 @@ pub struct PowertranzErrorResponse {
     pub errors: Vec<Error>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Error {
     pub code: String,

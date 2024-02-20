@@ -17,6 +17,12 @@ pub struct MandateRevokedResponse {
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
     pub status: api_enums::MandateStatus,
+    /// If there was an error while calling the connectors the code is received here
+    #[schema(example = "E0001")]
+    pub error_code: Option<String>,
+    /// If there was an error while calling the connector the error message is received here
+    #[schema(example = "Failed while verifying the card")]
+    pub error_message: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]
@@ -30,6 +36,8 @@ pub struct MandateResponse {
     pub payment_method_id: String,
     /// The payment method
     pub payment_method: String,
+    /// The payment method type
+    pub payment_method_type: Option<String>,
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
@@ -60,6 +68,18 @@ pub struct MandateCardDetails {
     #[schema(value_type = Option<String>)]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
+    /// The first 6 digits of card
+    pub card_isin: Option<String>,
+    /// The bank that issued the card
+    pub card_issuer: Option<String>,
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// The type of the payment card
+    pub card_type: Option<String>,
+    /// The nick_name of the card holder
+    #[schema(value_type = Option<String>)]
+    pub nick_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

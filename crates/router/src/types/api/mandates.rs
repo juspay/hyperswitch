@@ -1,6 +1,7 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use error_stack::ResultExt;
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     newtype,
     routes::AppState,
     types::{
-        api,
+        api, domain,
         storage::{self, enums as storage_enums},
     },
 };
@@ -23,12 +24,20 @@ newtype!(
 
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self>;
+    async fn from_db_mandate(
+        state: &AppState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+    ) -> RouterResult<Self>;
 }
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
-    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self> {
+    async fn from_db_mandate(
+        state: &AppState,
+        key_store: domain::MerchantKeyStore,
+        mandate: storage::Mandate,
+    ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
@@ -36,21 +45,35 @@ impl MandateResponseExt for MandateResponse {
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            let card = payment_methods::cards::get_card_from_locker(
-                state,
-                &payment_method.customer_id,
-                &payment_method.merchant_id,
-                &payment_method.payment_method_id,
-            )
-            .await?;
-            let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting card details")?;
-            Some(MandateCardDetails::from(card_detail).into_inner())
+            // if locker is disabled , decrypt the payment method data
+            let card_details = if state.conf.locker.locker_enabled {
+                let card = payment_methods::cards::get_card_from_locker(
+                    state,
+                    &payment_method.customer_id,
+                    &payment_method.merchant_id,
+                    &payment_method.payment_method_id,
+                )
+                .await?;
+
+                payment_methods::transformers::get_card_detail(&payment_method, card)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while getting card details")?
+            } else {
+                payment_methods::cards::get_card_details_without_locker_fallback(
+                    &payment_method,
+                    key_store.key.get_inner().peek(),
+                    state,
+                )
+                .await?
+            };
+
+            Some(MandateCardDetails::from(card_details).into_inner())
         } else {
             None
         };
-
+        let payment_method_type = payment_method
+            .payment_method_type
+            .map(|pmt| pmt.to_string());
         Ok(Self {
             mandate_id: mandate.mandate_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
@@ -68,6 +91,7 @@ impl MandateResponseExt for MandateResponse {
             card,
             status: mandate.mandate_status,
             payment_method: payment_method.payment_method.to_string(),
+            payment_method_type,
             payment_method_id: mandate.payment_method_id,
         })
     }
@@ -84,6 +108,11 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             scheme: card_details_from_locker.scheme,
             issuer_country: card_details_from_locker.issuer_country,
             card_fingerprint: card_details_from_locker.card_fingerprint,
+            card_isin: card_details_from_locker.card_isin,
+            card_issuer: card_details_from_locker.card_issuer,
+            card_network: card_details_from_locker.card_network,
+            card_type: card_details_from_locker.card_type,
+            nick_name: card_details_from_locker.nick_name,
         }
         .into()
     }

@@ -11,6 +11,7 @@ use crate::{
     connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -61,11 +62,16 @@ impl ConnectorCommon for Klarna {
     fn build_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         // KlarnaErrorResponse will either have error_messages or error_message field Ref: https://docs.klarna.com/api/errors/
         let reason = response
             .error_messages
@@ -186,12 +192,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -203,8 +214,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -218,6 +230,20 @@ impl
     > for Klarna
 {
     // Not Implemented(R)
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Klarna".to_string())
+                .into(),
+        )
+    }
 }
 
 impl
@@ -449,12 +475,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -466,8 +497,9 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 

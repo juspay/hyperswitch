@@ -1,11 +1,14 @@
 pub mod address;
 pub mod api_keys;
+pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
 
 pub mod authorization;
+pub mod blocklist;
+pub mod blocklist_fingerprint;
 pub mod customers;
 pub mod dispute;
 pub mod encryption;
@@ -36,6 +39,7 @@ pub mod process_tracker;
 pub mod query;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod role;
 pub mod routing_algorithm;
 #[allow(unused_qualifications)]
 pub mod schema;

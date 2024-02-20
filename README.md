@@ -10,14 +10,16 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
+  <a href="https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md">Local Setup Guide</a> •
   <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
   <a href="#-supported-features">Supported Features</a> •
-  <a href="#-FAQs">FAQs</a>
   <br>
   <a href="#whats-included">What's Included</a> •
   <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
   <a href="#-community">Community</a> •
   <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#-FAQs">FAQs</a> •
   <a href="#-versioning">Versioning</a> •
   <a href="#%EF%B8%8F-copyright-and-license">Copyright and License</a>
 </p>
@@ -197,7 +199,7 @@ should be introduced, checking it agrees with the actual structure -->
 │   ├── data_models                    : Represents the data/domain models used by the business/domain layer
 │   ├── diesel_models                  : Database models shared across `router` and other crates
 │   ├── drainer                        : Application that reads Redis streams and executes queries in database
-│   ├── external_services              : Interactions with external systems like emails, KMS, etc.
+│   ├── external_services              : Interactions with external systems like emails, AWS KMS, etc.
 │   ├── masking                        : Personal Identifiable Information protection
 │   ├── redis_interface                : A user-friendly interface to Redis
 │   ├── router                         : Main crate of the project

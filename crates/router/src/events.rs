@@ -9,6 +9,7 @@ pub mod api_logs;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod kafka_handler;
+pub mod outgoing_webhook_logs;
 
 pub(super) trait EventHandler: Sync + Send + dyn_clone::DynClone {
     fn log_event(&self, event: RawEvent);
@@ -31,6 +32,7 @@ pub enum EventType {
     Refund,
     ApiLogs,
     ConnectorApiLogs,
+    OutgoingWebhookLogs,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

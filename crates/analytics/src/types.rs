@@ -8,6 +8,7 @@ use common_utils::{
 use error_stack::{report, Report, ResultExt};
 
 use super::query::QueryBuildingError;
+use crate::errors::AnalyticsError;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -16,6 +17,7 @@ pub enum AnalyticsDomain {
     Refunds,
     SdkEvents,
     ApiEvents,
+    Dispute,
 }
 
 #[derive(Debug, strum::AsRefStr, strum::Display, Clone, Copy)]
@@ -25,6 +27,9 @@ pub enum AnalyticsCollection {
     SdkEvents,
     ApiEvents,
     PaymentIntent,
+    ConnectorEvents,
+    OutgoingWebhookEvent,
+    Dispute,
 }
 
 #[allow(dead_code)]
@@ -124,13 +129,22 @@ pub enum FiltersError {
     #[error("Error running Query")]
     QueryExecutionFailure,
     #[allow(dead_code)]
-    #[error("Not Implemented")]
-    NotImplemented,
+    #[error("Not Implemented: {0}")]
+    NotImplemented(&'static str),
 }
 
 impl ErrorSwitch<FiltersError> for QueryBuildingError {
     fn switch(&self) -> FiltersError {
         FiltersError::QueryBuildingError
+    }
+}
+
+impl ErrorSwitch<AnalyticsError> for FiltersError {
+    fn switch(&self) -> AnalyticsError {
+        match self {
+            Self::QueryBuildingError | Self::QueryExecutionFailure => AnalyticsError::UnknownError,
+            Self::NotImplemented(a) => AnalyticsError::NotImplemented(a),
+        }
     }
 }
 

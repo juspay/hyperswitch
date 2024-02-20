@@ -5,6 +5,8 @@ use api_models::{
     payment_methods::{self, BankAccountAccessCreds},
     payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
+#[cfg(feature = "hashicorp-vault")]
+use external_services::hashicorp_vault::{self, decrypt::VaultFetch};
 use hex;
 pub mod helpers;
 pub mod transformers;
@@ -17,8 +19,8 @@ use common_utils::{
 };
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-pub use external_services::kms;
+#[cfg(feature = "aws_kms")]
+pub use external_services::aws_kms;
 use helpers::PaymentAuthConnectorDataExt;
 use masking::{ExposeInterface, PeekInterface};
 use pm_auth::{
@@ -52,6 +54,7 @@ use crate::{
         storage,
         transformers::ForeignTryFrom,
     },
+    utils::ext_traits::OptionExt,
 };
 
 pub async fn create_link_token(
@@ -344,15 +347,34 @@ async fn store_bank_details_in_payment_methods(
         }
     }
 
-    #[cfg(feature = "kms")]
-    let pm_auth_key = kms::get_kms_client(&state.conf.kms)
+    let pm_auth_key = async {
+        #[cfg(feature = "hashicorp-vault")]
+        let client =
+            external_services::hashicorp_vault::core::get_hashicorp_client(&state.conf.hc_vault)
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while creating client")?;
+
+        #[cfg(feature = "hashicorp-vault")]
+        let output = masking::Secret::new(state.conf.payment_method_auth.pm_auth_key.clone())
+            .fetch_inner::<hashicorp_vault::core::Kv2>(client)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)?
+            .expose();
+
+        #[cfg(not(feature = "hashicorp-vault"))]
+        let output = state.conf.payment_method_auth.pm_auth_key.clone();
+
+        Ok::<_, error_stack::Report<ApiErrorResponse>>(output)
+    }
+    .await?;
+
+    #[cfg(feature = "aws_kms")]
+    let pm_auth_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
         .await
-        .decrypt(state.conf.payment_method_auth.pm_auth_key.clone())
+        .decrypt(pm_auth_key)
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
-
-    #[cfg(not(feature = "kms"))]
-    let pm_auth_key = state.conf.payment_method_auth.pm_auth_key.clone();
 
     let mut update_entries: Vec<(storage::PaymentMethod, storage::PaymentMethodUpdate)> =
         Vec::new();
@@ -618,6 +640,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     key_store: &domain::MerchantKeyStore,
     auth_token: &payment_methods::BankAccountConnectorDetails,
     payment_intent: &PaymentIntent,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
@@ -710,10 +733,17 @@ pub async fn retrieve_payment_method_from_auth_service(
             last_name,
         }
     });
+
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(common_utils::pii::Email::from)
+        .get_required_value("email")?;
+
     let payment_method_data = PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
         billing_details: BankDebitBilling {
             name: name.unwrap_or_default(),
-            email: common_utils::pii::Email::from(masking::Secret::new("".to_string())),
+            email,
             address: address_details,
         },
         account_number: masking::Secret::new(bank_account.account_number.clone()),

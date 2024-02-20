@@ -18,7 +18,6 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -44,6 +43,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -90,7 +90,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .as_ref()
+            .map(utils::Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -311,12 +312,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        let (op, payment_method_data) =
-            helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await?;
+        let (op, payment_method_data) = helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            merchant_key_store,
+            customer,
+        )
+        .await?;
         Ok((op, payment_method_data))
     }
 
@@ -342,6 +350,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
         helpers::get_connector_default(state, request.routing.clone()).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 

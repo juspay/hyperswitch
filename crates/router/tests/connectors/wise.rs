@@ -73,9 +73,9 @@ impl WiseTest {
                 api::BacsBankTransfer {
                     bank_sort_code: "231470".to_string().into(),
                     bank_account_number: "28821822".to_string().into(),
-                    bank_name: "Deutsche Bank".to_string(),
-                    bank_country_code: enums::CountryAlpha2::NL,
-                    bank_city: "Amsterdam".to_string(),
+                    bank_name: Some("Deutsche Bank".to_string()),
+                    bank_country_code: Some(enums::CountryAlpha2::NL),
+                    bank_city: Some("Amsterdam".to_string()),
                 },
             ))),
             ..Default::default()

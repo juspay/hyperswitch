@@ -3,6 +3,10 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use masking::ExposeInterface;
+#[cfg(feature = "email")]
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
@@ -11,6 +15,8 @@ use crate::{
     types::domain::{user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, types::domain};
 
 pub async fn set_metadata(
     state: AppState,
@@ -101,6 +107,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::IsMultipleConfiguration => {
             Ok(types::MetaData::IsMultipleConfiguration(true))
         }
+        api::SetMetaDataRequest::IsChangePasswordRequired => {
+            Ok(types::MetaData::IsChangePasswordRequired(true))
+        }
     }
 }
 
@@ -127,6 +136,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ConfigureWoocom => DBEnum::ConfigureWoocom,
         api::GetMetaDataRequest::SetupWoocomWebhook => DBEnum::SetupWoocomWebhook,
         api::GetMetaDataRequest::IsMultipleConfiguration => DBEnum::IsMultipleConfiguration,
+        api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
     }
 }
 
@@ -201,6 +211,9 @@ fn into_response(
         }
 
         DBEnum::IsMultipleConfiguration => Ok(api::GetMetaDataResponse::IsMultipleConfiguration(
+            data.is_some(),
+        )),
+        DBEnum::IsChangePasswordRequired => Ok(api::GetMetaDataResponse::IsChangePasswordRequired(
             data.is_some(),
         )),
     }
@@ -434,15 +447,37 @@ async fn insert_metadata(
             if utils::is_update_required(&metadata) {
                 metadata = utils::update_user_scoped_metadata(
                     state,
-                    user.user_id,
-                    user.merchant_id,
-                    user.org_id,
+                    user.user_id.clone(),
+                    user.merchant_id.clone(),
+                    user.org_id.clone(),
                     metadata_key,
-                    data,
+                    data.clone(),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError);
             }
+
+            #[cfg(feature = "email")]
+            {
+                let user_data = user.get_user(state).await?;
+                let user_email = domain::UserEmail::from_pii_email(user_data.email.clone())
+                    .change_context(UserErrors::InternalServerError)?
+                    .get_secret()
+                    .expose();
+
+                if utils::is_prod_email_required(&data, user_email) {
+                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let send_email_result = state
+                        .email_client
+                        .compose_and_send_email(
+                            Box::new(email_contents),
+                            state.conf.proxy.https_url.as_ref(),
+                        )
+                        .await;
+                    logger::info!(?send_email_result);
+                }
+            }
+
             metadata
         }
         types::MetaData::SPTestPayment(data) => {
@@ -491,6 +526,17 @@ async fn insert_metadata(
         }
         types::MetaData::IsMultipleConfiguration(data) => {
             utils::insert_merchant_scoped_metadata_to_db(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                data,
+            )
+            .await
+        }
+        types::MetaData::IsChangePasswordRequired(data) => {
+            utils::insert_user_scoped_metadata_to_db(
                 state,
                 user.user_id,
                 user.merchant_id,

@@ -97,7 +97,7 @@ impl PaymentAttemptInterface for MockDb {
         #[allow(clippy::as_conversions)]
         let id = payment_attempts.len() as i32;
         let time = common_utils::date_time::now();
-
+        let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
             id,
             payment_id: payment_attempt.payment_id,
@@ -105,6 +105,7 @@ impl PaymentAttemptInterface for MockDb {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
             amount: payment_attempt.amount,
+            net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
@@ -146,6 +147,7 @@ impl PaymentAttemptInterface for MockDb {
             merchant_connector_id: payment_attempt.merchant_connector_id,
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
+            mandate_data: payment_attempt.mandate_data,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

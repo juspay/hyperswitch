@@ -1,7 +1,11 @@
 use std::str::FromStr;
 
 use api_models::enums as api_enums;
-use common_utils::{ext_traits::StringExt, pii::Email, request::RequestContent};
+use common_utils::{
+    ext_traits::{Encode, StringExt},
+    pii::Email,
+    request::RequestContent,
+};
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
@@ -13,7 +17,7 @@ use crate::{
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
     types::{api, storage},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -62,7 +66,14 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
-    pub duplicate: Option<bool>,
+    pub duplication_check: Option<DataDuplicationCheck>,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DataDuplicationCheck {
+    Duplicated,
+    MetaDataChanged,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -186,31 +197,29 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 }
 
 pub async fn get_decrypted_response_payload(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
-        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => {
-            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
         }
     };
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let public_key = match target_locker {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
     };
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
@@ -237,8 +246,8 @@ pub async fn get_decrypted_response_payload(
 }
 
 pub async fn mk_basilisk_req(
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -254,21 +263,20 @@ pub async fn mk_basilisk_req(
 
     let jws_body = generate_jws_body(jws_payload).ok_or(errors::VaultError::SaveCardFailed)?;
 
-    let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
+    let payload = jws_body
+        .encode_to_vec()
         .change_context(errors::VaultError::SaveCardFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let public_key = match locker_choice {
-        api_enums::LockerChoice::Basilisk => jwekey.jwekey.peek().vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => {
-            jwekey.jwekey.peek().rust_locker_encryption_key.as_bytes()
+        api_enums::LockerChoice::HyperswitchCardVault => {
+            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
         }
     };
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let public_key = match locker_choice {
-        api_enums::LockerChoice::Basilisk => jwekey.vault_encryption_key.as_bytes(),
-        api_enums::LockerChoice::Tartarus => jwekey.rust_locker_encryption_key.as_bytes(),
+        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
@@ -293,19 +301,20 @@ pub async fn mk_basilisk_req(
 }
 
 pub async fn mk_add_locker_request_hs<'a>(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     payload: &StoreLockerReq<'a>,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
+    let payload = payload
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
@@ -314,8 +323,7 @@ pub async fn mk_add_locker_request_hs<'a>(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, locker_choice).await?;
     let mut url = match locker_choice {
-        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
-        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
     };
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -324,24 +332,54 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
+pub fn mk_add_bank_response_hs(
+    bank: api::BankPayout,
+    bank_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &str,
+) -> api::PaymentMethodResponse {
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id,
+        payment_method_id: bank_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: Some(bank),
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           // [#256]
+        installment_payment_enabled: false, // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
+    }
+}
+
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
-    let mut card_number = card.card_number.peek().to_owned();
+    let card_number = card.card_number.clone();
+    let last4_digits = card_number.clone().get_last4();
+    let card_isin = card_number.get_card_isin();
+
     let card = api::CardDetailFromLocker {
         scheme: None,
-        last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-        issuer_country: None, // [#256] bin mapping
-        card_number: Some(card.card_number),
-        expiry_month: Some(card.card_exp_month),
-        expiry_year: Some(card.card_exp_year),
-        card_token: None,       // [#256]
-        card_fingerprint: None, // fingerprint not send by basilisk-hs need to have this feature in case we need it in future
-        card_holder_name: card.card_holder_name,
-        nick_name: card.nick_name,
+        last4_digits: Some(last4_digits),
+        issuer_country: None,
+        card_number: Some(card.card_number.clone()),
+        expiry_month: Some(card.card_exp_month.clone()),
+        expiry_year: Some(card.card_exp_year.clone()),
+        card_token: None,
+        card_fingerprint: None,
+        card_holder_name: card.card_holder_name.clone(),
+        nick_name: card.nick_name.clone(),
+        card_isin: Some(card_isin),
+        card_issuer: card.card_issuer,
+        card_network: card.card_network,
+        card_type: card.card_type,
+        saved_to_locker: true,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -349,6 +387,7 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
@@ -376,6 +415,11 @@ pub fn mk_add_card_response(
         card_fingerprint: Some(response.card_fingerprint),
         card_holder_name: card.card_holder_name,
         nick_name: card.nick_name,
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -383,6 +427,7 @@ pub fn mk_add_card_response(
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
+        bank_transfer: None,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
@@ -426,8 +471,8 @@ pub fn mk_add_card_request(
 }
 
 pub async fn mk_get_card_request_hs(
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
@@ -440,25 +485,25 @@ pub async fn mk_get_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
+    let payload = card_req_body
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::Basilisk);
+    let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws, target_locker).await?;
     let mut url = match target_locker {
-        api_enums::LockerChoice::Basilisk => locker.host.to_owned(),
-        api_enums::LockerChoice::Tartarus => locker.host_rs.to_owned(),
+        api_enums::LockerChoice::HyperswitchCardVault => locker.host.to_owned(),
     };
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
@@ -503,8 +548,8 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 }
 
 pub async fn mk_delete_card_request_hs(
-    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
-    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
@@ -516,20 +561,22 @@ pub async fn mk_delete_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
+    let payload = card_req_body
+        .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "kms")]
+    #[cfg(feature = "aws_kms")]
     let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
-    #[cfg(not(feature = "kms"))]
+    #[cfg(not(feature = "aws_kms"))]
     let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::Basilisk).await?;
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
 
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
@@ -573,6 +620,8 @@ pub fn get_card_detail(
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
     let mut last4_digits = card_number.peek().to_owned();
+    //fetch form card bin
+
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
@@ -584,6 +633,11 @@ pub fn get_card_detail(
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
         nick_name: response.nick_name.map(masking::Secret::new),
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
     };
     Ok(card_detail)
 }
@@ -621,7 +675,8 @@ pub fn mk_card_value1(
         card_last_four,
         card_token,
     };
-    let value1_req = utils::Encode::<api::TokenizedCardValue1>::encode_to_string_of_json(&value1)
+    let value1_req = value1
+        .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value1_req)
 }
@@ -640,7 +695,8 @@ pub fn mk_card_value2(
         customer_id,
         payment_method_id,
     };
-    let value2_req = utils::Encode::<api::TokenizedCardValue2>::encode_to_string_of_json(&value2)
+    let value2_req = value2
+        .encode_to_string_of_json()
         .change_context(errors::VaultError::FetchCardFailed)?;
     Ok(value2_req)
 }

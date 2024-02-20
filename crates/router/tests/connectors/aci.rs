@@ -59,6 +59,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
@@ -70,6 +71,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -96,6 +98,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         apple_pay_flow: None,
         external_latency: None,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     }
 }
 
@@ -155,6 +159,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         apple_pay_flow: None,
         external_latency: None,
         frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
     }
 }
 

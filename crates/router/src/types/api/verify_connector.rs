@@ -24,9 +24,11 @@ impl VerifyConnectorData {
         types::PaymentsAuthorizeData {
             payment_method_data: api::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
+            customer_name: None,
             amount: 1000,
             confirm: true,
             currency: storage_enums::Currency::USD,
+            metadata: None,
             mandate_id: None,
             webhook_url: None,
             customer_id: None,
@@ -101,6 +103,8 @@ impl VerifyConnectorData {
             external_latency: None,
             apple_pay_flow: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 }
@@ -157,7 +161,7 @@ pub trait VerifyConnector {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
@@ -173,7 +177,7 @@ pub trait VerifyConnector {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),

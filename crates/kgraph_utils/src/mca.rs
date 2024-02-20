@@ -156,7 +156,7 @@ fn compile_request_pm_types(
 
         let or_node_neighbor_id = if amount_nodes.len() == 1 {
             amount_nodes
-                .get(0)
+                .first()
                 .copied()
                 .ok_or(KgraphError::IndexingError)?
         } else {

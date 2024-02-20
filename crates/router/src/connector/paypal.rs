@@ -21,6 +21,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers,
     services::{
         self,
@@ -59,6 +60,7 @@ impl Paypal {
     pub fn get_order_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         //Handled error response separately for Orders as the end point is different for Orders - (Authorize) and Payments - (Capture, void, refund, rsync).
         //Error response have different fields for Orders and Payments.
@@ -66,6 +68,9 @@ impl Paypal {
             .response
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         let error_reason = response.details.map(|order_errors| {
             order_errors
@@ -207,11 +212,15 @@ impl ConnectorCommon for Paypal {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: paypal::PaypalPaymentErrorResponse = res
             .response
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         let error_reason = response
             .details
@@ -256,6 +265,7 @@ impl ConnectorValidation for Paypal {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -345,12 +355,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: paypal::PaypalAuthUpdateResponse = res
             .response
             .parse_struct("Paypal PaypalAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -362,11 +376,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: paypal::PaypalAccessTokenErrorResponse = res
             .response
             .parse_struct("Paypal AccessTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -386,6 +404,20 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Paypal".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -450,6 +482,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: PaypalAuthResponse =
@@ -459,6 +492,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
         match response {
             PaypalAuthResponse::PaypalOrdersResponse(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -466,6 +502,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 })
             }
             PaypalAuthResponse::PaypalRedirectResponse(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -473,6 +511,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 })
             }
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -485,8 +525,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.get_order_error_response(res)
+        self.get_order_error_response(res, event_builder)
     }
 }
 
@@ -546,12 +587,16 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: paypal::PaypalPreProcessingResponse = res
             .response
             .parse_struct("paypal PaypalPreProcessingResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
         match response {
             // if card supports 3DS check for liability
@@ -662,8 +707,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -720,9 +766,6 @@ impl
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -730,12 +773,15 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: paypal::PaypalOrdersResponse = res
             .response
             .parse_struct("paypal PaypalOrdersResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -746,8 +792,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -836,12 +883,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: paypal::PaypalSyncResponse = res
             .response
             .parse_struct("paypal SyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -852,8 +902,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -927,12 +978,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn handle_response(
         &self,
         data: &types::PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: paypal::PaypalCaptureResponse = res
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -943,8 +997,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -998,12 +1053,15 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn handle_response(
         &self,
         data: &types::PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: paypal::PaypalPaymentsCancelResponse = res
             .response
             .parse_struct("PaymentCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1013,8 +1071,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1086,12 +1145,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: paypal::RefundResponse =
             res.response
                 .parse_struct("paypal RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1102,8 +1164,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1149,12 +1212,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: paypal::RefundSyncResponse = res
             .response
             .parse_struct("paypal RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1165,8 +1231,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1257,12 +1324,15 @@ impl
     fn handle_response(
         &self,
         data: &types::VerifyWebhookSourceRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ConnectorError> {
         let response: paypal::PaypalSourceVerificationResponse = res
             .response
             .parse_struct("paypal PaypalSourceVerificationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1272,8 +1342,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 

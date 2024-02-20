@@ -5,7 +5,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData},
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
@@ -119,7 +119,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 let bambora_card = BamboraCard {
                     name: req_card
                         .card_holder_name
-                        .ok_or_else(utils::missing_field_err("card_holder_name"))?,
+                        .unwrap_or(Secret::new("".to_string())),
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -272,14 +272,14 @@ where
     Ok(res)
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BamboraResponse {
     NormalTransaction(Box<BamboraPaymentsResponse>),
     ThreeDsResponse(Box<Bambora3DsResponse>),
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct BamboraPaymentsResponse {
     #[serde(deserialize_with = "str_or_i32")]
     id: String,
@@ -309,7 +309,7 @@ pub struct BamboraPaymentsResponse {
     risk_score: Option<f32>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Bambora3DsResponse {
     #[serde(rename = "3d_session_data")]
     three_d_session_data: String,
@@ -332,7 +332,7 @@ pub struct CardResponse {
     pub(crate) cres: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct CardData {
     name: Option<String>,
     expiry_month: Option<String>,
@@ -466,7 +466,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     #[serde(deserialize_with = "str_or_i32")]
     pub id: String,

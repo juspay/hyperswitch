@@ -24,6 +24,12 @@ pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 
+/// Payment intent default client secret expiry (in seconds)
+pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
+
+/// The length of a merchant fingerprint secret
+pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
@@ -60,13 +66,31 @@ pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;
 pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+
+pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
+
+#[cfg(feature = "email")]
+pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_MERCHANT_ID: &str = "test_merchant";
+
+#[cfg(feature = "olap")]
+pub const CONNECTOR_ONBOARDING_CONFIG_PREFIX: &str = "onboarding";
+
+/// Max payment session expiry
+pub const MAX_SESSION_EXPIRY: u32 = 7890000;
+
+/// Min payment session expiry
+pub const MIN_SESSION_EXPIRY: u32 = 60;
+
+pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+
+// URL for checking the outgoing call
+pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";

@@ -7,10 +7,14 @@ use std::{
 };
 
 use api_models::{
-    admin as admin_api, conditional_configs::ConditionalConfigs, routing::ConnectorSelection,
-    surcharge_decision_configs::SurchargeDecisionConfigs,
+    admin as admin_api, conditional_configs::ConditionalConfigs, enums as api_model_enums,
+    routing::ConnectorSelection, surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
+use connector_configs::{
+    common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
+    connector,
+};
 use currency_conversion::{
     conversion::convert as convert_currency, types as currency_conversion_types,
 };
@@ -290,4 +294,36 @@ pub fn get_description_category() -> JsResult {
     }
 
     Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getConnectorConfig)]
+pub fn get_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::Connector::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[cfg(feature = "payouts")]
+#[wasm_bindgen(js_name = getPayoutConnectorConfig)]
+pub fn get_payout_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::PayoutConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_payout_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getRequestPayload)]
+pub fn get_request_payload(input: JsValue, response: JsValue) -> JsResult {
+    let input: DashboardRequestPayload = serde_wasm_bindgen::from_value(input)?;
+    let api_response: ConnectorApiIntegrationPayload = serde_wasm_bindgen::from_value(response)?;
+    let result = DashboardRequestPayload::create_connector_request(input, api_response);
+    Ok(serde_wasm_bindgen::to_value(&result)?)
+}
+
+#[wasm_bindgen(js_name = getResponsePayload)]
+pub fn get_response_payload(input: JsValue) -> JsResult {
+    let input: ConnectorApiIntegrationPayload = serde_wasm_bindgen::from_value(input)?;
+    let result = ConnectorApiIntegrationPayload::get_transformed_response_payload(input);
+    Ok(serde_wasm_bindgen::to_value(&result)?)
 }

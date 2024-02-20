@@ -15,7 +15,7 @@ use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
     types::{domain, storage},
-    utils::{self, StringExt},
+    utils::StringExt,
 };
 
 /// provides the complete merchant routing dictionary that is basically a list of all the routing
@@ -42,10 +42,8 @@ pub async fn get_merchant_routing_dictionary(
                 records: Vec::new(),
             };
 
-            let serialized =
-                utils::Encode::<routing_types::RoutingDictionary>::encode_to_string_of_json(
-                    &new_dictionary,
-                )
+            let serialized = new_dictionary
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing newly created merchant dictionary")?;
 
@@ -86,10 +84,8 @@ pub async fn get_merchant_default_config(
 
         Err(e) if e.current_context().is_db_not_found() => {
             let new_config_conns = Vec::<routing_types::RoutableConnectorChoice>::new();
-            let serialized =
-                utils::Encode::<Vec<routing_types::RoutableConnectorChoice>>::encode_to_string_of_json(
-                    &new_config_conns,
-                )
+            let serialized = new_config_conns
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Error while creating and serializing new merchant default config",
@@ -122,10 +118,8 @@ pub async fn update_merchant_default_config(
     connectors: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResult<()> {
     let key = get_default_config_key(merchant_id);
-    let config_str =
-        Encode::<Vec<routing_types::RoutableConnectorChoice>>::encode_to_string_of_json(
-            &connectors,
-        )
+    let config_str = connectors
+        .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize merchant default routing config during update")?;
 
@@ -147,10 +141,10 @@ pub async fn update_merchant_routing_dictionary(
     dictionary: routing_types::RoutingDictionary,
 ) -> RouterResult<()> {
     let key = get_routing_dictionary_key(merchant_id);
-    let dictionary_str =
-        Encode::<routing_types::RoutingDictionary>::encode_to_string_of_json(&dictionary)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to serialize routing dictionary during update")?;
+    let dictionary_str = dictionary
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize routing dictionary during update")?;
 
     let config_update = configs::ConfigUpdate::Update {
         config: Some(dictionary_str),
@@ -169,10 +163,10 @@ pub async fn update_routing_algorithm(
     algorithm_id: String,
     algorithm: routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
-    let algorithm_str =
-        Encode::<routing_types::RoutingAlgorithm>::encode_to_string_of_json(&algorithm)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to serialize routing algorithm to string")?;
+    let algorithm_str = algorithm
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize routing algorithm to string")?;
 
     let config_update = configs::ConfigUpdate::Update {
         config: Some(algorithm_str),
@@ -193,7 +187,8 @@ pub async fn update_merchant_active_algorithm_ref(
     key_store: &domain::MerchantKeyStore,
     algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
-    let ref_value = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
+    let ref_value = algorithm_id
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed converting routing algorithm ref to json value")?;
 
@@ -236,7 +231,8 @@ pub async fn update_business_profile_active_algorithm_ref(
     current_business_profile: BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
-    let ref_val = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
+    let ref_val = algorithm_id
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
 
@@ -255,6 +251,8 @@ pub async fn update_business_profile_active_algorithm_ref(
         applepay_verified_domains: None,
         modified_at: None,
         is_recon_enabled: None,
+        payment_link_config: None,
+        session_expiry: None,
     };
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
         .await
@@ -280,10 +278,8 @@ pub async fn get_merchant_connector_agnostic_mandate_config(
         Err(e) if e.current_context().is_db_not_found() => {
             let new_mandate_config: Vec<routing_types::DetailedConnectorChoice> = Vec::new();
 
-            let serialized =
-                utils::Encode::<Vec<routing_types::DetailedConnectorChoice>>::encode_to_string_of_json(
-                    &new_mandate_config,
-                )
+            let serialized = new_mandate_config
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error serializing newly created pg agnostic mandate config")?;
 
@@ -312,10 +308,8 @@ pub async fn update_merchant_connector_agnostic_mandate_config(
     mandate_config: Vec<routing_types::DetailedConnectorChoice>,
 ) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
     let key = get_pg_agnostic_mandate_config_key(merchant_id);
-    let mandate_config_str =
-        Encode::<Vec<routing_types::DetailedConnectorChoice>>::encode_to_string_of_json(
-            &mandate_config,
-        )
+    let mandate_config_str = mandate_config
+        .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to serialize pg agnostic mandate config during update")?;
 

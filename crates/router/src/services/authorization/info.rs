@@ -15,16 +15,13 @@ pub struct PermissionInfo {
 
 impl PermissionInfo {
     pub fn new(permissions: &[Permission]) -> Vec<Self> {
-        let mut permission_infos = Vec::with_capacity(permissions.len());
-        for permission in permissions {
-            if let Some(description) = Permission::get_permission_description(permission) {
-                permission_infos.push(Self {
-                    enum_name: permission.clone(),
-                    description,
-                })
-            }
-        }
-        permission_infos
+        permissions
+            .iter()
+            .map(|&per| Self {
+                description: Permission::get_permission_description(&per),
+                enum_name: per,
+            })
+            .collect()
     }
 }
 
@@ -38,10 +35,12 @@ pub enum PermissionModule {
     Routing,
     Analytics,
     Mandates,
+    Customer,
     Disputes,
     Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
+    AccountCreate,
 }
 
 impl PermissionModule {
@@ -55,10 +54,12 @@ impl PermissionModule {
             Self::Forex => "Forex module permissions allow the user to view and query the forex rates",
             Self::Analytics => "Permission to view and analyse the data relating to payments, refunds, sdk etc.",
             Self::Mandates => "Everything related to mandates - like creating and viewing mandate related information are within this module",
+            Self::Customer => "Everything related to customers - like creating and viewing customer related information are within this module",
             Self::Disputes => "Everything related to disputes - like creating and viewing dispute related information are within this module",
             Self::Files => "Permissions for uploading, deleting and viewing files for disputes",
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
-            Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant"
+            Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant",
+            Self::AccountCreate => "Create new account within your organization"
         }
     }
 }
@@ -133,6 +134,14 @@ impl ModuleInfo {
                     Permission::MandateWrite,
                 ]),
             },
+            PermissionModule::Customer => Self {
+                module: module_name,
+                description,
+                permissions: PermissionInfo::new(&[
+                    Permission::CustomerRead,
+                    Permission::CustomerWrite,
+                ]),
+            },
             PermissionModule::Disputes => Self {
                 module: module_name,
                 description,
@@ -150,8 +159,8 @@ impl ModuleInfo {
                 module: module_name,
                 description,
                 permissions: PermissionInfo::new(&[
-                    Permission::ThreeDsDecisionManagerWrite,
                     Permission::ThreeDsDecisionManagerRead,
+                    Permission::ThreeDsDecisionManagerWrite,
                 ]),
             },
 
@@ -159,9 +168,14 @@ impl ModuleInfo {
                 module: module_name,
                 description,
                 permissions: PermissionInfo::new(&[
-                    Permission::SurchargeDecisionManagerWrite,
                     Permission::SurchargeDecisionManagerRead,
+                    Permission::SurchargeDecisionManagerWrite,
                 ]),
+            },
+            PermissionModule::AccountCreate => Self {
+                module: module_name,
+                description,
+                permissions: PermissionInfo::new(&[Permission::MerchantAccountCreate]),
             },
         }
     }

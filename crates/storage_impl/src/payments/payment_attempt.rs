@@ -2,7 +2,7 @@ use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMet
 use common_utils::{errors::CustomResult, fallback_reverse_lookup_not_found};
 use data_models::{
     errors,
-    mandates::{MandateAmountData, MandateDataType},
+    mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::{
         payment_attempt::{
             PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
@@ -14,7 +14,7 @@ use data_models::{
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
-        MerchantStorageScheme,
+        MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
     kv,
     payment_attempt::{
@@ -331,6 +331,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_attempt = payment_attempt.populate_derived_fields();
                 let key = format!(
                     "mid_{}_pid_{}",
                     payment_attempt.merchant_id, payment_attempt.payment_id
@@ -343,6 +344,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     attempt_id: payment_attempt.attempt_id.clone(),
                     status: payment_attempt.status,
                     amount: payment_attempt.amount,
+                    net_amount: payment_attempt.net_amount,
                     currency: payment_attempt.currency,
                     save_to_locker: payment_attempt.save_to_locker,
                     connector: payment_attempt.connector.clone(),
@@ -388,6 +390,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     unified_code: payment_attempt.unified_code.clone(),
                     unified_message: payment_attempt.unified_message.clone(),
+                    mandate_data: payment_attempt.mandate_data.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -929,12 +932,23 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
-
-                kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_scan()
-                    .change_context(errors::StorageError::KVError)
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
+                            .await?
+                            .try_into_scan()
+                    },
+                    || async {
+                        self.router_store
+                            .find_attempts_by_merchant_id_payment_id(
+                                merchant_id,
+                                payment_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
+                ))
+                .await
             }
         }
     }
@@ -997,6 +1011,19 @@ impl DataModelExt for MandateAmountData {
         }
     }
 }
+impl DataModelExt for MandateDetails {
+    type StorageModel = DieselMandateDetails;
+    fn to_storage_model(self) -> Self::StorageModel {
+        DieselMandateDetails {
+            update_mandate_id: self.update_mandate_id,
+        }
+    }
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        Self {
+            update_mandate_id: storage_model.update_mandate_id,
+        }
+    }
+}
 
 impl DataModelExt for MandateDataType {
     type StorageModel = DieselMandateType;
@@ -1035,6 +1062,7 @@ impl DataModelExt for PaymentAttempt {
             attempt_id: self.attempt_id,
             status: self.status,
             amount: self.amount,
+            net_amount: Some(self.net_amount),
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
@@ -1065,7 +1093,7 @@ impl DataModelExt for PaymentAttempt {
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
-            mandate_details: self.mandate_details.map(|md| md.to_storage_model()),
+            mandate_details: self.mandate_details.map(|d| d.to_storage_model()),
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
@@ -1076,11 +1104,13 @@ impl DataModelExt for PaymentAttempt {
             merchant_connector_id: self.merchant_connector_id,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
+            mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             id: storage_model.id,
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
@@ -1130,6 +1160,9 @@ impl DataModelExt for PaymentAttempt {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
+            mandate_data: storage_model
+                .mandate_data
+                .map(MandateDetails::from_storage_model),
         }
     }
 }
@@ -1139,6 +1172,7 @@ impl DataModelExt for PaymentAttemptNew {
 
     fn to_storage_model(self) -> Self::StorageModel {
         DieselPaymentAttemptNew {
+            net_amount: Some(self.net_amount),
             payment_id: self.payment_id,
             merchant_id: self.merchant_id,
             attempt_id: self.attempt_id,
@@ -1184,11 +1218,13 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: self.merchant_connector_id,
             unified_code: self.unified_code,
             unified_message: self.unified_message,
+            mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         Self {
+            net_amount: storage_model.get_or_calculate_net_amount(),
             payment_id: storage_model.payment_id,
             merchant_id: storage_model.merchant_id,
             attempt_id: storage_model.attempt_id,
@@ -1236,6 +1272,9 @@ impl DataModelExt for PaymentAttemptNew {
             merchant_connector_id: storage_model.merchant_connector_id,
             unified_code: storage_model.unified_code,
             unified_message: storage_model.unified_message,
+            mandate_data: storage_model
+                .mandate_data
+                .map(MandateDetails::from_storage_model),
         }
     }
 }
@@ -1302,6 +1341,17 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
+            },
+            Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
                 updated_by,
             },
             Self::ConfirmUpdate {
@@ -1622,6 +1672,17 @@ impl DataModelExt for PaymentAttemptUpdate {
             } => Self::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
+            },
+            DieselPaymentAttemptUpdate::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
+                updated_by,
+            } => Self::BlocklistUpdate {
+                status,
+                error_code,
+                error_message,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::ResponseUpdate {

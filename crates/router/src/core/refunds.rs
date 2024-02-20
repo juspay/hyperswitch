@@ -650,6 +650,7 @@ pub async fn validate_and_create_refund(
         .set_attempt_id(payment_attempt.attempt_id.clone())
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
+        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
         .to_owned();
 
     let refund = match db
@@ -776,6 +777,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
         }
     }
 }
@@ -1086,6 +1088,12 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
+    metrics::TASKS_ADDED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("flow", "Refund")],
+    );
+
     Ok(response)
 }
 
@@ -1168,7 +1176,15 @@ pub async fn retry_refund_sync_task(
         get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
+        Some(s_time) => {
+            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes("flow", "Refund")],
+            );
+            retry_schedule
+        }
         None => {
             pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await

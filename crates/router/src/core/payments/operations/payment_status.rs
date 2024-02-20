@@ -96,11 +96,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data, merchant_key_store).await
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_data,
+            merchant_key_store,
+            customer,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -123,6 +131,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
+    }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
     }
 }
 
@@ -190,6 +208,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
+        _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>>
     {
         get_tracker_for_sync(
@@ -229,17 +248,7 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
-    let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
-        payment_intent.payment_link_id.clone(),
-        merchant_account.intent_fulfillment_time,
-        db,
-    )
-    .await?;
-    helpers::authenticate_client_secret(
-        request.client_secret.as_ref(),
-        &payment_intent,
-        intent_fulfillment_time,
-    )?;
+    helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
     let payment_id_str = payment_attempt.payment_id.clone();
 

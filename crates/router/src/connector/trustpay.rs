@@ -21,6 +21,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::connector_api_logs::ConnectorEvent,
     headers, logger,
     services::{
         self,
@@ -109,6 +110,7 @@ impl ConnectorCommon for Trustpay {
     fn build_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: Result<
             trustpay::TrustpayErrorResponse,
@@ -117,6 +119,8 @@ impl ConnectorCommon for Trustpay {
 
         match response {
             Ok(response_data) => {
+                event_builder.map(|i| i.set_error_response_body(&response_data));
+                router_env::logger::info!(connector_response=?response_data);
                 let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
                     self.clone(),
@@ -147,6 +151,7 @@ impl ConnectorCommon for Trustpay {
                 })
             }
             Err(error_msg) => {
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 logger::error!(deserialization_error =? error_msg);
                 utils::handle_json_response_deserialization_failure(res, "trustpay".to_owned())
             }
@@ -178,6 +183,20 @@ impl
         types::PaymentsResponseData,
     > for Trustpay
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Trustpay".to_string())
+                .into(),
+        )
+    }
 }
 
 impl api::PaymentVoid for Trustpay {}
@@ -265,12 +284,17 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn handle_response(
         &self,
         data: &types::RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: trustpay::TrustpayAuthUpdateResponse = res
             .response
             .parse_struct("trustpay TrustpayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -282,11 +306,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: trustpay::TrustpayAccessTokenErrorResponse = res
             .response
             .parse_struct("Trustpay AccessTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_info.result_code.to_string(),
@@ -357,19 +386,25 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: trustpay::TrustpayPaymentsResponse = res
             .response
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -466,12 +501,17 @@ impl
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: trustpay::TrustpayCreateIntentResponse = res
             .response
             .parse_struct("TrustpayCreateIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -483,8 +523,9 @@ impl
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -576,12 +617,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: trustpay::TrustpayPaymentsResponse = res
             .response
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -593,8 +639,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -676,12 +723,17 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn handle_response(
         &self,
         data: &types::RefundsRouterData<api::Execute>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         let response: trustpay::RefundResponse = res
             .response
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -693,8 +745,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -753,12 +806,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         let response: trustpay::RefundResponse = res
             .response
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -770,8 +828,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_error_response(
         &self,
         res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        self.build_error_response(res, event_builder)
     }
 }
 

@@ -71,6 +71,8 @@ impl AdyenTest {
 
     #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
+        use common_utils::pii::Email;
+
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
@@ -95,16 +97,21 @@ impl AdyenTest {
                         card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                         expiry_month: Secret::new("3".to_string()),
                         expiry_year: Secret::new("2030".to_string()),
-                        card_holder_name: Secret::new("John Doe".to_string()),
+                        card_holder_name: Some(Secret::new("John Doe".to_string())),
                     }))
                 }
                 enums::PayoutType::Bank => Some(api::PayoutMethodData::Bank(
                     api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
                         iban: "NL46TEST0136169112".to_string().into(),
                         bic: Some("ABNANL2A".to_string().into()),
-                        bank_name: "Deutsche Bank".to_string(),
-                        bank_country_code: enums::CountryAlpha2::NL,
-                        bank_city: "Amsterdam".to_string(),
+                        bank_name: Some("Deutsche Bank".to_string()),
+                        bank_country_code: Some(enums::CountryAlpha2::NL),
+                        bank_city: Some("Amsterdam".to_string()),
+                    }),
+                )),
+                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
+                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                        email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
                     }),
                 )),
             },
@@ -147,6 +154,7 @@ impl AdyenTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             payment_experience: None,
             payment_method_type: None,
             session_token: None,
@@ -158,6 +166,7 @@ impl AdyenTest {
             customer_id: None,
             surcharge_details: None,
             request_incremental_authorization: false,
+            metadata: None,
         })
     }
 }

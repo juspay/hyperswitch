@@ -211,7 +211,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct SignifydErrorResponse {
     pub messages: Vec<String>,
     pub errors: serde_json::Value,
