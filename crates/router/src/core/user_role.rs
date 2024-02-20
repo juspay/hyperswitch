@@ -34,7 +34,7 @@ pub async fn list_invitable_roles(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_role_api::ListRolesResponse> {
-    let roles = roles::predefined_roles::PREDEFINED_ROLES
+    let predefined_roles_map = roles::predefined_roles::PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
         .map(|(role_id, role_info)| user_role_api::RoleInfoResponse {
@@ -46,27 +46,29 @@ pub async fn list_invitable_roles(
             role_id: role_id.to_string(),
             role_name: role_info.get_role_name().to_string(),
             role_scope: role_info.get_scope(),
-        })
-        .chain(
-            state
-                .store
-                .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
-                .await
-                .change_context(UserErrors::InternalServerError)?
+        });
+
+    let custom_roles_map = state
+        .store
+        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .map(roles::RoleInfo::from)
+        .filter(|role_info| role_info.is_invitable())
+        .map(|role_info| user_role_api::RoleInfoResponse {
+            permissions: role_info
+                .get_permissions()
                 .into_iter()
-                .map(roles::RoleInfo::from)
-                .filter(|role_info| role_info.is_invitable())
-                .map(|role_info| user_role_api::RoleInfoResponse {
-                    permissions: role_info
-                        .get_permissions()
-                        .into_iter()
-                        .map(Into::into)
-                        .collect(),
-                    role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
-                    role_scope: role_info.get_scope(),
-                }),
-        )
+                .map(Into::into)
+                .collect(),
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            role_scope: role_info.get_scope(),
+        });
+
+    let roles = predefined_roles_map
+        .chain(custom_roles_map)
         .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
