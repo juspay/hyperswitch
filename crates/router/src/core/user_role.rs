@@ -112,7 +112,10 @@ pub async fn get_role_from_token(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_role_api::Permission>> {
-    let role_info = user_from_token.get_role_info_from_db(&state).await.attach_printable("Invalid role_id in JWT")?;
+    let role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
 
     let permissions = role_info
         .get_permissions()
