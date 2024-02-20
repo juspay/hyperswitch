@@ -499,7 +499,7 @@ pub struct StripeApplePay {
     pub pk_token: Secret<String>,
     pub pk_token_instrument_name: String,
     pub pk_token_payment_network: String,
-    pub pk_token_transaction_id: String,
+    pub pk_token_transaction_id: Secret<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -544,13 +544,14 @@ pub enum WechatClient {
     Web,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct GooglepayPayment {
-    #[serde(rename = "payment_method_data[card][token]")]
-    pub token: String,
-    #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_types: StripePaymentMethodType,
-}
+// Struct not used anywhere
+// #[derive(Debug, Eq, PartialEq, Serialize)]
+// pub struct GooglepayPayment {
+//     #[serde(rename = "payment_method_data[card][token]")]
+//     pub token: Secret<String>,
+//     #[serde(rename = "payment_method_data[type]")]
+//     pub payment_method_types: StripePaymentMethodType,
+// }
 
 // All supported payment_method_types in stripe
 // This enum goes in payment_method_types[] field in stripe request body
@@ -1536,9 +1537,9 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                                 .payment_method
                                 .network
                                 .to_owned(),
-                            pk_token_transaction_id: applepay_data
-                                .transaction_identifier
-                                .to_owned(),
+                            pk_token_transaction_id: Secret::new(
+                                applepay_data.transaction_identifier.to_owned(),
+                            ),
                         })));
                 };
                 let pmd = apple_pay_decrypt_data
@@ -2964,14 +2965,15 @@ pub struct StripeBillingAddress {
     pub phone: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
-pub struct StripeRedirectResponse {
-    pub payment_intent: Option<String>,
-    pub payment_intent_client_secret: Option<String>,
-    pub source_redirect_slug: Option<String>,
-    pub redirect_status: Option<StripePaymentStatus>,
-    pub source_type: Option<Secret<String>>,
-}
+// Struct not used anywhere
+// #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
+// pub struct StripeRedirectResponse {
+//     pub payment_intent: Option<String>,
+//     pub payment_intent_client_secret: Option<Secret<String>>,
+//     pub source_redirect_slug: Option<String>,
+//     pub redirect_status: Option<StripePaymentStatus>,
+//     pub source_type: Option<Secret<String>>,
+// }
 
 #[derive(Debug, Serialize)]
 pub struct CancelRequest {
