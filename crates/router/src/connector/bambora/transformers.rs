@@ -51,7 +51,7 @@ pub struct BamboraPaymentsRequest {
     order_number: String,
     amount: i64,
     payment_method: PaymentMethod,
-    customer_ip: Option<Secret<String>>,
+    customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
     card: BamboraCard,
 }
