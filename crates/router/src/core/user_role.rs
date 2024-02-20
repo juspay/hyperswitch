@@ -172,7 +172,8 @@ pub async fn transfer_org_ownership(
     auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
     auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
 
-    let user_from_db = domain::UserFromStorage::from(user_from_token.get_user_from_db(&state).await?);
+    let user_from_db =
+        domain::UserFromStorage::from(user_from_token.get_user_from_db(&state).await?);
     let user_role = user_from_db
         .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
         .await
