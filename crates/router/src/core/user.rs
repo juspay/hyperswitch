@@ -935,13 +935,12 @@ pub async fn activate_from_email(
         .await
         .map_err(|e| logger::error!(?e));
 
-    let user = state
+    let user_from_db: domain::UserFromStorage = state
         .store
         .update_user_by_user_id(user.get_user_id(), storage_user::UserUpdate::VerifyUser)
         .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let user_from_db: domain::UserFromStorage = user.into();
+        .change_context(UserErrors::InternalServerError)?
+        .into();
 
     let user_role = user_from_db
         .get_role_from_db_by_merchant_id(&state.clone(), merchant_id)
