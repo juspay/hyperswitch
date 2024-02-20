@@ -370,6 +370,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             .clone()
             .parse_value("ThreeDSecureIoMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         let authentication_data = &request.authentication_data.0;
         let sdk_information = match request.device_channel {
             DeviceChannel::APP => Some(item.router_data.request.sdk_information.clone().ok_or(
@@ -379,6 +380,13 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             )?),
             DeviceChannel::BRW => None,
         };
+        let acquirer_details = authentication_data
+            .acquirer_details
+            .clone()
+            .get_required_value("acquirer_details")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "acquirer_details",
+            })?;
         Ok(Self {
             ds_start_protocol_version: authentication_data.message_version.clone(),
             ds_end_protocol_version: authentication_data.message_version.clone(),
@@ -394,8 +402,8 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 .attach_printable("missing return_url")?,
             three_dscomp_ind: "Y".to_string(),
             three_dsrequestor_url: "https::/google.com".to_string(),
-            acquirer_bin: connector_meta_data.acquirer_bin,
-            acquirer_merchant_id: connector_meta_data.acquirer_merchant_id,
+            acquirer_bin: acquirer_details.acquirer_bin,
+            acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
             card_expiry_date: card_details.get_expiry_date_as_yymm()?.expose(),
             bill_addr_city: billing_address
                 .city
@@ -616,8 +624,6 @@ pub struct ThreedsecureioAuthenticationRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreeDSecureIoMetaData {
-    pub acquirer_bin: String,
-    pub acquirer_merchant_id: String,
     pub mcc: String,
     pub merchant_country_code: String,
     pub merchant_name: String,

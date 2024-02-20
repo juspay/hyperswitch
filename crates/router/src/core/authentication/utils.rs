@@ -86,18 +86,25 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
     }
 }
 
-pub fn is_separate_authn_supported(connector_call_type: &ConnectorCallType) -> bool {
+pub fn get_connector_name_if_separate_authn_supported(
+    connector_call_type: &ConnectorCallType,
+) -> Option<String> {
     match connector_call_type {
         ConnectorCallType::PreDetermined(connector_data) => {
-            is_separate_authn_supported_connector(connector_data.connector_name)
+            if is_separate_authn_supported_connector(connector_data.connector_name) {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
         }
-        ConnectorCallType::Retryable(connectors) => connectors
-            .first()
-            .map(|connector_data| {
-                is_separate_authn_supported_connector(connector_data.connector_name)
-            })
-            .unwrap_or(false),
-        ConnectorCallType::SessionMultiple(_) => false,
+        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
+            if is_separate_authn_supported_connector(connector_data.connector_name) {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
+        }),
+        ConnectorCallType::SessionMultiple(_) => None,
     }
 }
 
@@ -106,6 +113,7 @@ pub async fn update_trackers<F: Clone, Req>(
     router_data: RouterData<F, Req, AuthenticationResponseData>,
     authentication: storage::Authentication,
     token: Option<String>,
+    acquirer_details: Option<super::types::AcquirerDetails>,
 ) -> RouterResult<(storage::Authentication, AuthenticationData)> {
     let mut authentication_data = authentication
         .authentication_data
@@ -119,7 +127,6 @@ pub async fn update_trackers<F: Clone, Req>(
         .transpose()?
         .unwrap_or_default();
 
-    AuthenticationData::default();
     let authentication_update = match router_data.response {
         Ok(response) => Some(match response {
             AuthenticationResponseData::PreAuthNResponse {
@@ -140,6 +147,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .three_ds_method_data_submission = three_ds_method_url.is_some();
                 authentication_data.three_ds_method_data.three_ds_method_url = three_ds_method_url;
                 authentication_data.message_version = message_version;
+                authentication_data.acquirer_details = acquirer_details;
 
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
