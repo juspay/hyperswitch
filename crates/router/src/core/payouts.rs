@@ -377,7 +377,7 @@ pub async fn payouts_update_core(
         // if the connector is updated or not present both in create and update call
         _ => {
             payout_data.payout_attempt.connector = None;
-            payout_data.payout_attempt.straight_through_algorithm = None;
+            payout_data.payout_attempt.routing_info = None;
 
             //fetch payout_method_data
             payout_data.payout_method_data = Some(
@@ -659,15 +659,12 @@ pub async fn call_connector_payout(
         payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
             connector: connector_data.connector_name.to_string(),
-            straight_through_algorithm: payout_data
-                .payout_attempt
-                .straight_through_algorithm
-                .clone(),
+            routing_info: payout_data.payout_attempt.routing_info.clone(),
         };
         let db = &*state.store;
         db.update_payout_attempt_by_merchant_id_payout_id(
-            &payout_attempt.merchant_id,
-            &payout_attempt.payout_id,
+            &payout_data.payout_attempt.merchant_id,
+            &payout_data.payout_attempt.payout_id,
             updated_payout_attempt,
         )
         .await
