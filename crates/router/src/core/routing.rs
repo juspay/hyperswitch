@@ -1,9 +1,12 @@
 pub mod helpers;
 pub mod transformers;
 
-use api_models::routing::{self as routing_types, RoutingAlgorithmId};
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingAlgorithmId},
+};
 #[cfg(not(feature = "business_profile_routing"))]
 use common_utils::ext_traits::{Encode, StringExt};
 #[cfg(not(feature = "business_profile_routing"))]
@@ -43,25 +46,20 @@ where
     Payout(&'a payouts::PayoutData),
 }
 
-#[derive(Clone)]
-pub enum TransactionType {
-    Payment,
-    #[cfg(feature = "payouts")]
-    Payout,
-}
-
 pub async fn retrieve_merchant_routing_dictionary(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveQuery,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(feature = "business_profile_routing")]
     {
         let routing_metadata = state
             .store
-            .list_routing_algorithm_metadata_by_merchant_id(
+            .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
                 &merchant_account.merchant_id,
+                transaction_type,
                 i64::from(query_params.limit.unwrap_or_default()),
                 i64::from(query_params.offset.unwrap_or_default()),
             )
@@ -100,6 +98,7 @@ pub async fn create_routing_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -168,6 +167,7 @@ pub async fn create_routing_config(
             algorithm_data: serde_json::json!(algorithm),
             created_at: timestamp,
             modified_at: timestamp,
+            algorithm_for: transaction_type.to_owned(),
         };
         let record = db
             .insert_routing_algorithm(algo)
@@ -253,7 +253,7 @@ pub async fn link_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     algorithm_id: String,
-    transaction_type: &TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -279,9 +279,9 @@ pub async fn link_routing_config(
         })?;
 
         let mut routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-            TransactionType::Payment => business_profile.routing_algorithm.clone(),
+            enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
             #[cfg(feature = "payouts")]
-            TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+            enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
         }
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
         .transpose()
@@ -317,9 +317,9 @@ pub async fn link_routing_config(
     #[cfg(not(feature = "business_profile_routing"))]
     {
         let mut routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-            TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            enums::TransactionType::Payment => merchant_account.routing_algorithm.clone(),
             #[cfg(feature = "payouts")]
-            TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+            enums::TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
         }
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
         .transpose()
@@ -443,7 +443,7 @@ pub async fn unlink_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] request: routing_types::RoutingConfigRequest,
-    transaction_type: &TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -465,9 +465,11 @@ pub async fn unlink_routing_config(
         match business_profile {
             Some(business_profile) => {
                 let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-                    TransactionType::Payment => business_profile.routing_algorithm.clone(),
+                    enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                     #[cfg(feature = "payouts")]
-                    TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+                    enums::TransactionType::Payout => {
+                        business_profile.payout_routing_algorithm.clone()
+                    }
                 }
                 .map(|val| val.parse_value("RoutingAlgorithmRef"))
                 .transpose()
@@ -531,9 +533,9 @@ pub async fn unlink_routing_config(
             helpers::get_merchant_routing_dictionary(db, &merchant_account.merchant_id).await?;
 
         let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-            TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            enums::TransactionType::Payment => merchant_account.routing_algorithm.clone(),
             #[cfg(feature = "payouts")]
-            TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+            enums::TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
         }
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
         .transpose()

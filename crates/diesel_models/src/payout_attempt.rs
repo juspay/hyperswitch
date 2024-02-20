@@ -28,7 +28,7 @@ pub struct PayoutAttempt {
     pub last_modified_at: PrimitiveDateTime,
     pub profile_id: String,
     pub merchant_connector_id: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 impl Default for PayoutAttempt {
@@ -54,7 +54,7 @@ impl Default for PayoutAttempt {
             last_modified_at: now,
             profile_id: String::default(),
             merchant_connector_id: None,
-            straight_through_algorithm: None,
+            routing_info: None,
         }
     }
 }
@@ -93,7 +93,7 @@ pub struct PayoutAttemptNew {
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -117,7 +117,7 @@ pub enum PayoutAttemptUpdate {
     },
     UpdateRouting {
         connector: String,
-        straight_through_algorithm: Option<serde_json::Value>,
+        routing_info: Option<serde_json::Value>,
     },
 }
 
@@ -134,7 +134,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub business_label: Option<String>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub connector: Option<String>,
-    pub straight_through_algorithm: Option<serde_json::Value>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -176,10 +176,10 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             },
             PayoutAttemptUpdate::UpdateRouting {
                 connector,
-                straight_through_algorithm,
+                routing_info,
             } => Self {
                 connector: Some(connector),
-                straight_through_algorithm,
+                routing_info,
                 ..Default::default()
             },
         }

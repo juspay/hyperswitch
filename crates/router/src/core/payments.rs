@@ -2885,7 +2885,7 @@ where
 
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr)
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;

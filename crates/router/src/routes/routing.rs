@@ -3,9 +3,9 @@
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
 use actix_web::{web, HttpRequest, Responder};
-use api_models::routing as routing_types;
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{enums, routing as routing_types};
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -23,6 +23,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -31,7 +32,14 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload| {
-            routing::create_routing_config(state, auth.merchant_account, auth.key_store, payload)
+            routing::create_routing_config(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payload,
+                #[cfg(feature = "business_profile_routing")]
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -52,7 +60,7 @@ pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<routing_types::RoutingAlgorithmId>,
-    transaction_type: &routing::TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -119,6 +127,7 @@ pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     #[cfg(feature = "business_profile_routing")] query: web::Query<RoutingRetrieveQuery>,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {
@@ -133,6 +142,7 @@ pub async fn list_routing_configs(
                     state,
                     auth.merchant_account,
                     query_params,
+                    transaction_type,
                 )
             },
             #[cfg(not(feature = "release"))]
@@ -181,7 +191,7 @@ pub async fn routing_unlink_config(
     #[cfg(feature = "business_profile_routing")] payload: web::Json<
         routing_types::RoutingConfigRequest,
     >,
-    transaction_type: &routing::TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     #[cfg(feature = "business_profile_routing")]
     {

@@ -305,6 +305,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         &algorithm_id,
         #[cfg(feature = "business_profile_routing")]
         Some(profile_id).cloned(),
+        &api_enums::TransactionType::from(operation_data),
     )
     .await?;
     let cached_algorithm: Arc<CachedAlgorithm> = ROUTING_CACHE
@@ -341,6 +342,7 @@ async fn ensure_algorithm_cached_v1(
     timestamp: i64,
     algorithm_id: &str,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<String> {
     #[cfg(feature = "business_profile_routing")]
     let key = {
@@ -349,11 +351,27 @@ async fn ensure_algorithm_cached_v1(
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
 
-        format!("routing_config_{merchant_id}_{profile_id}")
+        match transaction_type {
+            api_enums::TransactionType::Payment => {
+                format!("routing_config_{merchant_id}_{profile_id}")
+            }
+            #[cfg(feature = "payouts")]
+            api_enums::TransactionType::Payout => {
+                format!("routing_config_po_{merchant_id}_{profile_id}")
+            }
+        }
     };
 
     #[cfg(not(feature = "business_profile_routing"))]
-    let key = format!("dsl_{merchant_id}");
+    let key = match transaction_type {
+        api_enums::TransactionType::Payment => {
+            format!("dsl_{merchant_id}")
+        }
+        #[cfg(feature = "payouts")]
+        api_enums::TransactionType::Payout => {
+            format!("dsl_po_{merchant_id}")
+        }
+    };
 
     let present = ROUTING_CACHE
         .present(&key)
@@ -532,19 +550,31 @@ pub async fn get_merchant_kgraph<'a>(
     key_store: &domain::MerchantKeyStore,
     merchant_last_modified: i64,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<euclid_graph::KnowledgeGraph<'a>>> {
+    let merchant_id = &key_store.merchant_id;
+
     #[cfg(feature = "business_profile_routing")]
     let key = {
         let profile_id = profile_id
             .clone()
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
-
-        format!("kgraph_{}_{profile_id}", key_store.merchant_id)
+        match transaction_type {
+            api_enums::TransactionType::Payment => format!("kgraph_{}_{}", merchant_id, profile_id),
+            #[cfg(feature = "payouts")]
+            api_enums::TransactionType::Payout => {
+                format!("kgraph_po_{}_{}", merchant_id, profile_id)
+            }
+        }
     };
 
     #[cfg(not(feature = "business_profile_routing"))]
-    let key = format!("kgraph_{}", key_store.merchant_id);
+    let key = match transaction_type {
+        api_enums::TransactionType::Payment => format!("kgraph_{}", merchant_id),
+        #[cfg(feature = "payouts")]
+        api_enums::TransactionType::Payout => format!("kgraph_po_{}", merchant_id),
+    };
 
     let kgraph_present = KGRAPH_CACHE
         .present(&key)
@@ -627,6 +657,7 @@ pub async fn refresh_kgraph_cache(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn perform_kgraph_filtering(
     state: &AppState,
     key_store: &domain::MerchantKeyStore,
@@ -635,6 +666,7 @@ async fn perform_kgraph_filtering(
     backend_input: dsl_inputs::BackendInput,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     #[cfg(feature = "business_profile_routing")] profile_id: Option<String>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
@@ -648,6 +680,7 @@ async fn perform_kgraph_filtering(
         merchant_last_modified,
         #[cfg(feature = "business_profile_routing")]
         profile_id,
+        transaction_type,
     )
     .await?;
 
@@ -699,6 +732,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
         profile_id,
+        &api_enums::TransactionType::from(operation_data),
     )
     .await
 }
@@ -749,6 +783,7 @@ pub async fn perform_fallback_routing<F: Clone>(
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
         profile_id,
+        &api_enums::TransactionType::from(operation_data),
     )
     .await
 }
@@ -805,6 +840,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
 
 pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, routing_types::SessionRoutingChoice>> {
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
@@ -941,7 +977,8 @@ pub async fn perform_session_flow_routing(
             ))]
             profile_id: session_input.payment_intent.profile_id.clone(),
         };
-        let maybe_choice = perform_session_routing_for_pm_type(session_pm_input).await?;
+        let maybe_choice =
+            perform_session_routing_for_pm_type(session_pm_input, transaction_type).await?;
 
         // (connector, sub_label)
         if let Some(data) = maybe_choice {
@@ -962,6 +999,7 @@ pub async fn perform_session_flow_routing(
 
 async fn perform_session_routing_for_pm_type(
     session_pm_input: SessionRoutingPmTypeInput<'_>,
+    transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Option<(api::ConnectorData, Option<String>)>> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
@@ -975,6 +1013,7 @@ async fn perform_session_routing_for_pm_type(
                     algorithm_id,
                     #[cfg(feature = "business_profile_routing")]
                     session_pm_input.profile_id.clone(),
+                    transaction_type,
                 )
                 .await?;
 
@@ -1025,6 +1064,7 @@ async fn perform_session_routing_for_pm_type(
         None,
         #[cfg(feature = "business_profile_routing")]
         session_pm_input.profile_id.clone(),
+        transaction_type,
     )
     .await?;
 
@@ -1054,6 +1094,7 @@ async fn perform_session_routing_for_pm_type(
             None,
             #[cfg(feature = "business_profile_routing")]
             session_pm_input.profile_id.clone(),
+            transaction_type,
         )
         .await?;
     }

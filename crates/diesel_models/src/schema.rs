@@ -864,7 +864,7 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
-        straight_through_algorithm -> Nullable<Jsonb>,
+        routing_info -> Nullable<Jsonb>,
     }
 }
 
@@ -1040,6 +1040,7 @@ diesel::table! {
         algorithm_data -> Jsonb,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        algorithm_for -> TransactionType,
     }
 }
 

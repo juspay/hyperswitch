@@ -86,7 +86,7 @@ pub async fn get_connector_choice(
                 .parse_value("StraightThroughAlgorithm")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid straight through routing rules format")?;
-            payout_data.payout_attempt.straight_through_algorithm = Some(straight_through);
+            payout_data.payout_attempt.routing_info = Some(straight_through);
             let mut routing_data = storage::RoutingData {
                 routed_through: connector,
                 #[cfg(feature = "connector_choice_mca_id")]
