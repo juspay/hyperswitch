@@ -71,10 +71,15 @@ pub static USERS_VIEW: Lazy<Vec<Permission>> = Lazy::new(|| vec![Permission::Use
 pub static USERS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| vec![Permission::UsersWrite]);
 
 pub static MERCHANT_DETAILS_VIEW: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantAccountRead, Permission::ApiKeyRead]);
+    Lazy::new(|| vec![Permission::MerchantAccountRead]);
 
-pub static MERCHANT_DETAILS_MANAGE: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantAccountWrite, Permission::ApiKeyWrite]);
+pub static MERCHANT_DETAILS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| {
+    vec![
+        Permission::MerchantAccountWrite,
+        Permission::ApiKeyRead,
+        Permission::ApiKeyWrite,
+    ]
+});
 
 pub static ORGANIZATION_MANAGE: Lazy<Vec<Permission>> =
     Lazy::new(|| vec![Permission::MerchantAccountCreate]);

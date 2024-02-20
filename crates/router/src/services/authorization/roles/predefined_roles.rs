@@ -133,8 +133,6 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
-                PermissionGroup::ConnectorsView,
-                PermissionGroup::WorkflowsView,
                 PermissionGroup::AnalyticsView,
                 PermissionGroup::UsersView,
                 PermissionGroup::UsersManage,
@@ -154,14 +152,9 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
-                PermissionGroup::OperationsManage,
                 PermissionGroup::ConnectorsView,
-                PermissionGroup::ConnectorsManage,
-                PermissionGroup::WorkflowsView,
-                PermissionGroup::WorkflowsManage,
                 PermissionGroup::AnalyticsView,
                 PermissionGroup::UsersView,
-                PermissionGroup::UsersManage,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
             ],
@@ -181,9 +174,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::OperationsView,
                 PermissionGroup::OperationsManage,
                 PermissionGroup::ConnectorsView,
-                PermissionGroup::ConnectorsManage,
                 PermissionGroup::WorkflowsView,
-                PermissionGroup::WorkflowsManage,
                 PermissionGroup::AnalyticsView,
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
@@ -202,8 +193,6 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
-                PermissionGroup::ConnectorsView,
-                PermissionGroup::WorkflowsView,
                 PermissionGroup::AnalyticsView,
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,

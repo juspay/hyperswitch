@@ -6,7 +6,6 @@ use crate::{core::errors, routes::AppState};
 
 pub mod predefined_roles;
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct RoleInfo {
     role_id: String,
