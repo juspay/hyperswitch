@@ -15,11 +15,11 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use fred::{
-    interfaces::{HashesInterface, KeysInterface, StreamsInterface},
+    interfaces::{HashesInterface, KeysInterface, SetsInterface, StreamsInterface},
     prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
+        MultipleValues, RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -27,7 +27,7 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
-    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
+    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SaddReply, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -464,6 +464,23 @@ impl super::RedisConnectionPool {
         value_bytes
             .parse_struct(type_name)
             .change_context(errors::RedisError::JsonDeserializationFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn sadd<V>(
+        &self,
+        key: &str,
+        members: V,
+    ) -> CustomResult<SaddReply, errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send,
+        V::Error: Into<fred::error::RedisError> + Send,
+    {
+        self.pool
+            .sadd(key, members)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetAddMembersFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

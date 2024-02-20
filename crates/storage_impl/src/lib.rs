@@ -21,7 +21,9 @@ mod utils;
 
 use database::store::PgPool;
 pub use mock_db::MockDb;
-use redis_interface::errors::RedisError;
+use redis_interface::{errors::RedisError, SaddReply};
+
+use common_utils::errors::CustomResult;
 
 pub use crate::database::store::DatabaseStore;
 
@@ -257,5 +259,59 @@ pub(crate) fn diesel_error_to_data_error(
             key: None,
         },
         _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
+    }
+}
+
+#[async_trait::async_trait]
+pub trait UniqueConstraints {
+    fn unique_constraints(&self) -> Vec<String>;
+    async fn check_for_constraints(
+        &self,
+        redis_conn: &Arc<redis_interface::RedisConnectionPool>,
+    ) -> CustomResult<(), RedisError> {
+        let constraints = self.unique_constraints();
+        for constraint in constraints {
+            let sadd_result = redis_conn
+                .sadd(&format!("unique_constraint_{}", &constraint), true)
+                .await?;
+
+            if let SaddReply::KeyNotSet = sadd_result {
+                return Err(error_stack::report!(RedisError::SetAddMembersFailed));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl UniqueConstraints for diesel_models::Address {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("address_{}", self.address_id)]
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentIntent {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pi_{}_{}", self.merchant_id, self.payment_id)]
+    }
+}
+
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "pa_{}_{}_{}",
+            self.merchant_id, self.payment_id, self.attempt_id
+        )]
+    }
+}
+
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("refund_{}_{}", self.merchant_id, self.refund_id)]
+    }
+}
+
+impl UniqueConstraints for diesel_models::ReverseLookup {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("reverselookup_{}", self.lookup_id)]
     }
 }
