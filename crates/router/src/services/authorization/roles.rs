@@ -80,7 +80,7 @@ pub async fn get_role_info_from_role_id(
 
 impl From<diesel_models::role::Role> for RoleInfo {
     fn from(role: diesel_models::role::Role) -> Self {
-        RoleInfo {
+        Self {
             role_id: role.role_id,
             role_name: role.role_name,
             groups: role.groups.into_iter().map(Into::into).collect(),

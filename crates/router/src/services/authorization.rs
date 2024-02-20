@@ -27,13 +27,11 @@ where
             .find_role_by_role_id(role_id)
             .await
             .to_not_found_response(ApiErrorResponse::InvalidJwtToken)?;
-        Ok(get_permissions_from_groups(
-            &role.groups.into_iter().map(|x| x.into()).collect(),
-        ))
+        Ok(get_permissions_from_groups(&role.groups))
     }
 }
 
-pub fn get_permissions_from_groups(groups: &Vec<PermissionGroup>) -> Vec<permissions::Permission> {
+pub fn get_permissions_from_groups(groups: &[PermissionGroup]) -> Vec<permissions::Permission> {
     groups
         .iter()
         .flat_map(|group| {
@@ -49,7 +47,7 @@ pub fn check_authorization(
     permissions: Vec<permissions::Permission>,
 ) -> RouterResult<()> {
     permissions
-        .contains(&required_permission)
+        .contains(required_permission)
         .then_some(())
         .ok_or(
             ApiErrorResponse::AccessForbidden {

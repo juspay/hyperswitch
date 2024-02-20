@@ -444,7 +444,7 @@ pub async fn invite_user(
 
     let role_info = roles::get_role_info_from_role_id(&state, request.role_id.as_str())
         .await
-        .to_not_found_response(UserErrors::InvalidRoleId.into())?;
+        .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
@@ -630,7 +630,7 @@ async fn handle_invitation(
 
     let role_info = roles::get_role_info_from_role_id(state, request.role_id.as_str())
         .await
-        .to_not_found_response(UserErrors::InvalidRoleId.into())?;
+        .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
@@ -1088,8 +1088,8 @@ pub async fn get_users_for_merchant_account(
                 name: user.get_name(),
                 role_id: user_role.role_id,
                 role_name: role_info.get_role_name().to_string(),
-                status: user_role.status.clone().foreign_into(),
-                last_modified_at: user_role.last_modified.clone(),
+                status: user_role.status.foreign_into(),
+                last_modified_at: user_role.last_modified,
             }
         })
         .collect();
