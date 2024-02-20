@@ -48,13 +48,13 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
-        Ok(user)
+        Ok(user.into())
     }
 }
 
