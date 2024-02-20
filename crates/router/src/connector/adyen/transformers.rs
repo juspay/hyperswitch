@@ -3159,9 +3159,11 @@ pub fn get_redirection_response(
 
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id: match response.psp_reference.as_ref() {
+            Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
+            None => types::ResponseId::NoResponseId,
+        },
         redirection_data,
         mandate_reference: None,
         connector_metadata,
@@ -3264,9 +3266,11 @@ pub fn get_qr_code_response(
     };
 
     let connector_metadata = get_qr_metadata(&response)?;
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id: match response.psp_reference.as_ref() {
+            Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
+            None => types::ResponseId::NoResponseId,
+        },
         redirection_data: None,
         mandate_reference: None,
         connector_metadata,
