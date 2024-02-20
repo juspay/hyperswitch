@@ -3082,6 +3082,23 @@ pub async fn payment_external_authentication(
         &[storage_enums::IntentStatus::RequiresCustomerAction],
         "authenticate",
     )?;
+    let optional_customer = match &payment_intent.customer_id {
+        Some(customer_id) => Some(
+            state
+                .store
+                .find_customer_by_customer_id_merchant_id(
+                    &customer_id,
+                    &merchant_account.merchant_id,
+                    &key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    "error while finding customer with customer_id {customer_id}"
+                })?,
+        ),
+        None => None,
+    };
     let profile_id = payment_intent
         .profile_id
         .as_ref()
@@ -3198,6 +3215,7 @@ pub async fn payment_external_authentication(
         (authentication_data, authentication),
         return_url,
         req.sdk_information,
+        optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
     )
     .await?;
     Ok(services::ApplicationResponse::Json(

@@ -37,6 +37,7 @@ pub fn construct_authentication_router_data(
     authentication_data: (super::types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
     sdk_information: Option<api_models::payments::SDKInformation>,
+    email: Option<common_utils::pii::Email>,
 ) -> RouterResult<types::ConnectorAuthenticationRouterData> {
     let router_request = types::ConnectorAuthenticationRequestData {
         payment_method_data,
@@ -50,6 +51,7 @@ pub fn construct_authentication_router_data(
         authentication_data,
         return_url,
         sdk_information,
+        email,
     };
     construct_router_data(
         authentication_connector,

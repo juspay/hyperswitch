@@ -35,6 +35,7 @@ pub async fn perform_authentication(
     authentication_data: (types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
     sdk_information: Option<payments::SDKInformation>,
+    email: Option<common_utils::pii::Email>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         authentication_connector.clone(),
@@ -52,6 +53,7 @@ pub async fn perform_authentication(
         authentication_data.clone(),
         return_url,
         sdk_information,
+        email,
     )?;
     let response =
         utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;

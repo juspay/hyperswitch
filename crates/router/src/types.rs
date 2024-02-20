@@ -1074,6 +1074,7 @@ pub struct ConnectorAuthenticationRequestData {
     ),
     pub return_url: Option<String>,
     pub sdk_information: Option<api_models::payments::SDKInformation>,
+    pub email: Option<Email>,
 }
 
 #[derive(Clone, Debug)]

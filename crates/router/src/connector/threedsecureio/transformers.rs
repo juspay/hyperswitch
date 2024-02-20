@@ -503,6 +503,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
                 DeviceChannel::BRW => None,
             },
             cardholder_name: card_details.card_holder_name,
+            email: request.email.clone(),
         })
     }
 }
@@ -580,7 +581,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub bill_addr_line1: String,
     pub bill_addr_post_code: String,
     pub bill_addr_state: String,
-    // pub email: Email,
+    pub email: Option<common_utils::pii::Email>,
     pub three_dsrequestor_authentication_ind: String,
     pub cardholder_name: Option<Secret<String>>,
     pub device_channel: String,
