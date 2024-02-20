@@ -112,7 +112,7 @@ pub struct MerchantDefinedInformation {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<Secret<String>>,
+    cavv: Option<String>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
@@ -1322,7 +1322,7 @@ pub enum BankOfAmericaAuthEnrollmentStatus {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<Secret<String>>,
+    cavv: Option<String>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,
