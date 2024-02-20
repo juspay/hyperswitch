@@ -10,5 +10,7 @@ CREATE TABLE IF NOT EXISTS Authentication (
     authentication_lifecycle_status VARCHAR(64) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now()::TIMESTAMP,
     modified_at TIMESTAMP NOT NULL DEFAULT now()::TIMESTAMP,
+    error_message VARCHAR(64),
+    error_code VARCHAR(64),
     PRIMARY KEY (authentication_id)
 );

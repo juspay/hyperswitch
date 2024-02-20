@@ -103,6 +103,8 @@ impl AuthenticationInterface for MockDb {
             payment_method_id: authentication.payment_method_id,
             authentication_type: authentication.authentication_type,
             authentication_lifecycle_status: authentication.authentication_lifecycle_status,
+            error_code: authentication.error_code,
+            error_message: authentication.error_message,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
