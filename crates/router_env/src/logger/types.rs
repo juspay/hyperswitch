@@ -339,8 +339,8 @@ pub enum Flow {
     InviteMultipleUser,
     /// Reinvite user
     ReInviteUser,
-    /// Activate user from email
-    ActivateFromEmail,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
     /// Delete user role
     DeleteUserRole,
     /// Incremental Authorization flow

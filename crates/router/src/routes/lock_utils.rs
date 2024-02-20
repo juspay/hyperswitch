@@ -188,7 +188,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
-            | Flow::ActivateFromEmail
+            | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails => Self::User,
 

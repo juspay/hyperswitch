@@ -119,7 +119,7 @@ pub struct ReInviteUserRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct ActivateFromEmailRequest {
+pub struct AcceptInviteFromEmailRequest {
     pub token: Secret<String>,
 }
 

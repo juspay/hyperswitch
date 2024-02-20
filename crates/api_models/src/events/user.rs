@@ -10,7 +10,7 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    ActivateFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
+    AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
     CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse,
     InviteUserRequest, InviteUserResponse, ReInviteUserRequest, ResetPasswordRequest,
     SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
@@ -58,7 +58,7 @@ common_utils::impl_misc_api_event_type!(
     ReInviteUserRequest,
     VerifyEmailRequest,
     SendVerifyEmailRequest,
-    ActivateFromEmailRequest,
+    AcceptInviteFromEmailRequest,
     SignInResponse,
     UpdateUserAccountDetailsRequest
 );

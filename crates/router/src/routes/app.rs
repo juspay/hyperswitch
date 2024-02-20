@@ -1022,8 +1022,8 @@ impl User {
                 )
                 .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)))
                 .service(
-                    web::resource("/activate_from_email")
-                        .route(web::post().to(activate_from_email)),
+                    web::resource("/accept_invite_from_email")
+                        .route(web::post().to(accept_invite_from_email)),
                 );
         }
         #[cfg(not(feature = "email"))]

@@ -28,7 +28,7 @@ pub enum EmailBody {
         link: String,
         user_name: String,
     },
-    ActivateInvitedUser {
+    AcceptInviteFromEmail {
         link: String,
         user_name: String,
     },
@@ -82,8 +82,8 @@ pub mod html {
                     link = link
                 )
             }
-            // TODO: Change the linked html for activate invited user
-            EmailBody::ActivateInvitedUser { link, user_name } => {
+            // TODO: Change the linked html for accept invite from email
+            EmailBody::AcceptInviteFromEmail { link, user_name } => {
                 format!(
                     include_str!("assets/invite.html"),
                     username = user_name,
@@ -318,9 +318,12 @@ impl EmailData for InviteRegisteredUser {
         .await
         .change_context(EmailError::TokenGenerationFailure)?;
 
-        let invite_user_link =
-            get_link_with_token(&self.settings.email.base_url, token, "activate_from_email");
-        let body = html::get_html_body(EmailBody::ActivateInvitedUser {
+        let invite_user_link = get_link_with_token(
+            &self.settings.email.base_url,
+            token,
+            "accept_invite_from_email",
+        );
+        let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
         });

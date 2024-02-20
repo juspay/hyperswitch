@@ -895,9 +895,9 @@ pub async fn resend_invite(
 }
 
 #[cfg(feature = "email")]
-pub async fn activate_from_email(
+pub async fn accept_invite_from_email(
     state: AppState,
-    request: user_api::ActivateFromEmailRequest,
+    request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     let token = request.token.clone().expose();
 
