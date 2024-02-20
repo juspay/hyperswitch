@@ -327,6 +327,7 @@ pub struct Response {
 pub struct RedirectionErrorResponse {
     result_code: AdyenStatus,
     refusal_reason: String,
+    psp_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -336,6 +337,7 @@ pub struct RedirectionResponse {
     action: AdyenRedirectAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    psp_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -356,6 +358,7 @@ pub struct QrCodeResponseResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
+    psp_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3037,7 +3040,7 @@ pub fn get_adyen_response(
             reason: response.refusal_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.psp_reference.clone()),
         })
     } else {
         None
@@ -3134,7 +3137,7 @@ pub fn get_redirection_response(
             reason: None,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
@@ -3200,7 +3203,7 @@ pub fn get_present_to_shopper_response(
             reason: None,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
@@ -3254,7 +3257,7 @@ pub fn get_qr_code_response(
             reason: None,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
@@ -3295,7 +3298,7 @@ pub fn get_redirection_error_response(
         reason: Some(response.refusal_reason),
         status_code,
         attempt_status: None,
-        connector_transaction_id: None,
+        connector_transaction_id: response.psp_reference.clone(),
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
