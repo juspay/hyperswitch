@@ -1,11 +1,10 @@
 use common_enums::PermissionGroup;
 
+use super::authentication::AuthToken;
 use crate::{
     core::errors::{ApiErrorResponse, RouterResult, StorageErrorExt},
     routes::app::AppStateInfo,
 };
-
-use super::authentication::AuthToken;
 
 pub mod info;
 pub mod permission_groups;
