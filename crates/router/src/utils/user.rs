@@ -54,10 +54,7 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(
-        &self,
-        state: &AppState,
-    ) -> UserResult<UserFromStorage> {
+    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)

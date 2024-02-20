@@ -1,6 +1,7 @@
-use super::permissions::Permission;
 use common_enums::PermissionGroup;
 use once_cell::sync::Lazy;
+
+use super::permissions::Permission;
 
 pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &Lazy<Vec<Permission>> {
     match permission_group {

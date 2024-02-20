@@ -1,8 +1,10 @@
-use super::RoleInfo;
-use crate::consts;
+use std::collections::HashMap;
+
 use common_enums::PermissionGroup;
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+
+use super::RoleInfo;
+use crate::consts;
 
 pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
