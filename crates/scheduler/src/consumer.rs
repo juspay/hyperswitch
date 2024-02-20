@@ -170,6 +170,11 @@ pub async fn fetch_consumer_tasks(
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let batches = pt_utils::get_batches(redis_conn, stream_name, group_name, consumer_name).await?;
 
+    // Returning early to avoid execution of database queries when `batches` is empty
+    if batches.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let mut tasks = batches.into_iter().fold(Vec::new(), |mut acc, batch| {
         acc.extend_from_slice(
             batch

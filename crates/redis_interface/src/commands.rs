@@ -596,7 +596,12 @@ impl super::RedisConnectionPool {
             None => self.pool.xread_map(count, block, streams, ids).await,
         }
         .into_report()
-        .change_context(errors::RedisError::StreamReadFailed)
+        .map_err(|err| match err.current_context().kind() {
+            RedisErrorKind::NotFound | RedisErrorKind::Parse => {
+                err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+            }
+            _ => err.change_context(errors::RedisError::StreamReadFailed),
+        })
     }
 
     //                                              Consumer Group API
