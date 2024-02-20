@@ -435,7 +435,7 @@ pub struct ClientRiskInformation {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
-    name: String,
+    name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -890,7 +890,7 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationResponse {
     access_token: Secret<String>,
-    device_data_collection_url: String,
+    device_data_collection_url: Secret<String>,
     reference_id: String,
 }
 
@@ -1070,7 +1070,8 @@ impl<F>
                             .expose(),
                         ddc_url: info_response
                             .consumer_authentication_information
-                            .device_data_collection_url,
+                            .device_data_collection_url
+                            .expose(),
                         reference_id: info_response
                             .consumer_authentication_information
                             .reference_id,
@@ -2025,7 +2026,7 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" , {}", risk_info.name))
+                        .map(|risk_info| format!(" , {}", risk_info.name.clone().expose()))
                         .collect::<Vec<String>>()
                         .join("")
                 })
