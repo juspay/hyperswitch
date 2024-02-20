@@ -1003,14 +1003,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
                 reason: Some(payme_response.status_error_code.to_string()),
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: payme_response.payme_transaction_id.clone(),
+                connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),
             })
         } else {
             Ok(types::RefundsResponseData {
-                connector_refund_id: item
-                    .response
-                    .payme_transaction_id
-                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+                connector_refund_id: item.response.payme_transaction_id,
                 refund_status,
             })
         };
