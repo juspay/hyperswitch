@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
@@ -3339,32 +3340,26 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
         let qr_code_info = payments::QrCodeInformation::QrCodeImageUrl {
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
         let qr_code_info = payments::QrCodeInformation::QrDataUrl {
             image_data_url,
             display_to_timestamp,
         };
 
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else {
         Ok(None)
     }
@@ -3489,11 +3484,9 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
             };
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::VoucherNextStepData,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::PermataBankTransfer
         | PaymentType::BcaBankTransfer
@@ -3511,11 +3504,9 @@ pub fn get_present_to_shopper_metadata(
                 }),
             );
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::DokuBankTransferInstructions,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::Affirm
         | PaymentType::Afterpaytouch

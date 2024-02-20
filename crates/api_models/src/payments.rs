@@ -625,7 +625,7 @@ impl PaymentsRequest {
     > {
         self.feature_metadata
             .as_ref()
-            .map(Encode::<FeatureMetadata>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -637,7 +637,7 @@ impl PaymentsRequest {
     > {
         self.connector_metadata
             .as_ref()
-            .map(Encode::<ConnectorMetadata>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -649,7 +649,7 @@ impl PaymentsRequest {
     > {
         self.allowed_payment_method_types
             .as_ref()
-            .map(Encode::<Vec<api_enums::PaymentMethodType>>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -663,10 +663,7 @@ impl PaymentsRequest {
             .as_ref()
             .map(|od| {
                 od.iter()
-                    .map(|order| {
-                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
-                            .map(masking::Secret::new)
-                    })
+                    .map(|order| order.encode_to_value().map(masking::Secret::new))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
