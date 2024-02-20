@@ -130,7 +130,8 @@ impl AnalyticsDataSource for ClickhouseClient {
         match table {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
-            | AnalyticsCollection::PaymentIntent => {
+            | AnalyticsCollection::PaymentIntent
+            | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
             AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
@@ -374,6 +375,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
+            Self::Dispute => Ok("dispute".to_string()),
         }
     }
 }

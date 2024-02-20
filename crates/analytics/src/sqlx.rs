@@ -445,6 +445,7 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
+            Self::Dispute => Ok("dispute".to_string()),
         }
     }
 }
