@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Payment Connector - Create",
+    "Payment Connector - Retrieve",
+    "Payment Connector - Update",
+    "List Connectors by MID",
+    "Payment Connector - Delete",
+    "Merchant Account - Delete"
+  ]
+}

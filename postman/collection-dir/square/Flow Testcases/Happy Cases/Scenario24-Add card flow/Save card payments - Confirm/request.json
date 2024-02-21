@@ -1,0 +1,66 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
+      "payment_method": "card",
+      "payment_token": "{{payment_token}}",
+      "card_cvc": "737"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/confirm",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  },
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+}

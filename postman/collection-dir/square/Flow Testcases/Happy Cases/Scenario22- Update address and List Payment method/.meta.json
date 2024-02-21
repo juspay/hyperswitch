@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Payments - Create",
+    "List Payment Methods for a Merchant",
+    "Payments - Update",
+    "List Payment Methods for a Merchant-copy",
+    "Payments - Confirm",
+    "Payments - Retrieve"
+  ]
+}

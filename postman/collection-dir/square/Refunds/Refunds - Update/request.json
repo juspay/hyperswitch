@@ -1,0 +1,47 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "reason": "Paid by mistake",
+      "metadata": {
+        "udf1": "value2",
+        "new_customer": "false",
+        "login_date": "2019-09-1T10:11:12Z"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/refunds/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "refunds",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{refund_id}}",
+        "description": "(Required) unique refund id"
+      }
+    ]
+  },
+  "description": "To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields"
+}

@@ -1,0 +1,20 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "x-feature",
+      "value": "router-custom",
+      "type": "text",
+      "disabled": true
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/health",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "health"
+    ]
+  }
+}

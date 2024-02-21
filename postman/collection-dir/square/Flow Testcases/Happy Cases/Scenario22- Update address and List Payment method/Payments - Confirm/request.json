@@ -1,0 +1,109 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
+      "payment_method": "bank_redirect",
+      "payment_method_type": "ideal",
+      "payment_method_data": {
+        "bank_redirect": {
+          "ideal": {
+            "billing_details": {
+              "billing_name": "Example",
+              "email": "guest@example.com"
+            },
+            "bank_name": "ing"
+          }
+        }
+      },
+      "mandate_data": {
+        "customer_acceptance": {
+          "acceptance_type": "offline",
+          "accepted_at": "1963-05-03T04:07:52.723Z",
+          "online": {
+            "ip_address": "125.0.0.1",
+            "user_agent": "amet irure esse"
+          }
+        },
+        "mandate_type": {
+          "multi_use": {
+            "amount": 7000,
+            "currency": "USD",
+            "start_date": "2023-04-21T00:00:00Z",
+            "end_date": "2023-05-21T00:00:00Z",
+            "metadata": {
+              "frequency": "13"
+            }
+          }
+        }
+      },
+      "setup_future_usage": "off_session",
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "language": "nl-NL",
+        "color_depth": 24,
+        "screen_height": 723,
+        "screen_width": 1536,
+        "time_zone": 0,
+        "java_enabled": true,
+        "java_script_enabled": true,
+        "ip_address": "128.0.0.1"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/confirm",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}"
+      }
+    ]
+  },
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+}

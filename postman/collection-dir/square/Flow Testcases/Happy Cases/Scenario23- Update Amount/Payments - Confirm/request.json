@@ -1,0 +1,98 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    },
+    {
+      "key": "x-feature",
+      "value": "router-custom",
+      "type": "text",
+      "disabled": true
+    },
+    {
+      "key": "publishable_key",
+      "value": "",
+      "type": "text",
+      "disabled": true
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
+      "payment_method": "card",
+      "payment_method_type": "debit",
+      "payment_method_data": {
+        "card": {
+          "card_number": "4242424242424242",
+          "card_exp_month": "03",
+          "card_exp_year": "2030",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "737"
+        }
+      },
+      "setup_future_usage": "off_session",
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+        "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "language": "nl-NL",
+        "color_depth": 24,
+        "screen_height": 723,
+        "screen_width": 1536,
+        "time_zone": 0,
+        "java_enabled": true,
+        "java_script_enabled": true,
+        "ip_address": "128.0.0.1"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/confirm",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}"
+      }
+    ]
+  },
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+}
