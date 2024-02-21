@@ -421,6 +421,25 @@ pub async fn resend_invite(
 }
 
 #[cfg(feature = "email")]
+pub async fn accept_invite_from_email(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInviteFromEmail;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
 pub async fn verify_email_without_invite_checks(
     state: web::Data<AppState>,
     http_req: HttpRequest,
