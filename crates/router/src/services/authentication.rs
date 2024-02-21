@@ -505,8 +505,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             (),
@@ -536,8 +536,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             UserFromToken {
@@ -576,8 +576,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.required_permission, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -621,8 +621,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -673,8 +673,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -760,6 +760,48 @@ where
         }
 
         Ok(((), AuthenticationType::NoAuth))
+    }
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.merchant_id.clone(),
+                user_id: Some(payload.user_id),
+            },
+        ))
     }
 }
 

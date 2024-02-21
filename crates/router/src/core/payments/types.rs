@@ -336,7 +336,8 @@ impl SurchargeMetadata {
             for (key, value) in self.get_individual_surcharge_key_value_pairs().into_iter() {
                 value_list.push((
                     key,
-                    Encode::<SurchargeDetails>::encode_to_string_of_json(&value)
+                    value
+                        .encode_to_string_of_json()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to encode to string of json")?,
                 ));
