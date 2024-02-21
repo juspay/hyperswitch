@@ -85,7 +85,7 @@ pub struct MerchantRoutingAlgorithm {
     pub algorithm: RoutingAlgorithm,
     pub created_at: i64,
     pub modified_at: i64,
-    pub algorithm_for: TransactionType
+    pub algorithm_for: TransactionType,
 }
 
 impl EuclidDirFilter for ConnectorSelection {

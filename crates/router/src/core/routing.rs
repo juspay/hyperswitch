@@ -444,7 +444,7 @@ pub async fn retrieve_routing_config(
             algorithm,
             created_at: record.created_at,
             modified_at: record.modified_at,
-            algorithm_for: record.algorithm_for
+            algorithm_for: record.algorithm_for,
         };
 
         metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
@@ -802,7 +802,7 @@ pub async fn retrieve_linked_routing_config(
                 algorithm: the_algorithm,
                 created_at: record.created_at,
                 modified_at: record.modified_at,
-                algorithm_for: record.algorithm_for
+                algorithm_for: record.algorithm_for,
             })
         } else {
             None
