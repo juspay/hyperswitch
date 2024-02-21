@@ -50,10 +50,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-pub async fn payments_incoming_webhook_flow<
-    W: types::OutgoingWebhookType,
-    Ctx: PaymentMethodRetrieve,
->(
+pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -171,8 +168,9 @@ pub async fn payments_incoming_webhook_flow<
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                create_event_and_trigger_outgoing_webhook::<W>(
+                create_event_and_trigger_outgoing_webhook(
                     state,
+                    merchant_account,
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -197,7 +195,7 @@ pub async fn payments_incoming_webhook_flow<
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn refunds_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -276,8 +274,9 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
-        create_event_and_trigger_outgoing_webhook::<W>(
+        create_event_and_trigger_outgoing_webhook(
             state,
+            merchant_account,
             business_profile,
             outgoing_event_type,
             enums::EventClass::Refunds,
@@ -413,7 +412,7 @@ pub async fn get_or_update_dispute_object(
     }
 }
 
-pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn mandates_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -470,8 +469,9 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         );
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
         if let Some(outgoing_event_type) = event_type {
-            create_event_and_trigger_outgoing_webhook::<W>(
+            create_event_and_trigger_outgoing_webhook(
                 state,
+                merchant_account,
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Mandates,
@@ -494,7 +494,7 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn disputes_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -536,8 +536,9 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
 
-        create_event_and_trigger_outgoing_webhook::<W>(
+        create_event_and_trigger_outgoing_webhook(
             state,
+            merchant_account,
             business_profile,
             event_type,
             enums::EventClass::Disputes,
@@ -559,7 +560,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
+async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -621,8 +622,9 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                create_event_and_trigger_outgoing_webhook::<W>(
+                create_event_and_trigger_outgoing_webhook(
                     state,
+                    merchant_account,
                     business_profile,
                     outgoing_event_type,
                     enums::EventClass::Payments,
@@ -645,52 +647,9 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentM
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
+pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: AppState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
-    event_type: enums::EventType,
-    event_class: enums::EventClass,
-    intent_reference_id: Option<String>,
-    primary_object_id: String,
-    primary_object_type: enums::EventObjectType,
-    content: api::OutgoingWebhookContent,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    match merchant_account.get_compatible_connector() {
-        #[cfg(feature = "stripe")]
-        Some(api_models::enums::Connector::Stripe) => {
-            create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
-                state.clone(),
-                business_profile,
-                event_type,
-                event_class,
-                intent_reference_id,
-                primary_object_id,
-                primary_object_type,
-                content,
-            )
-            .await
-        }
-        _ => {
-            create_event_and_trigger_outgoing_webhook::<api_models::webhooks::OutgoingWebhook>(
-                state.clone(),
-                business_profile,
-                event_type,
-                event_class,
-                intent_reference_id,
-                primary_object_id,
-                primary_object_type,
-                content,
-            )
-            .await
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
-    state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     event_type: enums::EventType,
     event_class: enums::EventClass,
@@ -761,8 +720,9 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
         // may have an actix arbiter
         tokio::spawn(
             async move {
-                trigger_webhook_and_raise_event::<api_models::webhooks::OutgoingWebhook>(
+                trigger_appropriate_webhook_and_raise_event(
                     state,
+                    merchant_account,
                     business_profile,
                     outgoing_webhook,
                     types::WebhookDeliveryAttempt::InitialAttempt,
@@ -781,7 +741,50 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
+pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    business_profile: diesel_models::business_profile::BusinessProfile,
+    outgoing_webhook: api::OutgoingWebhook,
+    delivery_attempt: types::WebhookDeliveryAttempt,
+    content: api::OutgoingWebhookContent,
+    event_id: String,
+    event_type: enums::EventType,
+    process_tracker: diesel_models::ProcessTracker,
+) {
+    match merchant_account.get_compatible_connector() {
+        #[cfg(feature = "stripe")]
+        Some(api_models::enums::Connector::Stripe) => {
+            trigger_webhook_and_raise_event::<stripe_webhooks::StripeOutgoingWebhook>(
+                state,
+                business_profile,
+                outgoing_webhook,
+                delivery_attempt,
+                content,
+                event_id,
+                event_type,
+                process_tracker,
+            )
+            .await
+        }
+        _ => {
+            trigger_webhook_and_raise_event::<api_models::webhooks::OutgoingWebhook>(
+                state,
+                business_profile,
+                outgoing_webhook,
+                delivery_attempt,
+                content,
+                event_id,
+                event_type,
+                process_tracker,
+            )
+            .await
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     outgoing_webhook: api::OutgoingWebhook,
@@ -1296,7 +1299,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             })?;
 
         match flow_type {
-            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<W, Ctx>(
+            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow::<Ctx>(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1307,7 +1310,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for payments failed")?,
 
-            api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1320,7 +1323,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for refunds failed")?,
 
-            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1333,7 +1336,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
             .await
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<W, Ctx>(
+            api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow::<Ctx>(
                 state.clone(),
                 merchant_account,
                 business_profile,
@@ -1346,7 +1349,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
 
             api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
-            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow(
                 state.clone(),
                 merchant_account,
                 business_profile,
