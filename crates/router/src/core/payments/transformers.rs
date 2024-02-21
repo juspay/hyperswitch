@@ -549,7 +549,8 @@ where
                         }))
                         .or(payment_data.authentication.as_ref().and_then(
                             |(_authentication, authentication_data)| {
-                                if authentication_data.cavv.is_none() { // if preAuthn
+                                if authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
+                                    // if preAuthn and separate authentication needed.
                                     let payment_id = payment_attempt.payment_id.clone();
                                     let base_url = server.base_url.clone();
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
@@ -746,6 +747,9 @@ where
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
+                        .set_request_external_3ds_authentication(
+                            payment_attempt.external_three_ds_authentication_requested,
+                        )
                         .to_owned(),
                     headers,
                 ))
@@ -814,6 +818,8 @@ where
                 incremental_authorizations: incremental_authorizations_response,
                 external_authentication_details,
                 expires_on: payment_intent.session_expiry,
+                request_external_3ds_authentication: payment_attempt
+                    .external_three_ds_authentication_requested,
                 ..Default::default()
             },
             headers,

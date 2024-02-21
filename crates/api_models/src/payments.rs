@@ -2304,6 +2304,9 @@ pub struct PaymentsResponse {
     /// Details of external authentication if requested
     pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
 
+    /// Flag indicating if external 3ds authentication request will be made or not
+    pub request_external_3ds_authentication: Option<bool>,
+
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
