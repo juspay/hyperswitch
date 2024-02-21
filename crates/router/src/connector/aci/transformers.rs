@@ -379,7 +379,7 @@ pub struct Instruction {
     create_registration: Option<bool>,
 }
 
-// Struct not used 
+// Struct not used
 // #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 // pub struct BankDetails {
 //     #[serde(rename = "bankAccount.holder")]
