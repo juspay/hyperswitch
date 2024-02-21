@@ -1219,7 +1219,7 @@ pub struct Paypal {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalQueryParams {
     #[serde(rename = "PayerID")]
-    payer_id: String,
+    payer_id: Secret<String>,
 }
 
 impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -1236,12 +1236,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id: Secret<String> = Secret::new(
+        let payer_id: Secret<String> =
             serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-                .payer_id,
-        );
+                .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::ContinueAuthorization,
             _ => TransactionType::ContinueCapture,
