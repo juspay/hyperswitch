@@ -12,7 +12,7 @@ pub trait AuthService:
 {
 }
 
-pub trait PaymentInitiation:  super::ConnectorCommon + PaymentInitiationRecipientCreate {}
+pub trait PaymentInitiation: super::ConnectorCommon + PaymentInitiationRecipientCreate {}
 
 #[derive(Debug, Clone)]
 pub struct LinkToken;
