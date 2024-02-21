@@ -186,7 +186,8 @@ pub async fn update_trackers<F: Clone, Req>(
                         api_models::payments::TransStatus::Y => {
                             Some(common_enums::AuthenticationStatus::Success)
                         }
-                        api_models::payments::TransStatus::N => {
+                        api_models::payments::TransStatus::N
+                        | api_models::payments::TransStatus::R => {
                             Some(common_enums::AuthenticationStatus::Failed)
                         }
                         _ => Some(common_enums::AuthenticationStatus::Pending),
@@ -211,7 +212,16 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_connector_id: None,
                     payment_method_id: None,
                     authentication_type: None,
-                    authentication_status: Some(common_enums::AuthenticationStatus::Success),
+                    authentication_status: match trans_status.clone() {
+                        api_models::payments::TransStatus::Y => {
+                            Some(common_enums::AuthenticationStatus::Success)
+                        }
+                        api_models::payments::TransStatus::N
+                        | api_models::payments::TransStatus::R => {
+                            Some(common_enums::AuthenticationStatus::Failed)
+                        }
+                        _ => Some(common_enums::AuthenticationStatus::Pending),
+                    },
                     authentication_lifecycle_status: None,
                     connector_metadata: None,
                 }
