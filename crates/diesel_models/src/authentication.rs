@@ -53,6 +53,9 @@ pub enum AuthenticationUpdate {
         authentication_lifecycle_status: Option<common_enums::AuthenticationLifecycleStatus>,
         connector_metadata: Option<serde_json::Value>,
     },
+    PostAuthorizationUpdate {
+        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
+    },
     ErrorUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
@@ -147,6 +150,19 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 payment_method_id: None,
                 connector_metadata: None,
+            },
+            AuthenticationUpdate::PostAuthorizationUpdate {
+                authentication_lifecycle_status,
+            } => Self {
+                authentication_connector_id: None,
+                authentication_data: None,
+                payment_method_id: None,
+                authentication_type: None,
+                authentication_status: None,
+                authentication_lifecycle_status: Some(authentication_lifecycle_status),
+                modified_at: common_utils::date_time::now(),
+                error_message: None,
+                error_code: None,
             },
         }
     }
