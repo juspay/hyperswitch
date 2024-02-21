@@ -163,6 +163,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 error_message: None,
                 error_code: None,
+                connector_metadata: None,
             },
         }
     }
