@@ -156,7 +156,7 @@ pub async fn update_trackers<F: Clone, Req>(
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
                     authentication_connector_id: Some(authentication_connector_id),
-                    payment_method_id: token,
+                    payment_method_id: token.map(|token| format!("eph_{}", token)),
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Started),
                     authentication_lifecycle_status: None,
