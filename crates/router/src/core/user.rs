@@ -18,10 +18,8 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     routes::AppState,
-    services::{
-        authentication as auth, authorization::predefined_permissions, ApplicationResponse,
-    },
-    types::domain,
+    services::{authentication as auth, authorization::roles, ApplicationResponse},
+    types::{domain, transformers::ForeignInto},
     utils,
 };
 pub mod dashboard_metadata;
@@ -444,7 +442,16 @@ pub async fn invite_user(
         .into());
     }
 
-    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        &request.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
@@ -652,7 +659,16 @@ async fn handle_invitation(
         .into());
     }
 
-    if !predefined_permissions::is_role_invitable(request.role_id.as_str())? {
+    let role_info = roles::get_role_info_from_role_id(
+        state,
+        &request.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    if !role_info.is_invitable() {
         return Err(UserErrors::InvalidRoleId.into())
             .attach_printable(format!("role_id = {} is not invitable", request.role_id));
     }
@@ -1030,20 +1046,18 @@ pub async fn switch_merchant_id(
         .into());
     }
 
-    let user_roles = state
-        .store
-        .list_user_roles_by_user_id(&user_from_token.user_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let active_user_roles = user_roles
-        .into_iter()
-        .filter(|role| role.status == UserStatus::Active)
-        .collect::<Vec<_>>();
-
     let user = user_from_token.get_user_from_db(&state).await?;
 
-    let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InternalServerError)?;
+
+    let (token, role_id) = if role_info.is_internal() {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -1082,6 +1096,17 @@ pub async fn switch_merchant_id(
         .await?;
         (token, user_from_token.role_id)
     } else {
+        let user_roles = state
+            .store
+            .list_user_roles_by_user_id(&user_from_token.user_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        let active_user_roles = user_roles
+            .into_iter()
+            .filter(|role| role.status == UserStatus::Active)
+            .collect::<Vec<_>>();
+
         let user_role = active_user_roles
             .iter()
             .find(|role| role.merchant_id == request.merchant_id)
@@ -1166,17 +1191,47 @@ pub async fn get_users_for_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::GetUsersResponse> {
-    let users = state
+    let users_and_user_roles = state
         .store
         .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("No users for given merchant id")?
+        .attach_printable("No users for given merchant id")?;
+
+    let users_user_roles_and_roles =
+        futures::future::try_join_all(users_and_user_roles.into_iter().map(
+            |(user, user_role)| async {
+                roles::get_role_info_from_role_id(
+                    &state,
+                    &user_role.role_id,
+                    &user_role.merchant_id,
+                    &user_role.org_id,
+                )
+                .await
+                .map(|role_info| (user, user_role, role_info))
+                .to_not_found_response(UserErrors::InternalServerError)
+            },
+        ))
+        .await?;
+
+    let user_details_vec = users_user_roles_and_roles
         .into_iter()
-        .filter_map(|(user, role)| domain::UserAndRoleJoined(user, role).try_into().ok())
+        .map(|(user, user_role, role_info)| {
+            let user = domain::UserFromStorage::from(user);
+            user_api::UserDetails {
+                email: user.get_email(),
+                name: user.get_name(),
+                role_id: user_role.role_id,
+                role_name: role_info.get_role_name().to_string(),
+                status: user_role.status.foreign_into(),
+                last_modified_at: user_role.last_modified,
+            }
+        })
         .collect();
 
-    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(users)))
+    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(
+        user_details_vec,
+    )))
 }
 
 #[cfg(feature = "email")]

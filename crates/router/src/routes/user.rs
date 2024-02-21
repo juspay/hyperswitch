@@ -291,7 +291,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::PaymentWrite),
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
