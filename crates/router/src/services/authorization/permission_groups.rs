@@ -1,5 +1,6 @@
-use super::permissions::Permission;
 use common_enums::PermissionGroup;
+
+use super::permissions::Permission;
 
 pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &[Permission] {
     match permission_group {
