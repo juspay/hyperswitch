@@ -528,7 +528,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentStatus {
     Captured,
@@ -573,7 +573,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// capture_method is not part of response from connector.
 /// This is used to decide payment status while converting connector response to RouterData.
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct Payment {
     pub id: String,
     pub status: PaymentStatus,
@@ -607,20 +607,20 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub payment: Payment,
     pub merchant_action: Option<MerchantAction>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAction {
     pub redirect_data: RedirectData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct RedirectData {
     #[serde(rename = "redirectURL")]
     pub redirect_url: Url,
@@ -688,7 +688,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Cancelled,
@@ -708,7 +708,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
@@ -750,7 +750,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: Option<String>,
@@ -758,7 +758,7 @@ pub struct Error {
     pub message: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_id: Option<String>,

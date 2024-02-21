@@ -124,6 +124,22 @@ impl super::settings::SupportedConnectors {
     }
 }
 
+impl super::settings::CorsSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.wildcard_origin && !self.origins.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Allowed Origins must be empty when wildcard origin is true".to_string(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(!self.wildcard_origin && self.origins.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Allowed origins must not be empty. Please either enable wildcard origin or provide Allowed Origin".to_string(),
+            ))
+        })
+    }
+}
+
 #[cfg(feature = "kv_store")]
 impl super::settings::DrainerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {

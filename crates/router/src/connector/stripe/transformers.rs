@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref};
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::RequestContent,
 };
@@ -186,7 +186,7 @@ pub struct TokenRequest {
     pub token_data: StripePaymentMethodData,
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeTokenResponse {
     pub id: String,
     pub object: String,
@@ -201,7 +201,7 @@ pub struct CustomerRequest {
     pub source: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
@@ -220,7 +220,7 @@ pub struct ChargesRequest {
     pub meta_data: Option<HashMap<String, String>>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
     pub amount: u64,
@@ -2085,7 +2085,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -2182,7 +2182,7 @@ pub struct LastPaymentError {
     decline_code: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
@@ -2190,20 +2190,20 @@ pub struct PaymentIntentSyncResponse {
     pub latest_charge: Option<StripeChargeEnum>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum StripeChargeEnum {
     ChargeId(String),
     ChargeObject(StripeCharge),
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct StripeBankRedirectDetails {
     #[serde(rename = "generated_sepa_debit")]
     attached_payment_method: Option<String>,
@@ -2217,7 +2217,7 @@ impl Deref for PaymentIntentSyncResponse {
     }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum StripePaymentMethodDetailsResponse {
     //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
@@ -2302,7 +2302,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SetupIntentResponse {
     pub id: String,
     pub object: String,
@@ -2437,11 +2437,7 @@ pub fn get_connector_metadata(
                     },
                 };
 
-                Some(common_utils::ext_traits::Encode::<
-                    SepaAndBacsBankTransferInstructions,
-                >::encode_to_value(
-                    &bank_transfer_instructions
-                ))
+                Some(bank_transfer_instructions.encode_to_value())
             }
             StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
                 let wechat_pay_instructions = QrCodeNextInstructions {
@@ -2449,22 +2445,14 @@ pub fn get_connector_metadata(
                     display_to_timestamp: None,
                 };
 
-                Some(
-                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
-                        &wechat_pay_instructions,
-                    ),
-                )
+                Some(wechat_pay_instructions.encode_to_value())
             }
             StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(response) => {
                 let cashapp_qr_instructions: QrCodeNextInstructions = QrCodeNextInstructions {
                     image_data_url: response.qr_code.image_url_png.to_owned(),
                     display_to_timestamp: response.qr_code.expires_at.to_owned(),
                 };
-                Some(
-                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
-                        &cashapp_qr_instructions,
-                    ),
-                )
+                Some(cashapp_qr_instructions.encode_to_value())
             }
             _ => None,
         })
@@ -2627,7 +2615,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     CashappHandleRedirectOrDisplayQrCode(StripeCashappQrResponse),
@@ -2686,6 +2674,27 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
     }
 }
 
+impl Serialize for StripeNextActionResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match *self {
+            Self::CashappHandleRedirectOrDisplayQrCode(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            Self::RedirectToUrl(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::AlipayHandleRedirect(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::VerifyWithMicrodeposits(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::WechatPayDisplayQrCode(ref i) => serde::Serialize::serialize(i, serializer),
+            Self::DisplayBankTransferInstructions(ref i) => {
+                serde::Serialize::serialize(i, serializer)
+            }
+            Self::NoNextActionBody => serde::Serialize::serialize("NoNextActionBody", serializer),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
@@ -2701,7 +2710,7 @@ pub struct WechatPayRedirectToQr {
     image_data_url: Url,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeVerifyWithMicroDepositsResponse {
     hosted_verification_url: Url,
 }
@@ -3013,13 +3022,13 @@ pub struct MitExemption {
     pub network_transaction_id: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LatestAttempt {
     PaymentIntentAttempt(LatestPaymentAttempt),
     SetupAttempt(String),
 }
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct LatestPaymentAttempt {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
@@ -3123,10 +3132,8 @@ impl<F, T>
         item: types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_source_response = item.response.to_owned();
-        let connector_metadata =
-            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
-                &connector_source_response,
-            )
+        let connector_metadata = connector_source_response
+            .encode_to_value()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         // We get pending as the status from stripe, but hyperswitch should give it as requires_customer_action as
         // customer has to make payment to the virtual account number given in the source response
@@ -3180,10 +3187,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
         item: types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_source_response = item.response.to_owned();
-        let connector_metadata =
-            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
-                &connector_source_response.source,
-            )
+        let connector_metadata = connector_source_response
+            .source
+            .encode_to_value()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let status = enums::AttemptStatus::from(item.response.status);
         let response = if connector_util::is_payment_failure(status) {
@@ -3588,40 +3594,6 @@ pub fn get_bank_transfer_request_data(
     }
 }
 
-pub fn get_bank_transfer_authorize_response(
-    data: &types::PaymentsAuthorizeRouterData,
-    res: types::Response,
-    bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-    match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. }
-        | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
-            let response: ChargesResponse = res
-                .response
-                .parse_struct("ChargesResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
-        _ => {
-            let response: PaymentIntentResponse = res
-                .response
-                .parse_struct("PaymentIntentResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
-    }
-}
-
 pub fn construct_file_upload_request(
     file_upload_router_data: types::UploadFileRouterData,
 ) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
@@ -3636,7 +3608,7 @@ pub fn construct_file_upload_request(
     Ok(multipart)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileUploadResponse {
     #[serde(rename = "id")]
     pub file_id: String,
@@ -3768,7 +3740,7 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,

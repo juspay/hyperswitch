@@ -107,6 +107,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub cors: CorsSettings,
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -240,6 +241,17 @@ pub struct DummyConnector {
     pub default_return_url: String,
     pub slack_invite_url: String,
     pub discord_invite_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CorsSettings {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub origins: HashSet<String>,
+    #[serde(default)]
+    pub wildcard_origin: bool,
+    pub max_age: usize,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub allowed_methods: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -713,6 +725,8 @@ impl Settings {
         self.secrets.validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+
+        self.cors.validate()?;
 
         self.scheduler
             .as_ref()
