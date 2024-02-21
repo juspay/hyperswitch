@@ -544,14 +544,13 @@ pub enum WechatClient {
     Web,
 }
 
-// Struct not used anywhere
-// #[derive(Debug, Eq, PartialEq, Serialize)]
-// pub struct GooglepayPayment {
-//     #[serde(rename = "payment_method_data[card][token]")]
-//     pub token: Secret<String>,
-//     #[serde(rename = "payment_method_data[type]")]
-//     pub payment_method_types: StripePaymentMethodType,
-// }
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct GooglepayPayment {
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: Secret<String>,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
 
 // All supported payment_method_types in stripe
 // This enum goes in payment_method_types[] field in stripe request body
@@ -2965,15 +2964,14 @@ pub struct StripeBillingAddress {
     pub phone: Option<Secret<String>>,
 }
 
-// Struct not used anywhere
-// #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
-// pub struct StripeRedirectResponse {
-//     pub payment_intent: Option<String>,
-//     pub payment_intent_client_secret: Option<Secret<String>>,
-//     pub source_redirect_slug: Option<String>,
-//     pub redirect_status: Option<StripePaymentStatus>,
-//     pub source_type: Option<Secret<String>>,
-// }
+#[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
+pub struct StripeRedirectResponse {
+    pub payment_intent: Option<String>,
+    pub payment_intent_client_secret: Option<Secret<String>>,
+    pub source_redirect_slug: Option<String>,
+    pub redirect_status: Option<StripePaymentStatus>,
+    pub source_type: Option<Secret<String>>,
+}
 
 #[derive(Debug, Serialize)]
 pub struct CancelRequest {
