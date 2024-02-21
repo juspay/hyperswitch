@@ -10312,7 +10312,8 @@
           "description",
           "algorithm",
           "created_at",
-          "modified_at"
+          "modified_at",
+          "algorithm_for"
         ],
         "properties": {
           "id": {
@@ -10337,6 +10338,9 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
