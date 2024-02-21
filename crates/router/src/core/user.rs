@@ -505,10 +505,12 @@ pub async fn invite_user(
                     Box::new(email_contents),
                     state.conf.proxy.https_url.as_ref(),
                 )
-                .await;
+                .await
+                .map(|email_result| logger::info!(?email_result))
+                .map_err(|email_result| logger::error!(?email_result))
+                .is_ok();
 
-            logger::info!(?send_email_result);
-            is_email_sent = send_email_result.is_ok();
+            is_email_sent = send_email_result;
         }
         #[cfg(not(feature = "email"))]
         {
@@ -725,10 +727,12 @@ async fn handle_existing_user_invitation(
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
-            .await;
+            .await
+            .map(|email_result| logger::info!(?email_result))
+            .map_err(|email_result| logger::error!(?email_result))
+            .is_ok();
 
-        logger::info!(?send_email_result);
-        is_email_sent = send_email_result.is_ok();
+        is_email_sent = send_email_result;
     }
     #[cfg(not(feature = "email"))]
     {
@@ -899,7 +903,7 @@ pub async fn accept_invite_from_email(
     state: AppState,
     request: user_api::AcceptInviteFromEmailRequest,
 ) -> UserResponse<user_api::DashboardEntryResponse> {
-    let token = request.token.clone().expose();
+    let token = request.token.expose();
 
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
         .await
