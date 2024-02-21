@@ -39,7 +39,7 @@ pub async fn list_invitable_roles(
         .filter(|(_, role_info)| role_info.is_invitable())
         .map(|(role_id, role_info)| user_role_api::RoleInfoResponse {
             permissions: role_info
-                .get_permissions()
+                .get_permissions_set()
                 .into_iter()
                 .map(Into::into)
                 .collect(),
@@ -58,7 +58,7 @@ pub async fn list_invitable_roles(
         .filter(|role_info| role_info.is_invitable())
         .map(|role_info| user_role_api::RoleInfoResponse {
             permissions: role_info
-                .get_permissions()
+                .get_permissions_set()
                 .into_iter()
                 .map(Into::into)
                 .collect(),
@@ -67,12 +67,8 @@ pub async fn list_invitable_roles(
             role_scope: role_info.get_scope(),
         });
 
-    let roles = predefined_roles_map
-        .chain(custom_roles_map)
-        .collect::<Vec<_>>();
-
     Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
-        roles,
+        predefined_roles_map.chain(custom_roles_map).collect(),
     )))
 }
 
@@ -95,7 +91,7 @@ pub async fn get_role(
     }
 
     let permissions = role_info
-        .get_permissions()
+        .get_permissions_set()
         .into_iter()
         .map(Into::into)
         .collect();
@@ -118,7 +114,7 @@ pub async fn get_role_from_token(
         .attach_printable("Invalid role_id in JWT")?;
 
     let permissions = role_info
-        .get_permissions()
+        .get_permissions_set()
         .into_iter()
         .map(Into::into)
         .collect();

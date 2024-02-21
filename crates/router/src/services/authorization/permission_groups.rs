@@ -1,9 +1,7 @@
-use common_enums::PermissionGroup;
-use once_cell::sync::Lazy;
-
 use super::permissions::Permission;
+use common_enums::PermissionGroup;
 
-pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &Lazy<Vec<Permission>> {
+pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &[Permission] {
     match permission_group {
         PermissionGroup::OperationsView => &OPERATIONS_VIEW,
         PermissionGroup::OperationsManage => &OPERATIONS_MANAGE,
@@ -20,66 +18,68 @@ pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &Lazy<Vec<Perm
     }
 }
 
-pub static OPERATIONS_VIEW: Lazy<Vec<Permission>> = Lazy::new(|| {
-    vec![
-        Permission::PaymentRead,
-        Permission::RefundRead,
-        Permission::MandateRead,
-        Permission::DisputeRead,
-        Permission::CustomerRead,
-    ]
-});
+pub static OPERATIONS_VIEW: [Permission; 6] = [
+    Permission::PaymentRead,
+    Permission::RefundRead,
+    Permission::MandateRead,
+    Permission::DisputeRead,
+    Permission::CustomerRead,
+    Permission::MerchantAccountRead,
+];
 
-pub static OPERATIONS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| {
-    vec![
-        Permission::PaymentWrite,
-        Permission::RefundWrite,
-        Permission::MandateWrite,
-        Permission::DisputeWrite,
-        Permission::CustomerWrite,
-    ]
-});
+pub static OPERATIONS_MANAGE: [Permission; 6] = [
+    Permission::PaymentWrite,
+    Permission::RefundWrite,
+    Permission::MandateWrite,
+    Permission::DisputeWrite,
+    Permission::CustomerWrite,
+    Permission::MerchantAccountRead,
+];
 
-pub static CONNECTORS_VIEW: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantConnectorAccountRead]);
+pub static CONNECTORS_VIEW: [Permission; 2] = [
+    Permission::MerchantConnectorAccountRead,
+    Permission::MerchantAccountRead,
+];
 
-pub static CONNECTORS_MANAGE: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantConnectorAccountWrite]);
+pub static CONNECTORS_MANAGE: [Permission; 2] = [
+    Permission::MerchantConnectorAccountWrite,
+    Permission::MerchantAccountRead,
+];
 
-pub static WORKFLOWS_VIEW: Lazy<Vec<Permission>> = Lazy::new(|| {
-    vec![
-        Permission::RoutingRead,
-        Permission::ThreeDsDecisionManagerRead,
-        Permission::SurchargeDecisionManagerRead,
-        Permission::MerchantConnectorAccountRead,
-    ]
-});
+pub static WORKFLOWS_VIEW: [Permission; 5] = [
+    Permission::RoutingRead,
+    Permission::ThreeDsDecisionManagerRead,
+    Permission::SurchargeDecisionManagerRead,
+    Permission::MerchantConnectorAccountRead,
+    Permission::MerchantAccountRead,
+];
 
-pub static WORKFLOWS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| {
-    vec![
-        Permission::RoutingWrite,
-        Permission::ThreeDsDecisionManagerWrite,
-        Permission::SurchargeDecisionManagerWrite,
-        Permission::MerchantConnectorAccountRead,
-    ]
-});
+pub static WORKFLOWS_MANAGE: [Permission; 5] = [
+    Permission::RoutingWrite,
+    Permission::ThreeDsDecisionManagerWrite,
+    Permission::SurchargeDecisionManagerWrite,
+    Permission::MerchantConnectorAccountRead,
+    Permission::MerchantAccountRead,
+];
 
-pub static ANALYTICS_VIEW: Lazy<Vec<Permission>> = Lazy::new(|| vec![Permission::Analytics]);
+pub static ANALYTICS_VIEW: [Permission; 2] =
+    [Permission::Analytics, Permission::MerchantAccountRead];
 
-pub static USERS_VIEW: Lazy<Vec<Permission>> = Lazy::new(|| vec![Permission::UsersRead]);
+pub static USERS_VIEW: [Permission; 2] = [Permission::UsersRead, Permission::MerchantAccountRead];
 
-pub static USERS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| vec![Permission::UsersWrite]);
+pub static USERS_MANAGE: [Permission; 2] =
+    [Permission::UsersWrite, Permission::MerchantAccountRead];
 
-pub static MERCHANT_DETAILS_VIEW: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantAccountRead]);
+pub static MERCHANT_DETAILS_VIEW: [Permission; 1] = [Permission::MerchantAccountRead];
 
-pub static MERCHANT_DETAILS_MANAGE: Lazy<Vec<Permission>> = Lazy::new(|| {
-    vec![
-        Permission::MerchantAccountWrite,
-        Permission::ApiKeyRead,
-        Permission::ApiKeyWrite,
-    ]
-});
+pub static MERCHANT_DETAILS_MANAGE: [Permission; 4] = [
+    Permission::MerchantAccountWrite,
+    Permission::ApiKeyRead,
+    Permission::ApiKeyWrite,
+    Permission::MerchantAccountRead,
+];
 
-pub static ORGANIZATION_MANAGE: Lazy<Vec<Permission>> =
-    Lazy::new(|| vec![Permission::MerchantAccountCreate]);
+pub static ORGANIZATION_MANAGE: [Permission; 2] = [
+    Permission::MerchantAccountCreate,
+    Permission::MerchantAccountRead,
+];

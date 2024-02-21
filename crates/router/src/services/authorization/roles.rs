@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use common_enums::{PermissionGroup, RoleScope};
 use common_utils::errors::CustomResult;
 
@@ -51,7 +53,7 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_permissions(&self) -> Vec<Permission> {
+    pub fn get_permissions_set(&self) -> HashSet<Permission> {
         self.groups
             .iter()
             .flat_map(|group| get_permissions_vec(group).iter().copied())
@@ -74,11 +76,11 @@ pub async fn get_role_info_from_role_id(
     if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
         Ok(role.clone())
     } else {
-        let role = state
+        state
             .store
             .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
-            .await?;
-        Ok(role.into())
+            .await
+            .map(RoleInfo::from)
     }
 }
 

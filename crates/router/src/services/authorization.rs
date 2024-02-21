@@ -23,7 +23,7 @@ where
             role_info.get_permission_groups(),
         ))
     } else {
-        let role = state
+        state
             .store()
             .find_role_by_role_id_in_merchant_scope(
                 &token.role_id,
@@ -31,8 +31,8 @@ where
                 &token.org_id,
             )
             .await
-            .to_not_found_response(ApiErrorResponse::InvalidJwtToken)?;
-        Ok(get_permissions_from_groups(&role.groups))
+            .map(|role| get_permissions_from_groups(&role.groups))
+            .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
     }
 }
 

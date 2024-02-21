@@ -1086,15 +1086,15 @@ pub async fn get_users_for_merchant_account(
     let users_user_roles_and_roles =
         futures::future::try_join_all(users_and_user_roles.into_iter().map(
             |(user, user_role)| async {
-                let role_info = roles::get_role_info_from_role_id(
+                roles::get_role_info_from_role_id(
                     &state,
                     &user_role.role_id,
                     &user_role.merchant_id,
                     &user_role.org_id,
                 )
                 .await
-                .to_not_found_response(UserErrors::InternalServerError)?;
-                Ok::<_, error_stack::Report<UserErrors>>((user, user_role, role_info))
+                .map(|role_info| (user, user_role, role_info))
+                .to_not_found_response(UserErrors::InternalServerError)
             },
         ))
         .await?;
