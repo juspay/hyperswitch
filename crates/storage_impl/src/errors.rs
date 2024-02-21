@@ -139,6 +139,7 @@ impl StorageError {
     pub fn is_db_not_found(&self) -> bool {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
