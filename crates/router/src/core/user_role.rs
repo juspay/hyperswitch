@@ -16,6 +16,7 @@ use crate::{
     types::domain,
     utils,
 };
+
 pub mod role;
 
 pub async fn get_authorization_info(

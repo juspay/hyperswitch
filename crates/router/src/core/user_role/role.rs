@@ -1,4 +1,7 @@
-use api_models::user_role::{role::{self as role_api}, Permission,};
+use api_models::user_role::{
+    role::{self as role_api},
+    Permission,
+};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::ResultExt;
@@ -6,7 +9,11 @@ use error_stack::ResultExt;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
-    services::{authentication::UserFromToken, authorization::roles::{self, predefined_roles::PREDEFINED_ROLES}, ApplicationResponse},
+    services::{
+        authentication::UserFromToken,
+        authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
+        ApplicationResponse,
+    },
     types::domain::user::RoleName,
 };
 
@@ -60,6 +67,7 @@ pub async fn create_role(
 
     Ok(ApplicationResponse::StatusOk)
 }
+
 pub async fn update_role(
     state: AppState,
     user_from_token: UserFromToken,

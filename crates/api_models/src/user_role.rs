@@ -4,7 +4,6 @@ use crate::user::DashboardEntryResponse;
 
 pub mod role;
 
-
 #[derive(Debug, serde::Serialize)]
 pub enum Permission {
     PaymentRead,
