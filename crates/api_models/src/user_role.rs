@@ -1,3 +1,4 @@
+use common_enums::RoleScope;
 use common_utils::pii;
 
 use crate::user::DashboardEntryResponse;
@@ -7,9 +8,10 @@ pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct RoleInfoResponse {
-    pub role_id: &'static str,
+    pub role_id: String,
     pub permissions: Vec<Permission>,
-    pub role_name: &'static str,
+    pub role_name: String,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -29,7 +31,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -38,8 +39,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -55,14 +54,12 @@ pub enum PermissionModule {
     Payments,
     Refunds,
     MerchantAccount,
-    Forex,
     Connectors,
     Routing,
     Analytics,
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,

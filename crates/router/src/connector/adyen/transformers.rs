@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
@@ -326,6 +327,7 @@ pub struct Response {
 pub struct RedirectionErrorResponse {
     result_code: AdyenStatus,
     refusal_reason: String,
+    psp_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -335,6 +337,8 @@ pub struct RedirectionResponse {
     action: AdyenRedirectAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    psp_reference: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -345,6 +349,7 @@ pub struct PresentToShopperResponse {
     action: AdyenPtsAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -355,6 +360,8 @@ pub struct QrCodeResponseResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
+    psp_reference: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3036,7 +3043,7 @@ pub fn get_adyen_response(
             reason: response.refusal_reason,
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.psp_reference.clone()),
         })
     } else {
         None
@@ -3130,10 +3137,10 @@ pub fn get_redirection_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
@@ -3155,14 +3162,19 @@ pub fn get_redirection_response(
 
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id: match response.psp_reference.as_ref() {
+            Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
+            None => types::ResponseId::NoResponseId,
+        },
         redirection_data,
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3196,10 +3208,10 @@ pub fn get_present_to_shopper_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
@@ -3216,7 +3228,10 @@ pub fn get_present_to_shopper_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3250,24 +3265,29 @@ pub fn get_qr_code_response(
                 .refusal_reason
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.refusal_reason.to_owned(),
             status_code,
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.psp_reference.clone(),
         })
     } else {
         None
     };
 
     let connector_metadata = get_qr_metadata(&response)?;
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id: match response.psp_reference.as_ref() {
+            Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
+            None => types::ResponseId::NoResponseId,
+        },
         redirection_data: None,
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3294,7 +3314,7 @@ pub fn get_redirection_error_response(
         reason: Some(response.refusal_reason),
         status_code,
         attempt_status: None,
-        connector_transaction_id: None,
+        connector_transaction_id: response.psp_reference.clone(),
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -3331,32 +3351,26 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (None, Some(qr_code_url)) = (image_data_url.clone(), qr_code_url.clone()) {
         let qr_code_info = payments::QrCodeInformation::QrCodeImageUrl {
             qr_code_url,
             display_to_timestamp,
         };
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else if let (Some(image_data_url), None) = (image_data_url, qr_code_url) {
         let qr_code_info = payments::QrCodeInformation::QrDataUrl {
             image_data_url,
             display_to_timestamp,
         };
 
-        Some(common_utils::ext_traits::Encode::<
-            payments::QrCodeInformation,
-        >::encode_to_value(&qr_code_info))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Some(qr_code_info.encode_to_value())
+            .transpose()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     } else {
         Ok(None)
     }
@@ -3481,11 +3495,9 @@ pub fn get_present_to_shopper_metadata(
                 instructions_url: response.action.instructions_url.clone(),
             };
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::VoucherNextStepData,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::PermataBankTransfer
         | PaymentType::BcaBankTransfer
@@ -3503,11 +3515,9 @@ pub fn get_present_to_shopper_metadata(
                 }),
             );
 
-            Some(common_utils::ext_traits::Encode::<
-                payments::DokuBankTransferInstructions,
-            >::encode_to_value(&voucher_data))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            Some(voucher_data.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::Affirm
         | PaymentType::Afterpaytouch
@@ -3651,6 +3661,7 @@ pub struct AdyenCaptureResponse {
     reference: String,
     status: String,
     amount: Amount,
+    merchant_reference: Option<String>,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
@@ -3661,7 +3672,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = if item.data.request.multiple_capture_data.is_some() {
-            item.response.psp_reference
+            item.response.psp_reference.clone()
         } else {
             item.response.payment_psp_reference
         };
@@ -3676,7 +3687,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .merchant_reference
+                    .clone()
+                    .or(Some(item.response.psp_reference)),
                 incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount.value),

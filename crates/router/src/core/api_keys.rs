@@ -11,8 +11,6 @@ use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "email")]
-use crate::types::storage::enums;
 use crate::{
     configs::settings,
     consts,
@@ -28,7 +26,8 @@ const API_KEY_EXPIRY_TAG: &str = "API_KEY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
-const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
+const API_KEY_EXPIRY_RUNNER: diesel_models::ProcessTrackerRunner =
+    diesel_models::ProcessTrackerRunner::ApiKeyExpiryWorkflow;
 
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::decrypt::AwsKmsDecrypt;
@@ -245,15 +244,16 @@ pub async fn add_api_key_expiry_task(
             api_key.expires_at.map(|expires_at| {
                 expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
             })
-        });
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
-    if let Some(schedule_time) = schedule_time {
-        if schedule_time <= current_time {
-            return Ok(());
-        }
+    if schedule_time <= current_time {
+        return Ok(());
     }
 
-    let api_key_expiry_tracker = &storage::ApiKeyExpiryTrackingData {
+    let api_key_expiry_tracker = storage::ApiKeyExpiryTrackingData {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
         // We need API key expiry too, because we need to decide on the schedule_time in
@@ -261,30 +261,18 @@ pub async fn add_api_key_expiry_task(
         api_key_expiry: api_key.expires_at,
         expiry_reminder_days: expiry_reminder_days.clone(),
     };
-    let api_key_expiry_workflow_model = serde_json::to_value(api_key_expiry_tracker)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("unable to serialize API key expiry tracker: {api_key_expiry_tracker:?}")
-        })?;
 
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str()),
-        name: Some(String::from(API_KEY_EXPIRY_NAME)),
-        tag: vec![String::from(API_KEY_EXPIRY_TAG)],
-        runner: Some(String::from(API_KEY_EXPIRY_RUNNER)),
-        // Retry count specifies, number of times the current process (email) has been retried.
-        // It also acts as an index of expiry_reminder_days vector
-        retry_count: 0,
+    let process_tracker_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        API_KEY_EXPIRY_NAME,
+        API_KEY_EXPIRY_RUNNER,
+        [API_KEY_EXPIRY_TAG],
+        api_key_expiry_tracker,
         schedule_time,
-        rule: String::new(),
-        tracking_data: api_key_expiry_workflow_model,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct API key expiry process tracker task")?;
 
     store
         .insert_process(process_tracker_entry)
@@ -293,7 +281,7 @@ pub async fn add_api_key_expiry_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting API key expiry reminder to process_tracker: api_key_id: {}",
-                api_key_expiry_tracker.key_id
+                api_key.key_id
             )
         })?;
     metrics::TASKS_ADDED_COUNT.add(

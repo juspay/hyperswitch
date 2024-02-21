@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
+use common_utils::ext_traits::Encode;
 use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
@@ -21,7 +22,6 @@ use crate::{
         utils as core_utils,
     },
     routes::{metrics, AppState},
-    services::RedirectForm,
     types::{
         self, api,
         storage::{self, enums},
@@ -590,7 +590,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                     let authentication_data = redirection_data
-                        .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
+                        .as_ref()
+                        .map(Encode::encode_to_value)
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
@@ -603,6 +604,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
 
                     if router_data.status == enums::AttemptStatus::Charged {
+                        payment_data.payment_intent.fingerprint_id =
+                            payment_data.payment_attempt.fingerprint_id.clone();
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
@@ -797,6 +800,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
+            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,
