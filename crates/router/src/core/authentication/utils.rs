@@ -136,6 +136,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 three_ds_method_data,
                 three_ds_method_url,
                 message_version,
+                connector_metadata,
             } => {
                 authentication_data.maximum_supported_version = maximum_supported_3ds_version;
                 authentication_data.threeds_server_transaction_id = threeds_server_transaction_id;
@@ -159,6 +160,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Started),
                     authentication_lifecycle_status: None,
+                    connector_metadata,
                 }
             }
             AuthenticationResponseData::AuthNResponse {
@@ -190,6 +192,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         _ => Some(common_enums::AuthenticationStatus::Pending),
                     },
                     authentication_lifecycle_status: None,
+                    connector_metadata: None,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
@@ -210,6 +213,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Success),
                     authentication_lifecycle_status: None,
+                    connector_metadata: None,
                 }
             }
         }),
@@ -265,6 +269,7 @@ pub async fn create_new_authentication(
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
         error_message: None,
         error_code: None,
+        connector_metadata: None,
     };
     state
         .store

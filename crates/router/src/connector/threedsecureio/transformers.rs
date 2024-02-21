@@ -7,7 +7,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
+    connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
     consts::NO_ERROR_MESSAGE,
     core::errors,
     types::{
@@ -387,11 +387,13 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "acquirer_details",
             })?;
+        let meta: ThreeDSecureIoConnectorMetaData =
+            to_connector_meta(request.authentication_data.1.connector_metadata.clone())?;
         Ok(Self {
-            ds_start_protocol_version: authentication_data.message_version.clone(),
-            ds_end_protocol_version: authentication_data.message_version.clone(),
-            acs_start_protocol_version: authentication_data.message_version.clone(),
-            acs_end_protocol_version: authentication_data.message_version.clone(),
+            ds_start_protocol_version: meta.ds_start_protocol_version.clone(),
+            ds_end_protocol_version: meta.ds_end_protocol_version.clone(),
+            acs_start_protocol_version: meta.acs_start_protocol_version.clone(),
+            acs_end_protocol_version: meta.acs_end_protocol_version.clone(),
             three_dsserver_trans_id: authentication_data.threeds_server_transaction_id.clone(),
             acct_number: card_details.card_number.clone(),
             notification_url: request
@@ -628,6 +630,14 @@ pub struct ThreeDSecureIoMetaData {
     pub mcc: String,
     pub merchant_country_code: String,
     pub merchant_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreeDSecureIoConnectorMetaData {
+    pub ds_start_protocol_version: String,
+    pub ds_end_protocol_version: String,
+    pub acs_start_protocol_version: String,
+    pub acs_end_protocol_version: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

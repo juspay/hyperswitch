@@ -22,6 +22,7 @@ pub struct Authentication {
     pub modified_at: time::PrimitiveDateTime,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize, Insertable)]
@@ -38,6 +39,7 @@ pub struct AuthenticationNew {
     pub authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -49,6 +51,7 @@ pub enum AuthenticationUpdate {
         authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_status: Option<common_enums::AuthenticationStatus>,
         authentication_lifecycle_status: Option<common_enums::AuthenticationLifecycleStatus>,
+        connector_metadata: Option<serde_json::Value>,
     },
     ErrorUpdate {
         error_message: Option<String>,
@@ -70,6 +73,7 @@ pub struct AuthenticationUpdateInternal {
     pub modified_at: time::PrimitiveDateTime,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 impl AuthenticationUpdateInternal {
@@ -84,6 +88,7 @@ impl AuthenticationUpdateInternal {
             modified_at: _,
             error_code,
             error_message,
+            connector_metadata,
         } = self;
         Authentication {
             authentication_connector_id: authentication_connector_id
@@ -97,6 +102,7 @@ impl AuthenticationUpdateInternal {
             modified_at: common_utils::date_time::now(),
             error_code: error_code.or(source.error_code),
             error_message: error_message.or(source.error_message),
+            connector_metadata: connector_metadata.or(source.connector_metadata),
             ..source
         }
     }
@@ -112,6 +118,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 payment_method_id,
                 authentication_lifecycle_status,
+                connector_metadata,
             } => Self {
                 authentication_data,
                 authentication_connector_id,
@@ -122,6 +129,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 payment_method_id,
                 error_message: None,
                 error_code: None,
+                connector_metadata,
             },
             AuthenticationUpdate::ErrorUpdate {
                 error_message,
@@ -138,6 +146,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_lifecycle_status: None,
                 modified_at: common_utils::date_time::now(),
                 payment_method_id: None,
+                connector_metadata: None,
             },
         }
     }

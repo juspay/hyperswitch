@@ -85,6 +85,7 @@ diesel::table! {
         error_message -> Nullable<Varchar>,
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
+        connector_metadata -> Nullable<Jsonb>,
     }
 }
 

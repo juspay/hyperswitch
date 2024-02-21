@@ -105,6 +105,7 @@ impl AuthenticationInterface for MockDb {
             authentication_lifecycle_status: authentication.authentication_lifecycle_status,
             error_code: authentication.error_code,
             error_message: authentication.error_message,
+            connector_metadata: authentication.connector_metadata,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

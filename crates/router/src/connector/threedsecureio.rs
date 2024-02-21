@@ -7,6 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use pm_auth::consts::NO_ERROR_MESSAGE;
 use serde_json::{json, to_string};
+use threedsecureio::ThreeDSecureIoConnectorMetaData;
 use transformers as threedsecureio;
 
 use crate::{
@@ -381,6 +382,12 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)
             .attach_printable("error while constructing three_ds_method_data_str")?;
         let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
+        let connector_metadata = serde_json::json!(ThreeDSecureIoConnectorMetaData {
+            ds_start_protocol_version: response.ds_start_protocol_version,
+            ds_end_protocol_version: response.ds_end_protocol_version,
+            acs_start_protocol_version: response.acs_start_protocol_version,
+            acs_end_protocol_version: response.acs_end_protocol_version.clone(),
+        });
         Ok(types::authentication::PreAuthNRouterData {
             response: Ok(
                 types::authentication::AuthenticationResponseData::PreAuthNResponse {
@@ -392,6 +399,7 @@ impl
                     three_ds_method_data: three_ds_method_data_base64,
                     three_ds_method_url: response.threeds_method_url,
                     message_version: response.acs_end_protocol_version.clone(),
+                    connector_metadata: Some(connector_metadata),
                 },
             ),
             status: common_enums::AttemptStatus::AuthenticationPending,
