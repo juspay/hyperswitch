@@ -67,17 +67,17 @@ impl
         types::ResponseRouterData<
             api::Authentication,
             ThreedsecureioAuthenticationResponse,
-            types::ConnectorAuthenticationRequestData,
+            types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         >,
-    > for types::ConnectorAuthenticationRouterData
+    > for types::authentication::ConnectorAuthenticationRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             api::Authentication,
             ThreedsecureioAuthenticationResponse,
-            types::ConnectorAuthenticationRequestData,
+            types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -319,12 +319,12 @@ fn get_card_details(
     }
 }
 
-impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData>>
+impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>>
     for ThreedsecureioAuthenticationRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData>,
+        item: &ThreedsecureioRouterData<&types::authentication::ConnectorAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         //browser_details are mandatory for Browser flows

@@ -30,11 +30,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::Serialize;
 
-use self::{
-    api::{authentication as api_authentication, payments},
-    authentication::AuthenticationResponseData,
-    storage::enums as storage_enums,
-};
+use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
@@ -234,24 +230,6 @@ pub type DefendDisputeType = dyn services::ConnectorIntegration<
     DefendDisputeResponse,
 >;
 
-pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
-    api::Authentication,
-    ConnectorAuthenticationRequestData,
-    AuthenticationResponseData,
->;
-
-pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
-    api::PostAuthentication,
-    ConnectorPostAuthenticationRequestData,
-    AuthenticationResponseData,
->;
-
-pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
-    api::PreAuthentication,
-    authentication::PreAuthNRequestData,
-    AuthenticationResponseData,
->;
-
 pub type SetupMandateRouterData =
     RouterData<api::SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 
@@ -277,15 +255,6 @@ pub type DefendDisputeRouterData =
 
 pub type MandateRevokeRouterData =
     RouterData<api::MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
-
-pub type ConnectorAuthenticationRouterData =
-    RouterData<api::Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
-
-pub type ConnectorPostAuthenticationRouterData = RouterData<
-    api::PostAuthentication,
-    ConnectorPostAuthenticationRequestData,
-    AuthenticationResponseData,
->;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
@@ -1057,38 +1026,6 @@ pub struct AcceptDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
 }
-
-#[derive(Clone, Debug)]
-pub struct ConnectorAuthenticationRequestData {
-    pub payment_method_data: payments::PaymentMethodData,
-    pub billing_address: api_models::payments::Address,
-    pub shipping_address: Option<api_models::payments::Address>,
-    pub browser_details: Option<BrowserInformation>,
-    pub amount: Option<i64>,
-    pub currency: Option<common_enums::Currency>,
-    pub message_category: api_authentication::MessageCategory,
-    pub device_channel: api_models::payments::DeviceChannel,
-    pub authentication_data: (
-        crate::core::authentication::types::AuthenticationData,
-        storage::Authentication,
-    ),
-    pub return_url: Option<String>,
-    pub sdk_information: Option<api_models::payments::SDKInformation>,
-    pub email: Option<Email>,
-    pub three_ds_requestor_url: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct ConnectorPostAuthenticationRequestData {
-    pub authentication_data: crate::core::authentication::types::AuthenticationData,
-}
-
-// #[derive(Clone, Debug)]
-// pub struct ConnectorPostAuthenticationResponse {
-//     pub trans_status: String,
-//     pub authentication_value: Option<String>,
-//     pub eci: Option<String>,
-// }
 
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {

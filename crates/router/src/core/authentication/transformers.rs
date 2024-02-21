@@ -39,7 +39,7 @@ pub fn construct_authentication_router_data(
     return_url: Option<String>,
     sdk_information: Option<api_models::payments::SDKInformation>,
     email: Option<common_utils::pii::Email>,
-) -> RouterResult<types::ConnectorAuthenticationRouterData> {
+) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
         .authentication_details
         .clone()
@@ -50,7 +50,7 @@ pub fn construct_authentication_router_data(
             message: "Invalid data format found for authentication_details".into(),
         })
         .attach_printable("Error while parsing authentication_details from merchant_account")?;
-    let router_request = types::ConnectorAuthenticationRequestData {
+    let router_request = types::authentication::ConnectorAuthenticationRequestData {
         payment_method_data,
         billing_address,
         shipping_address,
@@ -80,8 +80,8 @@ pub fn construct_post_authentication_router_data(
     merchant_account: domain::MerchantAccount,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: super::types::AuthenticationData,
-) -> RouterResult<types::ConnectorPostAuthenticationRouterData> {
-    let router_request = types::ConnectorPostAuthenticationRequestData {
+) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
+    let router_request = types::authentication::ConnectorPostAuthenticationRequestData {
         authentication_data,
     };
     construct_router_data(

@@ -50,7 +50,7 @@ pub enum MessageCategory {
 pub trait ConnectorAuthentication:
     services::ConnectorIntegration<
     Authentication,
-    types::ConnectorAuthenticationRequestData,
+    types::authentication::ConnectorAuthenticationRequestData,
     types::authentication::AuthenticationResponseData,
 >
 {
@@ -68,7 +68,7 @@ pub trait ConnectorPreAuthentication:
 pub trait ConnectorPostAuthentication:
     services::ConnectorIntegration<
     PostAuthentication,
-    types::ConnectorPostAuthenticationRequestData,
+    types::authentication::ConnectorPostAuthenticationRequestData,
     types::authentication::AuthenticationResponseData,
 >
 {

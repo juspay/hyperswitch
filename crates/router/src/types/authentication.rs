@@ -1,7 +1,13 @@
+use api_models::payments;
 use cards::CardNumber;
+use common_utils::pii::Email;
 use serde::{Deserialize, Serialize};
 
-use super::{api, RouterData};
+use super::{
+    api::{self, authentication},
+    storage, BrowserInformation, RouterData,
+};
+use crate::services;
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
@@ -55,7 +61,54 @@ pub struct PostAuthNRequestData {}
 pub type PreAuthNRouterData =
     RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
 
-// pub type AuthNRouterData = RouterData<api::AuthN, AuthNRequestData, AuthenticationResponseData>;
+pub type ConnectorAuthenticationRouterData =
+    RouterData<api::Authentication, ConnectorAuthenticationRequestData, AuthenticationResponseData>;
 
-// pub type PostAuthNRouterData =
-//     RouterData<api::PostAuthN, PostAuthNRequestData, AuthenticationResponseData>;
+pub type ConnectorPostAuthenticationRouterData = RouterData<
+    api::PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+
+pub type ConnectorAuthenticationType = dyn services::ConnectorIntegration<
+    api::Authentication,
+    ConnectorAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+
+pub type ConnectorPostAuthenticationType = dyn services::ConnectorIntegration<
+    api::PostAuthentication,
+    ConnectorPostAuthenticationRequestData,
+    AuthenticationResponseData,
+>;
+
+pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
+    api::PreAuthentication,
+    PreAuthNRequestData,
+    AuthenticationResponseData,
+>;
+
+#[derive(Clone, Debug)]
+pub struct ConnectorAuthenticationRequestData {
+    pub payment_method_data: payments::PaymentMethodData,
+    pub billing_address: api_models::payments::Address,
+    pub shipping_address: Option<api_models::payments::Address>,
+    pub browser_details: Option<BrowserInformation>,
+    pub amount: Option<i64>,
+    pub currency: Option<common_enums::Currency>,
+    pub message_category: authentication::MessageCategory,
+    pub device_channel: api_models::payments::DeviceChannel,
+    pub authentication_data: (
+        crate::core::authentication::types::AuthenticationData,
+        storage::Authentication,
+    ),
+    pub return_url: Option<String>,
+    pub sdk_information: Option<api_models::payments::SDKInformation>,
+    pub email: Option<Email>,
+    pub three_ds_requestor_url: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectorPostAuthenticationRequestData {
+    pub authentication_data: crate::core::authentication::types::AuthenticationData,
+}

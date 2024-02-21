@@ -2310,7 +2310,7 @@ macro_rules! default_imp_for_connector_authentication {
             impl
             services::ConnectorIntegration<
             api::Authentication,
-            types::ConnectorAuthenticationRequestData,
+            types::authentication::ConnectorAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
         {}
@@ -2324,7 +2324,7 @@ macro_rules! default_imp_for_connector_authentication {
         impl
             services::ConnectorIntegration<
             api::PostAuthentication,
-            types::ConnectorPostAuthenticationRequestData,
+            types::authentication::ConnectorPostAuthenticationRequestData,
             types::authentication::AuthenticationResponseData,
         > for $path::$connector
         {}
@@ -2346,7 +2346,7 @@ impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Authentication,
-        types::ConnectorAuthenticationRequestData,
+        types::authentication::ConnectorAuthenticationRequestData,
         types::authentication::AuthenticationResponseData,
     > for connector::DummyConnector<T>
 {
@@ -2362,7 +2362,7 @@ impl<const T: u8>
 impl<const T: u8>
     services::ConnectorIntegration<
         api::PostAuthentication,
-        types::ConnectorPostAuthenticationRequestData,
+        types::authentication::ConnectorPostAuthenticationRequestData,
         types::authentication::AuthenticationResponseData,
     > for connector::DummyConnector<T>
 {
