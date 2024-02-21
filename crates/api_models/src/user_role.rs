@@ -60,7 +60,6 @@ pub enum PermissionModule {
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,
