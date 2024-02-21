@@ -29,7 +29,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -38,8 +37,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -55,14 +52,12 @@ pub enum PermissionModule {
     Payments,
     Refunds,
     MerchantAccount,
-    Forex,
     Connectors,
     Routing,
     Analytics,
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,
@@ -106,5 +101,10 @@ pub type AcceptInvitationResponse = DashboardEntryResponse;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TransferOrgOwnershipRequest {
     pub email: pii::Email,
 }

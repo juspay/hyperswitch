@@ -1,17 +1,16 @@
-use common_utils::pii;
+use common_utils::{ext_traits::Encode, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RevokeMandateRequestData,
-        RouterData, WalletData,
+        self as conn_utils, is_refund_failure, CardData, PaymentsAuthorizeRequestData,
+        RevokeMandateRequestData, RouterData, WalletData,
     },
     core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
-    utils,
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -271,10 +270,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                     ),
                                 },
                             };
-                            let payment_token =
-                                utils::Encode::<NoonApplePayTokenData>::encode_to_string_of_json(
-                                    &payment_token_data,
-                                )
+                            let payment_token = payment_token_data
+                                .encode_to_string_of_json()
                                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                             Ok(NoonPaymentData::ApplePay(NoonApplePay {
@@ -555,6 +552,8 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let order = item.response.result.order;
+        let status = enums::AttemptStatus::foreign_from((order.status, item.data.status));
         let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
             services::RedirectForm::Form {
                 endpoint: redirection_data.post_url.to_string(),
@@ -570,17 +569,16 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier),
                     payment_method_id: None,
                 });
-        let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((order.status, item.data.status)),
+            status,
             response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
                     code: order.error_code.to_string(),
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
+                    attempt_status: Some(status),
+                    connector_transaction_id: Some(order.id.to_string()),
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -707,22 +705,22 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
         })
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum NoonRevokeStatus {
     Cancelled,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonCancelSubscriptionObject {
     status: NoonRevokeStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonRevokeMandateResult {
     subscription: NoonCancelSubscriptionObject,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NoonRevokeMandateResponse {
     result: NoonRevokeMandateResult,
 }
@@ -757,7 +755,7 @@ impl<F>
     }
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Success,
@@ -776,21 +774,26 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsTransactionResponse {
     id: String,
     status: RefundStatus,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseResult {
     transaction: NoonPaymentsTransactionResponse,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
+    result_code: u32,
+    class_description: String,
+    message: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -800,17 +803,32 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let response = &item.response;
+        let refund_status =
+            enums::RefundStatus::from(response.result.transaction.status.to_owned());
+        let response = if is_refund_failure(refund_status) {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.result_code.to_string(),
+                message: response.class_description.clone(),
+                reason: Some(response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(response.result.transaction.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.result.transaction.id,
-                refund_status: enums::RefundStatus::from(item.response.result.transaction.status),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
@@ -818,14 +836,19 @@ pub struct NoonRefundResponseTransactions {
     transaction_reference: Option<String>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundSyncResponseResult {
     transactions: Vec<NoonRefundResponseTransactions>,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
+    result_code: u32,
+    class_description: String,
+    message: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -849,12 +872,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                     })
             })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(noon_transaction.status.to_owned());
+        let response = if is_refund_failure(refund_status) {
+            let response = &item.response;
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.result_code.to_string(),
+                message: response.class_description.clone(),
+                reason: Some(response.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(noon_transaction.id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: noon_transaction.id.to_owned(),
-                refund_status: enums::RefundStatus::from(noon_transaction.status.to_owned()),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -927,7 +963,7 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonErrorResponse {
     pub result_code: u32,

@@ -44,6 +44,9 @@ pub enum EmailBody {
         user_name: String,
         user_email: String,
     },
+    ApiKeyExpiryReminder {
+        expires_in: u8,
+    },
 }
 
 pub mod html {
@@ -112,6 +115,10 @@ Merchant Name : {user_name}
 Email         : {user_email}
 
 (note: This is an auto generated email. Use merchant email for any further communications)",
+            ),
+            EmailBody::ApiKeyExpiryReminder { expires_in } => format!(
+                include_str!("assets/api_key_expiry_reminder.html"),
+                expires_in = expires_in,
             ),
         }
     }
@@ -268,7 +275,7 @@ impl EmailData for InviteUser {
         let invite_user_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
-        let body = html::get_html_body(EmailBody::MagicLink {
+        let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
         });
@@ -376,6 +383,29 @@ impl EmailData for ProFeatureRequest {
 
         Ok(EmailContents {
             subject: self.subject.clone(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient,
+        })
+    }
+}
+
+pub struct ApiKeyExpiryReminder {
+    pub recipient_email: domain::UserEmail,
+    pub subject: &'static str,
+    pub expires_in: u8,
+}
+
+#[async_trait::async_trait]
+impl EmailData for ApiKeyExpiryReminder {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let recipient = self.recipient_email.clone().into_inner();
+
+        let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
+            expires_in: self.expires_in,
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient,
         })

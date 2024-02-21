@@ -109,7 +109,7 @@ where
     {
         Ok(x) => Ok(x),
         Err(mut err) => {
-            match state
+            let update_res = state
                 .process_tracker_update_process_status_by_ids(
                     pt_batch.trackers.iter().map(|process| process.id.clone()).collect(),
                     storage::ProcessTrackerUpdate::StatusUpdate {
@@ -123,12 +123,14 @@ where
                 }, |count| {
                     logger::debug!("Updated status of {count} processes");
                     Ok(())
-                }) {
-                    Ok(_) => (),
-                    Err(inner_err) => {
-                        err.extend_one(inner_err);
-                    }
-                };
+                });
+
+            match update_res {
+                Ok(_) => (),
+                Err(inner_err) => {
+                    err.extend_one(inner_err);
+                }
+            };
 
             Err(err)
         }

@@ -327,6 +327,12 @@ paypal = { currency = "USD,INR", country = "US" }
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
 
+[cors]
+max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
+wildcard_origin = false # If true, allows any origin to make requests
+
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com" # Sender email
@@ -390,6 +396,8 @@ bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment 
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
 
 [mandates.update_mandate_supported]
 card.credit ={connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
@@ -434,9 +442,10 @@ mini_stop = { country = "JP", currency = "JPY" }
 family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -550,6 +559,7 @@ refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
 api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 
 # File storage configuration
 [file_storage]

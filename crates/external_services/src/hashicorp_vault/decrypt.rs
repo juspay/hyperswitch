@@ -1,6 +1,10 @@
+//! Utilities for supporting decryption of data
+
 use std::{future::Future, pin::Pin};
 
 use masking::ExposeInterface;
+
+use crate::hashicorp_vault::core::{Engine, HashiCorpError, HashiCorpVault};
 
 /// A trait for types that can be asynchronously fetched and decrypted from HashiCorp Vault.
 #[async_trait::async_trait]
@@ -14,13 +18,13 @@ pub trait VaultFetch: Sized {
     ///
     async fn fetch_inner<En>(
         self,
-        client: &super::HashiCorpVault,
-    ) -> error_stack::Result<Self, super::HashiCorpError>
+        client: &HashiCorpVault,
+    ) -> error_stack::Result<Self, HashiCorpError>
     where
-        for<'a> En: super::Engine<
+        for<'a> En: Engine<
                 ReturnType<'a, String> = Pin<
                     Box<
-                        dyn Future<Output = error_stack::Result<String, super::HashiCorpError>>
+                        dyn Future<Output = error_stack::Result<String, HashiCorpError>>
                             + Send
                             + 'a,
                     >,
@@ -32,13 +36,13 @@ pub trait VaultFetch: Sized {
 impl VaultFetch for masking::Secret<String> {
     async fn fetch_inner<En>(
         self,
-        client: &super::HashiCorpVault,
-    ) -> error_stack::Result<Self, super::HashiCorpError>
+        client: &HashiCorpVault,
+    ) -> error_stack::Result<Self, HashiCorpError>
     where
-        for<'a> En: super::Engine<
+        for<'a> En: Engine<
                 ReturnType<'a, String> = Pin<
                     Box<
-                        dyn Future<Output = error_stack::Result<String, super::HashiCorpError>>
+                        dyn Future<Output = error_stack::Result<String, HashiCorpError>>
                             + Send
                             + 'a,
                     >,

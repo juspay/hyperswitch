@@ -74,7 +74,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         > = connector.connector.get_connector_integration();
         connector
             .connector
-            .validate_capture_method(self.request.capture_method)
+            .validate_capture_method(
+                self.request.capture_method,
+                self.request.payment_method_type,
+            )
             .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {

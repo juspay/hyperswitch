@@ -18,7 +18,7 @@ use api_models::{
 };
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, StringExt, ValueExt},
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     generate_id,
 };
 use diesel_models::{
@@ -226,7 +226,7 @@ pub async fn add_payment_method(
                         &card,
                         customer_id.clone(),
                         merchant_account,
-                        api::enums::LockerChoice::Tartarus,
+                        api::enums::LockerChoice::HyperswitchCardVault,
                         Some(&resp.payment_method_id),
                     )
                     .await;
@@ -249,11 +249,7 @@ pub async fn add_payment_method(
                         Ok(pm) => {
                             let updated_card = Some(api::CardDetailFromLocker {
                                 scheme: None,
-                                last4_digits: Some(
-                                    card.card_number
-                                        .to_string()
-                                        .split_off(card.card_number.to_string().len() - 4),
-                                ),
+                                last4_digits: Some(card.card_number.clone().get_last4()),
                                 issuer_country: None,
                                 card_number: Some(card.card_number),
                                 expiry_month: Some(card.card_exp_month),
@@ -459,7 +455,7 @@ pub async fn add_bank_to_locker(
         state,
         &payload,
         customer_id,
-        api_enums::LockerChoice::Basilisk,
+        api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await?;
     let payment_method_resp = payment_methods::mk_add_bank_response_hs(
@@ -494,40 +490,8 @@ pub async fn add_card_to_locker(
                 card,
                 customer_id.to_string(),
                 merchant_account,
-                api_enums::LockerChoice::Basilisk,
+                api_enums::LockerChoice::HyperswitchCardVault,
                 None,
-            )
-            .await
-            .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[
-                        router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
-                        router_env::opentelemetry::KeyValue::new("operation", "add"),
-                    ],
-                );
-                error
-            })
-        },
-        &metrics::CARD_ADD_TIME,
-        &[router_env::opentelemetry::KeyValue::new(
-            "locker", "basilisk",
-        )],
-    )
-    .await?;
-    logger::debug!("card added to basilisk locker");
-
-    let add_card_to_rs_resp = request::record_operation_time(
-        async {
-            add_card_hs(
-                state,
-                req,
-                card,
-                customer_id.to_string(),
-                merchant_account,
-                api_enums::LockerChoice::Tartarus,
-                Some(&add_card_to_hs_resp.0.payment_method_id),
             )
             .await
             .map_err(|error| {
@@ -545,34 +509,10 @@ pub async fn add_card_to_locker(
         &metrics::CARD_ADD_TIME,
         &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
-    .await;
+    .await?;
 
-    match add_card_to_rs_resp {
-        value @ Ok(_) => {
-            logger::debug!("card added to rust locker");
-            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[
-                    router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                    router_env::opentelemetry::KeyValue::new("operation", "add"),
-                ],
-            );
-            value
-        }
-        Err(err) => {
-            logger::debug!(error =? err,"failed to add card to rust locker");
-            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[
-                    router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
-                    router_env::opentelemetry::KeyValue::new("operation", "add"),
-                ],
-            );
-            Ok(add_card_to_hs_resp)
-        }
-    }
+    logger::debug!("card added to hyperswitch-card-vault");
+    Ok(add_card_to_hs_resp)
 }
 
 pub async fn get_card_from_locker(
@@ -590,11 +530,11 @@ pub async fn get_card_from_locker(
                 customer_id,
                 merchant_id,
                 card_reference,
-                api_enums::LockerChoice::Tartarus,
+                api_enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting card from basilisk_hs")
+            .attach_printable("Failed while getting card from hyperswitch card vault")
             .map_err(|error| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
@@ -610,64 +550,10 @@ pub async fn get_card_from_locker(
         &metrics::CARD_GET_TIME,
         &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
     )
-    .await;
+    .await?;
 
-    match get_card_from_rs_locker_resp {
-        Err(_) => request::record_operation_time(
-            async {
-                get_card_from_hs_locker(
-                    state,
-                    customer_id,
-                    merchant_id,
-                    card_reference,
-                    api_enums::LockerChoice::Basilisk,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting card from basilisk_hs")
-                .map_err(|error| {
-                    metrics::CARD_LOCKER_FAILURES.add(
-                        &metrics::CONTEXT,
-                        1,
-                        &[
-                            router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
-                            router_env::opentelemetry::KeyValue::new("operation", "get"),
-                        ],
-                    );
-                    error
-                })
-            },
-            &metrics::CARD_GET_TIME,
-            &[router_env::opentelemetry::KeyValue::new(
-                "locker", "basilisk",
-            )],
-        )
-        .await
-        .map(|inner_card| {
-            logger::debug!("card retrieved from basilisk locker");
-            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[
-                    router_env::opentelemetry::KeyValue::new("locker", "basilisk"),
-                    router_env::opentelemetry::KeyValue::new("operation", "get"),
-                ],
-            );
-            inner_card
-        }),
-        Ok(_) => {
-            logger::debug!("card retrieved from rust locker");
-            let _ = &metrics::CARD_LOCKER_SUCCESSFUL_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[
-                    router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                    router_env::opentelemetry::KeyValue::new("operation", "get"),
-                ],
-            );
-            get_card_from_rs_locker_resp
-        }
-    }
+    logger::debug!("card retrieved from rust locker");
+    Ok(get_card_from_rs_locker_resp)
 }
 
 pub async fn delete_card_from_locker(
@@ -972,7 +858,7 @@ pub async fn delete_card_from_hs_locker<'a>(
         let decrypted_payload = payment_methods::get_decrypted_response_payload(
             jwekey,
             jwe_body,
-            Some(api_enums::LockerChoice::Basilisk),
+            Some(api_enums::LockerChoice::HyperswitchCardVault),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1573,7 +1459,8 @@ pub async fn list_payment_methods(
 
         routing_info.pre_routing_results = Some(pre_routing_results);
 
-        let encoded = utils::Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_info)
+        let encoded = routing_info
+            .encode_to_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to serialize payment routing info to value")?;
 
@@ -3232,11 +3119,13 @@ impl TempLockerCardSupport {
         let value1 = vault::VaultPaymentMethod::Card(value1);
         let value2 = vault::VaultPaymentMethod::Card(value2);
 
-        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
+        let value1 = value1
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
 
-        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
+        let value2 = value2
+            .encode_to_string_of_json()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
@@ -3372,7 +3261,7 @@ pub async fn create_encrypted_payment_method_data(
 
     let pm_data_encrypted: Option<Encryption> = pm_data
         .as_ref()
-        .map(utils::Encode::<PaymentMethodsData>::encode_to_value)
+        .map(utils::Encode::encode_to_value)
         .transpose()
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to convert payment method data to a value")

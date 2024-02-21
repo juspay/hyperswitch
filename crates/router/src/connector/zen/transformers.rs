@@ -819,7 +819,7 @@ impl TryFrom<&api_models::payments::GiftCardData> for ZenPaymentsRequest {
 }
 
 // PaymentsResponse
-#[derive(Debug, Default, Deserialize, Clone, strum::Display)]
+#[derive(Debug, Default, Deserialize, Clone, strum::Display, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenPaymentStatus {
     Authorized,
@@ -849,7 +849,7 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResponse {
     status: ZenPaymentStatus,
@@ -860,14 +860,14 @@ pub struct ApiResponse {
     reject_reason: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ZenPaymentsResponse {
     ApiResponse(ApiResponse),
     CheckoutResponse(CheckoutResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutResponse {
     redirect_url: url::Url,
@@ -1034,7 +1034,7 @@ impl<F> TryFrom<&ZenRouterData<&types::RefundsRouterData<F>>> for ZenRefundReque
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Authorized,
@@ -1054,7 +1054,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     id: String,
@@ -1169,13 +1169,13 @@ pub enum ZenWebhookTxnType {
     Unknown,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ZenErrorResponse {
     pub error: Option<ZenErrorBody>,
     pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,
