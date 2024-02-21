@@ -379,11 +379,12 @@ pub struct Instruction {
     create_registration: Option<bool>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct BankDetails {
-    #[serde(rename = "bankAccount.holder")]
-    pub account_holder: String,
-}
+// Struct not used 
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+// pub struct BankDetails {
+//     #[serde(rename = "bankAccount.holder")]
+//     pub account_holder: Secret<String>,
+// }
 
 #[allow(dead_code)]
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -661,6 +662,7 @@ pub struct AciPaymentsResponse {
     // ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,
+    // Nuber useful for support purposes.
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
