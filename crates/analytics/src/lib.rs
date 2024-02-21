@@ -1,5 +1,6 @@
 mod clickhouse;
 pub mod core;
+pub mod disputes;
 pub mod errors;
 pub mod metrics;
 pub mod payments;

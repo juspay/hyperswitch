@@ -925,12 +925,14 @@ impl DataModelExt for PaymentIntentUpdate {
             Self::ResponseUpdate {
                 status,
                 amount_captured,
+                fingerprint_id,
                 return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
+                fingerprint_id,
                 return_url,
                 updated_by,
                 incremental_authorization_allowed,

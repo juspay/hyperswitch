@@ -144,6 +144,7 @@ impl super::payments::metrics::PaymentMetricAnalytics for SqlxClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for SqlxClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for SqlxClient {}
 impl super::refunds::filters::RefundFilterAnalytics for SqlxClient {}
+impl super::disputes::filters::DisputeFilterAnalytics for SqlxClient {}
 
 #[async_trait::async_trait]
 impl AnalyticsDataSource for SqlxClient {
@@ -421,6 +422,35 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
             refund_status,
             connector,
             refund_type,
+        })
+    }
+}
+
+impl<'a> FromRow<'a, PgRow> for super::disputes::filters::DisputeFilterRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let dispute_stage: Option<String> = row.try_get("dispute_stage").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let dispute_status: Option<String> =
+            row.try_get("dispute_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let connector_status: Option<String> =
+            row.try_get("connector_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        Ok(Self {
+            dispute_stage,
+            dispute_status,
+            connector,
+            connector_status,
         })
     }
 }

@@ -44,6 +44,7 @@ pub enum DisputeDimensions {
     Connector,
     DisputeStatus,
     ConnectorStatus,
+    DisputeStage,
 }
 
 impl From<DisputeDimensions> for NameDescription {

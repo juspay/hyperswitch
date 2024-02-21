@@ -559,6 +559,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     capture_method,
                     surcharge_amount,
                     tax_amount,
+                    fingerprint_id: None,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,

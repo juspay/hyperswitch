@@ -645,9 +645,9 @@ async fn handle_invitation(
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
 ) -> UserResult<InviteMultipleUserResponse> {
-    let inviter_user = user_from_token.get_user(state).await?;
+    let inviter_user = user_from_token.get_user_from_db(state).await?;
 
-    if inviter_user.email == request.email {
+    if inviter_user.get_email() == request.email {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User Inviting themselves".to_string(),
         )
@@ -1045,7 +1045,7 @@ pub async fn switch_merchant_id(
         .filter(|role| role.status == UserStatus::Active)
         .collect::<Vec<_>>();
 
-    let user = user_from_token.get_user(&state).await?.into();
+    let user = user_from_token.get_user_from_db(&state).await?;
 
     let (token, role_id) = if utils::user_role::is_internal_role(&user_from_token.role_id) {
         let key_store = state
@@ -1114,7 +1114,7 @@ pub async fn create_merchant_account(
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<()> {
-    let user_from_db: domain::UserFromStorage = user_from_token.get_user(&state).await?.into();
+    let user_from_db = user_from_token.get_user_from_db(&state).await?;
 
     let new_user = domain::NewUser::try_from((user_from_db, req, user_from_token))?;
     let new_merchant = new_user.get_new_merchant();
