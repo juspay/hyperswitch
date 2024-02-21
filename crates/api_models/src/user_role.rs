@@ -1,23 +1,9 @@
-use common_enums::RoleScope;
 use common_utils::pii;
 
 use crate::user::DashboardEntryResponse;
 
-#[derive(Debug, serde::Serialize)]
-pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
+pub mod role;
 
-#[derive(Debug, serde::Serialize)]
-pub struct RoleInfoResponse {
-    pub role_id: String,
-    pub permissions: Vec<Permission>,
-    pub role_name: String,
-    pub role_scope: RoleScope,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetRoleRequest {
-    pub role_id: String,
-}
 
 #[derive(Debug, serde::Serialize)]
 pub enum Permission {

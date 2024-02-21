@@ -1051,7 +1051,12 @@ impl User {
         // Role information
         route = route.service(
             web::scope("/role")
-                .service(web::resource("").route(web::get().to(get_role_from_token)))
+                .service(
+                    web::resource("")
+                        .route(web::get().to(get_role_from_token))
+                        .route(web::post().to(create_role))
+                        .route(web::put().to(update_role)),
+                )
                 .service(web::resource("/list").route(web::get().to(list_all_roles)))
                 .service(web::resource("/{role_id}").route(web::get().to(get_role))),
         );

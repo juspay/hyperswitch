@@ -29,6 +29,56 @@ pub async fn get_authorization_info(
     .await
 }
 
+pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::GetRoleFromToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user: UserFromToken, _| user_role_core::role::get_role_from_token(state, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn create_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::role::CreateRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::CreateRole;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        user_role_core::role::create_role,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn update_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::role::UpdateRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::UpdateRole;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        user_role_core::role::update_role,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
     Box::pin(api::server_wrap(
@@ -36,7 +86,7 @@ pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> Htt
         state.clone(),
         &req,
         (),
-        |state, user, _| user_role_core::list_invitable_roles(state, user),
+        |state, user, _| user_role_core::role::list_invitable_roles(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -49,7 +99,7 @@ pub async fn get_role(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::GetRole;
-    let request_payload = user_role_api::GetRoleRequest {
+    let request_payload = user_role_api::role::GetRoleRequest {
         role_id: path.into_inner(),
     };
     Box::pin(api::server_wrap(
@@ -57,22 +107,8 @@ pub async fn get_role(
         state.clone(),
         &req,
         request_payload,
-        user_role_core::get_role,
+        user_role_core::role::get_role,
         &auth::JWTAuth(Permission::UsersRead),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::GetRoleFromToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        (),
-        |state, user: UserFromToken, _| user_role_core::get_role_from_token(state, user),
-        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -46,35 +46,25 @@ pub struct RoleUpdateInternal {
 }
 
 pub enum RoleUpdate {
-    UpdateGroup {
-        groups: Vec<enums::PermissionGroup>,
-        last_modified_by: String,
-    },
-    UpdateRoleName {
-        role_name: String,
+    UpdateDetails {
+        groups: Option<Vec<enums::PermissionGroup>>,
+        role_name: Option<String>,
+        last_modified_at: PrimitiveDateTime,
         last_modified_by: String,
     },
 }
 
 impl From<RoleUpdate> for RoleUpdateInternal {
     fn from(value: RoleUpdate) -> Self {
-        let last_modified_at = common_utils::date_time::now();
         match value {
-            RoleUpdate::UpdateGroup {
+            RoleUpdate::UpdateDetails {
                 groups,
-                last_modified_by,
-            } => Self {
-                groups: Some(groups),
-                role_name: None,
-                last_modified_at,
-                last_modified_by,
-            },
-            RoleUpdate::UpdateRoleName {
                 role_name,
                 last_modified_by,
+                last_modified_at,
             } => Self {
-                groups: None,
-                role_name: Some(role_name),
+                groups,
+                role_name,
                 last_modified_at,
                 last_modified_by,
             },

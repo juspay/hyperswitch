@@ -16,6 +16,7 @@ use crate::{
     types::domain,
     utils,
 };
+pub mod role;
 
 pub async fn get_authorization_info(
     _state: AppState,
@@ -28,98 +29,6 @@ pub async fn get_authorization_info(
                 .collect(),
         ),
     ))
-}
-
-pub async fn list_invitable_roles(
-    state: AppState,
-    user_from_token: auth::UserFromToken,
-) -> UserResponse<user_role_api::ListRolesResponse> {
-    let predefined_roles_map = roles::predefined_roles::PREDEFINED_ROLES
-        .iter()
-        .filter(|(_, role_info)| role_info.is_invitable())
-        .map(|(role_id, role_info)| user_role_api::RoleInfoResponse {
-            permissions: role_info
-                .get_permissions_set()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            role_id: role_id.to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            role_scope: role_info.get_scope(),
-        });
-
-    let custom_roles_map = state
-        .store
-        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .map(roles::RoleInfo::from)
-        .filter(|role_info| role_info.is_invitable())
-        .map(|role_info| user_role_api::RoleInfoResponse {
-            permissions: role_info
-                .get_permissions_set()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            role_id: role_info.get_role_id().to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            role_scope: role_info.get_scope(),
-        });
-
-    Ok(ApplicationResponse::Json(user_role_api::ListRolesResponse(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    )))
-}
-
-pub async fn get_role(
-    state: AppState,
-    user_from_token: auth::UserFromToken,
-    role: user_role_api::GetRoleRequest,
-) -> UserResponse<user_role_api::RoleInfoResponse> {
-    let role_info = roles::get_role_info_from_role_id(
-        &state,
-        &role.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .to_not_found_response(UserErrors::InvalidRoleId)?;
-
-    if role_info.is_internal() {
-        return Err(UserErrors::InvalidRoleId.into());
-    }
-
-    let permissions = role_info
-        .get_permissions_set()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-
-    Ok(ApplicationResponse::Json(user_role_api::RoleInfoResponse {
-        permissions,
-        role_id: role.role_id,
-        role_name: role_info.get_role_name().to_string(),
-        role_scope: role_info.get_scope(),
-    }))
-}
-
-pub async fn get_role_from_token(
-    state: AppState,
-    user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<user_role_api::Permission>> {
-    let role_info = user_from_token
-        .get_role_info_from_db(&state)
-        .await
-        .attach_printable("Invalid role_id in JWT")?;
-
-    let permissions = role_info
-        .get_permissions_set()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-
-    Ok(ApplicationResponse::Json(permissions))
 }
 
 pub async fn update_user_role(
