@@ -182,7 +182,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
                         AuthNFlowType::Frictionless => DecoupledAuthenticationType::Frictionless,
                     }),
-                    authentication_status: match trans_status.clone() {
+                    authentication_status: match trans_status {
                         api_models::payments::TransStatus::Y => {
                             Some(common_enums::AuthenticationStatus::Success)
                         }
@@ -203,7 +203,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_data.cavv = authentication_value;
                 authentication_data.eci = eci;
-                authentication_data.trans_status = trans_status;
+                authentication_data.trans_status = trans_status.clone();
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)
@@ -212,7 +212,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_connector_id: None,
                     payment_method_id: None,
                     authentication_type: None,
-                    authentication_status: match trans_status.clone() {
+                    authentication_status: match trans_status {
                         api_models::payments::TransStatus::Y => {
                             Some(common_enums::AuthenticationStatus::Success)
                         }
