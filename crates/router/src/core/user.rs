@@ -499,7 +499,7 @@ pub async fn invite_user(
                 merchant_id: user_from_token.merchant_id,
             };
 
-            let is_email_sent = state
+            is_email_sent = state
                 .email_client
                 .compose_and_send_email(
                     Box::new(email_contents),
@@ -719,7 +719,7 @@ async fn handle_existing_user_invitation(
             merchant_id: user_from_token.merchant_id.clone(),
         };
 
-        let is_email_sent = state
+        is_email_sent = state
             .email_client
             .compose_and_send_email(
                 Box::new(email_contents),
