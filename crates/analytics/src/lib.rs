@@ -11,6 +11,7 @@ pub mod connector_events;
 pub mod health_check;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
+pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};

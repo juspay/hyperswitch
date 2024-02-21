@@ -18,6 +18,7 @@ pub mod outgoing_webhook_event;
 pub mod payments;
 pub mod refunds;
 pub mod sdk_events;
+pub mod search;
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameDescription {
@@ -246,4 +247,22 @@ pub struct GetApiEventMetricRequest {
     pub metrics: HashSet<ApiEventMetrics>,
     #[serde(default)]
     pub delta: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetGlobalSearchRequest {
+    pub query: String,
+    #[serde(default)]
+    pub filters: search::SearchFilters,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSearchRequest {
+    pub offset: u64,
+    pub count: u64,
+    pub query: String,
+    #[serde(default)]
+    pub filters: search::SearchFilters,
 }

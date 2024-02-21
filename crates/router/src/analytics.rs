@@ -9,8 +9,9 @@ pub mod routes {
     };
     use api_models::analytics::{
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
-        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetGlobalSearchRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
     use router_env::AnalyticsFlow;
@@ -87,6 +88,12 @@ pub mod routes {
                     .service(
                         web::resource("metrics/api_events")
                             .route(web::post().to(get_api_events_metrics)),
+                    )
+                    .service(
+                        web::resource("search").route(web::post().to(get_global_search_results)),
+                    )
+                    .service(
+                        web::resource("search/{domain}").route(web::post().to(get_search_results)),
                     )
             }
             route
@@ -576,6 +583,72 @@ pub mod routes {
                 connector_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_global_search_results(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetApiEventMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetGlobalSearchRequest");
+        let flow = AnalyticsFlow::GetGlobalSearchResults;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req| async move {
+                analytics::api_event::get_api_event_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_search_results(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetApiEventMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetApiEventMetricRequest");
+        let flow = AnalyticsFlow::GetApiEventMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req| async move {
+                analytics::api_event::get_api_event_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
