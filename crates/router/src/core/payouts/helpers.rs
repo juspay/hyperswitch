@@ -364,11 +364,13 @@ pub async fn save_payout_data_to_locker(
         card_network: None,
     };
 
+    let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
     cards::create_payment_method(
         db,
         &payment_method,
         &payout_attempt.customer_id,
-        &stored_resp.card_reference,
+        &payment_method_id,
+        Some(stored_resp.card_reference),
         &merchant_account.merchant_id,
         None,
         card_details_encrypted,

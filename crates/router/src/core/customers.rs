@@ -218,7 +218,7 @@ pub async fn delete_customer(
                         &state,
                         &req.customer_id,
                         &merchant_account.merchant_id,
-                        &pm.payment_method_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
