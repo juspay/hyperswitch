@@ -49,7 +49,7 @@ pub fn get_permissions_from_groups(groups: &[PermissionGroup]) -> Vec<permission
 
 pub fn check_authorization(
     required_permission: &permissions::Permission,
-    permissions: Vec<permissions::Permission>,
+    permissions: &[permissions::Permission],
 ) -> RouterResult<()> {
     permissions
         .contains(required_permission)

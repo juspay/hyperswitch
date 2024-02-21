@@ -504,7 +504,7 @@ where
         }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, permissions)?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             (),
@@ -533,7 +533,7 @@ where
         }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, permissions)?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             UserFromToken {
@@ -571,7 +571,7 @@ where
         }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, permissions)?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -614,7 +614,7 @@ where
         }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, permissions)?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -664,7 +664,7 @@ where
         }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, permissions)?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
