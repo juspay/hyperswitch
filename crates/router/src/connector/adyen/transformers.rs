@@ -338,6 +338,7 @@ pub struct RedirectionResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     psp_reference: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -348,6 +349,7 @@ pub struct PresentToShopperResponse {
     action: AdyenPtsAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -359,6 +361,7 @@ pub struct QrCodeResponseResponse {
     refusal_reason_code: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
     psp_reference: Option<String>,
+    merchant_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3166,7 +3169,10 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3220,7 +3226,10 @@ pub fn get_present_to_shopper_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3271,7 +3280,10 @@ pub fn get_qr_code_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: response
+            .merchant_reference
+            .clone()
+            .or(response.psp_reference),
         incremental_authorization_allowed: None,
     };
     Ok((status, error, payments_response_data))
@@ -3645,6 +3657,7 @@ pub struct AdyenCaptureResponse {
     reference: String,
     status: String,
     amount: Amount,
+    merchant_reference: Option<String>,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
@@ -3655,7 +3668,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = if item.data.request.multiple_capture_data.is_some() {
-            item.response.psp_reference
+            item.response.psp_reference.clone()
         } else {
             item.response.payment_psp_reference
         };
@@ -3670,7 +3683,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .merchant_reference
+                    .clone()
+                    .or(Some(item.response.psp_reference)),
                 incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount.value),
