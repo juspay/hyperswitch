@@ -499,7 +499,7 @@ pub async fn invite_user(
                 merchant_id: user_from_token.merchant_id,
             };
 
-            let send_email_result = state
+            let is_email_sent = state
                 .email_client
                 .compose_and_send_email(
                     Box::new(email_contents),
@@ -509,8 +509,6 @@ pub async fn invite_user(
                 .map(|email_result| logger::info!(?email_result))
                 .map_err(|email_result| logger::error!(?email_result))
                 .is_ok();
-
-            is_email_sent = send_email_result;
         }
         #[cfg(not(feature = "email"))]
         {
@@ -721,7 +719,7 @@ async fn handle_existing_user_invitation(
             merchant_id: user_from_token.merchant_id.clone(),
         };
 
-        let send_email_result = state
+        let is_email_sent = state
             .email_client
             .compose_and_send_email(
                 Box::new(email_contents),
@@ -731,8 +729,6 @@ async fn handle_existing_user_invitation(
             .map(|email_result| logger::info!(?email_result))
             .map_err(|email_result| logger::error!(?email_result))
             .is_ok();
-
-        is_email_sent = send_email_result;
     }
     #[cfg(not(feature = "email"))]
     {
