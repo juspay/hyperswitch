@@ -12,7 +12,7 @@ pub use euclid::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{self, RoutableConnectors};
+use crate::enums::{self, RoutableConnectors, TransactionType};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -85,6 +85,7 @@ pub struct MerchantRoutingAlgorithm {
     pub algorithm: RoutingAlgorithm,
     pub created_at: i64,
     pub modified_at: i64,
+    pub algorithm_for: TransactionType
 }
 
 impl EuclidDirFilter for ConnectorSelection {

@@ -2923,7 +2923,7 @@ pub async fn route_connector_v1<F>(
     merchant_account: &domain::MerchantAccount,
     business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    operation_data: &TransactionData<'_, F>,
+    transaction_data: &TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
 ) -> RouterResult<ConnectorCallType>
@@ -2931,7 +2931,7 @@ where
     F: Send + Clone,
 {
     #[allow(unused_variables)]
-    let (profile_id, routing_algorithm) = match operation_data {
+    let (profile_id, routing_algorithm) = match transaction_data {
         TransactionData::Payment(payment_data) => {
             if cfg!(feature = "business_profile_routing") {
                 (
@@ -2966,7 +2966,7 @@ where
         state,
         &merchant_account.merchant_id,
         algorithm_ref,
-        operation_data,
+        transaction_data,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -2976,7 +2976,7 @@ where
         key_store,
         merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
-        operation_data,
+        transaction_data,
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
         profile_id,

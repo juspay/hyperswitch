@@ -59,6 +59,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
                 .parse_value::<Algorithm>("RoutingAlgorithm")?,
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: value.algorithm_for,
         })
     }
 }
