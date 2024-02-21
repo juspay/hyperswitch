@@ -342,7 +342,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+                payment_method_data
+                    .payment_method_data
+                    .apply_additional_payment_data(additional_payment_data)
             });
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
@@ -625,7 +627,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         helpers::validate_payment_method_fields_present(request)?;
 
@@ -646,7 +653,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
-                &request.payment_method_data,
+                &request
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -703,7 +713,11 @@ impl PaymentCreate {
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(
+                    &payment_method_data.payment_method_data,
+                    &*state.store,
+                )
+                .await
             })
             .await;
         let additional_pm_data_value = additional_pm_data

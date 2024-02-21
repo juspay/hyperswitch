@@ -997,7 +997,7 @@ pub fn verify_mandate_details(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -1010,7 +1010,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -1949,7 +1949,7 @@ pub(crate) fn validate_payment_method_fields_present(
                 .map_or(Ok(()), |req_payment_method_data| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         validate_payment_method_and_payment_method_data(
-                            req_payment_method_data,
+                            req_payment_method_data.payment_method_data,
                             req_payment_method,
                         )
                     })
@@ -3144,7 +3144,7 @@ impl AttemptType {
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
     fn make_new_payment_attempt(
-        payment_method_data: &Option<api_models::payments::PaymentMethodData>,
+        payment_method_data: &Option<api_models::payments::PaymentMethodDataRequest>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,

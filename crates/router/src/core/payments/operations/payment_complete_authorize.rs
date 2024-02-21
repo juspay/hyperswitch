@@ -120,7 +120,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             if should_validate_pm_or_token_given {
                 helpers::validate_pm_or_token_given(
                     &request.payment_method,
-                    &request.payment_method_data,
+                    &request
+                        .payment_method_data
+                        .as_ref()
+                        .map(|pmd| pmd.payment_method_data.clone()),
                     &request.payment_method_type,
                     &mandate_type,
                     &token,
@@ -235,7 +238,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
             force_sync: None,
             refunds: vec![],
             disputes: vec![],

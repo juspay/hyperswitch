@@ -360,13 +360,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 field_name: "browser_info",
             })?;
 
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
             &request.payment_method,
-            &request.payment_method_data,
+            &request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
             &request.payment_method_type,
             &mandate_type,
             &token,
@@ -454,7 +462,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(
+                    &payment_method_data.payment_method_data,
+                    &*state.store,
+                )
+                .await
             })
             .await;
         let payment_method_data_after_card_bin_call = request
@@ -462,7 +474,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .zip(additional_pm_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+                payment_method_data
+                    .payment_method_data
+                    .apply_additional_payment_data(additional_payment_data)
             });
 
         let payment_data = PaymentData {

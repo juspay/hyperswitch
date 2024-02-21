@@ -75,7 +75,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -221,7 +226,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
-                &request.payment_method_data,
+                &request
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &token,
@@ -358,7 +366,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
             force_sync: None,
             refunds: vec![],
             disputes: vec![],

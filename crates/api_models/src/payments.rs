@@ -309,7 +309,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
@@ -1050,6 +1050,13 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct PaymentMethodDataRequest {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
