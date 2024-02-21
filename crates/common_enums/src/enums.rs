@@ -5,14 +5,17 @@ use utoipa::ToSchema;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
+        DbAttemptStatus as AttemptStatus,
+        DbAuthenticationLifecycleStatus as AuthenticationLifecycleStatus,
+        DbAuthenticationStatus as AuthenticationStatus, DbAuthenticationType as AuthenticationType,
         DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
         DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
-        DbRefundStatus as RefundStatus,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDecoupledAuthenticationType as DecoupledAuthenticationType,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
     };
 }
@@ -2048,7 +2051,7 @@ pub enum ApplePayFlow {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationStatus {
@@ -2073,7 +2076,7 @@ pub enum AuthenticationStatus {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DecoupledAuthenticationType {
@@ -2096,7 +2099,7 @@ pub enum DecoupledAuthenticationType {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationLifecycleStatus {

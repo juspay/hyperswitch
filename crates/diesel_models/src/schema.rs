@@ -73,12 +73,9 @@ diesel::table! {
         authentication_data -> Nullable<Jsonb>,
         #[max_length = 64]
         payment_method_id -> Varchar,
-        #[max_length = 64]
-        authentication_type -> Nullable<Varchar>,
-        #[max_length = 64]
-        authentication_status -> Varchar,
-        #[max_length = 64]
-        authentication_lifecycle_status -> Varchar,
+        authentication_type -> Nullable<DecoupledAuthenticationType>,
+        authentication_status -> AuthenticationStatus,
+        authentication_lifecycle_status -> AuthenticationLifecycleStatus,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         #[max_length = 64]

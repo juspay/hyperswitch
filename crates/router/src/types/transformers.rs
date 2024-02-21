@@ -727,7 +727,7 @@ impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
     for payments::ExternalAuthenticationDetailsResponse
 {
     fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
-        let (version, ds_transaction_id) = if authn_data.0.authentication_data.is_some() {
+        let (ds_transaction_id, version) = if authn_data.0.authentication_data.is_some() {
             (
                 Some(authn_data.1.threeds_server_transaction_id.clone()),
                 Some(format!(
