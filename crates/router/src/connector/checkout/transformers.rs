@@ -188,7 +188,7 @@ pub struct CardSource {
 pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -301,7 +301,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
@@ -314,7 +314,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
+                                token: apple_pay_payment_token.into(),
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -1041,7 +1041,7 @@ pub enum CheckoutRedirectResponseStatus {
 pub struct CheckoutRedirectResponse {
     pub status: Option<CheckoutRedirectResponseStatus>,
     #[serde(rename = "cko-session-id")]
-    pub cko_session_id: Option<String>,
+    pub cko_session_id: Option<Secret<String>>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
@@ -1286,13 +1286,13 @@ pub struct FileUploadResponse {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Evidence {
-    pub proof_of_delivery_or_service_file: Option<String>,
-    pub invoice_or_receipt_file: Option<String>,
-    pub invoice_showing_distinct_transactions_file: Option<String>,
-    pub customer_communication_file: Option<String>,
-    pub refund_or_cancellation_policy_file: Option<String>,
-    pub recurring_transaction_agreement_file: Option<String>,
-    pub additional_evidence_file: Option<String>,
+    pub proof_of_delivery_or_service_file: Option<Secret<String>>,
+    pub invoice_or_receipt_file: Option<Secret<String>>,
+    pub invoice_showing_distinct_transactions_file: Option<Secret<String>>,
+    pub customer_communication_file: Option<Secret<String>>,
+    pub refund_or_cancellation_policy_file: Option<Secret<String>>,
+    pub recurring_transaction_agreement_file: Option<Secret<String>>,
+    pub additional_evidence_file: Option<Secret<String>>,
 }
 
 impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
@@ -1326,18 +1326,26 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
         let submit_evidence_request_data = item.request.clone();
         Ok(Self {
             proof_of_delivery_or_service_file: submit_evidence_request_data
-                .shipping_documentation_provider_file_id,
-            invoice_or_receipt_file: submit_evidence_request_data.receipt_provider_file_id,
+                .shipping_documentation_provider_file_id
+                .map(Secret::new),
+            invoice_or_receipt_file: submit_evidence_request_data
+                .receipt_provider_file_id
+                .map(Secret::new),
             invoice_showing_distinct_transactions_file: submit_evidence_request_data
-                .invoice_showing_distinct_transactions_provider_file_id,
+                .invoice_showing_distinct_transactions_provider_file_id
+                .map(Secret::new),
             customer_communication_file: submit_evidence_request_data
-                .customer_communication_provider_file_id,
+                .customer_communication_provider_file_id
+                .map(Secret::new),
             refund_or_cancellation_policy_file: submit_evidence_request_data
-                .refund_policy_provider_file_id,
+                .refund_policy_provider_file_id
+                .map(Secret::new),
             recurring_transaction_agreement_file: submit_evidence_request_data
-                .recurring_transaction_agreement_provider_file_id,
+                .recurring_transaction_agreement_provider_file_id
+                .map(Secret::new),
             additional_evidence_file: submit_evidence_request_data
-                .uncategorized_file_provider_file_id,
+                .uncategorized_file_provider_file_id
+                .map(Secret::new),
         })
     }
 }
