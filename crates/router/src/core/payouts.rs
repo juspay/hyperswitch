@@ -662,9 +662,9 @@ pub async fn call_connector_payout(
             routing_info: payout_data.payout_attempt.routing_info.clone(),
         };
         let db = &*state.store;
-        db.update_payout_attempt_by_merchant_id_payout_id(
+        db.update_payout_attempt_by_merchant_id_payout_attempt_id(
             &payout_data.payout_attempt.merchant_id,
-            &payout_data.payout_attempt.payout_id,
+            &payout_data.payout_attempt.payout_attempt_id,
             updated_payout_attempt,
         )
         .await
