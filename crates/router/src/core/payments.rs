@@ -3087,7 +3087,7 @@ pub async fn payment_external_authentication(
             state
                 .store
                 .find_customer_by_customer_id_merchant_id(
-                    &customer_id,
+                    customer_id,
                     &merchant_account.merchant_id,
                     &key_store,
                 )

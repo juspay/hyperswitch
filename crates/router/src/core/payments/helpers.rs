@@ -3882,53 +3882,54 @@ pub async fn get_payment_method_details_from_payment_token(
     } else {
         None
     };
+    let token = hyperswitch_token
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("missing hyperswitch_token")?;
+    match token {
+        storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+            retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                key_store,
+                None,
+            )
+            .await
+        }
 
-    Ok(
-        match hyperswitch_token.ok_or(errors::ApiErrorResponse::InternalServerError)? {
-            storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
-                retrieve_payment_method_with_temporary_token(
-                    &state,
-                    &generic_token.token,
-                    &payment_intent,
-                    &key_store,
-                    None,
-                )
+        storage::PaymentTokenData::Temporary(generic_token) => {
+            retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                key_store,
+                None,
+            )
+            .await
+        }
+
+        storage::PaymentTokenData::Permanent(card_token) => {
+            retrieve_card_with_permanent_token(state, &card_token.token, payment_intent, None)
                 .await
-            }
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+        }
 
-            storage::PaymentTokenData::Temporary(generic_token) => {
-                retrieve_payment_method_with_temporary_token(
-                    &state,
-                    &generic_token.token,
-                    &payment_intent,
-                    &key_store,
-                    None,
-                )
+        storage::PaymentTokenData::PermanentCard(card_token) => {
+            retrieve_card_with_permanent_token(state, &card_token.token, payment_intent, None)
                 .await
-            }
+                .map(|card| Some((card, enums::PaymentMethod::Card)))
+        }
 
-            storage::PaymentTokenData::Permanent(card_token) => {
-                retrieve_card_with_permanent_token(&state, &card_token.token, &payment_intent, None)
-                    .await
-                    .map(|card| Some((card, enums::PaymentMethod::Card)))
-            }
-
-            storage::PaymentTokenData::PermanentCard(card_token) => {
-                retrieve_card_with_permanent_token(&state, &card_token.token, &payment_intent, None)
-                    .await
-                    .map(|card| Some((card, enums::PaymentMethod::Card)))
-            }
-
-            storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-                retrieve_payment_method_from_auth_service(
-                    &state,
-                    &key_store,
-                    &auth_token,
-                    &payment_intent,
-                    &None,
-                )
-                .await
-            }
-        }?,
-    )
+        storage::PaymentTokenData::AuthBankDebit(auth_token) => {
+            retrieve_payment_method_from_auth_service(
+                state,
+                key_store,
+                &auth_token,
+                payment_intent,
+                &None,
+            )
+            .await
+        }
+    }
 }

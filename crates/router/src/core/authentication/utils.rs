@@ -203,7 +203,7 @@ pub async fn update_trackers<F: Clone, Req>(
             } => {
                 authentication_data.cavv = authentication_value;
                 authentication_data.eci = eci;
-                authentication_data.trans_status = trans_status;
+                authentication_data.trans_status = trans_status.clone();
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
                         Encode::<AuthenticationData>::encode_to_value(&authentication_data)

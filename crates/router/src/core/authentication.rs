@@ -77,22 +77,17 @@ pub async fn perform_authentication(
             trans_status,
             ..
         } => Ok(match authn_flow_type {
-            core_types::authentication::AuthNFlowType::Challenge {
-                acs_url,
-                challenge_request,
-                acs_reference_number,
-                acs_trans_id,
-                three_dsserver_trans_id,
-                acs_signed_content,
-            } => core_types::api::AuthenticationResponse {
-                trans_status,
-                acs_url,
-                challenge_request,
-                acs_reference_number,
-                acs_trans_id,
-                three_dsserver_trans_id,
-                acs_signed_content,
-            },
+            core_types::authentication::AuthNFlowType::Challenge(challenge_params) => {
+                core_types::api::AuthenticationResponse {
+                    trans_status,
+                    acs_url: challenge_params.acs_url,
+                    challenge_request: challenge_params.challenge_request,
+                    acs_reference_number: challenge_params.acs_reference_number,
+                    acs_trans_id: challenge_params.acs_trans_id,
+                    three_dsserver_trans_id: challenge_params.three_dsserver_trans_id,
+                    acs_signed_content: challenge_params.acs_signed_content,
+                }
+            }
             core_types::authentication::AuthNFlowType::Frictionless => {
                 core_types::api::AuthenticationResponse {
                     trans_status,

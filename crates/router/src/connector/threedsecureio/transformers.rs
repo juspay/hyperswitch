@@ -13,6 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, MessageCategory},
+        authentication::ChallengeParams,
         storage::enums,
         transformers::ForeignTryFrom,
     },
@@ -102,14 +103,18 @@ impl
                     types::authentication::AuthenticationResponseData::AuthNResponse {
                         trans_status: response.trans_status.clone().into(),
                         authn_flow_type: if response.trans_status == ThreedsecureioTransStatus::C {
-                            types::authentication::AuthNFlowType::Challenge {
-                                acs_url: response.acs_url,
-                                challenge_request: Some(creq_base64),
-                                acs_reference_number: Some(response.acs_reference_number.clone()),
-                                acs_trans_id: Some(response.acs_trans_id.clone()),
-                                three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
-                                acs_signed_content: response.acs_signed_content,
-                            }
+                            types::authentication::AuthNFlowType::Challenge(Box::new(
+                                ChallengeParams {
+                                    acs_url: response.acs_url,
+                                    challenge_request: Some(creq_base64),
+                                    acs_reference_number: Some(
+                                        response.acs_reference_number.clone(),
+                                    ),
+                                    acs_trans_id: Some(response.acs_trans_id.clone()),
+                                    three_dsserver_trans_id: Some(response.three_dsserver_trans_id),
+                                    acs_signed_content: response.acs_signed_content,
+                                },
+                            ))
                         } else {
                             types::authentication::AuthNFlowType::Frictionless
                         },
@@ -310,8 +315,7 @@ fn get_card_details(
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
             connector: "threedsecureio",
-        }
-        .into())?,
+        })?,
     }
 }
 
@@ -445,16 +449,16 @@ impl TryFrom<&ThreedsecureioRouterData<&types::ConnectorAuthenticationRouterData
             .to_string(),
             browser_javascript_enabled: browser_details
                 .clone()
-                .and_then(|details| details.java_script_enabled.clone()),
+                .and_then(|details| details.java_script_enabled),
             browser_accept_header: browser_details
                 .clone()
                 .and_then(|details| details.accept_header.clone()),
             browser_ip: browser_details
                 .clone()
-                .and_then(|details| details.ip_address.clone().map(|ip| ip.to_string())),
+                .and_then(|details| details.ip_address.map(|ip| ip.to_string())),
             browser_java_enabled: browser_details
                 .clone()
-                .and_then(|details| details.java_enabled.clone()),
+                .and_then(|details| details.java_enabled),
             browser_language: browser_details
                 .clone()
                 .and_then(|details| details.language.clone()),

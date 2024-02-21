@@ -27,15 +27,18 @@ pub enum AuthenticationResponseData {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ChallengeParams {
+    pub acs_url: Option<url::Url>,
+    pub challenge_request: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub three_dsserver_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthNFlowType {
-    Challenge {
-        acs_url: Option<url::Url>,
-        challenge_request: Option<String>,
-        acs_reference_number: Option<String>,
-        acs_trans_id: Option<String>,
-        three_dsserver_trans_id: Option<String>,
-        acs_signed_content: Option<String>,
-    },
+    Challenge(Box<ChallengeParams>),
     Frictionless,
 }
 
