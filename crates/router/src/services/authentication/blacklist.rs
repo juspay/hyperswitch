@@ -8,7 +8,7 @@ use redis_interface::RedisConnectionPool;
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
-    consts::{JWT_TOKEN_TIME_IN_SECS, USER_BLACKLIST_PREFIX},
+    consts::{JWT_TOKEN_TIME_IN_SECS, ROLE_BLACKLIST_PREFIX, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
     routes::app::AppStateInfo,
 };
@@ -34,12 +34,43 @@ pub async fn insert_user_in_blacklist(state: &AppState, user_id: &str) -> UserRe
         .change_context(UserErrors::InternalServerError)
 }
 
+#[cfg(feature = "olap")]
+pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserResult<()> {
+    let role_blacklist_key = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
+    let expiry =
+        expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
+    let redis_conn = get_redis_connection(state).change_context(UserErrors::InternalServerError)?;
+    redis_conn
+        .set_key_with_expiry(
+            role_blacklist_key.as_str(),
+            date_time::now_unix_timestamp(),
+            expiry,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
 pub async fn check_user_in_blacklist<A: AppStateInfo>(
     state: &A,
     user_id: &str,
     token_expiry: u64,
 ) -> RouterResult<bool> {
     let token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
+    let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
+    let redis_conn = get_redis_connection(state)?;
+    redis_conn
+        .get_key::<Option<i64>>(token.as_str())
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
+}
+
+pub async fn check_role_in_blacklist<A: AppStateInfo>(
+    state: &A,
+    role_id: &str,
+    token_expiry: u64,
+) -> RouterResult<bool> {
+    let token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection(state)?;
     redis_conn
