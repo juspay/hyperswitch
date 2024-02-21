@@ -767,7 +767,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
                     outgoing_webhook,
                     types::WebhookDeliveryAttempt::InitialAttempt,
                     content,
-                    event,
+                    event.event_id,
                     event_type,
                     process_tracker,
                 )
@@ -780,13 +780,14 @@ async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType
     Ok(())
 }
 
-async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
     outgoing_webhook: api::OutgoingWebhook,
     delivery_attempt: types::WebhookDeliveryAttempt,
     content: api::OutgoingWebhookContent,
-    event: storage::Event,
+    event_id: String,
     event_type: enums::EventType,
     process_tracker: diesel_models::ProcessTracker,
 ) {
@@ -805,7 +806,7 @@ async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
         trigger_webhook_result,
         content,
         &merchant_id,
-        &event,
+        &event_id,
         event_type,
     );
 }
@@ -946,7 +947,7 @@ fn raise_webhooks_analytics_event(
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: api::OutgoingWebhookContent,
     merchant_id: &str,
-    event: &storage::Event,
+    event_id: &str,
     event_type: enums::EventType,
 ) {
     let error = if let Err(error) = trigger_webhook_result {
@@ -967,7 +968,7 @@ fn raise_webhooks_analytics_event(
     let outgoing_webhook_event_content = content.get_outgoing_webhook_event_content();
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id.to_owned(),
-        event.event_id.clone(),
+        event_id.to_owned(),
         event_type,
         outgoing_webhook_event_content,
         error,
