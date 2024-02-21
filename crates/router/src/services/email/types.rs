@@ -287,7 +287,7 @@ impl EmailData for InviteUser {
         let invite_user_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
-        let body = html::get_html_body(EmailBody::MagicLink {
+        let body = html::get_html_body(EmailBody::InviteUser {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
         });

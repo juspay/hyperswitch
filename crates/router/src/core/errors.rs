@@ -236,6 +236,8 @@ pub enum VaultError {
     FetchPaymentMethodFailed,
     #[error("Failed to save payment method in vault")]
     SavePaymentMethodFailed,
+    #[error("Failed to generate fingerprint")]
+    GenerateFingerprintFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
