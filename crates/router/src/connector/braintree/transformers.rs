@@ -1,6 +1,6 @@
 use api_models::payments;
 use base64::Engine;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -77,7 +77,7 @@ pub enum PaymentMethodType {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Nonce {
-    payment_method_nonce: String,
+    payment_method_nonce: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -130,7 +130,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                             Ok(wallet_data.token.to_owned())
                         }
                         _ => Err(errors::ConnectorError::InvalidWallet),
-                    }?,
+                    }?
+                    .into(),
                 }))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(
@@ -263,7 +264,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::Paypal(Box::new(
                     payments::PaypalSessionTokenResponse {
-                        session_token: item.response.client_token.value,
+                        session_token: item.response.client_token.value.expose(),
                     },
                 )),
             }),
@@ -281,7 +282,7 @@ pub struct BraintreePaymentsResponse {
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientToken {
-    pub value: String,
+    pub value: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
