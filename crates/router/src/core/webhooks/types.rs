@@ -52,6 +52,7 @@ pub(super) enum WebhookDeliveryAttempt {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
+    pub(crate) merchant_id: String,
     pub(crate) business_profile_id: String,
     pub(crate) event_type: enums::EventType,
     pub(crate) event_class: enums::EventClass,

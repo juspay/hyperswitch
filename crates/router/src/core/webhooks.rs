@@ -1487,6 +1487,7 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<diesel_models::ProcessTracker, scheduler::errors::ProcessTrackerError> {
     let tracking_data = types::OutgoingWebhookTrackingData {
+        merchant_id: business_profile.merchant_id.clone(),
         business_profile_id: business_profile.profile_id.clone(),
         event_type: event.event_type,
         event_class: event.event_class,
