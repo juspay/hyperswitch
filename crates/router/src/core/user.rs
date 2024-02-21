@@ -444,7 +444,7 @@ pub async fn invite_user(
 
     let role_info = roles::get_role_info_from_role_id(
         &state,
-        request.role_id.as_str(),
+        &request.role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
@@ -635,9 +635,9 @@ async fn handle_invitation(
 
     let role_info = roles::get_role_info_from_role_id(
         state,
-        request.role_id.as_str(),
-        user_from_token.merchant_id.as_str(),
-        user_from_token.org_id.as_str(),
+        &request.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
     )
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
@@ -936,8 +936,8 @@ pub async fn switch_merchant_id(
     let role_info = roles::get_role_info_from_role_id(
         &state,
         &user_from_token.role_id,
-        user_from_token.merchant_id.as_str(),
-        user_from_token.org_id.as_str(),
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
     )
     .await
     .to_not_found_response(UserErrors::InternalServerError)?;
@@ -1089,8 +1089,8 @@ pub async fn get_users_for_merchant_account(
                 let role_info = roles::get_role_info_from_role_id(
                     &state,
                     &user_role.role_id,
-                    user_role.merchant_id.as_str(),
-                    user_role.org_id.as_str(),
+                    &user_role.merchant_id,
+                    &user_role.org_id,
                 )
                 .await
                 .to_not_found_response(UserErrors::InternalServerError)?;
