@@ -171,31 +171,20 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
             let router_data =
                 utils::do_auth_connector_call(state, authentication_connector_name, router_data)
                     .await?;
-            let acquired_details: types::AcquirerDetails = {
-                payment_connector_account
-                    .get_metadata()
-                    .get_required_value("merchant_connector_account.metadata")?
-                    .peek()
-                    .clone()
-                    .parse_value("AcquirerDetails")
-                    .change_context(ApiErrorResponse::InvalidDataFormat {
-                        field_name: "merchant_connector_account.metadata.acquirer_details"
-                            .to_string(),
-                        expected_format: r#"
-                {
-                    "acquirer_bin": "123445",
-                    "acquirer_merchant_id": "12344"
-                }
-            "#
-                        .to_string(),
-                    })
-            }?;
+            let acquirer_details: types::AcquirerDetails = payment_connector_account
+                .get_metadata()
+                .get_required_value("merchant_connector_account.metadata")?
+                .peek()
+                .clone()
+                .parse_value("AcquirerDetails")
+                .change_context(ApiErrorResponse::PreconditionFailed { message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata".to_string()})?;
+
             let (authentication, authentication_data) = utils::update_trackers(
                 state,
                 router_data,
                 authentication,
                 payment_data.token.clone(),
-                Some(acquired_details),
+                Some(acquirer_details),
             )
             .await?;
             if authentication_data.is_separate_authn_required() {
