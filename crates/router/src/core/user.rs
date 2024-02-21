@@ -666,7 +666,13 @@ async fn handle_existing_user_invitation(
             merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
             org_id: user_from_token.org_id.clone(),
-            status: UserStatus::Active,
+            status: {
+                if cfg!(feature = "email") {
+                    UserStatus::InvitationSent
+                } else {
+                    UserStatus::Active
+                }
+            },
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
