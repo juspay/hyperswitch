@@ -140,7 +140,16 @@ impl super::settings::ApiKeys {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
             ))
-        })
+        })?;
+
+        #[cfg(feature = "email")]
+        when(self.expiry_reminder_days.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key expiry reminder days must not be empty".into(),
+            ))
+        })?;
+
+        Ok(())
     }
 }
 

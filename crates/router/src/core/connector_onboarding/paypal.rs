@@ -147,10 +147,10 @@ pub async fn update_mca(
     connector_id: String,
     auth_details: oss_types::ConnectorAuthType,
 ) -> RouterResult<oss_api_types::MerchantConnectorResponse> {
-    let connector_auth_json =
-        Encode::<oss_types::ConnectorAuthType>::encode_to_value(&auth_details)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while deserializing connector_account_details")?;
+    let connector_auth_json = auth_details
+        .encode_to_value()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while deserializing connector_account_details")?;
 
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,

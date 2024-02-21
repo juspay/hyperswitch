@@ -773,7 +773,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -944,7 +944,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -957,7 +957,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(false),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -969,7 +969,7 @@ pub fn verify_mandate_details(
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "cross currency mandates not supported".to_string()
+                reason: "cross currency mandates not supported".into()
             }))
         },
     )
@@ -1026,7 +1026,6 @@ where
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
@@ -3193,6 +3192,7 @@ impl AttemptType {
             unified_message: None,
             net_amount: old_payment_attempt.amount,
             mandate_data: old_payment_attempt.mandate_data,
+            fingerprint_id: None,
         }
     }
 
