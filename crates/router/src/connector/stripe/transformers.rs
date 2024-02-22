@@ -2097,7 +2097,7 @@ pub struct PaymentIntentResponse {
     pub client_secret: Option<Secret<String>>,
     pub created: i32,
     pub customer: Option<Secret<String>>,
-    pub payment_method: Option<String>,
+    pub payment_method: Option<Secret<String>>,
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
@@ -2369,7 +2369,10 @@ impl<F, T>
             });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
-            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
+            types::MandateReference::foreign_from((
+                item.response.payment_method_options,
+                pm.expose(),
+            ))
         });
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
@@ -2491,16 +2494,16 @@ impl<F, T>
                                 bancontact
                                     .attached_payment_method
                                     .map(|attached_payment_method| attached_payment_method.expose())
-                                    .unwrap_or(pm)
+                                    .unwrap_or(pm.expose())
                             }
                             Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
                                 .attached_payment_method
                                 .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(pm),
+                                .unwrap_or(pm.expose()),
                             Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => sofort
                                 .attached_payment_method
                                 .map(|attached_payment_method| attached_payment_method.expose())
-                                .unwrap_or(pm),
+                                .unwrap_or(pm.expose()),
                             Some(StripePaymentMethodDetailsResponse::Blik)
                             | Some(StripePaymentMethodDetailsResponse::Eps)
                             | Some(StripePaymentMethodDetailsResponse::Fpx)
@@ -2518,10 +2521,10 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Wechatpay)
                             | Some(StripePaymentMethodDetailsResponse::Alipay)
                             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
-                            | None => pm,
+                            | None => pm.expose(),
                         }
                     }
-                    Some(StripeChargeEnum::ChargeId(_)) | None => pm,
+                    Some(StripeChargeEnum::ChargeId(_)) | None => pm.expose(),
                 },
             ))
         });
