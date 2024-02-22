@@ -15,6 +15,7 @@ use crate::{
         ApplicationResponse,
     },
     types::domain::user::RoleName,
+    utils,
 };
 
 pub async fn get_role_from_token(
@@ -48,6 +49,14 @@ pub async fn create_role(
             .attach_printable("role groups cannot be empty");
     }
 
+    utils::user_role::is_role_name_already_present_for_merchant(
+        &state,
+        &role_name,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await?;
+
     state
         .store
         .insert_role(RoleNew {
@@ -63,7 +72,7 @@ pub async fn create_role(
             last_modified_at: now,
         })
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -156,6 +165,16 @@ pub async fn update_role(
         .transpose()?
         .map(|x| x.get_role_name());
 
+    if let Some(ref role_name) = role_name {
+        utils::user_role::is_role_name_already_present_for_merchant(
+            &state,
+            &role_name,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await?;
+    }
+
     if let Some(ref groups) = req.groups {
         if groups.is_empty() {
             return Err(UserErrors::InvalidRoleOperation.into())
@@ -175,7 +194,7 @@ pub async fn update_role(
             },
         )
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
 
     Ok(ApplicationResponse::StatusOk)
 }
