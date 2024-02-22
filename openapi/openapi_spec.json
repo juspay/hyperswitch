@@ -4315,6 +4315,10 @@
               }
             ],
             "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
