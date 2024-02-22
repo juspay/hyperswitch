@@ -2,17 +2,17 @@ pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
-    routes,
+    logger, routes,
     services::{api, authentication as auth},
     types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -26,6 +26,9 @@ pub async fn payment_intents_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+    tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
     let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
