@@ -1270,6 +1270,17 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_status(customer_id, merchant_id, status)
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,

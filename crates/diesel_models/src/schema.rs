@@ -828,6 +828,9 @@ diesel::table! {
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
+        connector_mit_details -> Nullable<Jsonb>,
+        customer_acceptance -> Nullable<Jsonb>,
+        status -> PaymentMethodStatus,
     }
 }
 

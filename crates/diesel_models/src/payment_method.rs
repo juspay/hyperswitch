@@ -33,6 +33,9 @@ pub struct PaymentMethod {
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
+    pub connector_mit_details: Option<serde_json::Value>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub status: storage_enums::PaymentMethodStatus,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -59,6 +62,9 @@ pub struct PaymentMethodNew {
     pub last_modified: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
+    pub connector_mit_details: Option<serde_json::Value>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub status: storage_enums::PaymentMethodStatus,
 }
 
 impl Default for PaymentMethodNew {
@@ -87,6 +93,9 @@ impl Default for PaymentMethodNew {
             last_modified: now,
             metadata: Option::default(),
             payment_method_data: Option::default(),
+            connector_mit_details: Option::default(),
+            customer_acceptance: Option::default(),
+            status: storage_enums::PaymentMethodStatus::Active,
         }
     }
 }
