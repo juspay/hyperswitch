@@ -16235,6 +16235,12 @@
       "TouchNGoRedirection": {
         "type": "object"
       },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "payment"
+        ]
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
