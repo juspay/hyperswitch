@@ -74,6 +74,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
+            | Flow::ConfigKeyDelete
             | Flow::CreateConfigKey => Self::Configs,
 
             Flow::CustomersCreate
