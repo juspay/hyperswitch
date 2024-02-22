@@ -266,3 +266,9 @@ pub struct GetSearchRequest {
     #[serde(default)]
     pub filters: search::SearchFilters,
 }
+
+pub enum SearchIndex {
+    PaymentAttempts,
+    PaymentIntents,
+    Refunds,
+}
