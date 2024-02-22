@@ -391,6 +391,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     unified_code: payment_attempt.unified_code.clone(),
                     unified_message: payment_attempt.unified_message.clone(),
                     mandate_data: payment_attempt.mandate_data.clone(),
+                    fingerprint_id: payment_attempt.fingerprint_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1105,6 +1106,7 @@ impl DataModelExt for PaymentAttempt {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            fingerprint_id: self.fingerprint_id,
         }
     }
 
@@ -1163,6 +1165,7 @@ impl DataModelExt for PaymentAttempt {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            fingerprint_id: storage_model.fingerprint_id,
         }
     }
 }
@@ -1219,6 +1222,7 @@ impl DataModelExt for PaymentAttemptNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            fingerprint_id: self.fingerprint_id,
         }
     }
 
@@ -1275,6 +1279,7 @@ impl DataModelExt for PaymentAttemptNew {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            fingerprint_id: storage_model.fingerprint_id,
         }
     }
 }
@@ -1299,6 +1304,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::Update {
                 amount,
@@ -1315,6 +1321,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             },
             Self::UpdateTrackers {
@@ -1373,6 +1380,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -1394,6 +1402,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
             },
@@ -1578,6 +1587,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             } => Self::Update {
                 amount,
@@ -1594,6 +1604,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::UpdateTrackers {
@@ -1641,6 +1652,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
             } => Self::ConfirmUpdate {
@@ -1662,6 +1674,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 amount_capturable,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
             },

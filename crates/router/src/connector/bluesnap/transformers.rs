@@ -294,13 +294,10 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
-                    let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
-                        &BluesnapGooglePayObject {
-                            payment_method_data: utils::GooglePayWalletData::from(
-                                payment_method_data,
-                            ),
-                        },
-                    )
+                    let gpay_object = BluesnapGooglePayObject {
+                        payment_method_data: utils::GooglePayWalletData::from(payment_method_data),
+                    }
+                    .encode_to_string_of_json()
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
@@ -350,25 +347,21 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         address.push(add)
                     }
 
-                    let apple_pay_object = Encode::<EncodedPaymentToken>::encode_to_string_of_json(
-                        &EncodedPaymentToken {
-                            token: ApplepayPaymentData {
-                                payment_data: apple_pay_payment_data,
-                                payment_method: payment_method_data
-                                    .payment_method
-                                    .to_owned()
-                                    .into(),
-                                transaction_identifier: payment_method_data.transaction_identifier,
-                            },
-                            billing_contact: BillingDetails {
-                                country_code: billing_address.country,
-                                address_lines: Some(address),
-                                family_name: billing_address.last_name.to_owned(),
-                                given_name: billing_address.first_name.to_owned(),
-                                postal_code: billing_address.zip,
-                            },
+                    let apple_pay_object = EncodedPaymentToken {
+                        token: ApplepayPaymentData {
+                            payment_data: apple_pay_payment_data,
+                            payment_method: payment_method_data.payment_method.to_owned().into(),
+                            transaction_identifier: payment_method_data.transaction_identifier,
                         },
-                    )
+                        billing_contact: BillingDetails {
+                            country_code: billing_address.country,
+                            address_lines: Some(address),
+                            family_name: billing_address.last_name.to_owned(),
+                            given_name: billing_address.first_name.to_owned(),
+                            postal_code: billing_address.zip,
+                        },
+                    }
+                    .encode_to_string_of_json()
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                     Ok((

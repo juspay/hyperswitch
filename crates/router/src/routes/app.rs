@@ -37,8 +37,8 @@ use super::routing as cloud_routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
-    locker_migration, payment_link::*, user::*, user_role::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
+    user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1020,7 +1020,11 @@ impl User {
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
                 )
-                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)));
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)))
+                .service(
+                    web::resource("/accept_invite_from_email")
+                        .route(web::post().to(accept_invite_from_email)),
+                );
         }
         #[cfg(not(feature = "email"))]
         {
@@ -1061,19 +1065,6 @@ impl User {
             )
         }
         route
-    }
-}
-
-pub struct LockerMigrate;
-
-#[cfg(feature = "olap")]
-impl LockerMigrate {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("locker_migration/{merchant_id}")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
-            )
     }
 }
 
