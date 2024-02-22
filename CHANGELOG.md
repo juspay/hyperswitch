@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.16.0-hotfix2
+
+### Refactors
+
+- **connector:**
+  - [NMI] add hyperswitch loader to card 3ds ([#3776](https://github.com/juspay/hyperswitch/pull/3776)) ([`a3d3d0d`](https://github.com/juspay/hyperswitch/commit/a3d3d0d3f5169ac8d964cb0f6b8236db6cb019e3))
+  - [NMI] Include customer_vault_id for card 3ds transaction request ([#3779](https://github.com/juspay/hyperswitch/pull/3779)) ([`3296173`](https://github.com/juspay/hyperswitch/commit/32961730137f8f0acc5e7f3b29f16ff8df9fe7ef))
+
+- - -
+
 ## 2024.02.16.0-hotfix1
 
 ### Bug Fixes
