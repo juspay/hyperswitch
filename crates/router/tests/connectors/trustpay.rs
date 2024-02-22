@@ -80,6 +80,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: None,
+                email: None,
             }),
             ..Default::default()
         }),

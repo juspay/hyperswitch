@@ -1996,6 +1996,9 @@ pub struct Address {
     pub address: Option<AddressDetails>,
 
     pub phone: Option<PhoneDetails>,
+
+    #[schema(value_type = Option<String>)]
+    pub email: Option<Email>,
 }
 
 // used by customers also, could be moved outside
