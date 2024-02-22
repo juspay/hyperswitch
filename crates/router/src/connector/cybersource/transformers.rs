@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret, ExposeInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
