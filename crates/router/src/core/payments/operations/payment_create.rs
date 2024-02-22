@@ -146,6 +146,22 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let payment_method_billing_address =
+            helpers::create_or_find_address_for_payment_by_request(
+                db,
+                request
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.billing.as_ref()),
+                None,
+                merchant_id,
+                customer_details.customer_id.as_ref(),
+                merchant_key_store,
+                &payment_id,
+                merchant_account.storage_scheme,
+            )
+            .await?;
+
         let browser_info = request
             .browser_info
             .clone()
@@ -217,9 +233,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             merchant_account,
             money,
             request,
-            shipping_address.clone().map(|x| x.address_id),
+            shipping_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             payment_link_data.clone(),
-            billing_address.clone().map(|x| x.address_id),
+            billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             attempt_id,
             profile_id,
             session_expiry,
@@ -235,6 +255,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             browser_info,
             state,
+            payment_method_billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
         )
         .await?;
 
@@ -361,6 +384,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing_address
+                    .as_ref()
+                    .map(|address| address.into()),
             },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
@@ -700,6 +726,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &AppState,
+        payment_method_billing_address_id: Option<String>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -791,6 +818,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 mandate_data,
+                payment_method_billing_address_id,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,

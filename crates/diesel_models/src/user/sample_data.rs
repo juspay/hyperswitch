@@ -68,6 +68,7 @@ pub struct PaymentAttemptBatchNew {
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -122,6 +123,7 @@ impl PaymentAttemptBatchNew {
             unified_message: self.unified_message,
             net_amount: self.net_amount,
             mandate_data: self.mandate_data,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
         }
     }
 }

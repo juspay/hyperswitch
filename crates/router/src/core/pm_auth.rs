@@ -116,8 +116,8 @@ pub async fn create_link_token(
                 &*state.store,
                 pi.billing_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -702,8 +702,8 @@ pub async fn retrieve_payment_method_from_auth_service(
         &*state.store,
         payment_intent.billing_address_id.clone(),
         key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id,
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;

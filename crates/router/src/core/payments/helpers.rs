@@ -393,16 +393,16 @@ pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: String,
-    merchant_id: String,
+    payment_id: &str,
+    merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
             .find_address_by_merchant_id_payment_id_address_id(
-                &merchant_id,
-                &payment_id,
+                merchant_id,
+                payment_id,
                 &address_id,
                 merchant_key_store,
                 storage_scheme,
@@ -3216,6 +3216,8 @@ impl AttemptType {
             unified_message: None,
             net_amount: old_payment_attempt.amount,
             mandate_data: old_payment_attempt.mandate_data,
+            // New payment method billing address can be passed for a retry
+            payment_method_billing_address_id: None,
         }
     }
 

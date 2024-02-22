@@ -111,6 +111,7 @@ pub async fn construct_payout_router_data<'a, F>(
                 email: a.email.to_owned().map(Email::from),
             }
         }),
+        payment_method_billing: None,
     };
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();

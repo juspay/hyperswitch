@@ -198,6 +198,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
+            db,
+            request.billing.as_ref(),
+            payment_attempt.payment_method_billing_address_id.as_deref(),
+            merchant_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
@@ -364,6 +379,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
             payment_method_data: request

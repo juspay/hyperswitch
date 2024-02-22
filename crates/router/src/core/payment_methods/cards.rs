@@ -1250,8 +1250,8 @@ pub async fn list_payment_methods(
                 db,
                 pi.shipping_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1267,8 +1267,8 @@ pub async fn list_payment_methods(
                 db,
                 pi.billing_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
