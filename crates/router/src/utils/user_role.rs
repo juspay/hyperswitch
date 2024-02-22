@@ -1,6 +1,11 @@
 use api_models::user_role as user_role_api;
+use error_stack::ResultExt;
 
-use crate::services::authorization::permissions::Permission;
+use crate::{
+    core::errors::{UserErrors, UserResult},
+    routes::AppState,
+    services::authorization::permissions::Permission,
+};
 
 impl From<Permission> for user_role_api::Permission {
     fn from(value: Permission) -> Self {
@@ -33,4 +38,25 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
         }
     }
+}
+
+pub async fn is_role_name_already_present_for_merchant(
+    state: &AppState,
+    role_name: &str,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    let role_name_list: Vec<String> = state
+        .store
+        .list_all_roles(merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .iter()
+        .map(|role| role.role_name.to_owned())
+        .collect();
+
+    if role_name_list.contains(&role_name.to_string()) {
+        return Err(UserErrors::RoleNameAlreadyExists.into());
+    }
+    Ok(())
 }

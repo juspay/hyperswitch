@@ -57,6 +57,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     last_name: Some(Secret::new("Doe".to_string())),
                 }),
                 phone: None,
+                email: None,
             }),
         }),
         auth_type: None,

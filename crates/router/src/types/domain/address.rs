@@ -39,6 +39,7 @@ pub struct Address {
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub updated_by: String,
+    pub email: crypto::OptionalEncryptableEmail,
 }
 
 #[async_trait]
@@ -67,6 +68,7 @@ impl behaviour::Conversion for Address {
             merchant_id: self.merchant_id,
             payment_id: self.payment_id,
             updated_by: self.updated_by,
+            email: self.email.map(Encryption::from),
         })
     }
 
@@ -76,6 +78,7 @@ impl behaviour::Conversion for Address {
     ) -> CustomResult<Self, ValidationError> {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
                 id: other.id,
                 address_id: other.address_id,
@@ -96,6 +99,7 @@ impl behaviour::Conversion for Address {
                 merchant_id: other.merchant_id,
                 payment_id: other.payment_id,
                 updated_by: other.updated_by,
+                email: other.email.async_lift(inner_decrypt_email).await?,
             })
         }
         .await
@@ -125,6 +129,7 @@ impl behaviour::Conversion for Address {
             created_at: now,
             modified_at: now,
             updated_by: self.updated_by,
+            email: self.email.map(Encryption::from),
         })
     }
 }
@@ -144,6 +149,7 @@ pub enum AddressUpdate {
         phone_number: crypto::OptionalEncryptableSecretString,
         country_code: Option<String>,
         updated_by: String,
+        email: crypto::OptionalEncryptableEmail,
     },
 }
 
@@ -163,6 +169,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 phone_number,
                 country_code,
                 updated_by,
+                email,
             } => Self {
                 city,
                 country,
@@ -177,6 +184,7 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 country_code,
                 modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
                 updated_by,
+                email: email.map(Encryption::from),
             },
         }
     }
