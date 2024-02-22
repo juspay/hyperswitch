@@ -276,6 +276,42 @@ impl From<PaymentSolution> for String {
     }
 }
 
+impl ForeignFrom<Option<payments::ApplePayCardNetworks>> for String {
+    fn foreign_from(network: Option<payments::ApplePayCardNetworks>) -> Self {
+        match network {
+            Some(card_network) => match card_network {
+                payments::ApplePayCardNetworks::Visa => String::from("internet"),
+                payments::ApplePayCardNetworks::MasterCard => String::from("spa"),
+                payments::ApplePayCardNetworks::AmEx => String::from("aesk"),
+                payments::ApplePayCardNetworks::Discover => String::from("dipb"),
+                payments::ApplePayCardNetworks::Bancontact
+                | payments::ApplePayCardNetworks::Barcode
+                | payments::ApplePayCardNetworks::CartesBancaires
+                | payments::ApplePayCardNetworks::ChinaUnionPay
+                | payments::ApplePayCardNetworks::Dankort
+                | payments::ApplePayCardNetworks::Eftpos
+                | payments::ApplePayCardNetworks::Electron
+                | payments::ApplePayCardNetworks::Elo
+                | payments::ApplePayCardNetworks::Girocard
+                | payments::ApplePayCardNetworks::IDCredit
+                | payments::ApplePayCardNetworks::Interac
+                | payments::ApplePayCardNetworks::JCB
+                | payments::ApplePayCardNetworks::Mada
+                | payments::ApplePayCardNetworks::Maestro
+                | payments::ApplePayCardNetworks::Mir
+                | payments::ApplePayCardNetworks::Nanaco
+                | payments::ApplePayCardNetworks::PostFinance
+                | payments::ApplePayCardNetworks::PrivateLabel
+                | payments::ApplePayCardNetworks::QuicPay
+                | payments::ApplePayCardNetworks::Suica
+                | payments::ApplePayCardNetworks::VPay
+                | payments::ApplePayCardNetworks::Waon => String::from("internet"),
+            },
+            None => String::from("internet"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
     #[serde(rename = "1")]
@@ -340,23 +376,13 @@ impl
             Option<payments::ApplePayCardNetworks>,
         ),
     ) -> Self {
-        let commerce_indicator = match network {
-            Some(card_network) => match card_network {
-                payments::ApplePayCardNetworks::Visa => String::from("internet"),
-                payments::ApplePayCardNetworks::MasterCard => String::from("spa"),
-                payments::ApplePayCardNetworks::AmEx => String::from("aesk"),
-                payments::ApplePayCardNetworks::Discover => String::from("dipb"),
-                _ => String::from("internet"),
-            },
-            None => String::from("internet"),
-        };
         Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             payment_solution: solution.map(String::from),
-            commerce_indicator,
+            commerce_indicator: String::foreign_from(network),
         }
     }
 }

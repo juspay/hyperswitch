@@ -103,7 +103,7 @@ async fn should_authorize_applepay_payment() {
                         transaction_identifier: "someId".to_string(),
                         payment_method: api_models::payments::ApplepayPaymentMethod {
                             display_name: "someName".to_string(),
-                            network: "visa".to_string(),
+                            network: api_models::payments::ApplePayCardNetworks::Visa,
                             pm_type: "card".to_string(),
                         },
                     }),

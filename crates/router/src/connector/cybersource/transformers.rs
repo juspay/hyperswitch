@@ -541,16 +541,7 @@ impl
             } else {
                 (None, None, None)
             };
-        let commerce_indicator = match network {
-            Some(card_network) => match card_network {
-                payments::ApplePayCardNetworks::Visa => String::from("internet"),
-                payments::ApplePayCardNetworks::MasterCard => String::from("spa"),
-                payments::ApplePayCardNetworks::AmEx => String::from("aesk"),
-                payments::ApplePayCardNetworks::Discover => String::from("dipb"),
-                _ => String::from("internet"),
-            },
-            None => String::from("internet"),
-        };
+
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -561,7 +552,7 @@ impl
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator,
+            commerce_indicator: String::foreign_from(network),
         })
     }
 }
