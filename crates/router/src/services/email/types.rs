@@ -302,7 +302,7 @@ impl EmailData for InviteUser {
 pub struct InviteRegisteredUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
 }
