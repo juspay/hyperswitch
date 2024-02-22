@@ -935,8 +935,8 @@ impl RoleName {
         let is_empty_or_whitespace = name.trim().is_empty();
         let is_too_long = name.graphemes(true).count() > consts::user_role::MAX_ROLE_NAME_LENGTH;
 
-        if is_empty_or_whitespace || is_too_long || name.contains(' ') {
-            Err(UserErrors::NameParsingError.into())
+        if is_empty_or_whitespace || is_too_long {
+            Err(UserErrors::RoleNameParsingError.into())
         } else {
             Ok(Self(name.to_lowercase()))
         }

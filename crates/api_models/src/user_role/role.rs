@@ -4,7 +4,7 @@ use common_enums::{PermissionGroup, RoleScope};
 pub struct CreateRoleRequest {
     pub role_name: String,
     pub groups: Vec<PermissionGroup>,
-    pub scope: RoleScope,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

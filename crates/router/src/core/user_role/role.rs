@@ -65,7 +65,7 @@ pub async fn create_role(
             merchant_id: user_from_token.merchant_id,
             org_id: user_from_token.org_id,
             groups: req.groups,
-            scope: req.scope,
+            scope: req.role_scope,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id,
             created_at: now,
