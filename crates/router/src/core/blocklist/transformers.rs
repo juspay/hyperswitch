@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use josekit::jwe;
 #[cfg(feature = "aws_kms")]
 use masking::PeekInterface;
-use masking::StrongSecret;
+use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -35,8 +35,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
 }
 
 async fn generate_fingerprint_request<'a>(
-    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: &blocklist::GenerateFingerprintRequest,
     locker_choice: api_enums::LockerChoice,
@@ -45,11 +44,7 @@ async fn generate_fingerprint_request<'a>(
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    #[cfg(feature = "aws_kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
-
-    #[cfg(not(feature = "aws_kms"))]
-    let private_key = jwekey.vault_private_key.as_bytes();
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
@@ -67,8 +62,8 @@ async fn generate_fingerprint_request<'a>(
 }
 
 async fn generate_jwe_payload_for_request(
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
-    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
+    jwekey: &settings::Jwekey,
+
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
@@ -89,16 +84,10 @@ async fn generate_jwe_payload_for_request(
         .encode_to_vec()
         .change_context(errors::VaultError::GenerateFingerprintFailed)?;
 
-    #[cfg(feature = "aws_kms")]
     let public_key = match locker_choice {
         api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
+            jwekey.vault_encryption_key.peek().as_bytes()
         }
-    };
-
-    #[cfg(not(feature = "aws_kms"))]
-    let public_key = match locker_choice {
-        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
     };
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
@@ -148,10 +137,7 @@ async fn call_to_locker_for_fingerprint(
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<blocklist::GenerateFingerprintResponsePayload, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "aws_kms"))]
-    let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = state.conf.jwekey.get_inner();
 
     let request = generate_fingerprint_request(jwekey, locker, payload, locker_choice).await?;
     let response = services::call_connector_api(state, request)
@@ -175,30 +161,20 @@ async fn call_to_locker_for_fingerprint(
 }
 
 async fn decrypt_generate_fingerprint_response_payload(
-    #[cfg(not(feature = "aws_kms"))] jwekey: &settings::Jwekey,
-    #[cfg(feature = "aws_kms")] jwekey: &settings::ActiveKmsSecrets,
+    jwekey: &settings::Jwekey,
+
     jwe_body: encryption::JweBody,
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> CustomResult<String, errors::VaultError> {
     let target_locker = locker_choice.unwrap_or(api_enums::LockerChoice::HyperswitchCardVault);
 
-    #[cfg(feature = "aws_kms")]
     let public_key = match target_locker {
         api_enums::LockerChoice::HyperswitchCardVault => {
-            jwekey.jwekey.peek().vault_encryption_key.as_bytes()
+            jwekey.vault_encryption_key.peek().as_bytes()
         }
     };
 
-    #[cfg(feature = "aws_kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
-
-    #[cfg(not(feature = "aws_kms"))]
-    let public_key = match target_locker {
-        api_enums::LockerChoice::HyperswitchCardVault => jwekey.vault_encryption_key.as_bytes(),
-    };
-
-    #[cfg(not(feature = "aws_kms"))]
-    let private_key = jwekey.vault_private_key.as_bytes();
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jwt = payment_methods::get_dotted_jwe(jwe_body);
     let alg = jwe::RSA_OAEP;
