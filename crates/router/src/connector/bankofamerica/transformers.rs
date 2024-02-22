@@ -280,10 +280,10 @@ impl ForeignFrom<Option<payments::ApplePayCardNetworks>> for String {
     fn foreign_from(network: Option<payments::ApplePayCardNetworks>) -> Self {
         match network {
             Some(card_network) => match card_network {
-                payments::ApplePayCardNetworks::Visa => String::from("internet"),
-                payments::ApplePayCardNetworks::MasterCard => String::from("spa"),
-                payments::ApplePayCardNetworks::AmEx => String::from("aesk"),
-                payments::ApplePayCardNetworks::Discover => String::from("dipb"),
+                payments::ApplePayCardNetworks::Visa => Self::from("internet"),
+                payments::ApplePayCardNetworks::MasterCard => Self::from("spa"),
+                payments::ApplePayCardNetworks::AmEx => Self::from("aesk"),
+                payments::ApplePayCardNetworks::Discover => Self::from("dipb"),
                 payments::ApplePayCardNetworks::Bancontact
                 | payments::ApplePayCardNetworks::Barcode
                 | payments::ApplePayCardNetworks::CartesBancaires
@@ -305,9 +305,9 @@ impl ForeignFrom<Option<payments::ApplePayCardNetworks>> for String {
                 | payments::ApplePayCardNetworks::QuicPay
                 | payments::ApplePayCardNetworks::Suica
                 | payments::ApplePayCardNetworks::VPay
-                | payments::ApplePayCardNetworks::Waon => String::from("internet"),
+                | payments::ApplePayCardNetworks::Waon => Self::from("internet"),
             },
-            None => String::from("internet"),
+            None => Self::from("internet"),
         }
     }
 }
