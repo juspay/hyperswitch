@@ -1841,10 +1841,16 @@ pub fn build_redirection_form(
                         responseForm.appendChild(item4);
 
                         var item5=document.createElement('input');
-                        item4.type='hidden';
-                        item4.name='orderId';
-                        item4.value='{order_id}';
+                        item5.type='hidden';
+                        item5.name='orderId';
+                        item5.value='{order_id}';
                         responseForm.appendChild(item5);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='customerVaultId';
+                        item6.value='{customer_vault_id}';
+                        responseForm.appendChild(item6);
 
                         document.body.appendChild(responseForm);
                         responseForm.submit();
