@@ -1020,7 +1020,11 @@ impl User {
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
                 )
-                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)));
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)))
+                .service(
+                    web::resource("/accept_invite_from_email")
+                        .route(web::post().to(accept_invite_from_email)),
+                );
         }
         #[cfg(not(feature = "email"))]
         {
