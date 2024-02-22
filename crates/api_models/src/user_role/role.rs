@@ -9,7 +9,6 @@ pub struct CreateRoleRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateRoleRequest {
-    pub role_id: String,
     pub groups: Option<Vec<PermissionGroup>>,
     pub role_name: Option<String>,
 }

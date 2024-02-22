@@ -68,43 +68,6 @@ pub async fn create_role(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn update_role(
-    state: AppState,
-    user_from_token: UserFromToken,
-    req: role_api::UpdateRoleRequest,
-) -> UserResponse<()> {
-    let now = common_utils::date_time::now();
-
-    let role_name = req
-        .role_name
-        .map(RoleName::new)
-        .transpose()?
-        .map(|x| x.get_role_name());
-
-    if let Some(ref groups) = req.groups {
-        if groups.is_empty() {
-            return Err(UserErrors::InvalidRoleOperation.into())
-                .attach_printable("role groups cannot be empty");
-        }
-    }
-
-    state
-        .store
-        .update_role_by_role_id(
-            &req.role_id,
-            RoleUpdate::UpdateDetails {
-                groups: req.groups,
-                role_name,
-                last_modified_at: now,
-                last_modified_by: user_from_token.user_id,
-            },
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    Ok(ApplicationResponse::StatusOk)
-}
-
 pub async fn list_invitable_roles(
     state: AppState,
     user_from_token: UserFromToken,
@@ -177,4 +140,42 @@ pub async fn get_role(
         role_name: role_info.get_role_name().to_string(),
         role_scope: role_info.get_scope(),
     }))
+}
+
+pub async fn update_role(
+    state: AppState,
+    user_from_token: UserFromToken,
+    req: role_api::UpdateRoleRequest,
+    role_id: &str,
+) -> UserResponse<()> {
+    let now = common_utils::date_time::now();
+
+    let role_name = req
+        .role_name
+        .map(RoleName::new)
+        .transpose()?
+        .map(|x| x.get_role_name());
+
+    if let Some(ref groups) = req.groups {
+        if groups.is_empty() {
+            return Err(UserErrors::InvalidRoleOperation.into())
+                .attach_printable("role groups cannot be empty");
+        }
+    }
+
+    state
+        .store
+        .update_role_by_role_id(
+            role_id,
+            RoleUpdate::UpdateDetails {
+                groups: req.groups,
+                role_name,
+                last_modified_at: now,
+                last_modified_by: user_from_token.user_id,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

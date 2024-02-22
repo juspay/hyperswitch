@@ -7,7 +7,7 @@ use crate::{
     core::{api_locking, user_role as user_role_core},
     services::{
         api,
-        authentication::{self as auth, UserFromToken},
+        authentication::{self as auth},
         authorization::permissions::Permission,
     },
 };
@@ -36,7 +36,7 @@ pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -
         state.clone(),
         &req,
         (),
-        |state, user: UserFromToken, _| user_role_core::role::get_role_from_token(state, user),
+        |state, user, _| user_role_core::role::get_role_from_token(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -55,24 +55,6 @@ pub async fn create_role(
         &req,
         json_payload.into_inner(),
         user_role_core::role::create_role,
-        &auth::JWTAuth(Permission::UsersWrite),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn update_role(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<user_role_api::role::UpdateRoleRequest>,
-) -> HttpResponse {
-    let flow = Flow::UpdateRole;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        json_payload.into_inner(),
-        user_role_core::role::update_role,
         &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
@@ -109,6 +91,27 @@ pub async fn get_role(
         request_payload,
         user_role_core::role::get_role,
         &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn update_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::role::UpdateRoleRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::UpdateRole;
+    let role_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, user, req| user_role_core::role::update_role(state, user, req, &role_id),
+        &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
