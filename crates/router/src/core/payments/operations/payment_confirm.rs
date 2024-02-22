@@ -641,7 +641,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         // if authentication has already happened, then payment_data.authentication will be Some.
         // We should do post authn call to fetch the authentication data from 3ds connector
-        let is_post_authn_call = payment_data.authentication.clone();
+        let authentication = payment_data.authentication.clone();
         let separate_authentication_requested = payment_data
             .payment_intent
             .request_external_three_ds_authentication
@@ -650,7 +650,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             authentication::utils::get_connector_name_if_separate_authn_supported(
                 connector_call_type,
             );
-        print!("is_pre_authn_call {:?}", is_post_authn_call.is_none());
+        print!("is_pre_authn_call {:?}", authentication.is_none());
         print!(
             "separate_authentication_requested {:?}",
             separate_authentication_requested
@@ -698,7 +698,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                         ),
                     },
                 )?;
-            if let Some(authentication_data) = is_post_authn_call {
+            if let Some(authentication_data) = authentication {
                 // call post authn service
                 authentication::perform_post_authentication(
                     state,

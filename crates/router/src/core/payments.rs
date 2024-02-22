@@ -167,7 +167,7 @@ where
     let is_external_authentication_requested = payment_data
         .payment_intent
         .request_external_three_ds_authentication;
-    payment_data = tokenize_in_router_when_confirm_false(
+    payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
         state,
         &operation,
         &mut payment_data,
@@ -2024,7 +2024,7 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
-pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
+pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, Ctx>(
     state: &AppState,
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     payment_data: &mut PaymentData<F>,
