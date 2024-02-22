@@ -91,7 +91,9 @@ pub struct Database {
 #[serde(default)]
 pub struct DrainerSettings {
     pub stream_name: String,
+    pub error_stream_name: String,
     pub num_partitions: u8,
+    pub num_err_partitions: u8,
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
@@ -133,7 +135,9 @@ impl Default for DrainerSettings {
     fn default() -> Self {
         Self {
             stream_name: "DRAINER_STREAM".into(),
+            error_stream_name: "DRAINER_ERROR_STREAM".into(),
             num_partitions: 64,
+            num_err_partitions: 32,
             max_read_count: 100,
             shutdown_interval: 1000, // in milliseconds
             loop_interval: 100,      // in milliseconds
@@ -145,7 +149,7 @@ impl Default for Server {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".to_string(),
-            port: 8080,
+            port: 8000,
             workers: 1,
         }
     }

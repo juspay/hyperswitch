@@ -6,36 +6,37 @@ use tokio::{
 };
 
 use crate::{
-    errors, instrument, logger, metrics, query::ExecuteQuery, tracing, utils, DrainerSettings,
-    Store, StreamData,
+    errors, instrument, logger, metrics,
+    stream::{DrainStream, StreamOperation},
+    tracing, utils, DrainerSettings,
 };
 
 /// Handler handles the spawning and closing of drainer
 /// Arc is used to enable creating a listener for graceful shutdown
 #[derive(Clone)]
-pub struct Handler {
-    inner: Arc<HandlerInner>,
+pub struct Handler<T: StreamOperation + DrainStream + Clone + Send> {
+    inner: Arc<HandlerInner<T>>,
 }
 
-impl std::ops::Deref for Handler {
-    type Target = HandlerInner;
+impl<T: StreamOperation + Clone + Send + DrainStream> std::ops::Deref for Handler<T> {
+    type Target = HandlerInner<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-pub struct HandlerInner {
+pub struct HandlerInner<T: StreamOperation + DrainStream + Clone + Send> {
     shutdown_interval: Duration,
     loop_interval: Duration,
     active_tasks: Arc<atomic::AtomicU64>,
     conf: DrainerSettings,
-    store: Arc<Store>,
+    stream: T,
     running: Arc<atomic::AtomicBool>,
 }
 
-impl Handler {
-    pub fn from_conf(conf: DrainerSettings, store: Arc<Store>) -> Self {
+impl<T: StreamOperation + DrainStream + Clone + Send + Sync + 'static> Handler<T> {
+    pub fn from_conf(conf: DrainerSettings, stream: T) -> Self {
         let shutdown_interval = Duration::from_millis(conf.shutdown_interval.into());
         let loop_interval = Duration::from_millis(conf.loop_interval.into());
 
@@ -48,7 +49,7 @@ impl Handler {
             loop_interval,
             active_tasks,
             conf,
-            store,
+            stream,
             running,
         };
 
@@ -67,9 +68,9 @@ impl Handler {
 
         while self.running.load(atomic::Ordering::SeqCst) {
             metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
-            if self.store.is_stream_available(stream_index).await {
+            if self.stream.is_stream_available(stream_index).await {
                 tokio::spawn(drainer_handler(
-                    self.store.clone(),
+                    self.stream.clone(),
                     stream_index,
                     self.conf.max_read_count,
                     self.active_tasks.clone(),
@@ -78,7 +79,7 @@ impl Handler {
             }
             stream_index = utils::increment_stream_index(
                 (stream_index, jobs_picked.clone()),
-                self.store.config.drainer_num_partitions,
+                self.stream.store().config.drainer_num_partitions,
             )
             .await;
             time::sleep(self.loop_interval).await;
@@ -113,7 +114,7 @@ impl Handler {
     pub fn spawn_error_handlers(&self, tx: mpsc::Sender<()>) -> errors::DrainerResult<()> {
         let (redis_error_tx, redis_error_rx) = oneshot::channel();
 
-        let redis_conn_clone = self.store.redis_conn.clone();
+        let redis_conn_clone = self.stream.store().redis_conn.clone();
 
         // Spawn a task to monitor if redis is down or not
         tokio::spawn(async move { redis_conn_clone.on_error(redis_error_tx).await });
@@ -140,8 +141,8 @@ pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: m
 }
 
 #[router_env::instrument(skip_all)]
-async fn drainer_handler(
-    store: Arc<Store>,
+async fn drainer_handler<T: StreamOperation + Clone + Send + Sync + DrainStream>(
+    stream: T,
     stream_index: u8,
     max_read_count: u64,
     active_tasks: Arc<atomic::AtomicU64>,
@@ -149,10 +150,10 @@ async fn drainer_handler(
 ) -> errors::DrainerResult<()> {
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
-    let stream_name = store.get_drainer_stream_name(stream_index);
+    let stream_name = stream.get_drainer_stream_name(stream_index);
 
     let drainer_result = Box::pin(drainer(
-        store.clone(),
+        stream.clone(),
         max_read_count,
         stream_name.as_str(),
         jobs_picked,
@@ -163,9 +164,11 @@ async fn drainer_handler(
         logger::error!(?error)
     }
 
-    let flag_stream_name = store.get_stream_key_flag(stream_index);
+    let flag_stream_name = stream.get_stream_key_flag(stream_index);
 
-    let output = store.make_stream_available(flag_stream_name.as_str()).await;
+    let output = stream
+        .make_stream_available(flag_stream_name.as_str())
+        .await;
     active_tasks.fetch_sub(1, atomic::Ordering::Release);
     output.map_err(|err| {
         logger::error!(operation = "unlock_stream", err=?err);
@@ -174,13 +177,13 @@ async fn drainer_handler(
 }
 
 #[instrument(skip_all, fields(global_id, request_id, session_id))]
-async fn drainer(
-    store: Arc<Store>,
+async fn drainer<T: StreamOperation + Clone + DrainStream + Sync>(
+    stream: T,
     max_read_count: u64,
     stream_name: &str,
     jobs_picked: Arc<atomic::AtomicU8>,
 ) -> errors::DrainerResult<()> {
-    let stream_read = match store.read_from_stream(stream_name, max_read_count).await {
+    let stream_read = match stream.read_from_stream(stream_name, max_read_count).await {
         Ok(result) => {
             jobs_picked.fetch_add(1, atomic::Ordering::SeqCst);
             result
@@ -214,64 +217,6 @@ async fn drainer(
         }],
     );
 
-    let session_id = common_utils::generate_id_with_default_len("drainer_session");
-
-    let mut last_processed_id = String::new();
-
-    for (entry_id, entry) in entries.clone() {
-        let data = match StreamData::from_hashmap(entry) {
-            Ok(data) => data,
-            Err(err) => {
-                logger::error!(operation = "deserialization", err=?err);
-                metrics::STREAM_PARSE_FAIL.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue {
-                        key: "operation".into(),
-                        value: "deserialization".into(),
-                    }],
-                );
-
-                // break from the loop in case of a deser error
-                break;
-            }
-        };
-
-        tracing::Span::current().record("request_id", data.request_id);
-        tracing::Span::current().record("global_id", data.global_id);
-        tracing::Span::current().record("session_id", &session_id);
-
-        match data.typed_sql.execute_query(&store, data.pushed_at).await {
-            Ok(_) => {
-                last_processed_id = entry_id;
-            }
-            Err(err) => match err.current_context() {
-                // In case of Uniqueviolation we can't really do anything to fix it so just clear
-                // it from the stream
-                diesel_models::errors::DatabaseError::UniqueViolation => {
-                    last_processed_id = entry_id;
-                }
-                // break from the loop in case of an error in query
-                _ => break,
-            },
-        }
-    }
-
-    if !last_processed_id.is_empty() {
-        let entries_trimmed = store
-            .trim_from_stream(stream_name, &last_processed_id)
-            .await?;
-        if read_count != entries_trimmed {
-            logger::error!(
-                read_entries = %read_count,
-                trimmed_entries = %entries_trimmed,
-                ?entries,
-                "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
-            );
-        }
-    } else {
-        logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
-    }
-
+    T::drain_stream(entries, stream, stream_name).await?;
     Ok(())
 }

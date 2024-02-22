@@ -2338,6 +2338,7 @@ dependencies = [
  "clap",
  "common_utils",
  "config",
+ "crc32fast",
  "diesel",
  "diesel_models",
  "error-stack",

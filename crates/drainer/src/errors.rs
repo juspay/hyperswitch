@@ -13,6 +13,8 @@ pub enum DrainerError {
     SignalError(String),
     #[error("Error while parsing data from the stream: {0:?}")]
     ParsingError(error_stack::Report<common_utils::errors::ParsingError>),
+    #[error("Error while executing the query in the database {0:?}")]
+    DatabaseError(error_stack::Report<diesel_models::errors::DatabaseError>),
     #[error("Unexpected error occurred: {0}")]
     UnexpectedError(String),
     #[error("I/O: {0}")]

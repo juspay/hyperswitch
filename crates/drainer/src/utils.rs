@@ -57,6 +57,10 @@ where
     }
 }
 
+pub fn partition_number(key: &str, num_partitions: u8) -> u32 {
+    crc32fast::hash(key.as_bytes()) % u32::from(num_partitions)
+}
+
 // Here the output is in the format (stream_index, jobs_picked),
 // similar to the first argument of the function
 #[inline(always)]

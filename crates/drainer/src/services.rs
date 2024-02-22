@@ -19,7 +19,9 @@ pub struct Store {
 #[derive(Clone)]
 pub struct StoreConfig {
     pub drainer_stream_name: String,
+    pub drainer_error_stream_name: String,
     pub drainer_num_partitions: u8,
+    pub drainer_error_num_partitions: u8,
 }
 
 impl Store {
@@ -36,6 +38,8 @@ impl Store {
             config: StoreConfig {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
+                drainer_error_num_partitions: config.drainer.num_err_partitions,
+                drainer_error_stream_name: config.drainer.error_stream_name.clone(),
             },
             request_id: None,
         }

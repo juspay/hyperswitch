@@ -66,6 +66,24 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_key(&self, key: &str) -> CustomResult<u32, errors::RedisError> {
+        self.pool
+            .incr(key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn decrement_key(&self, key: &str) -> CustomResult<u32, errors::RedisError> {
+        self.pool
+            .decr(key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_if_not_exist<V>(
         &self,
         key: &str,

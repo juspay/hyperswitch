@@ -24,11 +24,17 @@ use tokio::sync::mpsc;
 pub(crate) type Settings = crate::settings::Settings<RawSecret>;
 
 use crate::{
-    connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,
+    connection::pg_connection,
+    services::Store,
+    settings::DrainerSettings,
+    stream::{DrainerErrorStream, DrainerStream},
+    types::StreamData,
 };
 
 pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::DrainerResult<()> {
-    let drainer_handler = handler::Handler::from_conf(conf, store);
+    let drainer_handler = handler::Handler::from_conf(conf.clone(), DrainerStream(store.clone()));
+
+    let drainer_error_handler = handler::Handler::from_conf(conf, DrainerErrorStream(store));
 
     let (tx, rx) = mpsc::channel::<()>(1);
 
@@ -42,14 +48,40 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()));
 
     let handler_clone = drainer_handler.clone();
+    let error_handler_clone = drainer_error_handler.clone();
+
+    let (err_tx, err_rx) = mpsc::channel::<()>(1);
+
+    let signal =
+        get_allowed_signals()
+            .into_report()
+            .change_context(errors::DrainerError::SignalError(
+                "Failed while getting allowed signals".to_string(),
+            ))?;
+    let err_handle = signal.handle();
+    let err_task_handle = tokio::spawn(common_utils::signals::signal_handler(
+        signal,
+        err_tx.clone(),
+    ));
 
     tokio::task::spawn(async move { handler_clone.shutdown_listener(rx).await });
+    tokio::task::spawn(async move { error_handler_clone.shutdown_listener(err_rx).await });
 
     drainer_handler.spawn_error_handlers(tx)?;
+    drainer_error_handler.spawn_error_handlers(err_tx)?;
+
+    tokio::task::spawn(async move { drainer_error_handler.spawn().await });
+
     drainer_handler.spawn().await?;
 
     handle.close();
+    err_handle.close();
+
     let _ = task_handle
+        .await
+        .map_err(|err| logger::error!("Failed while joining signal handler: {:?}", err));
+
+    let _ = err_task_handle
         .await
         .map_err(|err| logger::error!("Failed while joining signal handler: {:?}", err));
 
