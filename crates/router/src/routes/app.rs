@@ -813,7 +813,8 @@ impl Configs {
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
-                    .route(web::post().to(config_key_update)),
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
             )
     }
 }
