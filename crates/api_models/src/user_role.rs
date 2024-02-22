@@ -1,3 +1,6 @@
+use common_enums::RoleScope;
+use common_utils::pii;
+
 use crate::user::DashboardEntryResponse;
 
 #[derive(Debug, serde::Serialize)]
@@ -5,9 +8,10 @@ pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct RoleInfoResponse {
-    pub role_id: &'static str,
+    pub role_id: String,
     pub permissions: Vec<Permission>,
-    pub role_name: &'static str,
+    pub role_name: String,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -27,7 +31,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -36,8 +39,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -53,14 +54,12 @@ pub enum PermissionModule {
     Payments,
     Refunds,
     MerchantAccount,
-    Forex,
     Connectors,
     Routing,
     Analytics,
     Mandates,
     Customer,
     Disputes,
-    Files,
     ThreeDsDecisionManager,
     SurchargeDecisionManager,
     AccountCreate,
@@ -84,7 +83,7 @@ pub struct PermissionInfo {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserRoleRequest {
-    pub user_id: String,
+    pub email: pii::Email,
     pub role_id: String,
 }
 
@@ -101,3 +100,13 @@ pub struct AcceptInvitationRequest {
 }
 
 pub type AcceptInvitationResponse = DashboardEntryResponse;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteUserRoleRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TransferOrgOwnershipRequest {
+    pub email: pii::Email,
+}

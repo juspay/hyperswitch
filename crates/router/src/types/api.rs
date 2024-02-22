@@ -40,6 +40,7 @@ use crate::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
+    events::connector_api_logs::ConnectorEvent,
     services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
@@ -130,6 +131,7 @@ pub trait ConnectorCommon {
     fn build_error_response(
         &self,
         res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Ok(ErrorResponse {
             status_code: res.status_code,

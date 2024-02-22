@@ -29,14 +29,14 @@ pub async fn get_authorization_info(
     .await
 }
 
-pub async fn list_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListRoles;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         (),
-        |state, _: (), _| user_role_core::list_roles(state),
+        |state, user, _| user_role_core::list_invitable_roles(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -57,7 +57,7 @@ pub async fn get_role(
         state.clone(),
         &req,
         request_payload,
-        |state, _: (), req| user_role_core::get_role(state, req),
+        user_role_core::get_role,
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -97,6 +97,25 @@ pub async fn update_user_role(
     .await
 }
 
+pub async fn transfer_org_ownership(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::TransferOrgOwnershipRequest>,
+) -> HttpResponse {
+    let flow = Flow::TransferOrgOwnership;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        user_role_core::transfer_org_ownership,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn accept_invitation(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -111,6 +130,24 @@ pub async fn accept_invitation(
         payload,
         user_role_core::accept_invitation,
         &auth::UserWithoutMerchantJWTAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn delete_user_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_role_api::DeleteUserRoleRequest>,
+) -> HttpResponse {
+    let flow = Flow::DeleteUserRole;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_role_core::delete_user_role,
+        &auth::JWTAuth(Permission::UsersWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await

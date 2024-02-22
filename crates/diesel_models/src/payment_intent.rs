@@ -118,6 +118,7 @@ pub enum PaymentIntentUpdate {
     ResponseUpdate {
         status: storage_enums::IntentStatus,
         amount_captured: Option<i64>,
+        fingerprint_id: Option<String>,
         return_url: Option<String>,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
@@ -414,6 +415,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency,
                 status,
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 updated_by,
@@ -423,6 +425,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency: Some(currency),
                 status: Some(status),
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),

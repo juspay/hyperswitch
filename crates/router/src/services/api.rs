@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
@@ -73,6 +73,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
@@ -184,6 +185,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn handle_response(
         &self,
         data: &types::RouterData<T, Req, Resp>,
+        event_builder: Option<&mut ConnectorEvent>,
         _res: types::Response,
     ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
     where
@@ -191,20 +193,25 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Req: Clone,
         Resp: Clone,
     {
+        event_builder.map(|e| e.set_error(json!({"error": "Not Implemented"})));
         Ok(data.clone())
     }
 
     fn get_error_response(
         &self,
-        _res: types::Response,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         Ok(ErrorResponse::get_not_implemented())
     }
 
     fn get_5xx_error_response(
         &self,
         res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
         let error_message = match res.status_code {
             500 => "internal_server_error",
             501 => "not_implemented",
@@ -259,7 +266,7 @@ pub enum CaptureSyncMethod {
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
     'b,
     'a,
@@ -279,6 +286,8 @@ where
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
+    tracing::Span::current().record("connector_name", &req.connector);
+    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
@@ -288,8 +297,7 @@ where
                 response: res.into(),
                 status_code: 200,
             };
-
-            connector_integration.handle_response(req, response)
+            connector_integration.handle_response(req, None, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
@@ -372,46 +380,35 @@ where
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
-
-                    let connector_event = ConnectorEvent::new(
+                    let status_code = response
+                        .as_ref()
+                        .map(|i| {
+                            i.as_ref()
+                                .map_or_else(|value| value.status_code, |value| value.status_code)
+                        })
+                        .unwrap_or_default();
+                    let mut connector_event = ConnectorEvent::new(
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
-                        response
-                            .as_ref()
-                            .map(|response| {
-                                response
-                                    .as_ref()
-                                    .map_or_else(|value| value, |value| value)
-                                    .response
-                                    .escape_ascii()
-                                    .to_string()
-                            })
-                            .ok(),
                         request_url,
                         request_method,
                         req.payment_id.clone(),
                         req.merchant_id.clone(),
                         state.request_id.as_ref(),
                         external_latency,
+                        req.refund_id.clone(),
+                        req.dispute_id.clone(),
+                        status_code,
                     );
-
-                    match connector_event.try_into() {
-                        Ok(event) => {
-                            state.event_handler().log_event(event);
-                        }
-                        Err(err) => {
-                            logger::error!(error=?err, "Error Logging Connector Event");
-                        }
-                    }
 
                     match response {
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
-                                    let mut data = connector_integration
-                                        .handle_response(req, body)
+                                    let handle_response_result = connector_integration
+                                        .handle_response(req, Some(&mut connector_event), body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -426,14 +423,43 @@ where
                                             )
                                         }
                                             error
-                                        })?;
-                                    data.connector_http_status_code = connector_http_status_code;
-                                    // Add up multiple external latencies in case of multiple external calls within the same request.
-                                    data.external_latency = Some(
-                                        data.external_latency
-                                            .map_or(external_latency, |val| val + external_latency),
-                                    );
-                                    data
+                                        });
+                                    match handle_response_result {
+                                        Ok(mut data) => {
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            data.connector_http_status_code =
+                                                connector_http_status_code;
+                                            // Add up multiple external latencies in case of multiple external calls within the same request.
+                                            data.external_latency = Some(
+                                                data.external_latency
+                                                    .map_or(external_latency, |val| {
+                                                        val + external_latency
+                                                    }),
+                                            );
+                                            Ok(data)
+                                        }
+                                        Err(err) => {
+                                            connector_event
+                                                .set_error(json!({"error": err.to_string()}));
+
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            }
+                                            Err(err)
+                                        }
+                                    }?
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
@@ -450,13 +476,30 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
+
                                     let error = match body.status_code {
                                         500..=511 => {
-                                            connector_integration.get_5xx_error_response(body)?
+                                            let error_res = connector_integration
+                                                .get_5xx_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
+                                            match connector_event.try_into() {
+                                                Ok(event) => {
+                                                    state.event_handler().log_event(event);
+                                                }
+                                                Err(err) => {
+                                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                                }
+                                            };
+                                            error_res
                                         }
                                         _ => {
-                                            let error_res =
-                                                connector_integration.get_error_response(body)?;
+                                            let error_res = connector_integration
+                                                .get_error_response(
+                                                    body,
+                                                    Some(&mut connector_event),
+                                                )?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
@@ -472,6 +515,15 @@ where
                             Ok(response)
                         }
                         Err(error) => {
+                            connector_event.set_error(json!({"error": error.to_string()}));
+                            match connector_event.try_into() {
+                                Ok(event) => {
+                                    state.event_handler().log_event(event);
+                                }
+                                Err(err) => {
+                                    logger::error!(error=?err, "Error Logging Connector Event");
+                                }
+                            };
                             if error.current_context().is_upstream_timeout() {
                                 let error_response = ErrorResponse {
                                     code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
@@ -552,8 +604,7 @@ pub async fn send_request(
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
     };
-
-    let send_request = async {
+    let request = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -607,32 +658,92 @@ pub async fn send_request(
         .timeout(Duration::from_secs(
             option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
         ))
-        .send()
-        .await
-        .map_err(|error| match error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::RequestTimeoutReceived
-            }
-            error if is_connection_closed(&error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                errors::ApiClientError::ConnectionClosed
-            }
-            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-        })
-        .into_report()
-        .attach_printable("Unable to send request to connector")
     };
 
-    metrics_request::record_operation_time(
+    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    let cloned_send_request = request.try_clone().map(|cloned_request| async {
+        cloned_request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+    });
+
+    let send_request = async {
+        request
+            .send()
+            .await
+            .map_err(|error| match error {
+                error if error.is_timeout() => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::RequestTimeoutReceived
+                }
+                error if is_connection_closed_before_message_could_complete(&error) => {
+                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    errors::ApiClientError::ConnectionClosedIncompleteMessage
+                }
+                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+            })
+            .into_report()
+            .attach_printable("Unable to send request to connector")
+    };
+
+    let response = metrics_request::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &[metrics_tag],
+        &[metrics_tag.clone()],
     )
-    .await
+    .await;
+    // Retry once if the response is connection closed.
+    //
+    // This is just due to the racy nature of networking.
+    // hyper has a connection pool of idle connections, and it selected one to send your request.
+    // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
+    // But occasionally, a connection will be selected from the pool
+    // and written to at the same time the server is deciding to close the connection.
+    // Since hyper already wrote some of the request,
+    // it can’t really retry it automatically on a new connection, since the server may have acted already
+    match response {
+        Ok(response) => Ok(response),
+        Err(error)
+            if error.current_context()
+                == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
+        {
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+            match cloned_send_request {
+                Some(cloned_request) => {
+                    logger::info!(
+                        "Retrying request due to connection closed before message could complete"
+                    );
+                    metrics_request::record_operation_time(
+                        cloned_request,
+                        &metrics::EXTERNAL_REQUEST_TIME,
+                        &[metrics_tag],
+                    )
+                    .await
+                }
+                None => {
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    Err(error)
+                }
+            }
+        }
+        err @ Err(_) => err,
+    }
 }
 
-fn is_connection_closed(error: &reqwest::Error) -> bool {
+fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
     let mut source = error.source();
     while let Some(err) = source {
         if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
@@ -987,7 +1098,7 @@ where
 
 #[instrument(
     skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path)
+    fields(request_method, request_url_path, status_code)
 )]
 pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
@@ -1015,7 +1126,7 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
-    let res = match metrics::request::record_request_time_metric(
+    let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
             &flow,
             state.clone(),
@@ -1031,7 +1142,9 @@ where
     .map(|response| {
         logger::info!(api_response =? response);
         response
-    }) {
+    });
+
+    let res = match server_wrap_util_res {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -1124,14 +1237,14 @@ where
     };
 
     let response_code = res.status().as_u16();
+    tracing::Span::current().record("status_code", response_code);
+
     let end_instant = Instant::now();
     let request_duration = end_instant.saturating_duration_since(start_instant);
     logger::info!(
         tag = ?Tag::EndRequest,
-        status_code = response_code,
         time_taken_ms = request_duration.as_millis(),
     );
-
     res
 }
 
@@ -1670,12 +1783,37 @@ pub fn build_redirection_form(
                     head {
                         (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
                     }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader-wrapper" {
+                            div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                        }
+
+                        div id="threeds-wrapper" style="display: flex; width: 100%; height: 100vh; align-items: center; justify-content: center;" {""}
+                    }
                     (PreEscaped(format!("<script>
                     const gateway = Gateway.create('{public_key_val}');
 
                     // Initialize the ThreeDSService
                     const threeDS = gateway.get3DSecure();
-            
+
                     const options = {{
                         customerVaultId: '{customer_vault_id}',
                         currency: '{currency}',
@@ -1687,10 +1825,10 @@ pub fn build_redirection_form(
                     responseForm.method='POST';
 
                     const threeDSsecureInterface = threeDS.createUI(options);
-                    threeDSsecureInterface.start('body');
 
                     threeDSsecureInterface.on('challenge', function(e) {{
                         console.log('Challenged');
+                        document.getElementById('loader-wrapper').style.display = 'none';                    
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
@@ -1706,6 +1844,18 @@ pub fn build_redirection_form(
                         item2.name='xid';
                         item2.value=e.xid;
                         responseForm.appendChild(item2);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='eci';
+                        item6.value=e.eci;
+                        responseForm.appendChild(item6);
+
+                        var item7=document.createElement('input');
+                        item7.type='hidden';
+                        item7.name='directoryServerId';
+                        item7.value=e.directoryServerId;
+                        responseForm.appendChild(item7);
 
                         var item3=document.createElement('input');
                         item3.type='hidden';
@@ -1733,6 +1883,7 @@ pub fn build_redirection_form(
                         responseForm.submit();
                     }});
 
+                    threeDSsecureInterface.start('#threeds-wrapper');
             </script>"
             )))
                 }
@@ -1743,19 +1894,50 @@ pub fn build_redirection_form(
 pub fn build_payment_link_html(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
-
     let mut tera = Tera::default();
+
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
+    let mut context = Context::new();
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
+
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link.html").to_string();
 
     let _ = tera.add_raw_template("payment_link", &html_template);
 
-    let mut context = Context::new();
     context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
-    context.insert("css_color_scheme", &payment_link_data.css_script);
-    context.insert("payment_details_js_script", &payment_link_data.js_script);
+    context.insert("rendered_css", &rendered_css);
+    context.insert("rendered_js", &rendered_js);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -1773,13 +1955,45 @@ fn get_hyper_loader_sdk(sdk_url: &str) -> String {
 pub fn get_payment_link_status(
     payment_link_data: PaymentLinkStatusData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let html_template = include_str!("../core/payment_link/status.html").to_string();
     let mut tera = Tera::default();
-    let _ = tera.add_raw_template("payment_link_status", &html_template);
 
+    // Add modification to css template with dynamic data
+    let css_template =
+        include_str!("../core/payment_link/payment_link_status/status.css").to_string();
+    let _ = tera.add_raw_template("payment_link_css", &css_template);
     let mut context = Context::new();
     context.insert("css_color_scheme", &payment_link_data.css_script);
+
+    let rendered_css = match tera.render("payment_link_css", &context) {
+        Ok(rendered_css) => rendered_css,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Add modification to js template with dynamic data
+    let js_template =
+        include_str!("../core/payment_link/payment_link_status/status.js").to_string();
+    let _ = tera.add_raw_template("payment_link_js", &js_template);
     context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    let rendered_js = match tera.render("payment_link_js", &context) {
+        Ok(rendered_js) => rendered_js,
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    };
+
+    // Modify Html template with rendered js and rendered css files
+    let html_template =
+        include_str!("../core/payment_link/payment_link_status/status.html").to_string();
+    let _ = tera.add_raw_template("payment_link_status", &html_template);
+
+    context.insert("rendered_css", &rendered_css);
+
+    context.insert("rendered_js", &rendered_js);
 
     match tera.render("payment_link_status", &context) {
         Ok(rendered_html) => Ok(rendered_html),

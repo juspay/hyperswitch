@@ -32,6 +32,7 @@ pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod role;
 pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;
@@ -111,7 +112,8 @@ pub trait StorageInterface:
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
-    + health_check::HealthCheckInterface
+    + health_check::HealthCheckDbInterface
+    + role::RoleInterface
     + authentication::AuthenticationInterface
     + 'static
 {

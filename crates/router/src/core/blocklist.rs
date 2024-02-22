@@ -39,3 +39,13 @@ pub async fn list_blocklist_entries(
         .await
         .map(services::ApplicationResponse::Json)
 }
+
+pub async fn toggle_blocklist_guard(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    query: api_blocklist::ToggleBlocklistQuery,
+) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
+    utils::toggle_blocklist_guard_for_merchant(&state, merchant_account.merchant_id, query)
+        .await
+        .map(services::ApplicationResponse::Json)
+}

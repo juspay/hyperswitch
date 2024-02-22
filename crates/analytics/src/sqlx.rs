@@ -17,6 +17,7 @@ use storage_impl::config::Database;
 use time::PrimitiveDateTime;
 
 use super::{
+    health_check::HealthCheck,
     query::{Aggregate, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, QueryExecutionError,
@@ -143,6 +144,7 @@ impl super::payments::metrics::PaymentMetricAnalytics for SqlxClient {}
 impl super::payments::distribution::PaymentDistributionAnalytics for SqlxClient {}
 impl super::refunds::metrics::RefundMetricAnalytics for SqlxClient {}
 impl super::refunds::filters::RefundFilterAnalytics for SqlxClient {}
+impl super::disputes::filters::DisputeFilterAnalytics for SqlxClient {}
 
 #[async_trait::async_trait]
 impl AnalyticsDataSource for SqlxClient {
@@ -162,6 +164,17 @@ impl AnalyticsDataSource for SqlxClient {
             .map(Self::load_row)
             .collect::<Result<Vec<_>, _>>()
             .change_context(QueryExecutionError::RowExtractionFailure)
+    }
+}
+#[async_trait::async_trait]
+impl HealthCheck for SqlxClient {
+    async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
+        sqlx::query("SELECT 1")
+            .fetch_all(&self.pool)
+            .await
+            .map(|_| ())
+            .into_report()
+            .change_context(QueryExecutionError::DatabaseError)
     }
 }
 
@@ -413,6 +426,35 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
     }
 }
 
+impl<'a> FromRow<'a, PgRow> for super::disputes::filters::DisputeFilterRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let dispute_stage: Option<String> = row.try_get("dispute_stage").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let dispute_status: Option<String> =
+            row.try_get("dispute_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let connector_status: Option<String> =
+            row.try_get("connector_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        Ok(Self {
+            dispute_stage,
+            dispute_status,
+            connector,
+            connector_status,
+        })
+    }
+}
+
 impl ToSql<SqlxClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(self.to_string())
@@ -433,6 +475,7 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
+            Self::Dispute => Ok("dispute".to_string()),
         }
     }
 }

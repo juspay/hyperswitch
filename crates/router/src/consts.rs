@@ -66,11 +66,15 @@ pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;
 pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+
+pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
+
+#[cfg(feature = "email")]
+pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -89,3 +93,6 @@ pub const MIN_SESSION_EXPIRY: u32 = 60;
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
+
+// URL for checking the outgoing call
+pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";

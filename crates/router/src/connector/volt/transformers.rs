@@ -185,7 +185,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -451,7 +451,7 @@ impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundReq
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -598,7 +598,7 @@ pub struct VoltErrorResponse {
     pub exception: VoltErrorException,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VoltAuthErrorResponse {
     pub code: u64,
     pub message: String,

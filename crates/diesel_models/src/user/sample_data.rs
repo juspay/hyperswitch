@@ -5,7 +5,11 @@ use common_enums::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums::MandateDataType, schema::payment_attempt, PaymentAttemptNew};
+use crate::{
+    enums::{MandateDataType, MandateDetails},
+    schema::payment_attempt,
+    PaymentAttemptNew,
+};
 
 #[derive(
     Clone, Debug, Default, diesel::Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
@@ -66,6 +70,8 @@ pub struct PaymentAttemptBatchNew {
     pub external_three_ds_authentication_requested: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -123,6 +129,8 @@ impl PaymentAttemptBatchNew {
                 .external_three_ds_authentication_requested,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data,
+            fingerprint_id: self.fingerprint_id,
         }
     }
 }

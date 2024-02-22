@@ -32,6 +32,7 @@ pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod role;
 pub mod routing_algorithm;
 pub mod user;
 pub mod user_role;
@@ -43,7 +44,9 @@ pub use data_models::payments::{
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     PaymentIntent,
 };
-pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
+pub use diesel_models::{
+    ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner, ProcessTrackerUpdate,
+};
 pub use scheduler::db::process_tracker;
 
 pub use self::{
@@ -53,7 +56,8 @@ pub use self::{
     fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
     payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*,
-    routing_algorithm::*, user::*, user_role::*,
+    role::*, routing_algorithm::*, user::*,
+    user_role::*,
 };
 use crate::types::api::routing;
 
