@@ -52,7 +52,6 @@ pub async fn rust_locker_migration(
                     &customer.customer_id,
                     merchant_id,
                     &merchant_account,
-                    &key_store,
                 )
             })
             .await?;
@@ -77,7 +76,6 @@ pub async fn call_to_locker(
     customer_id: &String,
     merchant_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
@@ -134,7 +132,6 @@ pub async fn call_to_locker(
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
-                key_store
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -143,7 +140,7 @@ pub async fn call_to_locker(
                 pm.payment_method_id
             ));
 
-        let (_add_card_rs_resp, _is_duplicate, _payment_method) = match add_card_result {
+        let (_add_card_rs_resp, _is_duplicate) = match add_card_result {
             Ok(output) => output,
             Err(err) => {
                 logger::error!("Failed to add card to Rust locker : {:?}", err);

@@ -148,10 +148,6 @@ pub struct PaymentMethodResponse {
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,
 
-    /// The unique identifier of the Payment method returned by locker
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
-    pub locker_id: Option<String>,
-
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
