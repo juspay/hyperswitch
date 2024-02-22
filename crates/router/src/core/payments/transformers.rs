@@ -547,16 +547,24 @@ where
                                 ),
                             }
                         }))
-                        .or(payment_data.authentication.as_ref().and_then(
-                            |(_authentication, authentication_data)| {
+                        .or(match payment_data.authentication.as_ref(){
+                            Some((_authentication, authentication_data)) => {
                                 if authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
                                     let payment_id = payment_attempt.payment_id.clone();
                                     let base_url = server.base_url.clone();
+                                    let payment_connector_name = payment_attempt.connector
+                                        .as_ref()
+                                        .get_required_value("connector")?;
                                     Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                         three_ds_data: api_models::payments::ThreeDsData {
                                             three_ds_authentication_url: format!(
                                                 "{base_url}/payments/{payment_id}/3ds/authentication"
+                                            ),
+                                            three_ds_authorize_url: helpers::create_authorize_url(
+                                                &server.base_url,
+                                                &payment_attempt,
+                                                payment_connector_name,
                                             ),
                                             three_ds_method_details:
                                                 api_models::payments::ThreeDsMethodData {
@@ -576,7 +584,8 @@ where
                                     None
                                 }
                             },
-                        ));
+                            None => None
+                        });
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
