@@ -175,7 +175,7 @@ pub async fn update_role(
     if let Some(ref role_name) = role_name {
         utils::user_role::is_role_name_already_present_for_merchant(
             &state,
-            &role_name,
+            role_name,
             &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
