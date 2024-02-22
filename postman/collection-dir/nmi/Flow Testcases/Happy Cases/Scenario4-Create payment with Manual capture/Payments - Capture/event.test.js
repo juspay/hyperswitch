@@ -76,7 +76,7 @@ if (jsonData?.status) {
   );
 }
 
-// Response body should have value {{amount}} for "amount"
+// Response body should have value "{{amount}}" for "amount"
 if (jsonData?.amount) {
   pm.test(
     "[post]:://payments/:id/capture - Content check if value for 'amount' matches '{{amount}}'",
@@ -86,7 +86,7 @@ if (jsonData?.amount) {
   );
 }
 
-// Response body should have value {{amount}} for "amount_received"
+// Response body should have value "{{amount}}" for "amount_received"
 if (jsonData?.amount_received) {
   pm.test(
     "[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '{{amount}}'",

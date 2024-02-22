@@ -18,7 +18,7 @@
       }
     },
     "raw_json_formatted": {
-      "amount_to_capture": {{capture_amount}},
+      "amount_to_capture": "{{capture_amount}}",
       "statement_descriptor_name": "Joseph",
       "statement_descriptor_suffix": "JS"
     }

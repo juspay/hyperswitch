@@ -18,12 +18,12 @@
       }
     },
     "raw_json_formatted": {
-      "amount": {{random_number}},
+      "amount": "{{random_number}}",
       "currency": "USD",
       "confirm": true,
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": {{random_number}},
+      "amount_to_capture": "{{random_number}}",
       "customer_id": "StripeCustomer",
       "email": "guest@example.com",
       "name": "John Doe",
@@ -68,7 +68,7 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari"
+          "first_name": "John"
         }
       },
       "shipping": {
@@ -80,7 +80,7 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari"
+          "first_name": "John"
         }
       },
       "statement_descriptor_name": "joseph",
@@ -98,12 +98,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
   },
   "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
 }

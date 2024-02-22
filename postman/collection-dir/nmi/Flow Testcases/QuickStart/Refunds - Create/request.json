@@ -19,7 +19,7 @@
     },
     "raw_json_formatted": {
       "payment_id": "{{payment_id}}",
-      "amount": {{amount}},
+      "amount": "{{amount}}",
       "reason": "Customer returned product",
       "refund_type": "instant",
       "metadata": {
