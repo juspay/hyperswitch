@@ -289,17 +289,14 @@ pub async fn link_routing_config(
         .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
         .unwrap_or_default();
 
-        utils::when(
-            routing_algorithm.algorithm_for != transaction_type.to_owned(),
-            || {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: format!(
-                        "Cannot use {}'s routing algorithm for {} operation",
-                        routing_algorithm.algorithm_for, transaction_type
-                    ),
-                })
-            },
-        )?;
+        utils::when(routing_algorithm.algorithm_for != *transaction_type, || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "Cannot use {}'s routing algorithm for {} operation",
+                    routing_algorithm.algorithm_for, transaction_type
+                ),
+            })
+        })?;
 
         utils::when(
             routing_ref.algorithm_id == Some(algorithm_id.clone()),
