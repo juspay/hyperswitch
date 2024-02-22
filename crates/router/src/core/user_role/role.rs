@@ -170,7 +170,7 @@ pub async fn update_role(
         .role_name
         .map(RoleName::new)
         .transpose()?
-        .map(|x| x.get_role_name());
+        .map(RoleName::get_role_name);
 
     if let Some(ref role_name) = role_name {
         utils::user_role::is_role_name_already_present_for_merchant(
