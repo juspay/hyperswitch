@@ -363,6 +363,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
 }
 
 ///
