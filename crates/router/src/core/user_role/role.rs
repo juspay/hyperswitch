@@ -2,11 +2,13 @@ use api_models::user_role::{
     role::{self as role_api},
     Permission,
 };
+use common_enums::RoleScope;
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::ResultExt;
 
 use crate::{
+    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
     services::{
@@ -46,7 +48,14 @@ pub async fn create_role(
 
     if req.groups.is_empty() {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("role groups cannot be empty");
+            .attach_printable("Role groups cannot be empty");
+    }
+
+    if matches!(req.role_scope, RoleScope::Organization)
+        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+    {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Non org admin user creating org level role");
     }
 
     utils::user_role::is_role_name_already_present_for_merchant(
@@ -157,8 +166,6 @@ pub async fn update_role(
     req: role_api::UpdateRoleRequest,
     role_id: &str,
 ) -> UserResponse<()> {
-    let now = common_utils::date_time::now();
-
     let role_name = req
         .role_name
         .map(RoleName::new)
@@ -175,6 +182,22 @@ pub async fn update_role(
         .await?;
     }
 
+    let role_info = roles::get_role_info_from_role_id(
+        &state,
+        role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    if matches!(role_info.get_scope(), RoleScope::Organization)
+        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+    {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Non org admin user creating org level role");
+    }
+
     if let Some(ref groups) = req.groups {
         if groups.is_empty() {
             return Err(UserErrors::InvalidRoleOperation.into())
@@ -189,7 +212,7 @@ pub async fn update_role(
             RoleUpdate::UpdateDetails {
                 groups: req.groups,
                 role_name,
-                last_modified_at: now,
+                last_modified_at: common_utils::date_time::now(),
                 last_modified_by: user_from_token.user_id,
             },
         )
