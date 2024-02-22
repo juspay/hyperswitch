@@ -2177,7 +2177,7 @@ impl Deref for PaymentSyncResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LastPaymentError {
-    code: String,
+    code: Option<String>,
     message: String,
     decline_code: Option<String>,
 }
