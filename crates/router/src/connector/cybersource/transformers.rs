@@ -489,13 +489,15 @@ impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
         Option<PaymentSolution>,
+        Option<payments::ApplePayCardNetworks>,
     )> for ProcessingInformation
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, solution): (
+        (item, solution, network): (
             &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
             Option<PaymentSolution>,
+            Option<payments::ApplePayCardNetworks>,
         ),
     ) -> Result<Self, Self::Error> {
         let (action_list, action_token_types, authorization_options) =
@@ -539,6 +541,16 @@ impl
             } else {
                 (None, None, None)
             };
+        let commerce_indicator = match network {
+            Some(card_network) => match card_network {
+                payments::ApplePayCardNetworks::Visa => String::from("internet"),
+                payments::ApplePayCardNetworks::MasterCard => String::from("spa"),
+                payments::ApplePayCardNetworks::AmEx => String::from("aesk"),
+                payments::ApplePayCardNetworks::Discover => String::from("dipb"),
+                _ => String::from("internet"),
+            },
+            None => String::from("internet"),
+        };
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
@@ -549,7 +561,7 @@ impl
             action_token_types,
             authorization_options,
             capture_options: None,
-            commerce_indicator: String::from("internet"),
+            commerce_indicator,
         })
     }
 }
@@ -721,7 +733,7 @@ impl
             },
         });
 
-        let processing_information = ProcessingInformation::try_from((item, None))?;
+        let processing_information = ProcessingInformation::try_from((item, None, None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -820,20 +832,25 @@ impl
     TryFrom<(
         &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
         Box<ApplePayPredecryptData>,
+        payments::ApplePayWalletData,
     )> for CybersourcePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, apple_pay_data): (
+        (item, apple_pay_data, apple_pay_wallet_data): (
             &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
             Box<ApplePayPredecryptData>,
+            payments::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
-        let processing_information =
-            ProcessingInformation::try_from((item, Some(PaymentSolution::ApplePay)))?;
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            Some(PaymentSolution::ApplePay),
+            Some(apple_pay_wallet_data.payment_method.network),
+        ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
@@ -887,7 +904,7 @@ impl
             },
         });
         let processing_information =
-            ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay)))?;
+            ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -922,7 +939,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                             match item.router_data.payment_method_token.clone() {
                                 Some(payment_method_token) => match payment_method_token {
                                     types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                                        Self::try_from((item, decrypt_data))
+                                        Self::try_from((item, decrypt_data, apple_pay_data))
                                     }
                                     types::PaymentMethodToken::Token(_) => {
                                         Err(errors::ConnectorError::InvalidWalletToken)?
@@ -934,9 +951,12 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                         build_bill_to(item.router_data.get_billing()?, email)?;
                                     let order_information =
                                         OrderInformationWithBill::from((item, bill_to));
-                                    let processing_information = ProcessingInformation::try_from(
-                                        (item, Some(PaymentSolution::ApplePay)),
-                                    )?;
+                                    let processing_information =
+                                        ProcessingInformation::try_from((
+                                            item,
+                                            Some(PaymentSolution::ApplePay),
+                                            Some(apple_pay_data.payment_method.network),
+                                        ))?;
                                     let client_reference_information =
                                         ClientReferenceInformation::from(item);
                                     let payment_information = PaymentInformation::ApplePayToken(
@@ -1048,7 +1068,7 @@ impl
             String,
         ),
     ) -> Result<Self, Self::Error> {
-        let processing_information = ProcessingInformation::try_from((item, None))?;
+        let processing_information = ProcessingInformation::try_from((item, None, None))?;
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id,
         };
