@@ -26,6 +26,11 @@ pub async fn get_domain_info(
             download_dimensions: None,
             dimensions: utils::get_api_event_dimensions(),
         },
+        AnalyticsDomain::Dispute => GetInfoResponse {
+            metrics: utils::get_dispute_metrics_info(),
+            download_dimensions: None,
+            dimensions: utils::get_dispute_dimensions(),
+        },
     };
     Ok(info)
 }

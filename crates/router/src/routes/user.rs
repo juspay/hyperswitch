@@ -291,7 +291,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::PaymentWrite),
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -396,6 +396,44 @@ pub async fn invite_multiple_user(
         payload.into_inner(),
         user_core::invite_multiple_user,
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn resend_invite(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::ReInviteUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::ReInviteUser;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::resend_invite,
+        &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn accept_invite_from_email(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInviteFromEmail;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

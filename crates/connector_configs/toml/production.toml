@@ -1782,6 +1782,17 @@ api_secret="Developer Id"
 [tsys.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[volt]
+[[volt.bank_redirect]]
+  payment_method_type = "open_banking_uk"
+[volt.connector_auth.MultiAuthKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
+[volt.connector_webhook_details]
+merchant_secret="Source verification key"
+
 [zen]
 [[zen.credit]]
   payment_method_type = "Mastercard"

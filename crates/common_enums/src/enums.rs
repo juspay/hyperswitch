@@ -2012,6 +2012,7 @@ pub enum PayoutType {
     #[default]
     Card,
     Bank,
+    Wallet,
 }
 
 #[derive(
@@ -2038,6 +2039,7 @@ pub enum PayoutEntityType {
     Company,
     NonProfit,
     PublicSector,
+    NaturalPerson,
 
     /// Wise
     #[strum(serialize = "lowercase")]
@@ -2164,4 +2166,52 @@ pub enum ConnectorStatus {
     #[default]
     Inactive,
     Active,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoleScope {
+    Merchant,
+    Organization,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PermissionGroup {
+    OperationsView,
+    OperationsManage,
+    ConnectorsView,
+    ConnectorsManage,
+    WorkflowsView,
+    WorkflowsManage,
+    AnalyticsView,
+    UsersView,
+    UsersManage,
+    MerchantDetailsView,
+    MerchantDetailsManage,
+    OrganizationManage,
 }

@@ -174,7 +174,7 @@ impl From<PayuPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsResponse {
     pub status: PayuPaymentStatusData,
@@ -232,7 +232,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PayuPaymentsCaptureRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuPaymentsCaptureResponse {
     status: PayuPaymentStatusData,
 }
@@ -285,7 +285,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
         })
     }
 }
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -396,7 +396,7 @@ pub struct PayuProductData {
     listing_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuOrderResponseData {
     order_id: String,
@@ -430,7 +430,7 @@ pub struct PayuOrderResponseBuyerData {
     customer_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PayuOrderResponsePayMethod {
     CardToken,
@@ -444,7 +444,7 @@ pub struct PayuOrderResponseProperty {
     value: String,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PayuPaymentsSyncResponse {
     orders: Vec<PayuOrderResponseData>,
     status: PayuPaymentStatusData,
@@ -544,7 +544,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayuRefundResponseData {
     refund_id: String,
@@ -557,7 +557,7 @@ pub struct PayuRefundResponseData {
     status_date_time: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     refund: PayuRefundResponseData,
@@ -581,7 +581,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     refunds: Vec<PayuRefundResponseData>,
 }
@@ -619,7 +619,7 @@ pub struct PayuErrorResponse {
     pub status: PayuErrorData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct PayuAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,

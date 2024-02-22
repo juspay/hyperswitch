@@ -1,0 +1,88 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 6540,
+      "currency": "USD",
+      "confirm": false,
+      "capture_method": "manual",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "amount_to_capture": 6540,
+      "customer_id": "{{customer_id}}",
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payment request",
+      "authentication_type": "no_three_ds",
+      "return_url": "https://google.com",
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "shipping": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "statement_descriptor_name": "joseph",
+      "statement_descriptor_suffix": "JS",
+      "metadata": {
+        "udf1": "value1",
+        "new_customer": "true",
+        "login_date": "2019-09-10T10:11:12Z"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

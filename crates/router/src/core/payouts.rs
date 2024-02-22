@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod validator;
 
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -511,6 +511,22 @@ pub async fn call_connector_payout(
             .await
             .attach_printable("Creation of customer failed")?;
 
+            // Create payout flow
+            *payout_data = create_payout(
+                state,
+                merchant_account,
+                key_store,
+                req,
+                &connector_data,
+                payout_data,
+            )
+            .await
+            .attach_printable("Payout creation failed for given Payout request")?;
+        }
+
+        if payout_data.payouts.payout_type == storage_enums::PayoutType::Wallet
+            && payout_data.payout_attempt.status == storage_enums::PayoutStatus::RequiresCreation
+        {
             // Create payout flow
             *payout_data = create_payout(
                 state,
@@ -1080,6 +1096,7 @@ pub async fn response_handler(
         api::payments::Address {
             phone: Some(phone_details),
             address: Some(address_details),
+            email: a.email.to_owned().map(pii::Email::from),
         }
     });
 

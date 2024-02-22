@@ -45,6 +45,12 @@ partner_id = "paypal_partner_id"
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = ["merchant_id_1", "merchant_id_2", "etc.,"]
 
+[cors]
+max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
+wildcard_origin = false # If true, allows any origin to make requests
+
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com" # Sender email

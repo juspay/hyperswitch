@@ -1,7 +1,7 @@
 pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, Card as CardPayout, PayoutActionRequest,
     PayoutCreateRequest, PayoutCreateResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest, SepaBankTransfer,
+    PayoutRetrieveRequest, SepaBankTransfer, Wallet as WalletPayout,
 };
 
 #[cfg(feature = "payouts")]

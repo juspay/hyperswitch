@@ -463,6 +463,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
 }
 
 #[async_trait]
@@ -510,7 +520,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -549,6 +559,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     capture_method,
                     surcharge_amount,
                     tax_amount,
+                    fingerprint_id: None,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
@@ -671,6 +682,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_payment_method_fields_present(request)?;
+
+        if request.mandate_data.is_none()
+            && request
+                .setup_future_usage
+                .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
+                .unwrap_or(false)
+        {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
+            }))?
+        }
 
         let mandate_type = helpers::validate_mandate(request, false)?;
 

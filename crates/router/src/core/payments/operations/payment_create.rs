@@ -4,11 +4,11 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
-    mandates::{MandateData, MandateDetails, MandateTypeDetails},
+    mandates::{MandateData, MandateDetails},
     payments::payment_attempt::PaymentAttempt,
 };
 use diesel_models::ephemeral_key;
-use error_stack::{self, ResultExt};
+use error_stack::{self, report, ResultExt};
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -149,9 +149,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| {
-                common_utils::ext_traits::Encode::<types::BrowserInformation>::encode_to_value(&x)
-            })
+            .as_ref()
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -466,6 +465,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        _state: &AppState,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        Ok(false)
+    }
 }
 
 #[async_trait]
@@ -619,6 +628,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_payment_method_fields_present(request)?;
 
+        if request.mandate_data.is_none()
+            && request
+                .setup_future_usage
+                .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
+                .unwrap_or(false)
+        {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
+            }))?
+        }
+
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
 
@@ -687,7 +707,7 @@ impl PaymentCreate {
             .await;
         let additional_pm_data_value = additional_pm_data
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -712,27 +732,17 @@ impl PaymentCreate {
             Err(errors::ApiErrorResponse::InvalidRequestData {message:"Only one field out of 'mandate_type' and 'update_mandate_id' was expected, found both".to_string()})?
         }
 
-        let mandate_details = if request.mandate_data.is_none() {
-            None
-        } else if let Some(update_id) = request
+        let mandate_data = if let Some(update_id) = request
             .mandate_data
             .as_ref()
             .and_then(|inner| inner.update_mandate_id.clone())
         {
-            let mandate_data = MandateDetails {
+            let mandate_details = MandateDetails {
                 update_mandate_id: Some(update_id),
-                mandate_type: None,
             };
-            Some(MandateTypeDetails::MandateDetails(mandate_data))
+            Some(mandate_details)
         } else {
-            let mandate_data = MandateDetails {
-                update_mandate_id: None,
-                mandate_type: request
-                    .mandate_data
-                    .as_ref()
-                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
-            };
-            Some(MandateTypeDetails::MandateDetails(mandate_data))
+            None
         };
 
         Ok((
@@ -761,7 +771,11 @@ impl PaymentCreate {
                 business_sub_label: request.business_sub_label.clone(),
                 surcharge_amount,
                 tax_amount,
-                mandate_details,
+                mandate_details: request
+                    .mandate_data
+                    .as_ref()
+                    .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
+                mandate_data,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
@@ -918,12 +932,11 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::PaymentLinkConfig,
-    >::encode_to_value(&payment_link_config)
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "payment_link_config",
-    })?;
+    let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        },
+    )?;
 
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),

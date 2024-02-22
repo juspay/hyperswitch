@@ -62,7 +62,7 @@
           "card_cvc": "737"
         }
       },
-      "setup_future_usage": "off_session",
+      "setup_future_usage": "on_session",
       "browser_info": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
         "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -79,14 +79,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",
