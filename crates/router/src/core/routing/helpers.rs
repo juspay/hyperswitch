@@ -476,7 +476,7 @@ pub fn get_default_config_key(
 ) -> String {
     match transaction_type {
         storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
-
+        #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
     }
 }

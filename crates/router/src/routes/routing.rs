@@ -23,7 +23,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -37,7 +37,6 @@ pub async fn routing_create_config(
                 auth.merchant_account,
                 auth.key_store,
                 payload,
-                #[cfg(feature = "business_profile_routing")]
                 transaction_type,
             )
         },

@@ -8,7 +8,7 @@ use actix_web::{web, Scope};
 use analytics::AnalyticsConfig;
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
 use api_models::routing::RoutingRetrieveQuery;
-#[cfg(any(feature = "olap", feature = "payouts"))]
+#[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "aws_kms")]
 use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
@@ -500,7 +500,6 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            #[cfg(feature = "business_profile_routing")]
                             &TransactionType::Payment,
                         )
                     })),
@@ -596,7 +595,6 @@ impl Routing {
                                 state,
                                 req,
                                 payload,
-                                #[cfg(feature = "business_profile_routing")]
                                 &TransactionType::Payout,
                             )
                         })),

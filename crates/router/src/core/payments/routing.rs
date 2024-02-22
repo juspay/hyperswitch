@@ -637,6 +637,7 @@ pub async fn refresh_kgraph_cache(
                     && mca.connector_type != storage_enums::ConnectorType::PayoutProcessor
             });
         }
+        #[cfg(feature = "payouts")]
         api_enums::TransactionType::Payout => {
             merchant_connector_accounts
                 .retain(|mca| mca.connector_type == storage_enums::ConnectorType::PayoutProcessor);

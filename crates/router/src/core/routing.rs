@@ -98,7 +98,7 @@ pub async fn create_routing_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
-    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -217,6 +217,7 @@ pub async fn create_routing_config(
             description: description.clone(),
             created_at: timestamp,
             modified_at: timestamp,
+            algorithm_for: Some(*transaction_type),
         };
         merchant_dictionary.records.push(new_record.clone());
 
@@ -441,7 +442,9 @@ pub async fn retrieve_routing_config(
             algorithm,
             created_at: record.created_at,
             modified_at: record.modified_at,
-            algorithm_for: record.algorithm_for,
+            algorithm_for: record
+                .algorithm_for
+                .unwrap_or(enums::TransactionType::Payment),
         };
 
         metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
@@ -799,7 +802,9 @@ pub async fn retrieve_linked_routing_config(
                 algorithm: the_algorithm,
                 created_at: record.created_at,
                 modified_at: record.modified_at,
-                algorithm_for: record.algorithm_for,
+                algorithm_for: record
+                    .algorithm_for
+                    .unwrap_or(enums::TransactionType::Payment),
             })
         } else {
             None

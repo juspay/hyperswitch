@@ -15707,6 +15707,14 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },

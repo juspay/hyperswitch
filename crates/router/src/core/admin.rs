@@ -4,7 +4,6 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use common_enums::{ConnectorType, TransactionType};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
@@ -949,8 +948,9 @@ pub async fn create_payment_connector(
     };
 
     let transaction_type = match req.connector_type {
-        ConnectorType::PayoutProcessor => TransactionType::Payout,
-        _ => TransactionType::Payment,
+        #[cfg(feature = "payouts")]
+        api_enums::ConnectorType::PayoutProcessor => api_enums::TransactionType::Payout,
+        _ => api_enums::TransactionType::Payment,
     };
 
     let mut default_routing_config =

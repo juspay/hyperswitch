@@ -20,11 +20,11 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
             #[cfg(feature = "business_profile_routing")]
             profile_id: value.profile_id,
             name: value.name,
-
             kind: value.kind.foreign_into(),
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: Some(value.algorithm_for),
         }
     }
 }
@@ -40,6 +40,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: Some(value.algorithm_for),
         }
     }
 }
