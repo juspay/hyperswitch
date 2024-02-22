@@ -11816,12 +11816,6 @@
             "description": "The unique identifier of the Payment method",
             "example": "card_rGK4Vi5iSW70MY7J2mIy"
           },
-          "locker_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method returned by locker",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy",
-            "nullable": true
-          },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
