@@ -343,6 +343,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayPaymentMethodInfo,
         api_models::payments::ApplePayWalletData,
         api_models::payments::ApplepayPaymentMethod,
+        api_models::payments::ApplePayCardNetworks,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
         api_models::payments::PaymentListResponse,

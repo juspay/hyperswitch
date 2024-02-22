@@ -4471,6 +4471,37 @@
           }
         ]
       },
+      "ApplePayCardNetworks": {
+        "type": "string",
+        "enum": [
+          "Visa",
+          "MasterCard",
+          "AmEx",
+          "Discover",
+          "Bancontact",
+          "Barcode",
+          "CartesBancaires",
+          "ChinaUnionPay",
+          "Dankort",
+          "Eftpos",
+          "Electron",
+          "Elo",
+          "Girocard",
+          "IDCredit",
+          "Interac",
+          "JCB",
+          "Mada",
+          "Maestro",
+          "Mir",
+          "Nanaco",
+          "PostFinance",
+          "PrivateLabel",
+          "QuicPay",
+          "Suica",
+          "VPay",
+          "Waon"
+        ]
+      },
       "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
@@ -4578,8 +4609,7 @@
             "description": "The name to be displayed on Apple Pay button"
           },
           "network": {
-            "type": "string",
-            "description": "The network of the Apple pay payment method"
+            "$ref": "#/components/schemas/ApplePayCardNetworks"
           },
           "type": {
             "type": "string",
