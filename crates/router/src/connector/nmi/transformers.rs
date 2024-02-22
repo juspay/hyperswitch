@@ -1,6 +1,5 @@
 use api_models::webhooks;
 use cards::CardNumber;
-use common_enums::CountryAlpha2;
 use common_utils::{
     errors::CustomResult,
     ext_traits::XmlExt,
