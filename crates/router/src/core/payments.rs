@@ -506,6 +506,9 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
+
+    logger::debug!(decision_manager_output=?output, "Decision Manager output after execution");
+
     payment_data.payment_attempt.authentication_type = payment_data
         .payment_attempt
         .authentication_type
@@ -2669,6 +2672,12 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed execution of straight through routing")?;
 
+        logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (from request) with list of connectors: ");
+        tracing::Span::current().record(
+            "Straight_through_routing_connectors",
+            format!("{:?}", connectors),
+        );
+
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
@@ -2727,6 +2736,12 @@ where
             routing::perform_straight_through_routing(routing_algorithm, payment_data)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed execution of straight through routing")?;
+
+        logger::debug!(routable_connector_choice=?connectors, "Routing: Initiating Straight through routing (fallback to DB) with list of connectors: ");
+        tracing::Span::current().record(
+            "Straight_through_routing_connectors_fallback",
+            format!("{:?}", connectors),
+        );
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2928,6 +2943,8 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
+    logger::debug!("Routing: Initiating routing via profile config");
+
     let routing_algorithm = if cfg!(feature = "business_profile_routing") {
         business_profile.routing_algorithm.clone()
     } else {
