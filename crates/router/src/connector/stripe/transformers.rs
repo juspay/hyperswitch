@@ -1523,6 +1523,38 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                     };
 
                 if apple_pay_decrypt_data.is_none() {
+                    let apple_pay_network = match applepay_data.payment_method.network {
+                        payments::ApplePayCardNetworks::Visa => "Visa".to_string(),
+                        payments::ApplePayCardNetworks::MasterCard => "MasterCard".to_string(),
+                        payments::ApplePayCardNetworks::AmEx => "AmEx".to_string(),
+                        payments::ApplePayCardNetworks::Discover => "Discover".to_string(),
+                        payments::ApplePayCardNetworks::Bancontact => "Bancontact".to_string(),
+                        payments::ApplePayCardNetworks::Barcode => "Barcode".to_string(),
+                        payments::ApplePayCardNetworks::CartesBancaires => {
+                            "CartesBancaires".to_string()
+                        }
+                        payments::ApplePayCardNetworks::ChinaUnionPay => {
+                            "ChinaUnionPay".to_string()
+                        }
+                        payments::ApplePayCardNetworks::Dankort => "Dankort".to_string(),
+                        payments::ApplePayCardNetworks::Eftpos => "Eftpos".to_string(),
+                        payments::ApplePayCardNetworks::Electron => "Electron".to_string(),
+                        payments::ApplePayCardNetworks::Elo => "Elo".to_string(),
+                        payments::ApplePayCardNetworks::Girocard => "Girocard".to_string(),
+                        payments::ApplePayCardNetworks::IDCredit => "IDCredit".to_string(),
+                        payments::ApplePayCardNetworks::Interac => "Interac".to_string(),
+                        payments::ApplePayCardNetworks::JCB => "JCB".to_string(),
+                        payments::ApplePayCardNetworks::Mada => "Mada".to_string(),
+                        payments::ApplePayCardNetworks::Maestro => "Maestro".to_string(),
+                        payments::ApplePayCardNetworks::Mir => "Mir".to_string(),
+                        payments::ApplePayCardNetworks::Nanaco => "Nanaco".to_string(),
+                        payments::ApplePayCardNetworks::PostFinance => "PostFinance".to_string(),
+                        payments::ApplePayCardNetworks::PrivateLabel => "PrivateLabel".to_string(),
+                        payments::ApplePayCardNetworks::QuicPay => "QuicPay".to_string(),
+                        payments::ApplePayCardNetworks::Suica => "Suica".to_string(),
+                        payments::ApplePayCardNetworks::VPay => "VPay".to_string(),
+                        payments::ApplePayCardNetworks::Waon => "Waon".to_string(),
+                    };
                     apple_pay_decrypt_data =
                         Some(Self::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
                             pk_token: applepay_data
@@ -1532,10 +1564,7 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                                 .payment_method
                                 .pm_type
                                 .to_owned(),
-                            pk_token_payment_network: applepay_data
-                                .payment_method
-                                .network
-                                .to_owned(),
+                            pk_token_payment_network: apple_pay_network,
                             pk_token_transaction_id: applepay_data
                                 .transaction_identifier
                                 .to_owned(),

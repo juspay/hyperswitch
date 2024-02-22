@@ -1,3 +1,4 @@
+use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -257,12 +258,52 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                             }))
                         }
                         api_models::payments::WalletData::ApplePay(apple_pay_data) => {
+                            let apple_pay_network = match apple_pay_data.payment_method.network {
+                                payments::ApplePayCardNetworks::Visa => "Visa".to_string(),
+                                payments::ApplePayCardNetworks::MasterCard => {
+                                    "MasterCard".to_string()
+                                }
+                                payments::ApplePayCardNetworks::AmEx => "AmEx".to_string(),
+                                payments::ApplePayCardNetworks::Discover => "Discover".to_string(),
+                                payments::ApplePayCardNetworks::Bancontact => {
+                                    "Bancontact".to_string()
+                                }
+                                payments::ApplePayCardNetworks::Barcode => "Barcode".to_string(),
+                                payments::ApplePayCardNetworks::CartesBancaires => {
+                                    "CartesBancaires".to_string()
+                                }
+                                payments::ApplePayCardNetworks::ChinaUnionPay => {
+                                    "ChinaUnionPay".to_string()
+                                }
+                                payments::ApplePayCardNetworks::Dankort => "Dankort".to_string(),
+                                payments::ApplePayCardNetworks::Eftpos => "Eftpos".to_string(),
+                                payments::ApplePayCardNetworks::Electron => "Electron".to_string(),
+                                payments::ApplePayCardNetworks::Elo => "Elo".to_string(),
+                                payments::ApplePayCardNetworks::Girocard => "Girocard".to_string(),
+                                payments::ApplePayCardNetworks::IDCredit => "IDCredit".to_string(),
+                                payments::ApplePayCardNetworks::Interac => "Interac".to_string(),
+                                payments::ApplePayCardNetworks::JCB => "JCB".to_string(),
+                                payments::ApplePayCardNetworks::Mada => "Mada".to_string(),
+                                payments::ApplePayCardNetworks::Maestro => "Maestro".to_string(),
+                                payments::ApplePayCardNetworks::Mir => "Mir".to_string(),
+                                payments::ApplePayCardNetworks::Nanaco => "Nanaco".to_string(),
+                                payments::ApplePayCardNetworks::PostFinance => {
+                                    "PostFinance".to_string()
+                                }
+                                payments::ApplePayCardNetworks::PrivateLabel => {
+                                    "PrivateLabel".to_string()
+                                }
+                                payments::ApplePayCardNetworks::QuicPay => "QuicPay".to_string(),
+                                payments::ApplePayCardNetworks::Suica => "Suica".to_string(),
+                                payments::ApplePayCardNetworks::VPay => "VPay".to_string(),
+                                payments::ApplePayCardNetworks::Waon => "Waon".to_string(),
+                            };
                             let payment_token_data = NoonApplePayTokenData {
                                 token: NoonApplePayData {
                                     payment_data: wallet_data.get_wallet_token_as_json()?,
                                     payment_method: NoonApplePayPaymentMethod {
                                         display_name: apple_pay_data.payment_method.display_name,
-                                        network: apple_pay_data.payment_method.network,
+                                        network: apple_pay_network,
                                         pm_type: apple_pay_data.payment_method.pm_type,
                                     },
                                     transaction_identifier: Secret::new(

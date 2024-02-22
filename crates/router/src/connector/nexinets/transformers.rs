@@ -1,4 +1,4 @@
-use api_models::payments::PaymentMethodData;
+use api_models::payments::{self, PaymentMethodData};
 use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
@@ -666,11 +666,39 @@ fn get_applepay_details(
     applepay_data: &api_models::payments::ApplePayWalletData,
 ) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
     let payment_data = wallet_data.get_wallet_token_as_json()?;
+    let apple_pay_network = match applepay_data.payment_method.network {
+        payments::ApplePayCardNetworks::Visa => "Visa".to_string(),
+        payments::ApplePayCardNetworks::MasterCard => "MasterCard".to_string(),
+        payments::ApplePayCardNetworks::AmEx => "AmEx".to_string(),
+        payments::ApplePayCardNetworks::Discover => "Discover".to_string(),
+        payments::ApplePayCardNetworks::Bancontact => "Bancontact".to_string(),
+        payments::ApplePayCardNetworks::Barcode => "Barcode".to_string(),
+        payments::ApplePayCardNetworks::CartesBancaires => "CartesBancaires".to_string(),
+        payments::ApplePayCardNetworks::ChinaUnionPay => "ChinaUnionPay".to_string(),
+        payments::ApplePayCardNetworks::Dankort => "Dankort".to_string(),
+        payments::ApplePayCardNetworks::Eftpos => "Eftpos".to_string(),
+        payments::ApplePayCardNetworks::Electron => "Electron".to_string(),
+        payments::ApplePayCardNetworks::Elo => "Elo".to_string(),
+        payments::ApplePayCardNetworks::Girocard => "Girocard".to_string(),
+        payments::ApplePayCardNetworks::IDCredit => "IDCredit".to_string(),
+        payments::ApplePayCardNetworks::Interac => "Interac".to_string(),
+        payments::ApplePayCardNetworks::JCB => "JCB".to_string(),
+        payments::ApplePayCardNetworks::Mada => "Mada".to_string(),
+        payments::ApplePayCardNetworks::Maestro => "Maestro".to_string(),
+        payments::ApplePayCardNetworks::Mir => "Mir".to_string(),
+        payments::ApplePayCardNetworks::Nanaco => "Nanaco".to_string(),
+        payments::ApplePayCardNetworks::PostFinance => "PostFinance".to_string(),
+        payments::ApplePayCardNetworks::PrivateLabel => "PrivateLabel".to_string(),
+        payments::ApplePayCardNetworks::QuicPay => "QuicPay".to_string(),
+        payments::ApplePayCardNetworks::Suica => "Suica".to_string(),
+        payments::ApplePayCardNetworks::VPay => "VPay".to_string(),
+        payments::ApplePayCardNetworks::Waon => "Waon".to_string(),
+    };
     Ok(ApplePayDetails {
         payment_data,
         payment_method: ApplepayPaymentMethod {
             display_name: applepay_data.payment_method.display_name.to_owned(),
-            network: applepay_data.payment_method.network.to_owned(),
+            network: apple_pay_network.to_owned(),
             token_type: applepay_data.payment_method.pm_type.to_owned(),
         },
         transaction_identifier: applepay_data.transaction_identifier.to_owned(),

@@ -438,9 +438,37 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
 
 impl From<api_models::payments::ApplepayPaymentMethod> for ApplepayPaymentMethod {
     fn from(item: api_models::payments::ApplepayPaymentMethod) -> Self {
+        let apple_pay_network = match item.network {
+            payments::ApplePayCardNetworks::Visa => "Visa".to_string(),
+            payments::ApplePayCardNetworks::MasterCard => "MasterCard".to_string(),
+            payments::ApplePayCardNetworks::AmEx => "AmEx".to_string(),
+            payments::ApplePayCardNetworks::Discover => "Discover".to_string(),
+            payments::ApplePayCardNetworks::Bancontact => "Bancontact".to_string(),
+            payments::ApplePayCardNetworks::Barcode => "Barcode".to_string(),
+            payments::ApplePayCardNetworks::CartesBancaires => "CartesBancaires".to_string(),
+            payments::ApplePayCardNetworks::ChinaUnionPay => "ChinaUnionPay".to_string(),
+            payments::ApplePayCardNetworks::Dankort => "Dankort".to_string(),
+            payments::ApplePayCardNetworks::Eftpos => "Eftpos".to_string(),
+            payments::ApplePayCardNetworks::Electron => "Electron".to_string(),
+            payments::ApplePayCardNetworks::Elo => "Elo".to_string(),
+            payments::ApplePayCardNetworks::Girocard => "Girocard".to_string(),
+            payments::ApplePayCardNetworks::IDCredit => "IDCredit".to_string(),
+            payments::ApplePayCardNetworks::Interac => "Interac".to_string(),
+            payments::ApplePayCardNetworks::JCB => "JCB".to_string(),
+            payments::ApplePayCardNetworks::Mada => "Mada".to_string(),
+            payments::ApplePayCardNetworks::Maestro => "Maestro".to_string(),
+            payments::ApplePayCardNetworks::Mir => "Mir".to_string(),
+            payments::ApplePayCardNetworks::Nanaco => "Nanaco".to_string(),
+            payments::ApplePayCardNetworks::PostFinance => "PostFinance".to_string(),
+            payments::ApplePayCardNetworks::PrivateLabel => "PrivateLabel".to_string(),
+            payments::ApplePayCardNetworks::QuicPay => "QuicPay".to_string(),
+            payments::ApplePayCardNetworks::Suica => "Suica".to_string(),
+            payments::ApplePayCardNetworks::VPay => "VPay".to_string(),
+            payments::ApplePayCardNetworks::Waon => "Waon".to_string(),
+        };
         Self {
             display_name: item.display_name,
-            network: item.network,
+            network: apple_pay_network,
             pm_type: item.pm_type,
         }
     }

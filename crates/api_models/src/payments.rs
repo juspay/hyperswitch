@@ -1863,10 +1863,41 @@ pub struct ApplepayPaymentMethod {
     /// The name to be displayed on Apple Pay button
     pub display_name: String,
     /// The network of the Apple pay payment method
-    pub network: String,
+    pub network: ApplePayCardNetworks,
     /// The type of the payment method
     #[serde(rename = "type")]
     pub pm_type: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
+pub enum ApplePayCardNetworks {
+    Visa,
+    MasterCard,
+    AmEx,
+    Discover,
+    Bancontact,
+    Barcode,
+    CartesBancaires,
+    ChinaUnionPay,
+    Dankort,
+    Eftpos,
+    Electron,
+    Elo,
+    Girocard,
+    IDCredit,
+    Interac,
+    JCB,
+    Mada,
+    Maestro,
+    Mir,
+    Nanaco,
+    PostFinance,
+    PrivateLabel,
+    QuicPay,
+    Suica,
+    VPay,
+    Waon,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
