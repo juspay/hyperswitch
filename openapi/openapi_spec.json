@@ -7506,6 +7506,11 @@
               "$ref": "#/components/schemas/CustomerPaymentMethod"
             },
             "description": "List of payment methods for customer"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)",
+            "nullable": true
           }
         }
       },
