@@ -128,7 +128,7 @@ pub async fn delete_merchant_account() {}
 ///
 /// Toggle KV mode for the Merchant Account
 #[utoipa::path(
-    delete,
+    post,
     path = "/accounts/{account_id}/kv",
     request_body (
         content = ToggleKVRequest,
