@@ -5,8 +5,7 @@ use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
-#[cfg(feature = "olap")]
-use super::AuthToken;
+use super::{AuthToken, UserAuthToken};
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
@@ -124,13 +123,32 @@ fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
-#[cfg(feature = "olap")]
-pub async fn check_auth_token_in_blacklist(
-    state: &AppState,
-    payload: &AuthToken,
-) -> UserResult<bool> {
-    Ok(
-        check_user_in_blacklist(state, &payload.user_id, payload.exp).await?
-            || check_role_in_blacklist(state, &payload.role_id, payload.exp).await?,
-    )
+#[async_trait::async_trait]
+pub trait BlackList {
+    async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
+    where
+        A: AppStateInfo + Sync;
+}
+
+#[async_trait::async_trait]
+impl BlackList for AuthToken {
+    async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
+    where
+        A: AppStateInfo + Sync,
+    {
+        Ok(
+            check_user_in_blacklist(state, &self.user_id, self.exp).await?
+                || check_role_in_blacklist(state, &self.role_id, self.exp).await?,
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl BlackList for UserAuthToken {
+    async fn check_in_blacklist<A>(&self, state: &A) -> RouterResult<bool>
+    where
+        A: AppStateInfo + Sync,
+    {
+        check_user_in_blacklist(state, &self.user_id, self.exp).await
+    }
 }
