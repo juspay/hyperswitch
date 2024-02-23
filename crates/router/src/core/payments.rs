@@ -1129,6 +1129,8 @@ where
             .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        logger::debug!(?apple_pay_predecrypt);
+
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
             Box::new(apple_pay_predecrypt),
         ));
