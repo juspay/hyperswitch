@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.16.0-hotfix3
+
+### Features
+
+- **connector:** [BOA/Cybersource] Pass commerce indicator using card network for apple pay ([#3797](https://github.com/juspay/hyperswitch/pull/3797)) ([`1abc8f2`](https://github.com/juspay/hyperswitch/commit/1abc8f2858dcb33606310f2a9e308b3e725638e6))
+
+### Bug Fixes
+
+- **cards:** Return a 200 response indicating that a customer is none ([#3796](https://github.com/juspay/hyperswitch/pull/3796)) ([`052d10c`](https://github.com/juspay/hyperswitch/commit/052d10cb972101490592f74d88f2286cdfdb7509))
+
+- - -
+
 ## 2024.02.16.0-hotfix2
 
 ### Refactors
