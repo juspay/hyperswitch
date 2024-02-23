@@ -1357,7 +1357,7 @@ fn build_error_response<T>(
                 http_code,
             ));
             match response.transaction_status {
-                Some(NuveiTransactionStatus::Error) => err,
+                Some(NuveiTransactionStatus::Error) | Some(NuveiTransactionStatus::Declined) => err,
                 _ => match response
                     .gw_error_reason
                     .as_ref()
