@@ -122,19 +122,31 @@ impl
                     },
                 )
             }
-            ThreedsecureioAuthenticationResponse::Error(err_response) => {
-                Err(types::ErrorResponse {
-                    code: err_response.error_code,
-                    message: err_response
-                        .error_description
-                        .clone()
-                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
-                    reason: err_response.error_description,
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                })
-            }
+            ThreedsecureioAuthenticationResponse::Error(err_response) => match *err_response {
+                ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => {
+                    Err(types::ErrorResponse {
+                        code: resp.error_code,
+                        message: resp
+                            .error_description
+                            .clone()
+                            .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                        reason: resp.error_description,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    })
+                }
+                ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
+                    Err(types::ErrorResponse {
+                        code: error.clone(),
+                        message: error.clone(),
+                        reason: Some(error),
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                    })
+                }
+            },
         };
         Ok(Self {
             response,
@@ -537,9 +549,16 @@ pub struct ThreedsecureioErrorResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
+pub enum ThreedsecureioErrorResponseWrapper {
+    ErrorResponse(ThreedsecureioErrorResponse),
+    ErrorString(String),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
 pub enum ThreedsecureioAuthenticationResponse {
     Success(Box<ThreedsecureioAuthenticationSuccessResponse>),
-    Error(Box<ThreedsecureioErrorResponse>),
+    Error(Box<ThreedsecureioErrorResponseWrapper>),
 }
 
 #[derive(Debug, Deserialize)]

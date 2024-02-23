@@ -113,25 +113,42 @@ pub async fn perform_post_authentication<F: Clone + Send>(
     match authentication_flow_input {
         types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
             payment_data,
-            authentication_data: (authentication, authentication_data),
+            authentication_data,
+            should_continue_confirm_transaction,
         } => {
-            let router_data = transformers::construct_post_authentication_router_data(
-                authentication_connector.clone(),
-                merchant_account,
-                merchant_connector_account,
-                authentication_data,
-            )?;
-            let router_data =
-                utils::do_auth_connector_call(state, authentication_connector, router_data).await?;
-            let updated_authentication = utils::update_trackers(
-                state,
-                router_data,
-                authentication,
-                payment_data.token.clone(),
-                None,
-            )
-            .await?;
-            payment_data.authentication = Some(updated_authentication);
+            let new_authentication_data = if !authentication_data
+                .0
+                .authentication_status
+                .is_terminal_status()
+            {
+                let router_data = transformers::construct_post_authentication_router_data(
+                    authentication_connector.clone(),
+                    merchant_account,
+                    merchant_connector_account,
+                    authentication_data.1,
+                )?;
+                let router_data =
+                    utils::do_auth_connector_call(state, authentication_connector, router_data)
+                        .await?;
+                let updated_authentication = utils::update_trackers(
+                    state,
+                    router_data,
+                    authentication_data.0,
+                    payment_data.token.clone(),
+                    None,
+                )
+                .await?;
+                payment_data.authentication = Some(updated_authentication.clone());
+                updated_authentication
+            } else {
+                authentication_data
+            };
+            //If authentication is not successful, skip the payment connector flows and mark the payment as failure
+            if !(new_authentication_data.0.authentication_status
+                == api_models::enums::AuthenticationStatus::Success)
+            {
+                *should_continue_confirm_transaction = false;
+            }
         }
         types::PostAuthenthenticationFlowInput::PaymentMethodAuthNFlow { other_fields: _ } => {
             // todo!("Payment method post authN operation");
@@ -185,7 +202,9 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 Some(acquirer_details),
             )
             .await?;
-            if authentication_data.is_separate_authn_required() {
+            if authentication_data.is_separate_authn_required()
+                || authentication.authentication_status.is_failed()
+            {
                 *should_continue_confirm_transaction = false;
             }
             payment_data.authentication = Some((authentication, authentication_data))

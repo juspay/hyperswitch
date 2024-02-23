@@ -10,7 +10,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers as payments_helpers,
     },
-    types::{self, domain, storage},
+    types::{self, domain, storage, transformers::ForeignFrom},
     utils::ext_traits::OptionExt,
 };
 
@@ -166,4 +166,19 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         apple_pay_flow: None,
         frm_metadata: None,
     })
+}
+
+impl ForeignFrom<payments::TransStatus> for common_enums::AuthenticationStatus {
+    fn foreign_from(trans_status: payments::TransStatus) -> Self {
+        match trans_status {
+            api_models::payments::TransStatus::Y => Self::Success,
+            api_models::payments::TransStatus::N
+            | api_models::payments::TransStatus::R
+            | api_models::payments::TransStatus::U
+            | api_models::payments::TransStatus::A => Self::Failed,
+            api_models::payments::TransStatus::C
+            | api_models::payments::TransStatus::D
+            | api_models::payments::TransStatus::I => Self::Pending,
+        }
+    }
 }

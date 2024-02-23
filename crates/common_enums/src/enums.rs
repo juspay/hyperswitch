@@ -2062,6 +2062,19 @@ pub enum AuthenticationStatus {
     Failed,
 }
 
+impl AuthenticationStatus {
+    pub fn is_terminal_status(&self) -> bool {
+        match self {
+            Self::Started | Self::Pending => false,
+            Self::Success | Self::Failed => true,
+        }
+    }
+
+    pub fn is_failed(&self) -> bool {
+        self == &Self::Failed
+    }
+}
+
 #[derive(
     Clone,
     Debug,

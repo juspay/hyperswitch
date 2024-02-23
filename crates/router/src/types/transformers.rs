@@ -746,6 +746,8 @@ impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
             status: authn_data.0.authentication_status,
             ds_transaction_id,
             version,
+            error_code: authn_data.0.error_code.clone(),
+            error_message: authn_data.0.error_message.clone(),
         }
     }
 }

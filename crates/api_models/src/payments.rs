@@ -2323,6 +2323,8 @@ pub struct ExternalAuthenticationDetailsResponse {
     pub status: enums::AuthenticationStatus,
     pub ds_transaction_id: Option<String>,
     pub version: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3212,7 +3214,12 @@ pub enum TransStatus {
     A,
     /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
     R,
+    /// Challenge Required; Additional authentication is required using the CReq/CRes
     C,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    D,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    I,
 }
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

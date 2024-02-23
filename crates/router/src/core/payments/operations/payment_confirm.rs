@@ -710,6 +710,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
                         payment_data,
                         authentication_data,
+                        should_continue_confirm_transaction,
                     },
                 )
                 .await?;
@@ -802,8 +803,17 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     storage_enums::AttemptStatus::Unresolved,
                     (None, None),
                 ),
-                (_, Some((_authentication, authentication_data))) => {
-                    if authentication_data.is_separate_authn_required() {
+                (_, Some((authentication, authentication_data))) => {
+                    if authentication.authentication_status.is_failed() {
+                        (
+                            storage_enums::IntentStatus::Failed,
+                            storage_enums::AttemptStatus::Failure,
+                            (
+                                Some(Some("EXTERNAL_AUTHENTICATION_FAILURE".to_string())),
+                                Some(Some("external authentication failure".to_string())),
+                            ),
+                        )
+                    } else if authentication_data.is_separate_authn_required() {
                         (
                             storage_enums::IntentStatus::RequiresCustomerAction,
                             storage_enums::AttemptStatus::AuthenticationPending,

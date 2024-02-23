@@ -21,6 +21,7 @@ pub enum PostAuthenthenticationFlowInput<'a, F: Clone> {
     PaymentAuthNFlow {
         payment_data: &'a mut payments::PaymentData<F>,
         authentication_data: (storage::Authentication, AuthenticationData),
+        should_continue_confirm_transaction: &'a mut bool,
     },
     PaymentMethodAuthNFlow {
         other_fields: String, //should be expanded when implementation begins

@@ -182,16 +182,9 @@ pub async fn update_trackers<F: Clone, Req>(
                         AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
                         AuthNFlowType::Frictionless => DecoupledAuthenticationType::Frictionless,
                     }),
-                    authentication_status: match trans_status {
-                        api_models::payments::TransStatus::Y => {
-                            Some(common_enums::AuthenticationStatus::Success)
-                        }
-                        api_models::payments::TransStatus::N
-                        | api_models::payments::TransStatus::R => {
-                            Some(common_enums::AuthenticationStatus::Failed)
-                        }
-                        _ => Some(common_enums::AuthenticationStatus::Pending),
-                    },
+                    authentication_status: Some(common_enums::AuthenticationStatus::foreign_from(
+                        trans_status,
+                    )),
                     authentication_lifecycle_status: None,
                     connector_metadata: None,
                 }
@@ -212,16 +205,9 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_connector_id: None,
                     payment_method_id: None,
                     authentication_type: None,
-                    authentication_status: match trans_status {
-                        api_models::payments::TransStatus::Y => {
-                            Some(common_enums::AuthenticationStatus::Success)
-                        }
-                        api_models::payments::TransStatus::N
-                        | api_models::payments::TransStatus::R => {
-                            Some(common_enums::AuthenticationStatus::Failed)
-                        }
-                        _ => Some(common_enums::AuthenticationStatus::Pending),
-                    },
+                    authentication_status: Some(common_enums::AuthenticationStatus::foreign_from(
+                        trans_status,
+                    )),
                     authentication_lifecycle_status: None,
                     connector_metadata: None,
                 }
@@ -243,6 +229,7 @@ pub async fn update_trackers<F: Clone, Req>(
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while updating authentication")
     } else {
         Ok(authentication)
     };

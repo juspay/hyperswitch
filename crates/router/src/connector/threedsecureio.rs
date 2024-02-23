@@ -107,22 +107,36 @@ impl ConnectorCommon for Threedsecureio {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioErrorResponse = res
+        let response: threedsecureio::ThreedsecureioErrorResponseWrapper = res
             .response
-            .parse_struct("ThreedsecureioErrorResponse")
+            .parse_struct("ThreedsecureioErrorResponseWrapper")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response
-                .error_description
-                .clone()
-                .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
-            reason: response.error_detail,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response {
+            threedsecureio::ThreedsecureioErrorResponseWrapper::ErrorResponse(resp) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: resp.error_code,
+                    message: resp
+                        .error_description
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                    reason: resp.error_detail,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            threedsecureio::ThreedsecureioErrorResponseWrapper::ErrorString(error) => {
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error.clone(),
+                    message: error.clone(),
+                    reason: Some(error),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+        }
     }
 }
 
