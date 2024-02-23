@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.16.0-hotfix4
+
+### Refactors
+
+- **connector:** [NMI] Add billing details for preprocessing ([#3800](https://github.com/juspay/hyperswitch/pull/3800)) ([`37f5fae`](https://github.com/juspay/hyperswitch/commit/37f5faed1891cbc69a7452722cb15ade5a33a10c))
+
+- - -
+
 ## 2024.02.16.0-hotfix3
 
 ### Features
