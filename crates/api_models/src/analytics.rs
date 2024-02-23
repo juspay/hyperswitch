@@ -267,8 +267,19 @@ pub struct GetSearchRequest {
     pub filters: search::SearchFilters,
 }
 
+#[derive(Debug, strum::EnumIter)]
 pub enum SearchIndex {
     PaymentAttempts,
     PaymentIntents,
     Refunds,
+}
+
+impl ToString for SearchIndex {
+    fn to_string(&self) -> String {
+        String::from(match self {
+            Self::PaymentAttempts => "hyperswitch-payment-attempt-events",
+            Self::PaymentIntents => "hyperswitch-payment-intent-events",
+            Self::Refunds => "hyperswitch-refund-events",
+        })
+    }
 }

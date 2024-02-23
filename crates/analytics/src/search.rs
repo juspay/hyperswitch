@@ -1,14 +1,12 @@
+use actix_web::web::Json;
 use api_models::analytics::{GetGlobalSearchRequest, GetSearchRequest, SearchIndex};
 use common_utils::errors::CustomResult;
-use opensearch::{MsearchParts, OpenSearch, SearchParts};
+use opensearch::{http::request::JsonBody, MsearchParts, OpenSearch, SearchParts};
+use serde_json::{json, Value};
+use strum::IntoEnumIterator;
 
 use crate::errors::AnalyticsError;
 use crate::AnalyticsProvider;
-
-async fn get_opensearch_client(region: String) -> Client {
-    let sdk_config = aws_config::from_env().region(region_provider).load().await;
-    Client::new(&sdk_config)
-}
 
 async fn msearch_results(
     pool: &AnalyticsProvider,
@@ -16,19 +14,24 @@ async fn msearch_results(
     merchant_id: &String,
 ) -> CustomResult<(), AnalyticsError> {
     let client = OpenSearch::default();
-    let json_bytes = serde_json::to_vec(&req).map_err(|_| AnalyticsError::UnknownError)?;
 
-    let mut response_body = client
-        .msearch(MsearchParts::Index(&[
-            "hyperswitch-payment-attempt-events",
-            "hyperswitch-payment-intent-events",
-            "hyperswitch-refund-events",
-        ]))
-        .body(json_bytes)
+    let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
+    SearchIndex::iter().map(|index| {
+        msearch_vector.push(json!({"index": index.to_string()}).into());
+        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
+    });
+
+    let mut response = client
+        .msearch(MsearchParts::None)
+        .body(msearch_vector)
         .send()
-        .await?
+        .await
+        .map_err(|_| AnalyticsError::UnknownError)?;
+
+    let mut response_body = response
         .json::<Value>()
-        .await?;
+        .await
+        .map_err(|_| AnalyticsError::UnknownError)?;
 
     Ok(())
 }
@@ -40,15 +43,18 @@ async fn search_results(
     index: SearchIndex,
 ) -> CustomResult<(), AnalyticsError> {
     let client = OpenSearch::default();
-    let json_bytes = serde_json::to_vec(&req).map_err(|_| AnalyticsError::UnknownError)?;
 
-    let mut response_body = client
-        .search(SearchParts::Index(&[index.to_string()]))
-        .body(json_bytes)
+    let mut response = client
+        .search(SearchParts::Index(&[&index.to_string()]))
+        .body(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
         .send()
-        .await?
+        .await
+        .map_err(|_| AnalyticsError::UnknownError)?;
+
+    let mut response_body = response
         .json::<Value>()
-        .await?;
+        .await
+        .map_err(|_| AnalyticsError::UnknownError)?;
 
     Ok(())
 }
