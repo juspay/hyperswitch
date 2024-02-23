@@ -7373,7 +7373,8 @@
           "payment_method",
           "recurring_enabled",
           "installment_payment_enabled",
-          "requires_cvv"
+          "requires_cvv",
+          "default_payment_method_set"
         ],
         "properties": {
           "payment_token": {
@@ -7479,6 +7480,18 @@
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
+            "example": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "default_payment_method_set": {
+            "type": "boolean",
+            "description": "Indicates if the payment method has been set to default or not",
             "example": true
           }
         }
@@ -7624,6 +7637,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "default_payment_method": {
+            "type": "string",
+            "description": "The identifier for the default payment method.",
+            "example": "pm_djh2837dwduh890123",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -11859,6 +11879,12 @@
                 "$ref": "#/components/schemas/Bank"
               }
             ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           }
         }
