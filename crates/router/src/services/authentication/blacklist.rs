@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 #[cfg(feature = "olap")]
+use super::AuthToken;
+#[cfg(feature = "olap")]
 use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
@@ -120,4 +122,15 @@ fn expiry_to_i64(expiry: u64) -> RouterResult<i64> {
         .try_into()
         .into_report()
         .change_context(ApiErrorResponse::InternalServerError)
+}
+
+#[cfg(feature = "olap")]
+pub async fn check_auth_token_in_blacklist(
+    state: &AppState,
+    payload: &AuthToken,
+) -> UserResult<bool> {
+    Ok(
+        check_user_in_blacklist(state, &payload.user_id, payload.exp).await?
+            || check_role_in_blacklist(state, &payload.role_id, payload.exp).await?,
+    )
 }
