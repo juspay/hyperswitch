@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 #[cfg(feature = "olap")]
-use super::AuthToken;
-#[cfg(feature = "olap")]
 use common_utils::date_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::RedisConnectionPool;
 
+#[cfg(feature = "olap")]
+use super::AuthToken;
 #[cfg(feature = "email")]
 use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
 use crate::{
