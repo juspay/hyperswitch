@@ -14,7 +14,6 @@ use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
 use self::blacklist::BlackList;
-
 use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
