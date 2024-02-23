@@ -25,7 +25,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
+use scheduler::utils as pt_utils;
 use time;
 
 pub use self::operations::{
@@ -1128,6 +1128,8 @@ where
         let apple_pay_predecrypt = apple_pay_data
             .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        logger::debug!(?apple_pay_predecrypt);
 
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
             Box::new(apple_pay_predecrypt),
@@ -2356,14 +2358,14 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), sch_errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         ..Default::default()
     };
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let tag = ["SYNC", "PAYMENT"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
@@ -2372,14 +2374,16 @@ pub async fn add_process_sync_task(
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
         runner,
         tag,
         tracking_data,
         schedule_time,
-    )?;
+    )
+    .map_err(errors::StorageError::from)
+    .into_report()?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
@@ -2390,7 +2394,7 @@ pub async fn reset_process_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
@@ -2402,8 +2406,8 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process
-        .reset(db.as_scheduler(), schedule_time)
+    db.as_scheduler()
+        .reset_process(psync_process, schedule_time)
         .await?;
     Ok(())
 }

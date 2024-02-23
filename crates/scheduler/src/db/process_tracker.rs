@@ -2,11 +2,10 @@ use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
 use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
-use serde::Serialize;
 use storage_impl::{connection, errors, mock_db::MockDb};
 use time::PrimitiveDateTime;
 
-use crate::{errors as sch_errors, metrics, scheduler::Store, SchedulerInterface};
+use crate::{metrics, scheduler::Store};
 
 #[async_trait::async_trait]
 pub trait ProcessTrackerInterface: Send + Sync + 'static {
@@ -32,16 +31,29 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
         task_ids: Vec<String>,
         task_update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<usize, errors::StorageError>;
-    async fn update_process_tracker(
-        &self,
-        this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError>;
 
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError>;
+
+    async fn reset_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError>;
+
+    async fn retry_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError>;
+
+    async fn finish_process_with_business_status(
+        &self,
+        this: storage::ProcessTracker,
+        business_status: String,
+    ) -> CustomResult<(), errors::StorageError>;
 
     async fn find_processes_by_time_status(
         &self,
@@ -120,16 +132,58 @@ impl ProcessTrackerInterface for Store {
             .into_report()
     }
 
-    async fn update_process_tracker(
+    async fn reset_process(
         &self,
         this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, process)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.update_process(
+            this,
+            storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::New,
+                retry_count: 0,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn retry_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
+        let retry_count = this.retry_count + 1;
+        self.update_process(
+            this,
+            storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::Pending,
+                retry_count,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn finish_process_with_business_status(
+        &self,
+        this: storage::ProcessTracker,
+        business_status: String,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.update_process(
+            this,
+            storage::ProcessTrackerUpdate::StatusUpdate {
+                status: storage_enums::ProcessTrackerStatus::Finish,
+                business_status: Some(business_status),
+            },
+        )
+        .await
+        .attach_printable("Failed to update business status of process")?;
+        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
+        Ok(())
     }
 
     async fn process_tracker_update_process_status_by_ids(
@@ -215,11 +269,29 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn update_process_tracker(
+    async fn reset_process(
         &self,
         _this: storage::ProcessTracker,
-        _process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
+        _schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn retry_process(
+        &self,
+        _this: storage::ProcessTracker,
+        _schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn finish_process_with_business_status(
+        &self,
+        _this: storage::ProcessTracker,
+        _business_status: String,
+    ) -> CustomResult<(), errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -231,129 +303,5 @@ impl ProcessTrackerInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
-    }
-}
-
-#[async_trait::async_trait]
-pub trait ProcessTrackerExt {
-    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool;
-
-    fn make_process_tracker_new<'a, T>(
-        process_tracker_id: String,
-        task: &'a str,
-        runner: &'a str,
-        tag: impl IntoIterator<Item = impl Into<String>>,
-        tracking_data: T,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
-    where
-        T: Serialize;
-
-    async fn reset(
-        self,
-        db: &dyn SchedulerInterface,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<(), sch_errors::ProcessTrackerError>;
-
-    async fn retry(
-        self,
-        db: &dyn SchedulerInterface,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<(), sch_errors::ProcessTrackerError>;
-
-    async fn finish_with_status(
-        self,
-        db: &dyn SchedulerInterface,
-        status: String,
-    ) -> Result<(), sch_errors::ProcessTrackerError>;
-}
-
-#[async_trait::async_trait]
-impl ProcessTrackerExt for storage::ProcessTracker {
-    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
-        valid_statuses.iter().any(|x| x == &self.business_status)
-    }
-
-    fn make_process_tracker_new<'a, T>(
-        process_tracker_id: String,
-        task: &'a str,
-        runner: &'a str,
-        tag: impl IntoIterator<Item = impl Into<String>>,
-        tracking_data: T,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
-    where
-        T: Serialize,
-    {
-        let current_time = common_utils::date_time::now();
-        Ok(storage::ProcessTrackerNew {
-            id: process_tracker_id,
-            name: Some(String::from(task)),
-            tag: tag.into_iter().map(Into::into).collect(),
-            runner: Some(String::from(runner)),
-            retry_count: 0,
-            schedule_time: Some(schedule_time),
-            rule: String::new(),
-            tracking_data: serde_json::to_value(tracking_data)
-                .map_err(|_| sch_errors::ProcessTrackerError::SerializationFailed)?,
-            business_status: String::from("Pending"),
-            status: storage_enums::ProcessTrackerStatus::New,
-            event: vec![],
-            created_at: current_time,
-            updated_at: current_time,
-        })
-    }
-
-    async fn reset(
-        self,
-        db: &dyn SchedulerInterface,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<(), sch_errors::ProcessTrackerError> {
-        db.update_process_tracker(
-            self.clone(),
-            storage::ProcessTrackerUpdate::StatusRetryUpdate {
-                status: storage_enums::ProcessTrackerStatus::New,
-                retry_count: 0,
-                schedule_time,
-            },
-        )
-        .await?;
-        Ok(())
-    }
-
-    async fn retry(
-        self,
-        db: &dyn SchedulerInterface,
-        schedule_time: PrimitiveDateTime,
-    ) -> Result<(), sch_errors::ProcessTrackerError> {
-        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
-        db.update_process_tracker(
-            self.clone(),
-            storage::ProcessTrackerUpdate::StatusRetryUpdate {
-                status: storage_enums::ProcessTrackerStatus::Pending,
-                retry_count: self.retry_count + 1,
-                schedule_time,
-            },
-        )
-        .await?;
-        Ok(())
-    }
-
-    async fn finish_with_status(
-        self,
-        db: &dyn SchedulerInterface,
-        status: String,
-    ) -> Result<(), sch_errors::ProcessTrackerError> {
-        db.update_process(
-            self,
-            storage::ProcessTrackerUpdate::StatusUpdate {
-                status: storage_enums::ProcessTrackerStatus::Finish,
-                business_status: Some(status),
-            },
-        )
-        .await
-        .attach_printable("Failed while updating status of the process")?;
-        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
-        Ok(())
     }
 }

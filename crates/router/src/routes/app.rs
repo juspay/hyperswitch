@@ -813,7 +813,8 @@ impl Configs {
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
-                    .route(web::post().to(config_key_update)),
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
             )
     }
 }
@@ -1020,7 +1021,11 @@ impl User {
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
                 )
-                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)));
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)))
+                .service(
+                    web::resource("/accept_invite_from_email")
+                        .route(web::post().to(accept_invite_from_email)),
+                );
         }
         #[cfg(not(feature = "email"))]
         {
@@ -1047,9 +1052,17 @@ impl User {
         // Role information
         route = route.service(
             web::scope("/role")
-                .service(web::resource("").route(web::get().to(get_role_from_token)))
+                .service(
+                    web::resource("")
+                        .route(web::get().to(get_role_from_token))
+                        .route(web::post().to(create_role)),
+                )
                 .service(web::resource("/list").route(web::get().to(list_all_roles)))
-                .service(web::resource("/{role_id}").route(web::get().to(get_role))),
+                .service(
+                    web::resource("/{role_id}")
+                        .route(web::get().to(get_role))
+                        .route(web::put().to(update_role)),
+                ),
         );
 
         #[cfg(feature = "dummy_connector")]

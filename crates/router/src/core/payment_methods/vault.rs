@@ -17,7 +17,7 @@ use crate::{
     routes::metrics,
     types::{
         api, domain,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums},
     },
     utils::StringExt,
 };
@@ -998,33 +998,31 @@ pub async fn add_delete_tokenized_data_task(
     lookup_key: &str,
     pm: enums::PaymentMethod,
 ) -> RouterResult<()> {
-    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
-    let current_time = common_utils::date_time::now();
-    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
+    let runner = storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
+    let process_tracker_id = format!("{runner}_{lookup_key}");
+    let task = runner.to_string();
+    let tag = ["BASILISK-V3"];
+    let tracking_data = storage::TokenizeCoreWorkflow {
         lookup_key: lookup_key.to_owned(),
         pm,
-    })
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
-
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
-
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{runner}_{lookup_key}"),
-        name: Some(String::from(runner)),
-        tag: vec![String::from("BASILISK-V3")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time,
-        rule: String::new(),
-        tracking_data,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
     };
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
+        .await
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to obtain initial process tracker schedule time")?;
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        &task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct delete tokenized data process tracker task")?;
+
     let response = db.insert_process(process_tracker_entry).await;
     response.map(|_| ()).or_else(|err| {
         if err.current_context().is_db_unique_violation() {
@@ -1056,10 +1054,11 @@ pub async fn start_tokenize_data_workflow(
         Ok(()) => {
             logger::info!("Card From locker deleted Successfully");
             //mark task as finished
-            let id = tokenize_tracker.id.clone();
-            tokenize_tracker
-                .clone()
-                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    tokenize_tracker.clone(),
+                    "COMPLETED_BY_PT".to_string(),
+                )
                 .await?;
         }
         Err(err) => {
@@ -1104,7 +1103,11 @@ pub async fn retry_delete_tokenize(
 
     match schedule_time {
         Some(s_time) => {
-            let retry_schedule = pt.retry(db.as_scheduler(), s_time).await;
+            let retry_schedule = db
+                .as_scheduler()
+                .retry_process(pt, s_time)
+                .await
+                .map_err(Into::into);
             metrics::TASKS_RESET_COUNT.add(
                 &metrics::CONTEXT,
                 1,
@@ -1115,10 +1118,11 @@ pub async fn retry_delete_tokenize(
             );
             retry_schedule
         }
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
-                .await
-        }
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .await
+            .map_err(Into::into),
     }
 }
 

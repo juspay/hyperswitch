@@ -156,18 +156,27 @@ impl super::settings::ApiKeys {
         use common_utils::fp_utils::when;
 
         #[cfg(feature = "aws_kms")]
-        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
+        when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty when KMS feature is enabled".into(),
             ))
-        });
+        })?;
 
         #[cfg(not(feature = "aws_kms"))]
         when(self.hash_key.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
             ))
-        })
+        })?;
+
+        #[cfg(feature = "email")]
+        when(self.expiry_reminder_days.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key expiry reminder days must not be empty".into(),
+            ))
+        })?;
+
+        Ok(())
     }
 }
 

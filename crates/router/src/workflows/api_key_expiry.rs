@@ -8,11 +8,7 @@ use crate::{
     logger::error,
     routes::{metrics, AppState},
     services::email::types::ApiKeyExpiryReminder,
-    types::{
-        api,
-        domain::UserEmail,
-        storage::{self, ProcessTrackerExt},
-    },
+    types::{api, domain::UserEmail, storage},
     utils::OptionExt,
 };
 
@@ -90,8 +86,10 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             == i32::try_from(tracking_data.expiry_reminder_days.len() - 1)
                 .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?
         {
-            process
-                .finish_with_status(state.get_db().as_scheduler(), "COMPLETED_BY_PT".to_string())
+            state
+                .get_db()
+                .as_scheduler()
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                 .await?
         }
         // If tasks are remaining that has to be scheduled
