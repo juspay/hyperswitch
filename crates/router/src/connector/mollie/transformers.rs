@@ -347,9 +347,7 @@ fn get_shipping_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let shipping_address = item
-        .address
-        .shipping
-        .as_ref()
+        .get_optional_shipping()
         .and_then(|shipping| shipping.address.as_ref());
     get_address_details(shipping_address)
 }
@@ -358,9 +356,7 @@ fn get_billing_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<Address>, Error> {
     let billing_address = item
-        .address
-        .billing
-        .as_ref()
+        .get_optional_billing()
         .and_then(|billing| billing.address.as_ref());
     get_address_details(billing_address)
 }

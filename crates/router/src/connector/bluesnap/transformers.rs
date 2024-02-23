@@ -322,15 +322,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-                    let billing = item
-                        .router_data
-                        .address
-                        .billing
-                        .to_owned()
-                        .get_required_value("billing")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing",
-                        })?;
+                    let billing = item.router_data.get_billing()?.to_owned();
 
                     let billing_address = billing
                         .address

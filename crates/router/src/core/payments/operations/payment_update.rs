@@ -376,11 +376,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector,
             token,
             setup_mandate,
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing.as_ref().map(|a| a.into()),
-            },
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(|a| a.into()),
+                billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing
+                    .as_ref()
+                    .map(|address| address.into()),
+            ),
             confirm: request.confirm,
             payment_method_data: request
                 .payment_method_data

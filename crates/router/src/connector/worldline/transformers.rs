@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, BankRedirectBillingData, CardData},
+    connector::utils::{self, BankRedirectBillingData, CardData, RouterData},
     core::errors,
     services,
     types::{
@@ -278,9 +278,7 @@ impl
 
         let shipping = item
             .router_data
-            .address
-            .shipping
-            .as_ref()
+            .get_optional_shipping()
             .and_then(|shipping| shipping.address.clone())
             .map(Shipping::from);
         Ok(Self {
@@ -438,7 +436,7 @@ fn make_bank_redirect_request(
 fn get_address(
     payment_address: &types::PaymentAddress,
 ) -> Option<(&payments::Address, &payments::AddressDetails)> {
-    let billing = payment_address.billing.as_ref()?;
+    let billing = payment_address.get_billing()?;
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
     Some((billing, address))

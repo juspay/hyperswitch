@@ -2021,10 +2021,49 @@ pub enum CallConnectorAction {
 }
 
 #[derive(Clone, Default, Debug)]
+struct Private;
+
+#[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {
-    pub shipping: Option<api::Address>,
-    pub billing: Option<api::Address>,
-    pub payment_method_billing: Option<api::Address>,
+    shipping: Option<api::Address>,
+    billing: Option<api::Address>,
+    payment_method_billing: Option<api::Address>,
+    // To restrict direct construction of PaymentAddress
+    _private: Private,
+}
+
+impl PaymentAddress {
+    pub fn new(
+        shipping: Option<api::Address>,
+        billing: Option<api::Address>,
+        payment_method_billing: Option<api::Address>,
+    ) -> Self {
+        let payment_method_billing = match (payment_method_billing, billing.clone()) {
+            (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
+                address: payment_method_billing.address.or(order_billing.address),
+                phone: payment_method_billing.phone.or(order_billing.phone),
+                email: payment_method_billing.email.or(order_billing.email),
+            }),
+            (Some(payment_method_billing), None) => Some(payment_method_billing),
+            (None, Some(order_billing)) => Some(order_billing),
+            (None, None) => None,
+        };
+
+        Self {
+            shipping,
+            billing,
+            payment_method_billing,
+            _private: Private,
+        }
+    }
+
+    pub fn get_shipping(&self) -> Option<&api::Address> {
+        self.shipping.as_ref()
+    }
+
+    pub fn get_billing(&self) -> Option<&api::Address> {
+        self.payment_method_billing.as_ref()
+    }
 }
 
 #[derive(Clone)]

@@ -121,11 +121,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector: None,
             setup_mandate: None,
             token: None,
-            address: PaymentAddress {
-                billing: None,
-                shipping: None,
-                payment_method_billing: None,
-            },
+            address: PaymentAddress::new(None, None, None),
             confirm: None,
             payment_method_data: None,
             force_sync: None,

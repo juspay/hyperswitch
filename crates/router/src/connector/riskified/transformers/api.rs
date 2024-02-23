@@ -144,8 +144,8 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
             .parse_value("Riskified Metadata")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let billing_address = payment_data.get_billing_address_with_phone_number()?;
-        let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
+        let billing_address = payment_data.get_billing()?;
+        let shipping_address = payment_data.get_billing()?;
         let address = payment_data.get_billing_address()?;
 
         Ok(Self {

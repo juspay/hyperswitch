@@ -146,13 +146,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector: None,
             setup_mandate: None,
             token: payment_attempt.payment_token.clone(),
-            address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.into()),
-                billing: billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing: payment_method_billing
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(|a| a.into()),
+                billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing
                     .as_ref()
                     .map(|address| address.into()),
-            },
+            ),
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
             payment_method_data: None,

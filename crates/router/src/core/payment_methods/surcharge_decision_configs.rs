@@ -259,7 +259,10 @@ where
     let mut backend_input = make_dsl_input_for_surcharge(
         &payment_data.payment_attempt,
         &payment_data.payment_intent,
-        payment_data.address.billing.clone(),
+        payment_data
+            .address
+            .get_billing()
+            .map(|billing| billing.to_owned()),
     )
     .change_context(ConfigError::InputConstructionError)?;
     for payment_method_type in payment_method_type_list {

@@ -413,13 +413,13 @@ async fn get_tracker_for_sync<
         mandate_connector: None,
         setup_mandate: None,
         token: None,
-        address: PaymentAddress {
-            shipping: shipping_address.as_ref().map(|a| a.into()),
-            billing: billing_address.as_ref().map(|a| a.into()),
-            payment_method_billing: payment_method_billing
+        address: PaymentAddress::new(
+            shipping_address.as_ref().map(|a| a.into()),
+            billing_address.as_ref().map(|a| a.into()),
+            payment_method_billing
                 .as_ref()
                 .map(|address| address.into()),
-        },
+        ),
         confirm: Some(request.force_sync),
         payment_method_data: None,
         force_sync: Some(

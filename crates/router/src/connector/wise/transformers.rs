@@ -358,7 +358,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
         let payout_method_data = item.get_payout_method_data()?;
         let bank_details = get_payout_bank_details(
             payout_method_data.to_owned(),
-            &item.address.billing,
+            &item
+                .get_optional_billing()
+                .map(|billing| billing.to_owned()),
             item.request.entity_type,
         )?;
         let source_id = match item.connector_auth_type.to_owned() {
