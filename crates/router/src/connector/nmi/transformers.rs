@@ -1,5 +1,6 @@
 use api_models::webhooks;
 use cards::CardNumber;
+use common_enums::CountryAlpha2;
 use common_utils::{
     errors::CustomResult,
     ext_traits::XmlExt,
@@ -93,6 +94,12 @@ pub struct NmiVaultRequest {
     cvv: Secret<String>,
     first_name: Secret<String>,
     last_name: Secret<String>,
+    address1: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country: Option<CountryAlpha2>,
     customer_vault: CustomerAction,
 }
 
@@ -117,6 +124,12 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
             cvv,
             first_name: billing_details.get_first_name()?.to_owned(),
             last_name: billing_details.get_last_name()?.to_owned(),
+            address1: billing_details.line1.clone(),
+            address2: billing_details.line2.clone(),
+            city: billing_details.city.clone(),
+            state: billing_details.state.clone(),
+            country: billing_details.country,
+            zip: billing_details.zip.clone(),
             customer_vault: CustomerAction::AddCustomer,
         })
     }
