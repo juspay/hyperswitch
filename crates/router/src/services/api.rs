@@ -338,25 +338,28 @@ where
                 ],
             );
 
-            let connector_request = connector_request.or(connector_integration
-                .build_request(req, &state.conf.connectors)
-                .map_err(|error| {
-                    if matches!(
-                        error.current_context(),
-                        &errors::ConnectorError::RequestEncodingFailed
-                            | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
-                    ) {
-                        metrics::REQUEST_BUILD_FAILURE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &[metrics::request::add_attributes(
-                                "connector",
-                                req.connector.to_string(),
-                            )],
-                        )
-                    }
-                    error
-                })?);
+            let connector_request = match connector_request {
+                Some(connector_request) => Some(connector_request),
+                None => connector_integration
+                    .build_request(req, &state.conf.connectors)
+                    .map_err(|error| {
+                        if matches!(
+                            error.current_context(),
+                            &errors::ConnectorError::RequestEncodingFailed
+                                | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
+                        ) {
+                            metrics::REQUEST_BUILD_FAILURE.add(
+                                &metrics::CONTEXT,
+                                1,
+                                &[metrics::request::add_attributes(
+                                    "connector",
+                                    req.connector.to_string(),
+                                )],
+                            )
+                        }
+                        error
+                    })?,
+            };
 
             match connector_request {
                 Some(request) => {
@@ -1828,7 +1831,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('challenge', function(e) {{
                         console.log('Challenged');
-                        document.getElementById('loader-wrapper').style.display = 'none';                    
+                        document.getElementById('loader-wrapper').style.display = 'none';
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
