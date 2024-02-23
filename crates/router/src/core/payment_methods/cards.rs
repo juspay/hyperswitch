@@ -7,8 +7,9 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes, MaskedBankDetails,
-        PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
+        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes,
+        CustomerDefaultPaymentMethodResponse, MaskedBankDetails, PaymentExperienceTypes,
+        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
@@ -25,7 +26,8 @@ use diesel_models::{
     business_profile::BusinessProfile, encryption::Encryption, enums as storage_enums,
     payment_method,
 };
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use domain::CustomerUpdate;
+use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -2720,13 +2722,14 @@ pub async fn list_customer_payment_method(
         }
     };
 
-    db.find_customer_by_customer_id_merchant_id(
-        customer_id,
-        &merchant_account.merchant_id,
-        &key_store,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    let customer = db
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let key = key_store.key.get_inner().peek();
 
@@ -2845,6 +2848,7 @@ pub async fn list_customer_payment_method(
             surcharge_details: None,
             requires_cvv,
             last_used_at: pm.last_used_at,
+            default_payment_method_set: customer.default_payment_method.is_some(),
         };
         customer_pms.push(pma.to_owned());
 
@@ -3130,7 +3134,83 @@ async fn get_bank_account_connector_details(
         None => Ok(None),
     }
 }
+pub async fn set_default_payment_method(
+    state: routes::AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: &str,
+    payment_method_id: String,
+) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+    let db = &*state.store;
+    //check for the customer
+    let customer = db
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    // check for the presence of payment_method
+    let payment_method = db
+        .find_payment_method(&payment_method_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+        default_payment_method: Some(payment_method_id.clone()),
+    };
+    utils::when(
+        Some(payment_method_id) == customer.default_payment_method,
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Payment Method is already set as default".to_string(),
+            })
+            .into_report()
+        },
+    )?;
+    // update the db with the default payment method id
+    let updated_customer_details = db
+        .update_customer_by_customer_id_merchant_id(
+            customer_id.to_owned(),
+            merchant_account.merchant_id,
+            customer_update,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the default payment method id for the customer")?;
+    let resp = CustomerDefaultPaymentMethodResponse {
+        default_payment_method_id: updated_customer_details.default_payment_method,
+        customer_id: customer.customer_id,
+        payment_method_type: payment_method.payment_method_type,
+        payment_method: payment_method.payment_method,
+    };
+
+    Ok(services::ApplicationResponse::Json(resp))
+}
+
+pub async fn update_last_used_at(
+    pm_id: &str,
+    state: &routes::AppState,
+) -> errors::RouterResult<()> {
+    let udpate_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
+        last_used_at: Some(common_utils::date_time::now()),
+    };
+    let payment_method = state
+        .store
+        .find_payment_method(pm_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    state
+        .store
+        .update_payment_method(payment_method, udpate_last_used)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the last_used_at in db")?;
+
+    Ok(())
+}
 #[cfg(feature = "payouts")]
 pub async fn get_bank_from_hs_locker(
     state: &routes::AppState,
@@ -3392,26 +3472,4 @@ pub async fn create_encrypted_payment_method_data(
         .map(|details| details.into());
 
     pm_data_encrypted
-}
-
-pub async fn update_last_used_at(
-    pm_id: &str,
-    state: &routes::AppState,
-) -> errors::RouterResult<()> {
-    let udpate_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
-        last_used_at: Some(common_utils::date_time::now()),
-    };
-    let payment_method = state
-        .store
-        .find_payment_method(pm_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    state
-        .store
-        .update_payment_method(payment_method, udpate_last_used)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update the last_used_at in db")?;
-
-    Ok(())
 }

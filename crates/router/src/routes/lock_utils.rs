@@ -94,7 +94,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
-            | Flow::ValidatePaymentMethod => Self::PaymentMethods,
+            | Flow::ValidatePaymentMethod
+            | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 

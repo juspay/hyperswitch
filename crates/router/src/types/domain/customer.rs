@@ -22,6 +22,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
+    pub default_payment_method: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -30,21 +31,22 @@ impl super::behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
+            id: __self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
-            customer_id: self.customer_id,
-            merchant_id: self.merchant_id,
-            name: self.name.map(|value| value.into()),
-            email: self.email.map(|value| value.into()),
-            phone: self.phone.map(Encryption::from),
-            phone_country_code: self.phone_country_code,
-            description: self.description,
-            created_at: self.created_at,
-            metadata: self.metadata,
-            modified_at: self.modified_at,
-            connector_customer: self.connector_customer,
-            address_id: self.address_id,
+            customer_id: __self.customer_id,
+            merchant_id: __self.merchant_id,
+            name: __self.name.map(|value| value.into()),
+            email: __self.email.map(|value| value.into()),
+            phone: __self.phone.map(Encryption::from),
+            phone_country_code: __self.phone_country_code,
+            description: __self.description,
+            created_at: __self.created_at,
+            metadata: __self.metadata,
+            modified_at: __self.modified_at,
+            connector_customer: __self.connector_customer,
+            address_id: __self.address_id,
+            default_payment_method: __self.default_payment_method,
         })
     }
 
@@ -72,6 +74,7 @@ impl super::behaviour::Conversion for Customer {
                 modified_at: item.modified_at,
                 connector_customer: item.connector_customer,
                 address_id: item.address_id,
+                default_payment_method: item.default_payment_method,
             })
         }
         .await
@@ -114,6 +117,9 @@ pub enum CustomerUpdate {
     ConnectorCustomer {
         connector_customer: Option<serde_json::Value>,
     },
+    UpdateDefaultPaymentMethod {
+        default_payment_method: Option<String>,
+    },
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
@@ -138,9 +144,17 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 connector_customer,
                 modified_at: Some(date_time::now()),
                 address_id,
+                ..Default::default()
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method,
+            } => Self {
+                default_payment_method,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

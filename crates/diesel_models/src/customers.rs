@@ -37,6 +37,7 @@ pub struct Customer {
     pub connector_customer: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
+    pub default_payment_method: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -51,4 +52,5 @@ pub struct CustomerUpdateInternal {
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
+    pub default_payment_method: Option<String>,
 }

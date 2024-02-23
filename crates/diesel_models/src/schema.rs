@@ -226,6 +226,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         address_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        default_payment_method -> Nullable<Varchar>,
     }
 }
 

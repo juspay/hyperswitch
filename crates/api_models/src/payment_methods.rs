@@ -740,6 +740,13 @@ pub struct PaymentMethodDeleteResponse {
     #[schema(example = true)]
     pub deleted: bool,
 }
+#[derive(Debug, serde::Serialize)]
+pub struct CustomerDefaultPaymentMethodResponse {
+    pub default_payment_method_id: Option<String>,
+    pub customer_id: String,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method: api_enums::PaymentMethod,
+}
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
@@ -812,6 +819,10 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// Indicates if the payment method has been set to default or not
+    #[schema(example = true)]
+    pub default_payment_method_set: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -915,4 +926,10 @@ pub struct TokenizedBankRedirectValue1 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct DefaultPaymentMethod {
+    pub customer_id: String,
+    pub payment_method_id: String,
 }

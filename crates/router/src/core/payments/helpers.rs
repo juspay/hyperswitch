@@ -1393,6 +1393,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                             modified_at: common_utils::date_time::now(),
                             connector_customer: None,
                             address_id: None,
+                            default_payment_method: None,
                         })
                     }
                     .await
@@ -1583,7 +1584,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-    let _ = cards::update_last_used_at(token, state).await?;
+    cards::update_last_used_at(token, state).await?;
     Ok(api::PaymentMethodData::Card(api_card))
 }
 

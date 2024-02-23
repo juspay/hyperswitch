@@ -108,6 +108,7 @@ pub async fn create_customer(
             address_id: address.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            default_payment_method: None,
         })
     }
     .await

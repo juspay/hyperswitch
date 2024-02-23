@@ -1068,7 +1068,6 @@ where
         customer,
     )
     .await?;
-    println!("tok_Act{:?}", tokenization_action);
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
@@ -1841,7 +1840,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
