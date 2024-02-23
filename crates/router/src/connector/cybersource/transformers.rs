@@ -542,14 +542,16 @@ impl
                 (None, None, None)
             };
         let commerce_indicator = match network {
-            Some(card_network) => match card_network.as_str() {
-                "AmEx" => String::from("aesk"),
-                "Discover" => String::from("dipb"),
-                "MasterCard" => String::from("spa"),
-                _ => String::from("internet"),
+            Some(card_network) => match card_network.to_lowercase().as_str() {
+                "amex" => "aesk",
+                "discover" => "dipb",
+                "mastercard" => "spa",
+                "visa" => "internet",
+                _ => "internet",
             },
-            None => String::from("internet"),
-        };
+            None => "internet",
+        }
+        .to_string();
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
