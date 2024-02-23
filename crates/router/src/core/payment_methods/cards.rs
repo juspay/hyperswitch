@@ -134,6 +134,65 @@ pub fn store_default_payment_method(
 }
 
 #[instrument(skip_all)]
+pub async fn get_or_insert_payment_method(
+    db: &dyn db::StorageInterface,
+    req: api::PaymentMethodCreate,
+    resp: &mut api::PaymentMethodResponse,
+    merchant_account: &domain::MerchantAccount,
+    customer_id: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResult<diesel_models::PaymentMethod> {
+    let mut payment_method_id = resp.payment_method_id.clone();
+    let mut locker_id = None;
+    let payment_method = {
+        let existing_pm_by_pmid = db.find_payment_method(&payment_method_id).await;
+
+        if let Err(err) = existing_pm_by_pmid {
+            if err.current_context().is_db_not_found() {
+                locker_id = Some(payment_method_id.clone());
+                let existing_pm_by_locker_id = db
+                    .find_payment_method_by_locker_id(&payment_method_id)
+                    .await;
+
+                match &existing_pm_by_locker_id {
+                    Ok(pm) => payment_method_id = pm.payment_method_id.clone(),
+                    Err(_) => payment_method_id = generate_id(consts::ID_LENGTH, "pm"),
+                };
+                existing_pm_by_locker_id
+            } else {
+                Err(err)
+            }
+        } else {
+            existing_pm_by_pmid
+        }
+    };
+    resp.payment_method_id = payment_method_id.to_owned();
+
+    match payment_method {
+        Ok(pm) => Ok(pm),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                insert_payment_method(
+                    db,
+                    resp,
+                    req,
+                    key_store,
+                    &merchant_account.merchant_id,
+                    customer_id,
+                    resp.metadata.clone().map(|val| val.expose()),
+                    locker_id,
+                )
+                .await
+            } else {
+                Err(err)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while finding payment method")
+            }
+        }
+    }
+}
+
+#[instrument(skip_all)]
 pub async fn add_payment_method(
     state: routes::AppState,
     req: api::PaymentMethodCreate,
@@ -186,110 +245,30 @@ pub async fn add_payment_method(
 
     let (mut resp, duplication_check) = response?;
 
-    let mut payment_method_id = resp.payment_method_id.clone();
-    let mut locker_id = None;
-
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {
-                let payment_method = {
-                    let existing_pm_by_pmid = db.find_payment_method(&payment_method_id).await;
-
-                    if let Err(err) = existing_pm_by_pmid {
-                        if err.current_context().is_db_not_found() {
-                            locker_id = Some(payment_method_id.clone());
-                            let existing_pm_by_locker_id = db
-                                .find_payment_method_by_locker_id(&payment_method_id)
-                                .await;
-
-                            match &existing_pm_by_locker_id {
-                                Ok(pm) => payment_method_id = pm.payment_method_id.clone(),
-                                Err(_) => payment_method_id = generate_id(consts::ID_LENGTH, "pm"),
-                            };
-                            existing_pm_by_locker_id
-                        } else {
-                            Err(err)
-                        }
-                    } else {
-                        existing_pm_by_pmid
-                    }
-                };
-                resp.payment_method_id = payment_method_id;
-
-                let _ = match payment_method {
-                    Ok(pm) => Ok(pm),
-                    Err(err) => {
-                        if err.current_context().is_db_not_found() {
-                            insert_payment_method(
-                                db,
-                                &resp,
-                                req,
-                                key_store,
-                                &merchant_account.merchant_id,
-                                &customer_id,
-                                resp.metadata.clone().map(|val| val.expose()),
-                                locker_id,
-                            )
-                            .await
-                        } else {
-                            Err(err)
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Error while finding payment method")
-                        }
-                    }
-                }?;
+                get_or_insert_payment_method(
+                    db,
+                    req.clone(),
+                    &mut resp,
+                    merchant_account,
+                    &customer_id,
+                    key_store,
+                )
+                .await?;
             }
             payment_methods::DataDuplicationCheck::MetaDataChanged => {
                 if let Some(card) = req.card.clone() {
-                    let payment_method = {
-                        let existing_pm_by_pmid = db.find_payment_method(&payment_method_id).await;
-
-                        if let Err(err) = existing_pm_by_pmid {
-                            if err.current_context().is_db_not_found() {
-                                locker_id = Some(payment_method_id.clone());
-                                let existing_pm_by_locker_id = db
-                                    .find_payment_method_by_locker_id(&payment_method_id)
-                                    .await;
-
-                                match &existing_pm_by_locker_id {
-                                    Ok(pm) => payment_method_id = pm.payment_method_id.clone(),
-                                    Err(_) => {
-                                        payment_method_id = generate_id(consts::ID_LENGTH, "pm")
-                                    }
-                                };
-                                existing_pm_by_locker_id
-                            } else {
-                                Err(err)
-                            }
-                        } else {
-                            existing_pm_by_pmid
-                        }
-                    };
-
-                    resp.payment_method_id = payment_method_id;
-
-                    let existing_pm = match payment_method {
-                        Ok(pm) => Ok(pm),
-                        Err(err) => {
-                            if err.current_context().is_db_not_found() {
-                                insert_payment_method(
-                                    db,
-                                    &resp,
-                                    req.clone(),
-                                    key_store,
-                                    &merchant_account.merchant_id,
-                                    &customer_id,
-                                    resp.metadata.clone().map(|val| val.expose()),
-                                    locker_id,
-                                )
-                                .await
-                            } else {
-                                Err(err)
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Error while finding payment method")
-                            }
-                        }
-                    }?;
+                    let existing_pm = get_or_insert_payment_method(
+                        db,
+                        req.clone(),
+                        &mut resp,
+                        merchant_account,
+                        &customer_id,
+                        key_store,
+                    )
+                    .await?;
 
                     delete_card_from_locker(
                         &state,
@@ -369,7 +348,7 @@ pub async fn add_payment_method(
         None => {
             let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
 
-            locker_id = Some(resp.payment_method_id);
+            let locker_id = Some(resp.payment_method_id);
             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             insert_payment_method(
                 db,
@@ -645,7 +624,6 @@ pub async fn delete_card_from_locker(
     .await
 }
 
-#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn add_card_hs(
     state: &routes::AppState,
