@@ -2678,18 +2678,28 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             )
             .await?;
 
-        let customer_id = payment_intent
+        match payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
-        Box::pin(list_customer_payment_method(
-            &state,
-            merchant_account,
-            key_store,
-            payment_intent,
-            &customer_id,
-        ))
-        .await
+        {
+            Some(customer_id) => {
+                Box::pin(list_customer_payment_method(
+                    &state,
+                    merchant_account,
+                    key_store,
+                    payment_intent,
+                    &customer_id,
+                ))
+                .await
+            }
+            None => {
+                let response = api::CustomerPaymentMethodsListResponse {
+                    customer_payment_methods: Vec::new(),
+                    is_guest_customer: Some(true),
+                };
+                Ok(services::ApplicationResponse::Json(response))
+            }
+        }
     }
 }
 
@@ -2885,6 +2895,7 @@ pub async fn list_customer_payment_method(
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
+        is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
     };
     let payment_attempt = payment_intent
         .as_ref()
