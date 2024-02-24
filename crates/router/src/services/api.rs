@@ -363,8 +363,6 @@ where
 
             match connector_request {
                 Some(request) => {
-                    logger::debug!(connector_request=?request);
-
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
