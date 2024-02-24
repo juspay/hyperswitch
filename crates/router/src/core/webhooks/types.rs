@@ -45,7 +45,7 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum WebhookDeliveryAttempt {
+pub(crate) enum WebhookDeliveryAttempt {
     InitialAttempt,
     AutomaticRetry,
 }

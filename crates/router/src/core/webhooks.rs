@@ -44,6 +44,7 @@ use crate::{
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{self as helper_utils, generate_id, OptionExt, ValueExt},
+    workflows::outgoing_webhook_retry,
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
@@ -675,7 +676,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         Ok(event) => Ok(event),
         Err(error) => {
             if error.current_context().is_db_unique_violation() {
-                logger::info!("Merchant already notified about the event {event_id}");
+                logger::debug!("Event `{event_id}` already exists in the database");
                 return Ok(());
             } else {
                 logger::error!(event_insertion_failure=?error);
@@ -695,13 +696,22 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             timestamp: event.created_at,
         };
 
+        let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
+            &*state.store,
+            &business_profile.merchant_id,
+            0,
+        )
+        .await
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to obtain initial process tracker schedule time")?;
         // Do we error out here, or *try* to send webhook exactly once, in case adding task to
         // process tracker fails?
         let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
             &*state.store,
             &business_profile,
             &event,
-            utils::get_initial_retry_schedule_time(),
+            schedule_time,
         )
         .await
         .map_err(|error| {
@@ -935,7 +945,63 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
                 }
             }
         },
-        types::WebhookDeliveryAttempt::AutomaticRetry => todo!(),
+        types::WebhookDeliveryAttempt::AutomaticRetry => match response {
+            Err(client_error) => {
+                let error =
+                    client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
+                logger::error!(
+                    ?error,
+                    ?delivery_attempt,
+                    "An error occurred when sending webhook to merchant"
+                );
+                // Schedule a retry attempt for webhook delivery
+                outgoing_webhook_retry::retry_webhook_delivery_task(
+                    &*state.store,
+                    &business_profile.merchant_id,
+                    process_tracker,
+                )
+                .await
+                .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
+            }
+            Ok(response) => {
+                if response.status().is_success() {
+                    update_event_in_storage(
+                        business_profile.merchant_id,
+                        outgoing_webhook_event_id,
+                    )
+                    .await?;
+
+                    state.store.as_scheduler().finish_process_with_business_status(
+                    process_tracker,
+                            "COMPLETED_BY_PT".into(),
+                        )
+                        .await
+                        .change_context(errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed)?;
+                } else {
+                    increment_webhook_outgoing_not_received_count(
+                        business_profile.merchant_id.clone(),
+                    );
+                    let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
+                    let status_code = response.status().as_u16();
+                    logger::warn!(
+                        ?error,
+                        ?delivery_attempt,
+                        ?status_code,
+                        "An error occurred when sending webhook to merchant"
+                    );
+                    // Schedule a retry attempt for webhook delivery
+                    outgoing_webhook_retry::retry_webhook_delivery_task(
+                        &*state.store,
+                        &business_profile.merchant_id,
+                        process_tracker,
+                    )
+                    .await
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed,
+                    )?;
+                }
+            }
+        },
     }
 
     Ok(())

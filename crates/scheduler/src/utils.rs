@@ -342,6 +342,30 @@ pub fn get_pm_schedule_time(
     }
 }
 
+pub fn get_outgoing_webhook_retry_schedule_time(
+    mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    merchant_name: &str,
+    retry_count: i32,
+) -> Option<i32> {
+    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    // For first try, get the `start_after` time
+    if retry_count == 0 {
+        Some(retry_mapping.start_after)
+    } else {
+        get_delay(
+            retry_count,
+            retry_mapping
+                .count
+                .iter()
+                .zip(retry_mapping.frequency.iter()),
+        )
+    }
+}
+
 /// Get the delay based on the retry count
 fn get_delay<'a>(retry_count: i32, array: impl Iterator<Item = (&'a i32, &'a i32)>) -> Option<i32> {
     let mut cumulative_count = 0;
