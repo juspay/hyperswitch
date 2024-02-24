@@ -16,7 +16,6 @@ use router_env::{
     tracing::{self, Instrument},
     tracing_actix_web::RequestId,
 };
-use scheduler::db::process_tracker::ProcessTrackerExt;
 
 use super::{errors::StorageErrorExt, metrics};
 #[cfg(feature = "stripe")]
@@ -712,7 +711,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             );
             error
         })
-        .into_report()
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to add outgoing webhook process tracker task")?;
 
@@ -918,13 +916,11 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
                         outgoing_webhook_event_id,
                     )
                     .await?;
-                    process_tracker
-                        .finish_with_status(
-                            state.store.as_scheduler(),
+                    state.store.as_scheduler().finish_process_with_business_status(
+                    process_tracker,
                             "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL".into(),
                         )
                         .await
-                        .into_report()
                         .change_context(errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed)?;
                 } else {
                     increment_webhook_outgoing_not_received_count(business_profile.merchant_id);
@@ -1489,7 +1485,7 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     business_profile: &diesel_models::business_profile::BusinessProfile,
     event: &storage::Event,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<diesel_models::ProcessTracker, scheduler::errors::ProcessTrackerError> {
+) -> CustomResult<diesel_models::ProcessTracker, errors::StorageError> {
     let tracking_data = types::OutgoingWebhookTrackingData {
         merchant_id: business_profile.merchant_id.clone(),
         business_profile_id: business_profile.profile_id.clone(),
@@ -1499,7 +1495,7 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
         primary_object_type: event.primary_object_type,
     };
 
-    let runner = "OUTGOING_WEBHOOK_RETRY_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
     let task = "OUTGOING_WEBHOOK_RETRY";
     let tag = ["OUTGOING_WEBHOOKS"];
     let process_tracker_id = scheduler::utils::get_process_tracker_id(
@@ -1508,15 +1504,15 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
         &event.primary_object_id,
         &business_profile.merchant_id,
     );
-    let process_tracker_entry =
-        <storage::ProcessTracker as ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            task,
-            runner,
-            tag,
-            tracking_data,
-            schedule_time,
-        )?;
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        schedule_time,
+    )
+    .map_err(errors::StorageError::from)?;
 
-    Ok(db.insert_process(process_tracker_entry).await?)
+    db.insert_process(process_tracker_entry).await
 }
