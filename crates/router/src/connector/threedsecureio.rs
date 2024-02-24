@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
-use pm_auth::consts::NO_ERROR_MESSAGE;
+use pm_auth::consts;
 use serde_json::{json, to_string};
 use threedsecureio::ThreeDSecureIoConnectorMetaData;
 use transformers as threedsecureio;
@@ -27,7 +27,7 @@ use crate::{
         transformers::ForeignTryFrom,
         ErrorResponse, RequestContent, Response,
     },
-    utils::BytesExt,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -109,23 +109,34 @@ impl ConnectorCommon for Threedsecureio {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: threedsecureio::ThreedsecureioErrorResponse = res
-            .response
-            .parse_struct("ThreedsecureioErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response
-                .error_description
-                .clone()
-                .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
-            reason: response.error_detail,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        let response_result: Result<
+            threedsecureio::ThreedsecureioErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("ThreedsecureioErrorResponse");
+
+        match response_result {
+            Ok(response) => {
+                event_builder.map(|i| i.set_error_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: response
+                        .error_description
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+                    reason: None,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+            Err(err) => {
+                router_env::logger::error!(deserialization_error =? err);
+                utils::handle_json_response_deserialization_failure(
+                    res,
+                    "threedsecureio".to_owned(),
+                )
+            }
+        }
     }
 }
 
@@ -435,7 +446,7 @@ impl
                     message: error_response
                         .error_description
                         .clone()
-                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
                     reason: error_response.error_description,
                     status_code: res.status_code,
                     attempt_status: None,
