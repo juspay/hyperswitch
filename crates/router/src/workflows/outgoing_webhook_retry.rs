@@ -50,6 +50,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             "{}_{}",
             tracking_data.primary_object_id, tracking_data.event_type
         );
+        let event = db.find_event_by_event_id(&event_id).await?;
 
         let (content, event_type) = match tracking_data.event_class {
             diesel_models::enums::EventClass::Payments => {
@@ -122,7 +123,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     event_id: event_id.clone(),
                     event_type,
                     content: content.clone(),
-                    timestamp: common_utils::date_time::now(),
+                    timestamp: event.created_at,
                 };
 
                 webhooks_core::trigger_appropriate_webhook_and_raise_event(

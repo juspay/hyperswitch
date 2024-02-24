@@ -13,6 +13,12 @@ pub trait EventInterface {
         &self,
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError>;
+
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+    ) -> CustomResult<storage::Event, errors::StorageError>;
+
     async fn update_event(
         &self,
         event_id: String,
@@ -29,6 +35,18 @@ impl EventInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         event.insert(&conn).await.map_err(Into::into).into_report()
     }
+
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::find_by_event_id(&conn, event_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     async fn update_event(
         &self,
         event_id: String,
@@ -71,6 +89,24 @@ impl EventInterface for MockDb {
 
         Ok(stored_event)
     }
+
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+        locked_events
+            .iter()
+            .find(|event| event.event_id == event_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No event available with event_id  = {event_id}"
+                ))
+                .into(),
+            )
+    }
+
     async fn update_event(
         &self,
         event_id: String,

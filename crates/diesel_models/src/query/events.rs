@@ -17,6 +17,15 @@ impl EventNew {
 
 impl Event {
     #[instrument(skip(conn))]
+    pub async fn find_by_event_id(conn: &PgPooledConn, event_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::event_id.eq(event_id.to_owned()),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn update(
         conn: &PgPooledConn,
         event_id: &str,
