@@ -11,7 +11,6 @@ pub struct RetryMapping {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
     pub custom_merchant_mapping: HashMap<String, RetryMapping>,
@@ -33,7 +32,6 @@ impl Default for ConnectorPTMapping {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentMethodsPTMapping {
     pub default_mapping: RetryMapping,
     pub custom_pm_mapping: HashMap<enums::PaymentMethod, RetryMapping>,
