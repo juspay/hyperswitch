@@ -343,21 +343,16 @@ pub fn get_pm_schedule_time(
 }
 
 /// Get the delay based on the retry count
-fn get_delay<'a>(
-    retry_count: i32,
-    mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
-) -> Option<i32> {
-    match array.next() {
-        Some(ele) => {
-            let v = retry_count - ele.0;
-            if v <= 0 {
-                Some(*ele.1)
-            } else {
-                get_delay(v, array)
-            }
+fn get_delay<'a>(retry_count: i32, array: impl Iterator<Item = (&'a i32, &'a i32)>) -> Option<i32> {
+    let mut cumulative_count = 0;
+    for (&count, &frequency) in array {
+        cumulative_count += count;
+        if cumulative_count >= retry_count {
+            return Some(frequency);
         }
-        None => None,
     }
+
+    None
 }
 
 pub(crate) async fn lock_acquire_release<T, F, Fut>(
