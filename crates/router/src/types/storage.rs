@@ -55,9 +55,8 @@ pub use self::{
     customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*, file::*,
     fraud_check::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
-    payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*,
-    role::*, routing_algorithm::*, user::*,
-    user_role::*,
+    payout_attempt::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
+    routing_algorithm::*, user::*, user_role::*,
 };
 use crate::types::api::routing;
 

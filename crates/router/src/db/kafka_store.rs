@@ -2305,41 +2305,6 @@ impl AuthenticationInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
-impl AuthenticationInterface for KafkaStore {
-    async fn insert_authentication(
-        &self,
-        authentication: storage::AuthenticationNew,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
-            .insert_authentication(authentication)
-            .await
-    }
-
-    async fn find_authentication_by_merchant_id_authentication_id(
-        &self,
-        merchant_id: String,
-        authentication_id: String,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
-            .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
-            .await
-    }
-
-    async fn update_authentication_by_merchant_id_authentication_id(
-        &self,
-        previous_state: storage::Authentication,
-        authentication_update: storage::AuthenticationUpdate,
-    ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        self.diesel_store
-            .update_authentication_by_merchant_id_authentication_id(
-                previous_state,
-                authentication_update,
-            )
-            .await
-    }
-}
-
-#[async_trait::async_trait]
 impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await

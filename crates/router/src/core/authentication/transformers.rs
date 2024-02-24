@@ -165,5 +165,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         external_latency: None,
         apple_pay_flow: None,
         frm_metadata: None,
+        dispute_id: None,
+        refund_id: None,
     })
 }

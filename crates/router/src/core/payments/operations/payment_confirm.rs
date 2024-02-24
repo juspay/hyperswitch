@@ -815,23 +815,24 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
 
-        let (intent_status, attempt_status, (error_code, error_message)) = match (frm_suggestion, payment_data.authentication.as_ref()) {
-            (Some(FrmSuggestion::FrmCancelTransaction), _) => (
-                storage_enums::IntentStatus::Failed,
-                storage_enums::AttemptStatus::Failure,
-                frm_message.map_or((None, None), |fraud_check| {
-                    (
-                        Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
-                    )
-                }),
-            ),
-            (Some(FrmSuggestion::FrmManualReview), _) => (
-                storage_enums::IntentStatus::RequiresMerchantAction,
-                storage_enums::AttemptStatus::Unresolved,
-                (None, None),
-            ),
-            (_, Some((_authentication, authentication_data))) => {
+        let (intent_status, attempt_status, (error_code, error_message)) =
+            match (frm_suggestion, payment_data.authentication.as_ref()) {
+                (Some(FrmSuggestion::FrmCancelTransaction), _) => (
+                    storage_enums::IntentStatus::Failed,
+                    storage_enums::AttemptStatus::Failure,
+                    frm_message.map_or((None, None), |fraud_check| {
+                        (
+                            Some(Some(fraud_check.frm_status.to_string())),
+                            Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        )
+                    }),
+                ),
+                (Some(FrmSuggestion::FrmManualReview), _) => (
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::AttemptStatus::Unresolved,
+                    (None, None),
+                ),
+                (_, Some((_authentication, authentication_data))) => {
                     if authentication_data.is_separate_authn_required() {
                         (
                             storage_enums::IntentStatus::RequiresCustomerAction,
@@ -847,11 +848,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     }
                 }
                 (_, None) => (
-                storage_enums::IntentStatus::Processing,
-                storage_enums::AttemptStatus::Pending,
-                (None, None),
-            ),
-        };
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::AttemptStatus::Pending,
+                    (None, None),
+                ),
+            };
 
         let connector = payment_data.payment_attempt.connector.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();

@@ -406,7 +406,17 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
                 .into_report()
                 .attach_printable("missing return_url")?,
-            three_dscomp_ind: "Y".to_string(),
+            three_dscomp_ind: if request
+                .authentication_data
+                .0
+                .three_ds_method_data
+                .three_ds_method_url
+                .is_some()
+            {
+                "Y".to_string()
+            } else {
+                "U".to_string()
+            },
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
             acquirer_bin: acquirer_details.acquirer_bin,
             acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
@@ -535,14 +545,14 @@ pub struct ThreedsecureioErrorResponse {
     pub three_dsserver_trans_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ThreedsecureioAuthenticationResponse {
     Success(Box<ThreedsecureioAuthenticationSuccessResponse>),
     Error(Box<ThreedsecureioErrorResponse>),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioAuthenticationSuccessResponse {
     #[serde(rename = "acsChallengeMandated")]
@@ -664,7 +674,7 @@ pub struct ThreedsecureioPostAuthenticationRequest {
     pub three_ds_server_trans_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioPostAuthenticationResponse {
     pub authentication_value: Option<String>,
@@ -672,7 +682,7 @@ pub struct ThreedsecureioPostAuthenticationResponse {
     pub eci: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum ThreedsecureioTransStatus {
     /// Authentication/ Account Verification Successful
     Y,
@@ -713,9 +723,16 @@ pub enum DirectoryServer {
     Sbn,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ThreedsecureioPreAuthenticationResponse {
+    Sucess(Box<ThreedsecureioPreAuthenticationResponseData>),
+    Failure(Box<ThreedsecureioErrorResponse>),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreedsecureioPreAuthenticationResponse {
+pub struct ThreedsecureioPreAuthenticationResponseData {
     pub ds_start_protocol_version: String,
     pub ds_end_protocol_version: String,
     pub acs_start_protocol_version: String,

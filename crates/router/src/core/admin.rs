@@ -100,12 +100,11 @@ pub async fn create_merchant_account(
         .authentication_details
         .as_ref()
         .map(|authentication_details| {
-            utils::Encode::<admin_types::AuthenticationDetails>::encode_to_value(
-                authentication_details,
+            utils::Encode::encode_to_value(authentication_details).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "authentication details",
+                },
             )
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "authentication details",
-            })
         })
         .transpose()?;
 
@@ -608,7 +607,7 @@ pub async fn merchant_account_update(
         authentication_details: req
             .authentication_details
             .as_ref()
-            .map(utils::Encode::<admin_types::AuthenticationDetails>::encode_to_value)
+            .map(utils::Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
