@@ -1,7 +1,3 @@
-use clap::{arg, command, Parser};
-use masking::PeekInterface;
-use regex::Regex;
-
 use std::{
     env,
     fs::{self, OpenOptions},
@@ -9,6 +5,10 @@ use std::{
     path::Path,
     process::{exit, Command},
 };
+
+use clap::{arg, command, Parser};
+use masking::PeekInterface;
+use regex::Regex;
 
 use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 #[derive(Parser)]
