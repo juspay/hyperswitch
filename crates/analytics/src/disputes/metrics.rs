@@ -91,7 +91,7 @@ where
                     )
                     .await
             }
-            DisputeMetrics::DisputeStatusMetric => {
+            Self::DisputeStatusMetric => {
                 DisputeStatusMetric::default()
                     .load_metrics(
                         dimensions,
@@ -103,7 +103,7 @@ where
                     )
                     .await
             }
-            DisputeMetrics::TotalDisputeLostAmount => {
+            Self::TotalDisputeLostAmount => {
                 TotalDisputeLostAmount::default()
                     .load_metrics(
                         dimensions,

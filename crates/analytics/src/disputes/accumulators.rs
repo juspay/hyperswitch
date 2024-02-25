@@ -94,7 +94,7 @@ impl DisputeMetricsAccumulator {
             disputes_lost: lost_rate,
             total_amount_disputed: self.total_amount_disputed.collect(),
             total_dispute_lost_amount: self.total_dispute_lost_amount.collect(),
-            total_dispute: total_dispute,
+            total_dispute,
         }
     }
 }
