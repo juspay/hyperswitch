@@ -410,7 +410,9 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         let response = match response {
-            threedsecureio::ThreedsecureioPreAuthenticationResponse::Sucess(pre_authn_response) => {
+            threedsecureio::ThreedsecureioPreAuthenticationResponse::Success(
+                pre_authn_response,
+            ) => {
                 let three_ds_method_data = json!({
                     "threeDSServerTransID": pre_authn_response.threeds_server_trans_id,
                 });

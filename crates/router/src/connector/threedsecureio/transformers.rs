@@ -745,7 +745,7 @@ pub enum DirectoryServer {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ThreedsecureioPreAuthenticationResponse {
-    Sucess(Box<ThreedsecureioPreAuthenticationResponseData>),
+    Success(Box<ThreedsecureioPreAuthenticationResponseData>),
     Failure(Box<ThreedsecureioErrorResponse>),
 }
 
@@ -783,15 +783,15 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::PreAuthNRouterDat
 impl ForeignTryFrom<String> for (i64, i64, i64) {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let mut splitted_version = value.split('.');
+        let mut split_version = value.split('.');
         let version_string = {
-            let major_version = splitted_version.next().ok_or(report!(
+            let major_version = split_version.next().ok_or(report!(
                 errors::ConnectorError::ResponseDeserializationFailed
             ))?;
-            let minor_version = splitted_version.next().ok_or(report!(
+            let minor_version = split_version.next().ok_or(report!(
                 errors::ConnectorError::ResponseDeserializationFailed
             ))?;
-            let patch_version = splitted_version.next().ok_or(report!(
+            let patch_version = split_version.next().ok_or(report!(
                 errors::ConnectorError::ResponseDeserializationFailed
             ))?;
             (major_version, minor_version, patch_version)
