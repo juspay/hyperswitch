@@ -9,8 +9,9 @@ pub mod routes {
     };
     use api_models::analytics::{
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
-        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetDisputeMetricRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
+        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
+        GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
     use router_env::AnalyticsFlow;
@@ -91,6 +92,10 @@ pub mod routes {
                     .service(
                         web::resource("filters/disputes")
                             .route(web::post().to(get_dispute_filters)),
+                    )
+                    .service(
+                        web::resource("metrics/disputes")
+                            .route(web::post().to(get_dispute_metrics)),
                     )
             }
             route
@@ -603,6 +608,39 @@ pub mod routes {
                     &state.pool,
                     req,
                     &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_dispute_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
+    ) -> impl Responder {
+        #[allow(clippy::expect_used)]
+        // safety: This shouldn't panic owing to the data type
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetDisputeMetricRequest");
+        let flow = AnalyticsFlow::GetDisputeMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req| async move {
+                analytics::disputes::get_metrics(
+                    &state.pool,
+                    &auth.merchant_account.merchant_id,
+                    req,
                 )
                 .await
                 .map(ApplicationResponse::Json)

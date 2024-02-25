@@ -1,6 +1,9 @@
 use std::{fmt::Display, str::FromStr};
 
-use api_models::analytics::refunds::RefundType;
+use api_models::{
+    analytics::refunds::RefundType,
+    enums::{DisputeStage, DisputeStatus},
+};
 use common_utils::errors::{CustomResult, ParsingError};
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, PaymentMethod, RefundStatus,
@@ -89,6 +92,8 @@ db_type!(AttemptStatus);
 db_type!(PaymentMethod, TEXT);
 db_type!(RefundStatus);
 db_type!(RefundType);
+db_type!(DisputeStage);
+db_type!(DisputeStatus);
 
 impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
@@ -145,6 +150,7 @@ impl super::payments::distribution::PaymentDistributionAnalytics for SqlxClient 
 impl super::refunds::metrics::RefundMetricAnalytics for SqlxClient {}
 impl super::refunds::filters::RefundFilterAnalytics for SqlxClient {}
 impl super::disputes::filters::DisputeFilterAnalytics for SqlxClient {}
+impl super::disputes::metrics::DisputeMetricAnalytics for SqlxClient {}
 
 #[async_trait::async_trait]
 impl AnalyticsDataSource for SqlxClient {
@@ -451,6 +457,54 @@ impl<'a> FromRow<'a, PgRow> for super::disputes::filters::DisputeFilterRow {
             dispute_status,
             connector,
             connector_status,
+        })
+    }
+}
+impl<'a> FromRow<'a, PgRow> for super::disputes::metrics::DisputeMetricRow {
+    fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
+        let dispute_stage: Option<DBEnumWrapper<DisputeStage>> =
+            row.try_get("dispute_stage").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let dispute_status: Option<DBEnumWrapper<DisputeStatus>> =
+            row.try_get("dispute_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let connector_status: Option<String> =
+            row.try_get("connector_status").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let count: Option<i64> = row.try_get("count").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        // Removing millisecond precision to get accurate diffs against clickhouse
+        let start_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        let end_bucket: Option<PrimitiveDateTime> = row
+            .try_get::<Option<PrimitiveDateTime>, _>("end_bucket")?
+            .and_then(|dt| dt.replace_millisecond(0).ok());
+        Ok(Self {
+            dispute_stage,
+            dispute_status,
+            connector,
+            connector_status,
+            total,
+            count,
+            start_bucket,
+            end_bucket,
         })
     }
 }
