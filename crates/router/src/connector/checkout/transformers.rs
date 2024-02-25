@@ -208,7 +208,7 @@ pub struct ApplePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: Option<Secret<String>>,
+    eci: Option<String>,
     cryptogram: Secret<String>,
 }
 

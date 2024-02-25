@@ -249,6 +249,12 @@ pub async fn delete_customer(
             .await
             .switch()?;
 
+    let redacted_encrypted_email: Encryptable<
+        masking::Secret<_, common_utils::pii::EmailStrategy>,
+    > = Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+        .await
+        .switch()?;
+
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
         country: None,
@@ -262,6 +268,7 @@ pub async fn delete_customer(
         phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
         updated_by: merchant_account.storage_scheme.to_string(),
+        email: Some(redacted_encrypted_email),
     };
 
     match db

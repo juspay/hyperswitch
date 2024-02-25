@@ -39,6 +39,7 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
+            email: details.email,
             address: details.address.map(|address| payments::AddressDetails {
                 city: address.city,
                 country: address.country,
@@ -184,6 +185,7 @@ impl From<Shipping> for payments::Address {
                 number: details.phone,
                 country_code: details.address.country.map(|country| country.to_string()),
             }),
+            email: None,
             address: Some(payments::AddressDetails {
                 city: details.address.city,
                 country: details.address.country,

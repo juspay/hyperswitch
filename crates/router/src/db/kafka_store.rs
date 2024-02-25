@@ -285,7 +285,10 @@ impl ConfigInterface for KafkaStore {
             .await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store.delete_config_by_key(key).await
     }
 

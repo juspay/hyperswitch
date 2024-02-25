@@ -200,29 +200,21 @@ impl RoleInterface for MockDb {
         role_update: storage::RoleUpdate,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let mut roles = self.roles.lock().await;
-        let last_modified_at = common_utils::date_time::now();
-
         roles
             .iter_mut()
             .find(|role| role.role_id == role_id)
             .map(|role| {
                 *role = match role_update {
-                    storage::RoleUpdate::UpdateGroup {
+                    storage::RoleUpdate::UpdateDetails {
                         groups,
-                        last_modified_by,
-                    } => storage::Role {
-                        groups,
-                        last_modified_by,
-                        last_modified_at,
-                        ..role.to_owned()
-                    },
-                    storage::RoleUpdate::UpdateRoleName {
-                        role_name,
-                        last_modified_by,
-                    } => storage::Role {
                         role_name,
                         last_modified_at,
                         last_modified_by,
+                    } => storage::Role {
+                        groups: groups.unwrap_or(role.groups.to_owned()),
+                        role_name: role_name.unwrap_or(role.role_name.to_owned()),
+                        last_modified_by,
+                        last_modified_at,
                         ..role.to_owned()
                     },
                 };
