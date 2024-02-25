@@ -1,6 +1,6 @@
 use strum::Display;
 
-#[derive(PartialEq, Display, Clone, Debug, Copy)]
+#[derive(PartialEq, Display, Clone, Debug, Copy, Eq, Hash)]
 pub enum Permission {
     PaymentRead,
     PaymentWrite,

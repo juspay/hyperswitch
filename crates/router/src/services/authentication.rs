@@ -13,6 +13,7 @@ use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use serde::Serialize;
 
+use self::blacklist::BlackList;
 use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
@@ -334,7 +335,7 @@ where
         state: &A,
     ) -> RouterResult<(UserWithoutMerchantFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, UserAuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
@@ -499,12 +500,12 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             (),
@@ -528,12 +529,12 @@ where
         state: &A,
     ) -> RouterResult<(UserFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         Ok((
             UserFromToken {
@@ -566,12 +567,12 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.required_permission, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -609,12 +610,12 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -659,12 +660,12 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(&payload.role_id)?;
-        authorization::check_authorization(&self.0, permissions)?;
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
 
         let key_store = state
             .store()
@@ -710,7 +711,7 @@ where
         state: &A,
     ) -> RouterResult<(UserFromToken, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
@@ -741,7 +742,7 @@ where
         state: &A,
     ) -> RouterResult<((), AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if blacklist::check_user_in_blacklist(state, &payload.user_id, payload.exp).await? {
+        if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 

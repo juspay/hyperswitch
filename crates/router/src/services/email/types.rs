@@ -28,6 +28,10 @@ pub enum EmailBody {
         link: String,
         user_name: String,
     },
+    AcceptInviteFromEmail {
+        link: String,
+        user_name: String,
+    },
     BizEmailProd {
         user_name: String,
         poc_email: String,
@@ -72,6 +76,14 @@ pub mod html {
                 )
             }
             EmailBody::InviteUser { link, user_name } => {
+                format!(
+                    include_str!("assets/invite.html"),
+                    username = user_name,
+                    link = link
+                )
+            }
+            // TODO: Change the linked html for accept invite from email
+            EmailBody::AcceptInviteFromEmail { link, user_name } => {
                 format!(
                     include_str!("assets/invite.html"),
                     username = user_name,
@@ -276,6 +288,42 @@ impl EmailData for InviteUser {
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
         let body = html::get_html_body(EmailBody::InviteUser {
+            link: invite_user_link,
+            user_name: self.user_name.clone().get_secret().expose(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+pub struct InviteRegisteredUser {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: domain::UserName,
+    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub subject: &'static str,
+    pub merchant_id: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for InviteRegisteredUser {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            Some(self.merchant_id.clone()),
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
+
+        let invite_user_link = get_link_with_token(
+            &self.settings.email.base_url,
+            token,
+            "accept_invite_from_email",
+        );
+        let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
         });

@@ -502,7 +502,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::Analytics),
+            &auth::JWTAuth(Permission::PaymentWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
