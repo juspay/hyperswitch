@@ -25,6 +25,7 @@ optin_id = "optin_id" # Boku's id for optin flow
 deriver = "deriver"
 Deriver = "Deriver"
 requestor_card_reference = "requestor_card_reference"
+three_ds_requestor_url = "three_ds_requestor_url"
 requestor = "requestor"
 Requestor = "Requestor"
 
