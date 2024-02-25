@@ -16,6 +16,7 @@ use futures::future::try_join_all;
 use masking::{PeekInterface, Secret};
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 use uuid::Uuid;
+use serde_json::Value;
 
 use crate::{
     consts,
@@ -137,6 +138,10 @@ pub async fn create_merchant_account(
         .metadata
         .as_ref()
         .map(|meta| {
+            validate_mca_metadata(meta)
+            .map_err(|err| err.change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata",
+            }))?;
             meta.encode_to_value()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "metadata",
@@ -1949,4 +1954,21 @@ pub fn validate_status_and_disabled(
     };
 
     Ok((connector_status, disabled))
+}
+
+pub fn validate_mca_metadata(metadata: &Value) -> Result<(), errors::ApiErrorResponse> {
+    if let Some(obj) = metadata.as_object() {
+        for key in obj.keys() {
+            if key != "city" && key != "unit" {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                });
+            }
+        }
+        Ok(())
+    } else {
+        Err(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "metadata",
+        })
+    }
 }
