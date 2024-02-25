@@ -1,5 +1,6 @@
 mod clickhouse;
 pub mod core;
+pub mod disputes;
 pub mod errors;
 pub mod metrics;
 pub mod payments;
@@ -8,6 +9,7 @@ pub mod refunds;
 
 pub mod api_event;
 pub mod connector_events;
+pub mod health_check;
 pub mod outgoing_webhook_event;
 pub mod sdk_events;
 mod sqlx;

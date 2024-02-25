@@ -212,7 +212,7 @@ impl PaymentMethodInterface for MockDb {
         payment_method: storage::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        match self
+        let pm_update_res = self
             .payment_methods
             .lock()
             .await
@@ -224,7 +224,9 @@ impl PaymentMethodInterface for MockDb {
                         .create_payment_method(pm.clone());
                 *pm = payment_method_updated.clone();
                 payment_method_updated
-            }) {
+            });
+
+        match pm_update_res {
             Some(result) => Ok(result),
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find payment method to update".to_string(),

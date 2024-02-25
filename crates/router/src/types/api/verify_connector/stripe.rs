@@ -19,7 +19,7 @@ impl VerifyConnector for connector::Stripe {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         match (env::which(), error.code.as_str()) {
             // In situations where an attempt is made to process a payment using a

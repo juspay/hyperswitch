@@ -2274,7 +2274,6 @@ default_imp_for_revoking_mandates!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
-    connector::Noon,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,

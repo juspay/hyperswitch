@@ -2,7 +2,7 @@ use std::{net::IpAddr, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
-    GetMetaDataRequest, GetMultipleMetaDataPayload, SetMetaDataRequest,
+    GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
@@ -219,7 +219,9 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ConfigureWoocom
             | DBEnum::SetupWoocomWebhook
             | DBEnum::IsMultipleConfiguration => merchant_scoped.push(key),
-            DBEnum::Feedback | DBEnum::ProdIntent => user_scoped.push(key),
+            DBEnum::Feedback | DBEnum::ProdIntent | DBEnum::IsChangePasswordRequired => {
+                user_scoped.push(key)
+            }
         }
     }
     (merchant_scoped, user_scoped)
@@ -275,4 +277,17 @@ pub fn parse_string_to_enums(query: String) -> UserResult<GetMultipleMetaDataPay
             .map_err(|_| UserErrors::InvalidMetadataRequest.into())
             .attach_printable("Error Parsing to DashboardMetadata enums")?,
     })
+}
+
+fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> bool {
+    value
+        .as_ref()
+        .map_or(false, |mail| !mail.contains(value_to_be_checked))
+}
+
+pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
+    not_contains_string(&data.poc_email, "juspay")
+        && not_contains_string(&data.business_website, "juspay")
+        && not_contains_string(&data.business_website, "hyperswitch")
+        && not_contains_string(&Some(user_email), "juspay")
 }

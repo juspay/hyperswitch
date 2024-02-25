@@ -152,7 +152,7 @@ pub async fn update_trackers<F: Clone, Req>(
 
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
-                        Encode::<AuthenticationData>::encode_to_value(&authentication_data)
+                        Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
                     authentication_connector_id: Some(authentication_connector_id),
@@ -173,7 +173,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_data.trans_status = trans_status.clone();
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
-                        Encode::<AuthenticationData>::encode_to_value(&authentication_data)
+                        Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
                     authentication_connector_id: None,
@@ -199,7 +199,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 authentication_data.trans_status = trans_status.clone();
                 storage::AuthenticationUpdate::AuthenticationDataUpdate {
                     authentication_data: Some(
-                        Encode::<AuthenticationData>::encode_to_value(&authentication_data)
+                        Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
                     authentication_connector_id: None,

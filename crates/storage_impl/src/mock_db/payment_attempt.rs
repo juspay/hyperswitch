@@ -151,6 +151,8 @@ impl PaymentAttemptInterface for MockDb {
                 .external_three_ds_authentication_requested,
             authentication_connector: payment_attempt.authentication_connector,
             authentication_id: payment_attempt.authentication_id,
+            mandate_data: payment_attempt.mandate_data,
+            fingerprint_id: payment_attempt.fingerprint_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

@@ -12,6 +12,7 @@ pub mod cors;
 pub mod db;
 pub mod env;
 pub(crate) mod macros;
+
 pub mod routes;
 pub mod workflows;
 
@@ -19,7 +20,6 @@ pub mod workflows;
 pub mod analytics;
 pub mod events;
 pub mod middleware;
-pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -91,16 +91,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit);
-
-    #[cfg(feature = "openapi")]
-    {
-        use utoipa::OpenApi;
-        server_app = server_app.service(
-            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
-                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
-        );
-    }
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -144,14 +135,13 @@ pub fn mk_app(
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
-            .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
+    #[cfg(all(feature = "olap", feature = "aws_kms"))]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
@@ -240,6 +230,7 @@ impl Stop for mpsc::Sender<()> {
 
 pub fn get_application_builder(
     request_body_limit: usize,
+    cors: settings::CorsSettings,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -266,6 +257,9 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
-        .wrap(cors::cors())
+        .wrap(cors::cors(cors))
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
