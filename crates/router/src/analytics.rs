@@ -617,14 +617,16 @@ pub mod routes {
         ))
         .await
     }
-
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
     pub async fn get_dispute_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
     ) -> impl Responder {
-        #[allow(clippy::expect_used)]
         // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
         let payload = json_payload
             .into_inner()
             .to_vec()
