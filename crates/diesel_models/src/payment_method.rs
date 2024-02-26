@@ -33,7 +33,7 @@ pub struct PaymentMethod {
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
-    pub last_used_at: Option<PrimitiveDateTime>,
+    pub last_used_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay)]
@@ -60,7 +60,7 @@ pub struct PaymentMethodNew {
     pub last_modified: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: Option<Encryption>,
-    pub last_used_at: Option<PrimitiveDateTime>,
+    pub last_used_at: PrimitiveDateTime,
 }
 
 impl Default for PaymentMethodNew {
@@ -89,7 +89,7 @@ impl Default for PaymentMethodNew {
             last_modified: now,
             metadata: Option::default(),
             payment_method_data: Option::default(),
-            last_used_at: Some(now),
+            last_used_at: now,
         }
     }
 }
@@ -109,7 +109,7 @@ pub enum PaymentMethodUpdate {
         payment_method_data: Option<Encryption>,
     },
     LastUsedUpdate {
-        last_used_at: Option<PrimitiveDateTime>,
+        last_used_at: PrimitiveDateTime,
     },
 }
 
@@ -147,7 +147,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
                 payment_method_data: None,
-                last_used_at,
+                last_used_at: Some(last_used_at),
             },
         }
     }

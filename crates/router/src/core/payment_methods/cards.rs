@@ -129,7 +129,7 @@ pub fn store_default_payment_method(
         recurring_enabled: false,           //[#219]
         installment_payment_enabled: false, //[#219]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
-        last_used_at: Some(common_utils::date_time::now()), //[#219]
+        last_used_at: Some(common_utils::date_time::now()),
     };
     (payment_method_response, None)
 }
@@ -2729,6 +2729,7 @@ pub async fn list_customer_payment_method(
 
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
+            payment_method_id: pm.payment_method_id.clone(),
             customer_id: pm.customer_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
@@ -2744,8 +2745,9 @@ pub async fn list_customer_payment_method(
             bank: bank_details,
             surcharge_details: None,
             requires_cvv,
-            last_used_at: pm.last_used_at,
-            default_payment_method_set: customer.default_payment_method.is_some(),
+            last_used_at: Some(pm.last_used_at),
+            default_payment_method_set: customer.default_payment_method.is_some()
+                && customer.default_payment_method == Some(pm.payment_method_id),
         };
         customer_pms.push(pma.to_owned());
 
@@ -3100,7 +3102,7 @@ pub async fn update_last_used_at(
     state: &routes::AppState,
 ) -> errors::RouterResult<()> {
     let update_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
-        last_used_at: Some(common_utils::date_time::now()),
+        last_used_at: common_utils::date_time::now(),
     };
     let payment_method = state
         .store
@@ -3302,7 +3304,7 @@ pub async fn retrieve_payment_method(
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
-            last_used_at: pm.last_used_at,
+            last_used_at: Some(pm.last_used_at),
         },
     ))
 }

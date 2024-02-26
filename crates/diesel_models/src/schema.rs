@@ -831,7 +831,7 @@ diesel::table! {
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
-        last_used_at -> Nullable<Timestamp>,
+        last_used_at -> Timestamp,
     }
 }
 
