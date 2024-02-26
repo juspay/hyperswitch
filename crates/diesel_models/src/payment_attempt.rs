@@ -65,8 +65,8 @@ pub struct PaymentAttempt {
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
-    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -142,8 +142,8 @@ pub struct PaymentAttemptNew {
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
-    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -358,8 +358,8 @@ pub struct PaymentAttemptUpdateInternal {
     encoded_data: Option<String>,
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
-    payment_method_billing_address_id: Option<String>,
     fingerprint_id: Option<String>,
+    payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
