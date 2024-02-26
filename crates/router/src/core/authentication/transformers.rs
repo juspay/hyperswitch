@@ -158,7 +158,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_id: None,
         connector_request_reference_id:
             IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
         connector_http_status_code: None,

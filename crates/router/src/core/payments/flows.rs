@@ -2341,7 +2341,6 @@ impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> 
 impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector<T> {}
 
 #[cfg(feature = "dummy_connector")]
-
 impl<const T: u8>
     services::ConnectorIntegration<
         api::Authentication,
@@ -2350,6 +2349,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::PreAuthentication,
@@ -2358,6 +2358,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
         api::PostAuthentication,
