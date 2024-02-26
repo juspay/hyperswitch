@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.26.0
+
+### Features
+
+- **connector:** [BOA/Cybersource] Pass commerce indicator using card network for apple pay ([#3795](https://github.com/juspay/hyperswitch/pull/3795)) ([`54fa309`](https://github.com/juspay/hyperswitch/commit/54fa309b7da5d153855fb684f9655f505b2ba309))
+- **roles:** Add blacklist for roles ([#3794](https://github.com/juspay/hyperswitch/pull/3794)) ([`734327a`](https://github.com/juspay/hyperswitch/commit/734327a957c216511b182151a2f0b27819e7e3bb))
+
+### Bug Fixes
+
+- **cards:** Return a 200 response indicating that a customer is none ([#3773](https://github.com/juspay/hyperswitch/pull/3773)) ([`2c95dcd`](https://github.com/juspay/hyperswitch/commit/2c95dcd19778726f476b219271dc42da182088af))
+
+**Full Changelog:** [`2024.02.23.0...2024.02.26.0`](https://github.com/juspay/hyperswitch/compare/2024.02.23.0...2024.02.26.0)
+
+- - -
+
+## 2024.02.23.0
+
+### Features
+
+- **address:** Add email field to address ([#3682](https://github.com/juspay/hyperswitch/pull/3682)) ([`863e380`](https://github.com/juspay/hyperswitch/commit/863e380cf2eb8ace17cad0f1bcbc2a9f4a460983))
+- **router:** Added api for the deleting config key ([#3554](https://github.com/juspay/hyperswitch/pull/3554)) ([`bbb3d3d`](https://github.com/juspay/hyperswitch/commit/bbb3d3d1e26f303964a495606dece7958f6c40fc))
+- **user:** Create apis for custom role ([#3763](https://github.com/juspay/hyperswitch/pull/3763)) ([`58809ab`](https://github.com/juspay/hyperswitch/commit/58809ab1f9c00d802b9a2a3d30b17dff1614431d))
+
+### Bug Fixes
+
+- **api_keys:** Fix internal server error being thrown when trying to update or delete non-existent API key ([#3762](https://github.com/juspay/hyperswitch/pull/3762)) ([`5c24a76`](https://github.com/juspay/hyperswitch/commit/5c24a76fbd0de314f370a4e3d3ca897d2b7eaa3d))
+
+### Refactors
+
+- **connector:**
+  - [NMI] add hyperswitch loader to card 3ds ([#3755](https://github.com/juspay/hyperswitch/pull/3755)) ([`5aae179`](https://github.com/juspay/hyperswitch/commit/5aae1798257b5ee0c5a62104e4711748cdb5f935))
+  - [NMI] Include customer_vault_id for card 3ds transaction request ([#3777](https://github.com/juspay/hyperswitch/pull/3777)) ([`2e7d30a`](https://github.com/juspay/hyperswitch/commit/2e7d30a4ad8d1731b5e91020488658d9d65866f6))
+- **connectors:** [Bluesnap] PII data masking ([#3714](https://github.com/juspay/hyperswitch/pull/3714)) ([`d000847`](https://github.com/juspay/hyperswitch/commit/d000847b938952de6ff9c2e01bdd06b4ede60e69))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`1d739ee`](https://github.com/juspay/hyperswitch/commit/1d739eee5eca8051b4a1d6a91a656df646219964))
+
+**Full Changelog:** [`2024.02.22.0...2024.02.23.0`](https://github.com/juspay/hyperswitch/compare/2024.02.22.0...2024.02.23.0)
+
+- - -
+
 ## 2024.02.22.0
 
 ### Features

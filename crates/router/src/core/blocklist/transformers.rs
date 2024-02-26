@@ -5,8 +5,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use josekit::jwe;
-#[cfg(feature = "aws_kms")]
-use masking::PeekInterface;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
@@ -63,7 +61,6 @@ async fn generate_fingerprint_request<'a>(
 
 async fn generate_jwe_payload_for_request(
     jwekey: &settings::Jwekey,
-
     jws: &str,
     locker_choice: api_enums::LockerChoice,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {

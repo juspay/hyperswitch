@@ -26,7 +26,7 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "kgra
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = []
+payouts = ["common_enums/payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
 

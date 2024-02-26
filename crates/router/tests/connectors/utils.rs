@@ -34,7 +34,7 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
     }
 }
