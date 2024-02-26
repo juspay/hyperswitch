@@ -141,7 +141,13 @@ pub async fn add_payment_method(
     req.validate()?;
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
-    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
+    let customer_id = req.customer_id.clone();
+
+    state
+        .store
+        .find_customer_by_customer_id_merchant_id(&customer_id, merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let response = match req.payment_method {
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
@@ -385,7 +391,7 @@ pub async fn update_customer_payment_method(
         card: req.card,
         wallet: req.wallet,
         metadata: req.metadata,
-        customer_id: Some(pm.customer_id),
+        customer_id: pm.customer_id,
         card_network: req
             .card_network
             .as_ref()

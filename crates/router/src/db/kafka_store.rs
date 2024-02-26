@@ -460,7 +460,7 @@ impl EphemeralKeyInterface for KafkaStore {
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
-        validity: i64,
+        validity: u32,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         self.diesel_store.create_ephemeral_key(ek, validity).await
     }

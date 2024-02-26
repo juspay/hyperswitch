@@ -389,7 +389,7 @@ pub struct Refund {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct EphemeralConfig {
-    pub validity: i64,
+    pub validity: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

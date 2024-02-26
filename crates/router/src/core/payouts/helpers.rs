@@ -366,7 +366,7 @@ pub async fn save_payout_data_to_locker(
         card: card_details,
         wallet: wallet_details,
         metadata: None,
-        customer_id: Some(payout_attempt.customer_id.to_owned()),
+        customer_id: payout_attempt.customer_id.to_owned(),
         card_network: None,
     };
 

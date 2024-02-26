@@ -50,7 +50,7 @@ pub struct PaymentMethodCreate {
 
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    pub customer_id: String,
 
     /// The card network
     #[schema(example = "Visa")]

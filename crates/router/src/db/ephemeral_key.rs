@@ -11,7 +11,7 @@ pub trait EphemeralKeyInterface {
     async fn create_ephemeral_key(
         &self,
         _ek: EphemeralKeyNew,
-        _validity: i64,
+        _validity: u32,
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
     async fn get_ephemeral_key(
         &self,
@@ -42,13 +42,13 @@ mod storage {
         async fn create_ephemeral_key(
             &self,
             new: EphemeralKeyNew,
-            validity: i64,
+            validity: u32,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let secret_key = format!("epkey_{}", &new.secret);
             let id_key = format!("epkey_{}", &new.id);
 
             let created_at = date_time::now();
-            let expires = created_at.saturating_add(validity.hours());
+            let expires = created_at.saturating_add(i64::from(validity).hours());
             let created_ek = EphemeralKey {
                 id: new.id,
                 created_at: created_at.assume_utc().unix_timestamp(),
@@ -64,7 +64,7 @@ mod storage {
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[(&secret_key, &created_ek), (&id_key, &created_ek)],
                     "ephkey",
-                    None,
+                    Some(validity.saturating_mul(60).saturating_mul(60)),
                 )
                 .await
             {
@@ -75,20 +75,7 @@ mod storage {
                     }
                     .into())
                 }
-                Ok(_) => {
-                    let expire_at = expires.assume_utc().unix_timestamp();
-                    self.get_redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&secret_key, expire_at)
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
-                    self.get_redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?
-                        .set_expire_at(&id_key, expire_at)
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
-                    Ok(created_ek)
-                }
+                Ok(_) => Ok(created_ek),
                 Err(er) => Err(er).change_context(errors::StorageError::KVError),
             }
         }
@@ -130,11 +117,11 @@ impl EphemeralKeyInterface for MockDb {
     async fn create_ephemeral_key(
         &self,
         ek: EphemeralKeyNew,
-        validity: i64,
+        validity: u32,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         let mut ephemeral_keys = self.ephemeral_keys.lock().await;
         let created_at = common_utils::date_time::now();
-        let expires = created_at.saturating_add(validity.hours());
+        let expires = created_at.saturating_add(i64::from(validity).hours());
 
         let ephemeral_key = EphemeralKey {
             id: ek.id,

@@ -11458,7 +11458,8 @@
       "PaymentMethodCreate": {
         "type": "object",
         "required": [
-          "payment_method"
+          "payment_method",
+          "customer_id"
         ],
         "properties": {
           "payment_method": {
@@ -11502,8 +11503,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw",
-            "nullable": true
+            "example": "cus_meowerunwiuwiwqw"
           },
           "card_network": {
             "type": "string",

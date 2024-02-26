@@ -396,10 +396,7 @@ pub async fn save_in_locker(
 )> {
     payment_method_request.validate()?;
     let merchant_id = &merchant_account.merchant_id;
-    let customer_id = payment_method_request
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")?;
+    let customer_id = payment_method_request.customer_id.clone();
     match payment_method_request.card.clone() {
         Some(card) => payment_methods::cards::add_card_to_locker(
             state,
