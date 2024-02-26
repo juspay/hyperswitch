@@ -31,7 +31,7 @@
       "phone_country_code": "+65",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
-      "return_url": "https://google.com",
+      "return_url": "https://duck.com",
       "setup_future_usage": "on_session",
       "payment_method": "card",
       "payment_method_type": "credit",
@@ -89,12 +89,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
   },
   "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
 }

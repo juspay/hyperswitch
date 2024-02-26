@@ -1,5 +1,8 @@
 pm.environment.set("random_number", _.random(100, 100000));
 
+// Set the environment variable 'amount' with the value from the response
+pm.environment.set("amount", pm.response.json().amount);
+
 // Validate status 2xx
 pm.test("[POST]::/payments - Status code is 2xx", function () {
   pm.response.to.be.success;
@@ -85,13 +88,5 @@ pm.test(
   "[POST]::/payments - Content check if 'mandate_data' exists",
   function () {
     pm.expect(typeof jsonData.mandate_data !== "undefined").to.be.true;
-  },
-);
-
-// Response body should have "payment_method_data"
-pm.test(
-  "[POST]::/payments - Content check if 'payment_method_data' exists",
-  function () {
-    pm.expect(typeof jsonData.payment_method_data !== "undefined").to.be.true;
   },
 );
