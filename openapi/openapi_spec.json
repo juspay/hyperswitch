@@ -4664,6 +4664,35 @@
           "device_data_collection_pending"
         ]
       },
+      "AuthenticationDetails": {
+        "type": "object",
+        "required": [
+          "authentication_connectors",
+          "three_ds_requestor_url"
+        ],
+        "properties": {
+          "authentication_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of Authentication Connectors"
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL"
+          }
+        }
+      },
+      "AuthenticationStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "pending",
+          "success",
+          "failed"
+        ]
+      },
       "AuthenticationType": {
         "type": "string",
         "enum": [
@@ -6611,6 +6640,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "threedsecureio",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -6769,7 +6799,8 @@
           "banking_entities",
           "non_banking_finance",
           "payout_processor",
-          "payment_method_auth"
+          "payment_method_auth",
+          "authentication_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -7647,6 +7678,13 @@
           }
         }
       },
+      "DecoupledAuthenticationType": {
+        "type": "string",
+        "enum": [
+          "challenge",
+          "frictionless"
+        ]
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -7927,6 +7965,52 @@
           "mandate_active",
           "mandate_revoked"
         ]
+      },
+      "ExternalAuthenticationDetailsResponse": {
+        "type": "object",
+        "properties": {
+          "authentication_flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DecoupledAuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "electronic_commerce_indicator": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (eci)",
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "ds_transaction_id": {
+            "type": "string",
+            "description": "DS Transaction ID",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Message Version",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error Code",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error Message",
+            "nullable": true
+          }
+        }
       },
       "FeatureMetadata": {
         "type": "object",
@@ -9440,6 +9524,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9605,6 +9697,9 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "authentication_details": {
+            "nullable": true
           }
         }
       },
@@ -9725,6 +9820,14 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -10537,6 +10640,24 @@
                 "type": "string",
                 "enum": [
                   "wait_screen_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "three_ds_data",
+              "type"
+            ],
+            "properties": {
+              "three_ds_data": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_invoke"
                 ]
               }
             }
@@ -12495,6 +12616,12 @@
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to request separate authentication",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -12872,6 +12999,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to request separate authentication",
+            "example": true,
             "nullable": true
           }
         }
@@ -13283,6 +13416,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to request separate authentication",
+            "example": true,
             "nullable": true
           }
         }
@@ -13742,6 +13881,19 @@
               "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
             },
             "description": "List of incremental authorizations happened to the payment",
+            "nullable": true
+          },
+          "external_authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalAuthenticationDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "request_external_3ds_authentication": {
+            "type": "boolean",
+            "description": "Flag indicating if external 3ds authentication request will be made or not",
             "nullable": true
           },
           "expires_on": {
@@ -14243,6 +14395,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "flag to request separate authentication",
+            "example": true,
             "nullable": true
           }
         }
@@ -15521,16 +15679,13 @@
           "powertranz",
           "prophetpay",
           "rapyd",
-          "riskified",
           "shift4",
-          "signifyd",
           "square",
           "stax",
           "stripe",
           "trustpay",
           "tsys",
           "volt",
-          "wise",
           "worldline",
           "worldpay",
           "zen"
@@ -16204,6 +16359,49 @@
         "properties": {
           "secrets": {
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
+          }
+        }
+      },
+      "ThreeDsData": {
+        "type": "object",
+        "required": [
+          "three_ds_authentication_url",
+          "three_ds_authorize_url",
+          "three_ds_method_details"
+        ],
+        "properties": {
+          "three_ds_authentication_url": {
+            "type": "string",
+            "description": "Three DS Authentication URL"
+          },
+          "three_ds_authorize_url": {
+            "type": "string",
+            "description": "Three DS Authorize URL"
+          },
+          "three_ds_method_details": {
+            "$ref": "#/components/schemas/ThreeDsMethodData"
+          }
+        }
+      },
+      "ThreeDsMethodData": {
+        "type": "object",
+        "required": [
+          "three_ds_method_data_submission",
+          "three_ds_method_data"
+        ],
+        "properties": {
+          "three_ds_method_data_submission": {
+            "type": "boolean",
+            "description": "Three DS Method Data Submission Required"
+          },
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "Three DS Method Data"
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "Three DS Method URL",
+            "nullable": true
           }
         }
       },

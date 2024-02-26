@@ -99,14 +99,15 @@ pub struct MerchantAccountCreate {
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 
-    // External 3DS Authentication Details
+    /// External 3DS Authentication Details
     pub authentication_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationDetails {
-    // Authenticatin provider
+    /// List of Authentication Connectors
     pub authentication_connectors: Vec<String>,
+    /// Three DS Requestor URL
     pub three_ds_requestor_url: String,
 }
 

@@ -151,7 +151,6 @@ impl Connector {
     }
 }
 
-#[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,

@@ -2139,15 +2139,21 @@ pub enum NextActionData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct ThreeDsData {
+    /// Three DS Authentication URL
     pub three_ds_authentication_url: String,
+    /// Three DS Authorize URL
     pub three_ds_authorize_url: String,
+    /// Three DS Method Details
     pub three_ds_method_details: ThreeDsMethodData,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct ThreeDsMethodData {
+    /// Three DS Method Data Submission Required
     pub three_ds_method_data_submission: bool,
+    /// Three DS Method Data
     pub three_ds_method_data: String,
+    /// Three DS Method URL
     pub three_ds_method_url: Option<String>,
 }
 
@@ -2559,12 +2565,21 @@ pub struct PaymentsResponse {
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct ExternalAuthenticationDetailsResponse {
+    /// Authentication Type - Challenge / Frictionless
+    #[schema(value_type = Option<DecoupledAuthenticationType>)]
     pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
+    /// Electronic Commerce Indicator (eci)
     pub electronic_commerce_indicator: Option<String>,
+    /// Authentication Status
+    #[schema(value_type = Option<AuthenticationStatus>)]
     pub status: enums::AuthenticationStatus,
+    /// DS Transaction ID
     pub ds_transaction_id: Option<String>,
+    /// Message Version
     pub version: Option<String>,
+    /// Error Code
     pub error_code: Option<String>,
+    /// Error Message
     pub error_message: Option<String>,
 }
 
