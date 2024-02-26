@@ -96,7 +96,15 @@ impl ApiEventMetric for PaymentMethodResponse {
 
 impl ApiEventMetric for PaymentMethodUpdate {}
 
-impl ApiEventMetric for DefaultPaymentMethod {}
+impl ApiEventMetric for DefaultPaymentMethod {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method: None,
+            payment_method_type: None,
+        })
+    }
+}
 
 impl ApiEventMetric for PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
