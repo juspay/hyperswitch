@@ -1,6 +1,5 @@
 // use diesel_models::enums::MandateDetails;
-use data_models::mandates::MandateDetails;
-use data_models::payments::payment_attempt::PaymentAttempt;
+use data_models::{mandates::MandateDetails, payments::payment_attempt::PaymentAttempt};
 use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 // use crate::types::storage::enums::MandateDetails;
