@@ -3091,7 +3091,7 @@ pub async fn update_last_used_at(
     pm_id: &str,
     state: &routes::AppState,
 ) -> errors::RouterResult<()> {
-    let udpate_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
+    let update_last_used = storage::PaymentMethodUpdate::LastUsedUpdate {
         last_used_at: Some(common_utils::date_time::now()),
     };
     let payment_method = state
