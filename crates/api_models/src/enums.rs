@@ -44,7 +44,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Threedsecureio,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -117,6 +116,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    Threedsecureio,
     Trustpay,
     // Tsys,
     Tsys,

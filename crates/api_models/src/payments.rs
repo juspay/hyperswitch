@@ -3480,15 +3480,19 @@ pub enum TransStatus {
 
 #[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsExternalAuthenticationResponse {
-    /// indicates the authentication status
+    /// Indicates the trans status
     pub trans_status: TransStatus,
-    /// acs_url to be used for challenge
+    /// ACS URL to be used for challenge
     pub acs_url: Option<Url>,
-    /// challenge request which should be sent to acs_url
+    /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
+    /// ACS Reference Number
     pub acs_reference_number: Option<String>,
+    /// ACS Trans ID
     pub acs_trans_id: Option<String>,
+    /// Three DS Trans ID
     pub three_dsserver_trans_id: Option<String>,
+    /// ACS Signed Content
     pub acs_signed_content: Option<String>,
 }
 

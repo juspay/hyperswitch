@@ -179,7 +179,6 @@ pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
     pub number: cards::CardNumber,
-    // pub number: String,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvv: Secret<String>,
@@ -295,7 +294,6 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 let a = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,
                     number: ccard.card_number.clone(),
-                    // number: "4000002760003184".to_owned(),
                     expiry_month: ccard.card_exp_month.clone(),
                     expiry_year: ccard.card_exp_year.clone(),
                     cvv: ccard.card_cvc,
