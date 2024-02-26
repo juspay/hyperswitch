@@ -18,7 +18,6 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -91,7 +90,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .as_ref()
+            .map(utils::Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",

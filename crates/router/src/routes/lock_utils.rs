@@ -29,6 +29,7 @@ pub enum ApiIdentifier {
     Forex,
     RustLockerMigration,
     Gsm,
+    Role,
     User,
     UserRole,
     ConnectorOnboarding,
@@ -74,6 +75,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
+            | Flow::ConfigKeyDelete
             | Flow::CreateConfigKey => Self::Configs,
 
             Flow::CustomersCreate
@@ -188,6 +190,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
+            | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails => Self::User,
 
@@ -198,7 +201,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetAuthorizationInfo
             | Flow::AcceptInvitation
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership => Self::UserRole,
+            | Flow::TransferOrgOwnership
+            | Flow::CreateRole
+            | Flow::UpdateRole => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

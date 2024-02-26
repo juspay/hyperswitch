@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{ext_traits::Encode, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,6 @@ use crate::{
     core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
-    utils,
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -271,10 +270,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                     ),
                                 },
                             };
-                            let payment_token =
-                                utils::Encode::<NoonApplePayTokenData>::encode_to_string_of_json(
-                                    &payment_token_data,
-                                )
+                            let payment_token = payment_token_data
+                                .encode_to_string_of_json()
                                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                             Ok(NoonPaymentData::ApplePay(NoonApplePay {

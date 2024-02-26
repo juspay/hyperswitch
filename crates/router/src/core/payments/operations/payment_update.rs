@@ -549,7 +549,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -588,6 +588,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     capture_method,
                     surcharge_amount,
                     tax_amount,
+                    fingerprint_id: None,
                     updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
