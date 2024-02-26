@@ -165,9 +165,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| {
-                common_utils::ext_traits::Encode::<types::BrowserInformation>::encode_to_value(&x)
-            })
+            .as_ref()
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -749,7 +748,7 @@ impl PaymentCreate {
             .await;
         let additional_pm_data_value = additional_pm_data
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -975,12 +974,11 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::PaymentLinkConfig,
-    >::encode_to_value(&payment_link_config)
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "payment_link_config",
-    })?;
+    let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        },
+    )?;
 
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),

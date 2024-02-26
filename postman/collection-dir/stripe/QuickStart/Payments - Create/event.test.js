@@ -19,7 +19,7 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
+} catch (e) { }
 
 // pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
 if (jsonData?.payment_id) {
@@ -83,6 +83,15 @@ if (jsonData?.error_message) {
 // Response body should have "connector_transaction_id"
 pm.test(
   "[POST]::/payments - Content check if 'connector_transaction_id' exists",
+  function () {
+    pm.expect(typeof jsonData.connector_transaction_id !== "undefined").to.be
+      .true;
+  },
+);
+
+// Response body should have "billing.email"
+pm.test(
+  "[POST]::/payments - Content check if 'billing.email' exists",
   function () {
     pm.expect(typeof jsonData.connector_transaction_id !== "undefined").to.be
       .true;

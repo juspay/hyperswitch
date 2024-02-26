@@ -2,7 +2,7 @@ use api_models::{
     enums::{DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
-use common_utils::{crypto::SignMessage, date_time, ext_traits};
+use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 use serde::Serialize;
@@ -39,10 +39,10 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
             .into_report()
             .attach_printable("For stripe compatibility payment_response_hash_key is mandatory")?;
 
-        let webhook_signature_payload =
-            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(self)
-                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-                .attach_printable("failed encoding outgoing webhook payload")?;
+        let webhook_signature_payload = self
+            .encode_to_string_of_json()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("failed encoding outgoing webhook payload")?;
 
         let new_signature_payload = format!("{timestamp}.{webhook_signature_payload}");
         let v1 = hex::encode(

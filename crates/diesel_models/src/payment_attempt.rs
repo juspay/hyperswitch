@@ -66,6 +66,7 @@ pub struct PaymentAttempt {
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -142,6 +143,7 @@ pub struct PaymentAttemptNew {
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -179,6 +181,7 @@ pub enum PaymentAttemptUpdate {
         capture_method: Option<storage_enums::CaptureMethod>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -214,6 +217,7 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: Option<i64>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
@@ -355,6 +359,7 @@ pub struct PaymentAttemptUpdateInternal {
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
     payment_method_billing_address_id: Option<String>,
+    fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -416,6 +421,7 @@ impl PaymentAttemptUpdate {
             unified_code,
             unified_message,
             payment_method_billing_address_id,
+            fingerprint_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -459,6 +465,7 @@ impl PaymentAttemptUpdate {
             unified_message: unified_message.unwrap_or(source.unified_message),
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
+            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
     }
@@ -483,6 +490,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             } => Self {
                 amount: Some(amount),
@@ -501,6 +509,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 ..Default::default()
             },
@@ -535,6 +544,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 payment_method_billing_address_id,
+                fingerprint_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -558,6 +568,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 payment_method_billing_address_id,
+                fingerprint_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

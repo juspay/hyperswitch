@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -113,9 +113,9 @@ pub struct MerchantDefinedInformation {
 pub struct BankOfAmericaConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
     cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
 }
 
@@ -213,7 +213,7 @@ pub struct BillTo {
     first_name: Secret<String>,
     last_name: Secret<String>,
     address1: Secret<String>,
-    locality: String,
+    locality: Secret<String>,
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
@@ -235,7 +235,7 @@ fn build_bill_to(
         first_name: address.get_first_name()?.to_owned(),
         last_name: address.get_last_name()?.to_owned(),
         address1: address.get_line1()?.to_owned(),
-        locality: address.get_city()?.to_owned(),
+        locality: Secret::new(address.get_city()?.to_owned()),
         administrative_area: Secret::from(state),
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
@@ -330,21 +330,34 @@ impl
     From<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         Option<PaymentSolution>,
+        Option<String>,
     )> for ProcessingInformation
 {
     fn from(
-        (item, solution): (
+        (item, solution, network): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             Option<PaymentSolution>,
+            Option<String>,
         ),
     ) -> Self {
+        let commerce_indicator = match network {
+            Some(card_network) => match card_network.to_lowercase().as_str() {
+                "amex" => "aesk",
+                "discover" => "dipb",
+                "mastercard" => "spa",
+                "visa" => "internet",
+                _ => "internet",
+            },
+            None => "internet",
+        }
+        .to_string();
         Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             payment_solution: solution.map(String::from),
-            commerce_indicator: String::from("internet"),
+            commerce_indicator,
         }
     }
 }
@@ -435,7 +448,7 @@ pub struct ClientRiskInformation {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
-    name: String,
+    name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -552,7 +565,7 @@ impl
                 card_type,
             },
         });
-        let processing_information = ProcessingInformation::from((item, None));
+        let processing_information = ProcessingInformation::from((item, None, None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -574,20 +587,25 @@ impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         Box<ApplePayPredecryptData>,
+        payments::ApplePayWalletData,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, apple_pay_data): (
+        (item, apple_pay_data, apple_pay_wallet_data): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             Box<ApplePayPredecryptData>,
+            payments::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
-        let processing_information =
-            ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
+        let processing_information = ProcessingInformation::from((
+            item,
+            Some(PaymentSolution::ApplePay),
+            Some(apple_pay_wallet_data.payment_method.network),
+        ));
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
@@ -640,7 +658,7 @@ impl
             },
         });
         let processing_information =
-            ProcessingInformation::from((item, Some(PaymentSolution::GooglePay)));
+            ProcessingInformation::from((item, Some(PaymentSolution::GooglePay), None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -672,7 +690,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     match item.router_data.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
                             types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                                Self::try_from((item, decrypt_data))
+                                Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
@@ -685,6 +703,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             let processing_information = ProcessingInformation::from((
                                 item,
                                 Some(PaymentSolution::ApplePay),
+                                Some(apple_pay_data.payment_method.network),
                             ));
                             let client_reference_information =
                                 ClientReferenceInformation::from(item);
@@ -889,8 +908,8 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationResponse {
-    access_token: String,
-    device_data_collection_url: String,
+    access_token: Secret<String>,
+    device_data_collection_url: Secret<String>,
     reference_id: String,
 }
 
@@ -1066,10 +1085,12 @@ impl<F>
                     redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .expose(),
                         ddc_url: info_response
                             .consumer_authentication_information
-                            .device_data_collection_url,
+                            .device_data_collection_url
+                            .expose(),
                         reference_id: info_response
                             .consumer_authentication_information
                             .reference_id,
@@ -1322,10 +1343,10 @@ pub enum BankOfAmericaAuthEnrollmentStatus {
 pub struct BankOfAmericaConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
     cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
 }
 
@@ -1337,7 +1358,7 @@ pub struct BankOfAmericaThreeDSMetadata {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationEnrollmentResponse {
-    access_token: Option<String>,
+    access_token: Option<Secret<String>>,
     step_up_url: Option<String>,
     //Added to segregate the three_ds_data in a separate struct
     #[serde(flatten)]
@@ -1420,7 +1441,8 @@ impl<F>
                     let redirection_data = match (
                         info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .map(|access_token| access_token.expose()),
                         info_response
                             .consumer_authentication_information
                             .step_up_url,
@@ -2023,7 +2045,7 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" , {}", risk_info.name))
+                        .map(|risk_info| format!(" , {}", risk_info.name.clone().expose()))
                         .collect::<Vec<String>>()
                         .join("")
                 })

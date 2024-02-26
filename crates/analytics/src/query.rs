@@ -4,6 +4,7 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
@@ -362,6 +363,8 @@ impl_to_sql_for_to_string!(
     PaymentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    &DisputeDimensions,
+    DisputeDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
