@@ -12,7 +12,7 @@ use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::AppState,
     services::{
-        authentication::UserFromToken,
+        authentication::{blacklist, UserFromToken},
         authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
         ApplicationResponse,
     },
@@ -218,6 +218,8 @@ pub async fn update_role(
         )
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
+
+    blacklist::insert_role_in_blacklist(&state, role_id).await?;
 
     Ok(ApplicationResponse::StatusOk)
 }
