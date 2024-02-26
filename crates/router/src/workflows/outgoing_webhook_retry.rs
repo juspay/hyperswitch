@@ -11,11 +11,11 @@ use scheduler::{
 };
 
 use crate::{
-    core::webhooks as webhooks_core,
+    core::webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     db::StorageInterface,
     errors, logger,
     routes::AppState,
-    types::{storage, transformers::ForeignFrom},
+    types::{domain, storage},
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
@@ -27,7 +27,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let tracking_data: webhooks_core::types::OutgoingWebhookTrackingData = process
+        let tracking_data: OutgoingWebhookTrackingData = process
             .tracking_data
             .clone()
             .parse_value("OutgoingWebhookTrackingData")?;
@@ -52,68 +52,13 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         );
         let event = db.find_event_by_event_id(&event_id).await?;
 
-        let (content, event_type) = match tracking_data.event_class {
-            diesel_models::enums::EventClass::Payments => {
-                use api_models::payments::{
-                    HeaderPayload, PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest,
-                };
-
-                use crate::{
-                    core::{
-                        payment_methods::Oss,
-                        payments::{payments_core, CallConnectorAction, PaymentStatus},
-                    },
-                    services::{ApplicationResponse, AuthFlow},
-                    types::api::PSync,
-                };
-
-                let payment_id = tracking_data.primary_object_id.clone();
-                let request = PaymentsRetrieveRequest {
-                    resource_id: PaymentIdType::PaymentIntentId(payment_id),
-                    merchant_id: Some(tracking_data.merchant_id.clone()),
-                    force_sync: false,
-                    ..Default::default()
-                };
-
-                let payments_response =
-                    match payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
-                        state.clone(),
-                        merchant_account.clone(),
-                        key_store,
-                        PaymentStatus,
-                        request,
-                        AuthFlow::Client,
-                        CallConnectorAction::Avoid,
-                        None,
-                        HeaderPayload::default(),
-                    )
-                    .await?
-                    {
-                        ApplicationResponse::Json(payments_response)
-                        | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                            Ok(payments_response)
-                        }
-                        ApplicationResponse::StatusOk
-                        | ApplicationResponse::TextPlain(_)
-                        | ApplicationResponse::JsonForRedirection(_)
-                        | ApplicationResponse::Form(_)
-                        | ApplicationResponse::PaymentLinkForm(_)
-                        | ApplicationResponse::FileData(_) => {
-                            Err(errors::ProcessTrackerError::ResourceFetchingFailed {
-                                resource_name: tracking_data.primary_object_id.clone(),
-                            })
-                        }
-                    }?;
-                let event_type = Option::<EventType>::foreign_from(payments_response.status);
-                (
-                    OutgoingWebhookContent::PaymentDetails(payments_response),
-                    event_type,
-                )
-            }
-            diesel_models::enums::EventClass::Refunds => todo!(),
-            diesel_models::enums::EventClass::Disputes => todo!(),
-            diesel_models::enums::EventClass::Mandates => todo!(),
-        };
+        let (content, event_type) = get_outgoing_webhook_content_and_event_type(
+            state.clone(),
+            merchant_account.clone(),
+            key_store,
+            &tracking_data,
+        )
+        .await?;
 
         match event_type {
             // Resource status is same as the event type of the current event
@@ -261,6 +206,159 @@ pub(crate) async fn retry_webhook_delivery_task(
             db.as_scheduler()
                 .finish_process_with_business_status(process, "RETRIES_EXCEEDED".to_string())
                 .await
+        }
+    }
+}
+
+async fn get_outgoing_webhook_content_and_event_type(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    tracking_data: &OutgoingWebhookTrackingData,
+) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
+    use api_models::{
+        mandates::MandateId,
+        payments::{HeaderPayload, PaymentIdType, PaymentsResponse, PaymentsRetrieveRequest},
+        refunds::{RefundResponse, RefundsRetrieveRequest},
+    };
+
+    use crate::{
+        core::{
+            disputes::retrieve_dispute,
+            mandate::get_mandate,
+            payment_methods::Oss,
+            payments::{payments_core, CallConnectorAction, PaymentStatus},
+            refunds::refund_retrieve_core,
+        },
+        services::{ApplicationResponse, AuthFlow},
+        types::{
+            api::{DisputeId, PSync},
+            transformers::ForeignFrom,
+        },
+    };
+
+    match tracking_data.event_class {
+        diesel_models::enums::EventClass::Payments => {
+            let payment_id = tracking_data.primary_object_id.clone();
+            let request = PaymentsRetrieveRequest {
+                resource_id: PaymentIdType::PaymentIntentId(payment_id),
+                merchant_id: Some(tracking_data.merchant_id.clone()),
+                force_sync: false,
+                ..Default::default()
+            };
+
+            let payments_response = match payments_core::<PSync, PaymentsResponse, _, _, _, Oss>(
+                state,
+                merchant_account,
+                key_store,
+                PaymentStatus,
+                request,
+                AuthFlow::Client,
+                CallConnectorAction::Avoid,
+                None,
+                HeaderPayload::default(),
+            )
+            .await?
+            {
+                ApplicationResponse::Json(payments_response)
+                | ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
+                    Ok(payments_response)
+                }
+                ApplicationResponse::StatusOk
+                | ApplicationResponse::TextPlain(_)
+                | ApplicationResponse::JsonForRedirection(_)
+                | ApplicationResponse::Form(_)
+                | ApplicationResponse::PaymentLinkForm(_)
+                | ApplicationResponse::FileData(_) => {
+                    Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                        resource_name: tracking_data.primary_object_id.clone(),
+                    })
+                }
+            }?;
+            let event_type = Option::<EventType>::foreign_from(payments_response.status);
+
+            Ok((
+                OutgoingWebhookContent::PaymentDetails(payments_response),
+                event_type,
+            ))
+        }
+
+        diesel_models::enums::EventClass::Refunds => {
+            let refund_id = tracking_data.primary_object_id.clone();
+            let request = RefundsRetrieveRequest {
+                refund_id,
+                force_sync: Some(false),
+                merchant_connector_details: None,
+            };
+
+            let refund = refund_retrieve_core(state, merchant_account, key_store, request).await?;
+            let event_type = Option::<EventType>::foreign_from(refund.refund_status);
+            let refund_response = RefundResponse::foreign_from(refund);
+
+            Ok((
+                OutgoingWebhookContent::RefundDetails(refund_response),
+                event_type,
+            ))
+        }
+
+        diesel_models::enums::EventClass::Disputes => {
+            let dispute_id = tracking_data.primary_object_id.clone();
+            let request = DisputeId { dispute_id };
+
+            let dispute_response =
+                match retrieve_dispute(state, merchant_account, request).await? {
+                    ApplicationResponse::Json(dispute_response)
+                    | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
+                        Ok(dispute_response)
+                    }
+                    ApplicationResponse::StatusOk
+                    | ApplicationResponse::TextPlain(_)
+                    | ApplicationResponse::JsonForRedirection(_)
+                    | ApplicationResponse::Form(_)
+                    | ApplicationResponse::PaymentLinkForm(_)
+                    | ApplicationResponse::FileData(_) => {
+                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                            resource_name: tracking_data.primary_object_id.clone(),
+                        })
+                    }
+                }
+                .map(Box::new)?;
+            let event_type = Some(EventType::foreign_from(dispute_response.dispute_status));
+
+            Ok((
+                OutgoingWebhookContent::DisputeDetails(dispute_response),
+                event_type,
+            ))
+        }
+
+        diesel_models::enums::EventClass::Mandates => {
+            let mandate_id = tracking_data.primary_object_id.clone();
+            let request = MandateId { mandate_id };
+
+            let mandate_response =
+                match get_mandate(state, merchant_account, key_store, request).await? {
+                    ApplicationResponse::Json(mandate_response)
+                    | ApplicationResponse::JsonWithHeaders((mandate_response, _)) => {
+                        Ok(mandate_response)
+                    }
+                    ApplicationResponse::StatusOk
+                    | ApplicationResponse::TextPlain(_)
+                    | ApplicationResponse::JsonForRedirection(_)
+                    | ApplicationResponse::Form(_)
+                    | ApplicationResponse::PaymentLinkForm(_)
+                    | ApplicationResponse::FileData(_) => {
+                        Err(errors::ProcessTrackerError::ResourceFetchingFailed {
+                            resource_name: tracking_data.primary_object_id.clone(),
+                        })
+                    }
+                }
+                .map(Box::new)?;
+            let event_type = Option::<EventType>::foreign_from(mandate_response.status);
+
+            Ok((
+                OutgoingWebhookContent::MandateDetails(mandate_response),
+                event_type,
+            ))
         }
     }
 }
