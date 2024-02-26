@@ -29,6 +29,7 @@ pub enum ApiIdentifier {
     Forex,
     RustLockerMigration,
     Gsm,
+    Role,
     User,
     UserRole,
     ConnectorOnboarding,
@@ -74,6 +75,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
+            | Flow::ConfigKeyDelete
             | Flow::CreateConfigKey => Self::Configs,
 
             Flow::CustomersCreate
@@ -137,7 +139,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesList
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
-            | Flow::RetrieveDisputeEvidence => Self::Disputes,
+            | Flow::RetrieveDisputeEvidence
+            | Flow::DeleteDisputeEvidence => Self::Disputes,
 
             Flow::CardsInfo => Self::CardsInfo,
 
@@ -188,6 +191,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserSignUpWithMerchantId
             | Flow::VerifyEmailWithoutInviteChecks
             | Flow::VerifyEmail
+            | Flow::AcceptInviteFromEmail
             | Flow::VerifyEmailRequest
             | Flow::UpdateUserAccountDetails => Self::User,
 
@@ -197,7 +201,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::AcceptInvitation
-            | Flow::DeleteUserRole => Self::UserRole,
+            | Flow::DeleteUserRole
+            | Flow::TransferOrgOwnership
+            | Flow::CreateRole
+            | Flow::UpdateRole => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

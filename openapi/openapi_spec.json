@@ -4315,6 +4315,10 @@
               }
             ],
             "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -5227,12 +5231,16 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details",
                   "country"
                 ],
                 "properties": {
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_account_bic": {
                     "type": "string",
@@ -6603,6 +6611,13 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -7508,6 +7523,11 @@
               "$ref": "#/components/schemas/CustomerPaymentMethod"
             },
             "description": "List of payment methods for customer"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)",
+            "nullable": true
           }
         }
       },
@@ -9401,7 +9421,7 @@
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled.",
             "default": false,
             "example": true,
             "nullable": true
@@ -9413,7 +9433,7 @@
           },
           "publishable_key": {
             "type": "string",
-            "description": "API key that will be used for server side API access",
+            "description": "API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.\nA `client_secret` can be obtained by creating a payment with `confirm` set to false",
             "example": "AH3423bkjbkjdsfbkj",
             "nullable": true
           },
@@ -9489,7 +9509,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
+            "description": "The URL to redirect after completion of the payment",
             "example": "https://www.example.com/success",
             "nullable": true,
             "maxLength": 255
@@ -10316,6 +10336,7 @@
         "description": "Routing Algorithm specific to merchants",
         "required": [
           "id",
+          "profile_id",
           "name",
           "description",
           "algorithm",
@@ -10324,6 +10345,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -15468,7 +15492,7 @@
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "sub_label": {
+          "merchant_connector_id": {
             "type": "string",
             "nullable": true
           }
@@ -15478,6 +15502,13 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -15677,6 +15708,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "kind",
           "description",
@@ -15685,6 +15717,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {

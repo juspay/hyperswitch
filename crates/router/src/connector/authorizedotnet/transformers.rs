@@ -388,7 +388,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub enum AuthorizedotnetPaymentStatus {
     #[serde(rename = "1")]
     Approved,
@@ -403,7 +403,7 @@ pub enum AuthorizedotnetPaymentStatus {
     RequiresAction,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 pub enum AuthorizedotnetRefundStatus {
     #[serde(rename = "1")]
     Approved,
@@ -448,27 +448,27 @@ pub struct ResponseMessages {
     pub message: Vec<ResponseMessage>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorMessage {
     pub error_code: String,
     pub error_text: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TransactionResponse {
     AuthorizedotnetTransactionResponse(Box<AuthorizedotnetTransactionResponse>),
     AuthorizedotnetTransactionResponseError(Box<AuthorizedotnetTransactionResponseError>),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthorizedotnetTransactionResponseError {
     _supplemental_data_qualification_indicator: i64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetTransactionResponse {
     response_code: AuthorizedotnetPaymentStatus,
@@ -480,7 +480,7 @@ pub struct AuthorizedotnetTransactionResponse {
     secure_acceptance: Option<SecureAcceptance>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     response_code: AuthorizedotnetRefundStatus,
@@ -492,27 +492,27 @@ pub struct RefundResponse {
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SecureAcceptance {
     secure_acceptance_url: Option<url::Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetVoidResponse {
     pub transaction_response: Option<VoidResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoidResponse {
     response_code: AuthorizedotnetVoidStatus,
@@ -523,7 +523,7 @@ pub struct VoidResponse {
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum AuthorizedotnetVoidStatus {
     #[serde(rename = "1")]
     Approved,
@@ -581,9 +581,7 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
-                        )
+                        construct_refund_payment_details(acc_no.clone()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -658,9 +656,7 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
-                        )
+                        construct_refund_payment_details(acc_no.clone()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -773,7 +769,7 @@ impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetRefundResponse {
     pub transaction_response: RefundResponse,

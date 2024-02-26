@@ -54,6 +54,7 @@ pub enum AnalyticsFlow {
     GetApiEventFilters,
     GetConnectorEvents,
     GetOutgoingWebhookEvents,
+    GetDisputeFilters,
 }
 
 impl FlowMetric for AnalyticsFlow {}

@@ -589,6 +589,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
+            email: address.email.clone().map(pii::Email::from),
         }
     }
 }

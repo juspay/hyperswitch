@@ -93,10 +93,12 @@ async fn payments_create_core() {
         shipping: Some(api::Address {
             address: None,
             phone: None,
+            email: None,
         }),
         billing: Some(api::Address {
             address: None,
             phone: None,
+            email: None,
         }),
         statement_descriptor_name: Some("Hyperswitch".to_string()),
         statement_descriptor_suffix: Some("Hyperswitch".to_string()),
@@ -273,9 +275,15 @@ async fn payments_create_core_adyen_no_redirect() {
             nick_name: Some(masking::Secret::new("nick_name".into())),
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
+        shipping: Some(api::Address {
+            address: None,
+            phone: None,
+            email: None,
+        }),
         billing: Some(api::Address {
             address: None,
             phone: None,
+            email: None,
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),

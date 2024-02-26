@@ -130,7 +130,7 @@ pub async fn call_to_locker(
                 &card_details,
                 customer_id.to_string(),
                 merchant_account,
-                api_enums::LockerChoice::Tartarus,
+                api_enums::LockerChoice::HyperswitchCardVault,
                 Some(&pm.payment_method_id),
             )
             .await
