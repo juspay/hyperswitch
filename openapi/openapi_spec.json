@@ -6640,7 +6640,6 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
-          "threedsecureio",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -6690,6 +6689,7 @@
           "square",
           "stax",
           "stripe",
+          "threedsecureio",
           "trustpay",
           "tsys",
           "volt",
