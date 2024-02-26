@@ -653,10 +653,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     locker_choice: Option<api_enums::LockerChoice>,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "aws_kms"))]
-    let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = state.conf.jwekey.get_inner();
 
     let payment_method_data = if !locker.mock_locker {
         let request = payment_methods::mk_get_card_request_hs(
@@ -716,10 +713,7 @@ pub async fn call_to_locker_hs<'a>(
     locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "aws_kms"))]
-    let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = state.conf.jwekey.get_inner();
     let db = &*state.store;
     let stored_card_response = if !locker.mock_locker {
         let request =
@@ -777,10 +771,7 @@ pub async fn get_card_from_hs_locker<'a>(
     locker_choice: api_enums::LockerChoice,
 ) -> errors::CustomResult<payment_methods::Card, errors::VaultError> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "aws_kms"))]
-    let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.conf.jwekey.get_inner();
 
     if !locker.mock_locker {
         let request = payment_methods::mk_get_card_request_hs(
@@ -832,10 +823,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     card_reference: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     let locker = &state.conf.locker;
-    #[cfg(not(feature = "aws_kms"))]
-    let jwekey = &state.conf.jwekey;
-    #[cfg(feature = "aws_kms")]
-    let jwekey = &state.kms_secrets;
+    let jwekey = &state.conf.jwekey.get_inner();
 
     let request = payment_methods::mk_delete_card_request_hs(
         jwekey,
@@ -1321,7 +1309,7 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(sfr)
+        let result = routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing session flow routing")?;
@@ -1445,7 +1433,7 @@ pub async fn list_payment_methods(
         }
 
         let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
-        let redis_expiry = state.conf.payment_method_auth.redis_expiry;
+        let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
             rc.serialize_and_set_key_with_expiry(pm_auth_key.as_str(), val, redis_expiry)

@@ -13,8 +13,9 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, is_payment_failure, is_refund_failure, missing_field_err, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
+        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -254,13 +255,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
                 connector_mandate_id: Some(buyer_key.expose()),
                 payment_method_id: None,
             }),
-            connector_metadata: Some(
-                serde_json::to_value(PaymeMetadata {
-                    payme_transaction_id: value.payme_transaction_id.clone(),
-                })
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-            ),
+            connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
@@ -983,8 +978,8 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
-    payme_transaction_id: String,
-    status_error_code: i64,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
@@ -997,21 +992,114 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
         let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
         let response = if is_refund_failure(refund_status) {
             let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
             Err(types::ErrorResponse {
-                code: payme_response.status_error_code.to_string(),
-                message: payme_response.status_error_code.to_string(),
-                reason: Some(payme_response.status_error_code.to_string()),
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(payme_response.payme_transaction_id.clone()),
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
             })
         } else {
             Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.payme_transaction_id,
+                connector_refund_id: item
+                    .response
+                    .payme_transaction_id
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                 refund_status,
             })
         };
         Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymeVoidRequest {
+    sale_currency: enums::Currency,
+    payme_sale_id: String,
+    seller_payme_id: Secret<String>,
+    language: String,
+}
+
+impl
+    TryFrom<
+        &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    > for PaymeVoidRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaymeRouterData<
+            &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = PaymeAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(Self {
+            payme_sale_id: item.router_data.request.connector_transaction_id.clone(),
+            seller_payme_id: auth_type.seller_payme_id,
+            sale_currency: item.router_data.request.get_currency()?,
+            language: LANGUAGE.to_string(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymeVoidResponse {
+    sale_status: SaleStatus,
+    payme_transaction_id: Option<String>,
+    status_error_code: Option<u32>,
+}
+
+impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
+    for types::PaymentsCancelRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsCancelResponseRouterData<PaymeVoidResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.sale_status.clone());
+        let response = if is_payment_failure(status) {
+            let payme_response = &item.response;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
+            Err(types::ErrorResponse {
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: payme_response.payme_transaction_id.clone(),
+            })
+        } else {
+            // Since we are not receiving payme_sale_id, we are not populating the transaction response
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+            })
+        };
+        Ok(Self {
+            status,
             response,
             ..item.data
         })

@@ -13,7 +13,7 @@ pub struct PayoutAttempt {
     pub customer_id: String,
     pub merchant_id: String,
     pub address_id: String,
-    pub connector: String,
+    pub connector: Option<String>,
     pub connector_payout_id: String,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
@@ -28,6 +28,7 @@ pub struct PayoutAttempt {
     pub last_modified_at: PrimitiveDateTime,
     pub profile_id: String,
     pub merchant_connector_id: Option<String>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 impl Default for PayoutAttempt {
@@ -40,7 +41,7 @@ impl Default for PayoutAttempt {
             customer_id: String::default(),
             merchant_id: String::default(),
             address_id: String::default(),
-            connector: String::default(),
+            connector: None,
             connector_payout_id: String::default(),
             payout_token: None,
             status: storage_enums::PayoutStatus::default(),
@@ -53,6 +54,7 @@ impl Default for PayoutAttempt {
             last_modified_at: now,
             profile_id: String::default(),
             merchant_connector_id: None,
+            routing_info: None,
         }
     }
 }
@@ -76,7 +78,7 @@ pub struct PayoutAttemptNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub address_id: String,
-    pub connector: String,
+    pub connector: Option<String>,
     pub connector_payout_id: String,
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
@@ -91,6 +93,7 @@ pub struct PayoutAttemptNew {
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -112,6 +115,10 @@ pub enum PayoutAttemptUpdate {
         business_label: Option<String>,
         last_modified_at: Option<PrimitiveDateTime>,
     },
+    UpdateRouting {
+        connector: String,
+        routing_info: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -126,6 +133,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub connector: Option<String>,
+    pub routing_info: Option<serde_json::Value>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -163,6 +172,14 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 business_country,
                 business_label,
                 last_modified_at,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::UpdateRouting {
+                connector,
+                routing_info,
+            } => Self {
+                connector: Some(connector),
+                routing_info,
                 ..Default::default()
             },
         }
