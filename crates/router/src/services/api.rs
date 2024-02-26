@@ -29,7 +29,7 @@ use tera::{Context, Tera};
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::authentication::AuthenticateAndFetch;
 use crate::{
-    configs::settings::{Connectors, Settings},
+    configs::{settings::Connectors, Settings},
     consts,
     core::{
         api_locking,
