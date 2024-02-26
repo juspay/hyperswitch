@@ -1321,7 +1321,7 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(sfr)
+        let result = routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing session flow routing")?;

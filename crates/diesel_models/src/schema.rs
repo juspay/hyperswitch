@@ -884,7 +884,7 @@ diesel::table! {
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 64]
-        connector -> Varchar,
+        connector -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payout_id -> Varchar,
         #[max_length = 64]
@@ -903,6 +903,7 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        routing_info -> Nullable<Jsonb>,
     }
 }
 
@@ -1077,6 +1078,7 @@ diesel::table! {
         algorithm_data -> Jsonb,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        algorithm_for -> TransactionType,
     }
 }
 

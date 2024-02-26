@@ -42,7 +42,7 @@ use self::{
 };
 use super::{
     authentication::types::AuthenticationData, errors::StorageErrorExt,
-    payment_methods::surcharge_decision_configs,
+    payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -2754,10 +2754,12 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(&routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            &routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2765,7 +2767,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2813,10 +2815,12 @@ where
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2824,7 +2828,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2875,7 +2879,7 @@ where
         merchant_account,
         business_profile,
         key_store,
-        payment_data,
+        &TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
     )
@@ -2973,7 +2977,7 @@ where
 
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr)
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;
@@ -3011,17 +3015,36 @@ pub async fn route_connector_v1<F>(
     merchant_account: &domain::MerchantAccount,
     business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut PaymentData<F>,
+    transaction_data: &TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
+    #[allow(unused_variables)]
+    let (profile_id, routing_algorithm) = match transaction_data {
+        TransactionData::Payment(payment_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    payment_data.payment_intent.profile_id.clone(),
+                    business_profile.routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.routing_algorithm.clone())
+            }
+        }
+        #[cfg(feature = "payouts")]
+        TransactionData::Payout(payout_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    Some(payout_data.payout_attempt.profile_id.clone()),
+                    business_profile.payout_routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.payout_routing_algorithm.clone())
+            }
+        }
     };
 
     let algorithm_ref = routing_algorithm
@@ -3035,7 +3058,7 @@ where
         state,
         &merchant_account.merchant_id,
         algorithm_ref,
-        payment_data,
+        transaction_data,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -3045,10 +3068,10 @@ where
         key_store,
         merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
-        payment_data,
+        transaction_data,
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
-        payment_data.payment_intent.profile_id.clone(),
+        profile_id,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

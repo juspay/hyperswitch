@@ -71,8 +71,9 @@ pub async fn get_merchant_routing_dictionary(
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let key = get_default_config_key(merchant_id);
+    let key = get_default_config_key(merchant_id, transaction_type);
     let maybe_config = db.find_config_by_key(&key).await;
 
     match maybe_config {
@@ -116,8 +117,9 @@ pub async fn update_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
-    let key = get_default_config_key(merchant_id);
+    let key = get_default_config_key(merchant_id, transaction_type);
     let config_str = connectors
         .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -231,11 +233,18 @@ pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
     let ref_val = algorithm_id
         .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
+
+    let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
+        storage::enums::TransactionType::Payment => (Some(ref_val), None),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => (None, Some(ref_val)),
+    };
 
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
@@ -245,10 +254,10 @@ pub async fn update_business_profile_active_algorithm_ref(
         redirect_to_merchant_with_http_post: None,
         webhook_details: None,
         metadata: None,
-        routing_algorithm: Some(ref_val),
+        routing_algorithm,
         intent_fulfillment_time: None,
         frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
+        payout_routing_algorithm,
         applepay_verified_domains: None,
         modified_at: None,
         is_recon_enabled: None,
@@ -462,8 +471,15 @@ pub fn get_pg_agnostic_mandate_config_key(merchant_id: &str) -> String {
 
 /// Provides the identifier for the specific merchant's default_config
 #[inline(always)]
-pub fn get_default_config_key(merchant_id: &str) -> String {
-    format!("routing_default_{merchant_id}")
+pub fn get_default_config_key(
+    merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
+) -> String {
+    match transaction_type {
+        storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
+    }
 }
 pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
     format!("payment_config_id_{merchant_id}")
