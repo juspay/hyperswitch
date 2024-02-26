@@ -10,7 +10,7 @@ use crate::{
     core::{api_locking, errors, payment_methods::cards},
     services::{api, authentication as auth},
     types::{
-        api::payment_methods::{self, PaymentMethodId},
+        api::payment_methods::{self, PaymentMethodPayloadRequest},
         storage::payment_method::PaymentTokenData,
     },
     utils::Encode,
@@ -182,10 +182,15 @@ pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    json_payload: web::Json<PaymentMethodPayloadRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsRetrieve;
-    let payload = web::Json(PaymentMethodId {
-        payment_method_id: path.into_inner(),
+    let payment_method_id = path.into_inner();
+    let req_payload = json_payload.into_inner();
+    let payload = web::Json(PaymentMethodPayloadRequest {
+        merchant_id: req_payload.merchant_id,
+        customer_id: req_payload.customer_id,
+        payment_method_id,
     })
     .into_inner();
 
@@ -236,10 +241,15 @@ pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     payment_method_id: web::Path<(String,)>,
+    json_payload: web::Json<PaymentMethodPayloadRequest>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsDelete;
-    let pm = PaymentMethodId {
-        payment_method_id: payment_method_id.into_inner().0,
+    let payment_method_id = payment_method_id.into_inner().0;
+    let req_payload = json_payload.into_inner();
+    let pm = PaymentMethodPayloadRequest {
+        merchant_id: req_payload.merchant_id,
+        customer_id: req_payload.customer_id,
+        payment_method_id,
     };
     Box::pin(api::server_wrap(
         flow,

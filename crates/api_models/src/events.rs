@@ -38,7 +38,7 @@ use crate::{
 impl ApiEventMetric for TimeRange {}
 
 impl_misc_api_event_type!(
-    PaymentMethodId,
+    PaymentMethodPayloadRequest,
     PaymentsSessionResponse,
     PaymentMethodCreate,
     PaymentLinkInitiateRequest,

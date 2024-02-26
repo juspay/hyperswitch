@@ -223,8 +223,9 @@ pub async fn delete_customer(
                     .await
                     .switch()?;
                 }
-                db.delete_payment_method_by_merchant_id_payment_method_id(
+                db.delete_payment_method_by_merchant_id_customer_id_payment_method_id(
                     &merchant_account.merchant_id,
+                    &req.customer_id,
                     &pm.payment_method_id,
                 )
                 .await

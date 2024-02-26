@@ -119,7 +119,11 @@ where
                     Some(duplication_check) => match duplication_check {
                         payment_methods::transformers::DataDuplicationCheck::Duplicated => {
                             let existing_pm = db
-                                .find_payment_method(&locker_response.0.payment_method_id)
+                                .find_payment_method_by_merchant_id_customer_id_payment_method_id(
+                                    merchant_id,
+                                    &customer.customer_id,
+                                    &locker_response.0.payment_method_id,
+                                )
                                 .await;
                             match existing_pm {
                                 Ok(pm) => {
@@ -186,8 +190,9 @@ where
 
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);
-                                    db.delete_payment_method_by_merchant_id_payment_method_id(
+                                    db.delete_payment_method_by_merchant_id_customer_id_payment_method_id(
                                         merchant_id,
+                                        &customer.customer_id,
                                         &locker_response.0.payment_method_id,
                                     )
                                     .await
@@ -202,7 +207,7 @@ where
                                 };
 
                                 let existing_pm = db
-                                    .find_payment_method(&locker_response.0.payment_method_id)
+                                    .find_payment_method_by_merchant_id_customer_id_payment_method_id(merchant_id, &customer.customer_id,&locker_response.0.payment_method_id)
                                     .await;
                                 match existing_pm {
                                     Ok(pm) => {
@@ -243,7 +248,7 @@ where
                                                 payment_method_data: pm_data_encrypted,
                                             };
 
-                                        db.update_payment_method(pm, pm_update)
+                                        db.update_payment_method_by_merchant_id_customer_id_payment_method_id(pm, pm_update)
                                             .await
                                             .change_context(
                                                 errors::ApiErrorResponse::InternalServerError,

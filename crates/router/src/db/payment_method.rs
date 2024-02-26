@@ -15,6 +15,13 @@ pub trait PaymentMethodInterface {
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 
+    async fn find_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -32,9 +39,22 @@ pub trait PaymentMethodInterface {
         payment_method_update: storage::PaymentMethodUpdate,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 
+    async fn update_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+
+    async fn delete_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 }
@@ -50,6 +70,24 @@ impl PaymentMethodInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
+    }
+
+    async fn find_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentMethod::find_by_merchant_id_customer_id_payment_method_id(
+            &conn,
+            merchant_id,
+            customer_id,
+            payment_method_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_payment_method(
@@ -72,6 +110,19 @@ impl PaymentMethodInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         payment_method
             .update_with_payment_method_id(&conn, payment_method_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn update_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        payment_method
+            .update_with_merchant_id_customer_id_payment_method_id(&conn, payment_method_update)
             .await
             .map_err(Into::into)
             .into_report()
@@ -104,6 +155,24 @@ impl PaymentMethodInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+
+    async fn delete_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::PaymentMethod::delete_by_merchant_id_customer_id_payment_method_id(
+            &conn,
+            merchant_id,
+            customer_id,
+            payment_method_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -116,6 +185,31 @@ impl PaymentMethodInterface for MockDb {
         let payment_method = payment_methods
             .iter()
             .find(|pm| pm.payment_method_id == payment_method_id)
+            .cloned();
+
+        match payment_method {
+            Some(pm) => Ok(pm),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    async fn find_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_method = payment_methods
+            .iter()
+            .find(|pm| {
+                pm.merchant_id == merchant_id
+                    && pm.customer_id == customer_id
+                    && pm.payment_method_id == payment_method_id
+            })
             .cloned();
 
         match payment_method {
@@ -207,6 +301,29 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+    async fn delete_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        merchant_id: &str,
+        customer_id: &str,
+        payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let mut payment_methods = self.payment_methods.lock().await;
+        match payment_methods.iter().position(|pm| {
+            pm.merchant_id == merchant_id
+                && pm.customer_id == customer_id
+                && pm.payment_method_id == payment_method_id
+        }) {
+            Some(index) => {
+                let deleted_payment_method = payment_methods.remove(index);
+                Ok(deleted_payment_method)
+            }
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method to delete".to_string(),
+            )
+            .into()),
+        }
+    }
+
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
@@ -218,6 +335,38 @@ impl PaymentMethodInterface for MockDb {
             .await
             .iter_mut()
             .find(|pm| pm.id == payment_method.id)
+            .map(|pm| {
+                let payment_method_updated =
+                    PaymentMethodUpdateInternal::from(payment_method_update)
+                        .create_payment_method(pm.clone());
+                *pm = payment_method_updated.clone();
+                payment_method_updated
+            });
+
+        match pm_update_res {
+            Some(result) => Ok(result),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method to update".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    async fn update_payment_method_by_merchant_id_customer_id_payment_method_id(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let pm_update_res = self
+            .payment_methods
+            .lock()
+            .await
+            .iter_mut()
+            .find(|pm| {
+                pm.merchant_id == payment_method.merchant_id
+                    && pm.customer_id == payment_method.customer_id
+                    && pm.id == payment_method.id
+            })
             .map(|pm| {
                 let payment_method_updated =
                     PaymentMethodUpdateInternal::from(payment_method_update)
