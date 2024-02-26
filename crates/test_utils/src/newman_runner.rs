@@ -44,7 +44,7 @@ pub struct ReturnArgs {
     pub collection_path: String,
 }
 
-// Just by the name of the connector, this function generates the name of the collection json
+// Generates the name of the collection JSON file for the specified connector.
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-json/stripe.postman_collection.json
 #[inline]
 fn get_collection_path(name: impl AsRef<str>) -> String {
@@ -54,7 +54,7 @@ fn get_collection_path(name: impl AsRef<str>) -> String {
     )
 }
 
-// Just by the name of the connector, this function generates the name of the collection dir
+// Generates the name of the collection directory for the specified connector.
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
 #[inline]
 fn get_dir_path(name: impl AsRef<str>) -> String {
@@ -96,9 +96,10 @@ pub fn generate_newman_command() -> ReturnArgs {
 
     /*
     Newman runner
-    Depending on the conditions satisfied, variables are added. Since certificates of stripe have already
-    been added to the postman collection, those conditions are set to true and collections that have
-    variables set up for certificate, will consider those variables and will fail.
+    Certificate keys are added through secrets in CI, so there's no need to explicitly pass it as arguments.
+    It can be overrided by explictly passing cartificates as arguments.
+    If the collection takes in ceritificates (stripe collection for example) during MCA step, then it should be passed mandatorily.
+    Else the collection fail.
     */
 
     let mut newman_command = Command::new("newman");
@@ -106,8 +107,8 @@ pub fn generate_newman_command() -> ReturnArgs {
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
-    // validation of connector is needed here as a work around to the limitation of newman-dir
-    if let Some(auth_type) = inner_map.get(connector_validate(&connector_name)) {
+    // validation of connector is needed here as a work around to the limitation of the fork of newman that Hyperswitch uses
+    if let Some(auth_type) = inner_map.get(check_connector_for_dynamic_amount(&connector_name)) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
                 newman_command.args([
@@ -230,19 +231,19 @@ pub fn generate_newman_command() -> ReturnArgs {
 }
 
 // If the connector name exists in refactorable_connector_names,
-// the corresponding collection is refactored in run time
-pub fn connector_validate(connector_name: &str) -> &str {
+// the corresponding collection is refactored in run time to remove double quotes
+pub fn check_connector_for_dynamic_amount(connector_name: &str) -> &str {
     let refactorable_connector_names = ["nmi", "powertranz"];
 
     if refactorable_connector_names.contains(&connector_name) {
-        return refactor_collection(connector_name).unwrap_or(connector_name);
+        return remove_quotes_for_integer_values(connector_name).unwrap_or(connector_name);
     }
 
     connector_name
 }
 
 /*
-Existing issue with newman-dir is that, it requires you to pass variables like `{{value}}` within
+Existing issue with the fork of newman is that, it requires you to pass variables like `{{value}}` within
 double quotes without which it fails to execute.
 For integer values like `amount`, this is a bummer as it flags the value stating it is of type
 string and not integer.
@@ -252,7 +253,7 @@ Refactoring is done in 2 steps:
   Ex: \"{{amount}}\" -> {{amount}}
 */
 
-pub fn refactor_collection(connector_name: &str) -> Result<&str, io::Error> {
+pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<&str, io::Error> {
     let collection_path = get_collection_path(connector_name);
     let collection_dir_path = get_dir_path(connector_name);
 
@@ -273,12 +274,26 @@ pub fn refactor_collection(connector_name: &str) -> Result<&str, io::Error> {
     ]);
 
     match newman_command.spawn() {
-        Ok(child) => child,
+        Ok(mut child) => {
+            if let Ok(exit_status) = child.wait() {
+                if exit_status.success() {
+                    println!(
+                        "Conversion of collection from directory structure to json successful!"
+                    );
+                } else {
+                    eprintln!("Conversion of collection from directory structure to json failed!");
+                    exit(exit_status.code().unwrap_or(1));
+                }
+            } else {
+                eprintln!("Failed to wait for command execution");
+                exit(1);
+            }
+        }
         Err(err) => {
-            eprintln!("Failed to execute dir-import: {err}");
+            eprintln!("Failed to execute dir-import: {:?}", err);
             exit(1);
         }
-    };
+    }
 
     let mut contents = fs::read_to_string(&collection_path)?;
     for value_to_replace in values_to_replace {
