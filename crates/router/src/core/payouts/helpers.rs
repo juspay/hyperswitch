@@ -78,9 +78,10 @@ pub async fn make_payout_method_data<'a>(
                 .attach_printable("failed to deserialize hyperswitch token data")?;
 
             let payment_token = match payment_token_data {
-                storage::PaymentTokenData::PermanentCard(storage::CardTokenData { token }) => {
-                    Some(token)
-                }
+                storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
+                    locker_id,
+                    ..
+                }) => Some(locker_id),
                 storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
                     token,
                 }) => Some(token),

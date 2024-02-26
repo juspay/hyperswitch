@@ -13,7 +13,8 @@ pub enum PaymentTokenKind {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
-    pub token: String,
+    pub payment_method_id: String,
+    pub locker_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -34,8 +35,11 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
-    pub fn permanent_card(token: String) -> Self {
-        Self::PermanentCard(CardTokenData { token })
+    pub fn permanent_card(payment_method_id: String, locker_id: String) -> Self {
+        Self::PermanentCard(CardTokenData {
+            payment_method_id,
+            locker_id,
+        })
     }
 
     pub fn temporary_generic(token: String) -> Self {
