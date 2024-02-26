@@ -2586,6 +2586,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     key_store,
                     payment_intent,
                     &customer_id,
+                    limit,
                 ))
                 .await
             }
@@ -3053,12 +3054,14 @@ pub async fn set_default_payment_method(
         .find_payment_method(&payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
-    let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
-        default_payment_method: Some(payment_method_id.clone()),
-    };
+    if payment_method.customer_id != customer_id {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "The customer id for the Payment Method is not valid".to_string(),
+        })
+        .into_report()?
+    }
     utils::when(
-        Some(payment_method_id) == customer.default_payment_method,
+        Some(payment_method_id.clone()) == customer.default_payment_method,
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Payment Method is already set as default".to_string(),
@@ -3066,6 +3069,11 @@ pub async fn set_default_payment_method(
             .into_report()
         },
     )?;
+
+    let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+        default_payment_method: Some(payment_method_id.clone()),
+    };
+
     // update the db with the default payment method id
     let updated_customer_details = db
         .update_customer_by_customer_id_merchant_id(
@@ -3101,7 +3109,7 @@ pub async fn update_last_used_at(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     state
         .store
-        .update_payment_method(payment_method, udpate_last_used)
+        .update_payment_method(payment_method, update_last_used)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the last_used_at in db")?;

@@ -553,6 +553,10 @@ impl Customers {
                         .route(web::get().to(list_customer_payment_method_api)),
                 )
                 .service(
+                    web::resource("/{customer_id}/payment_methods/{payment_method_id}/set")
+                        .route(web::post().to(default_payment_method_set_api)),
+                )
+                .service(
                     web::resource("/{customer_id}")
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))
@@ -631,10 +635,6 @@ impl PaymentMethods {
             )
             .service(web::resource("/auth/link").route(web::post().to(pm_auth::link_token_create)))
             .service(web::resource("/auth/exchange").route(web::post().to(pm_auth::exchange_token)))
-            .service(
-                web::resource("/{customer_id}/{payment_method_id}/set")
-                    .route(web::post().to(default_payment_method_set_api)),
-            )
     }
 }
 
