@@ -82,7 +82,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     content,
                     event_id,
                     event_type,
-                    process,
+                    Some(process),
                 )
                 .await;
             }
