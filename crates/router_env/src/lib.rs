@@ -56,6 +56,7 @@ pub enum AnalyticsFlow {
     GetOutgoingWebhookEvents,
     GetGlobalSearchResults,
     GetSearchResults,
+    GetDisputeFilters,
 }
 
 impl FlowMetric for AnalyticsFlow {}

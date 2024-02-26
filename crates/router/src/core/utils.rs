@@ -108,6 +108,7 @@ pub async fn construct_payout_router_data<'a, F>(
             api_models::payments::Address {
                 phone: Some(phone_details),
                 address: Some(address_details),
+                email: a.email.to_owned().map(Email::from),
             }
         }),
     };
@@ -116,7 +117,14 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}", payout_data.profile_id, payout_attempt.connector);
+    let connector_name = payout_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Could not decide to route the connector".to_string(),
+        })?;
+    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())

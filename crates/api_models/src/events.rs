@@ -98,7 +98,9 @@ impl_misc_api_event_type!(
     OutgoingWebhookLogsRequest,
     GetGlobalSearchRequest,
     GetSearchRequest,
-    GetSearchResponse
+    GetSearchResponse,
+    GetDisputeFilterRequest,
+    DisputeFiltersResponse
 );
 
 #[cfg(feature = "stripe")]

@@ -181,6 +181,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
                         updated_by: storage_scheme.to_string(),
+                        email: address
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .async_lift(|inner| {
+                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                            })
+                            .await?,
                     })
                 }
                 .await
@@ -370,6 +378,12 @@ pub async fn get_domain_address_for_payments(
                 .await?,
             payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
+            email: address
+                .email
+                .as_ref()
+                .cloned()
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
+                .await?,
         })
     }
     .await
@@ -779,7 +793,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -950,7 +964,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -963,7 +977,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(false),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -975,7 +989,7 @@ pub fn verify_mandate_details(
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "cross currency mandates not supported".to_string()
+                reason: "cross currency mandates not supported".into()
             }))
         },
     )
@@ -1032,7 +1046,6 @@ where
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
@@ -3202,6 +3215,7 @@ impl AttemptType {
             unified_message: None,
             net_amount: old_payment_attempt.amount,
             mandate_data: old_payment_attempt.mandate_data,
+            fingerprint_id: None,
         }
     }
 

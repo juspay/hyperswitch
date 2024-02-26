@@ -25,6 +25,7 @@ pub struct AddressNew {
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
@@ -49,6 +50,7 @@ pub struct Address {
     pub merchant_id: String,
     pub payment_id: Option<String>,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -67,6 +69,7 @@ pub struct AddressUpdateInternal {
     pub country_code: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
+    pub email: Option<Encryption>,
 }
 
 impl AddressUpdateInternal {

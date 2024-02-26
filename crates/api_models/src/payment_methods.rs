@@ -717,6 +717,8 @@ impl serde::Serialize for PaymentMethodList {
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    /// Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)
+    pub is_guest_customer: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]

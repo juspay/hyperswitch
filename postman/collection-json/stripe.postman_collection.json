@@ -1107,6 +1107,255 @@
       "name": "PaymentConnectors",
       "item": [
         {
+          "name": "Payment Connector - Create Multiple",
+          "item": [
+            {
+              "name": "Create First Connector",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - Status code is 2xx\",",
+                      "  function () {",
+                      "    pm.response.to.be.success;",
+                      "  },",
+                      ");",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - Content-Type is application/json\",",
+                      "  function () {",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "      \"application/json\",",
+                      "    );",
+                      "  },",
+                      ");",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) { }",
+                      "",
+                      "// pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id",
+                      "if (jsonData?.merchant_connector_id) {",
+                      "  pm.collectionVariables.set(",
+                      "    \"merchant_connector_id\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "  console.log(",
+                      "    \"- use {{merchant_connector_id}} as collection variable for value\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// Validate if the connector label is the one that is passed in the request",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - connector_label is the same as that is passed in the request\",",
+                      "  function () {",
+                      "    pm.expect(jsonData.connector_label).to.eql(\"first_stripe\")",
+                      "  },",
+                      ");"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    },
+                    {
+                      "key": "in",
+                      "value": "header",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"stripe\",\"business_country\":\"US\",\"business_label\":\"default\",\"connector_label\":\"first_stripe\",\"connector_account_details\":{\"auth_type\":\"HeaderKey\",\"api_key\":\"{{connector_api_key}}\"},\"test_mode\":false,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"pay_later\",\"payment_method_types\":[{\"payment_method_type\":\"klarna\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"affirm\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"afterpay_clearpay\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/account/:account_id/connectors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "account",
+                    ":account_id",
+                    "connectors"
+                  ],
+                  "variable": [
+                    {
+                      "key": "account_id",
+                      "value": "{{merchant_id}}",
+                      "description": "(Required) The unique identifier for the merchant account"
+                    }
+                  ]
+                },
+                "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+              },
+              "response": []
+            },
+            {
+              "name": "Create Second Connector",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - Status code is 2xx\",",
+                      "  function () {",
+                      "    pm.response.to.be.success;",
+                      "  },",
+                      ");",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - Content-Type is application/json\",",
+                      "  function () {",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "      \"application/json\",",
+                      "    );",
+                      "  },",
+                      ");",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) { }",
+                      "",
+                      "// pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id",
+                      "if (jsonData?.merchant_connector_id) {",
+                      "  pm.collectionVariables.set(",
+                      "    \"merchant_connector_id\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "  console.log(",
+                      "    \"- use {{merchant_connector_id}} as collection variable for value\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// Validate if the connector label is the one that is passed in the request",
+                      "pm.test(",
+                      "  \"[POST]::/accounts/:account_id/connectors - connector_label is the same as that is passed in the request\",",
+                      "  function () {",
+                      "    pm.expect(jsonData.connector_label).to.eql(\"second_stripe\")",
+                      "  },",
+                      ");"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    },
+                    {
+                      "key": "in",
+                      "value": "header",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"stripe\",\"business_country\":\"US\",\"business_label\":\"default\",\"connector_label\":\"second_stripe\",\"connector_account_details\":{\"auth_type\":\"HeaderKey\",\"api_key\":\"{{connector_api_key}}\"},\"test_mode\":false,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"pay_later\",\"payment_method_types\":[{\"payment_method_type\":\"klarna\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"affirm\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"afterpay_clearpay\",\"payment_experience\":\"redirect_to_url\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/account/:account_id/connectors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "account",
+                    ":account_id",
+                    "connectors"
+                  ],
+                  "variable": [
+                    {
+                      "key": "account_id",
+                      "value": "{{merchant_id}}",
+                      "description": "(Required) The unique identifier for the merchant account"
+                    }
+                  ]
+                },
+                "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Payment Connector - Create",
           "event": [
             {
@@ -2131,7 +2380,7 @@
                   "let jsonData = {};",
                   "try {",
                   "  jsonData = pm.response.json();",
-                  "} catch (e) {}",
+                  "} catch (e) { }",
                   "",
                   "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
                   "if (jsonData?.payment_id) {",
@@ -2200,6 +2449,15 @@
                   "      .true;",
                   "  },",
                   ");",
+                  "",
+                  "// Response body should have \"billing.email\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'billing.email' exists\",",
+                  "  function () {",
+                  "    pm.expect(typeof jsonData.connector_transaction_id !== \"undefined\").to.be",
+                  "      .true;",
+                  "  },",
+                  ");",
                   ""
                 ],
                 "type": "text/javascript"
@@ -2234,7 +2492,7 @@
                   "language": "json"
                 }
               },
-              "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
+              "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"},\"email\":\"example@example.com\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"routing\":{\"type\":\"single\",\"data\":\"stripe\"}}"
             },
             "url": {
               "raw": "{{baseUrl}}/payments",

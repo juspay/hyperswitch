@@ -95,6 +95,10 @@ pub mod routes {
                     .service(
                         web::resource("search/{domain}").route(web::post().to(get_search_results)),
                     )
+                    .service(
+                        web::resource("filters/disputes")
+                            .route(web::post().to(get_dispute_filters)),
+                    )
             }
             route
         }
@@ -500,7 +504,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::Analytics),
+            &auth::JWTAuth(Permission::PaymentWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -635,6 +639,32 @@ pub mod routes {
                     &auth.merchant_account.merchant_id,
                     &state.conf.opensearch_config.host,
                     SearchIndex::PaymentAttempts,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_dispute_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetDisputeFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req| async move {
+                analytics::disputes::get_filters(
+                    &state.pool,
+                    req,
+                    &auth.merchant_account.merchant_id,
                 )
                 .await
                 .map(ApplicationResponse::Json)
