@@ -2,9 +2,10 @@ pub mod api;
 
 use std::marker::PhantomData;
 
-use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken};
-use common_enums::PaymentMethodType;
+use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate};
+use common_enums::{CountryAlpha2, PaymentMethodType};
 use masking::Secret;
+
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
     pub flow: PhantomData<F>,
@@ -85,6 +86,38 @@ pub type BankDetailsRouterData = PaymentAuthRouterData<
     BankAccountCredentialsResponse,
 >;
 
+#[derive(Debug, Clone)]
+pub struct RecipientCreateRequest {
+    pub name: String,
+    pub account_data: RecipientAccountData,
+    pub address: Option<RecipientCreateAddress>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecipientCreateResponse {
+    pub recipient_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum RecipientAccountData {
+    Iban(Secret<String>),
+    Bacs {
+        sort_code: Secret<String>,
+        account_number: Secret<String>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct RecipientCreateAddress {
+    pub street: String,
+    pub city: String,
+    pub postal_code: String,
+    pub country: CountryAlpha2,
+}
+
+pub type RecipientCreateRouterData =
+    PaymentAuthRouterData<RecipientCreate, RecipientCreateRequest, RecipientCreateResponse>;
+
 pub type PaymentAuthLinkTokenType =
     dyn self::api::ConnectorIntegration<LinkToken, LinkTokenRequest, LinkTokenResponse>;
 
@@ -95,6 +128,12 @@ pub type PaymentAuthBankAccountDetailsType = dyn self::api::ConnectorIntegration
     BankAccountCredentials,
     BankAccountCredentialsRequest,
     BankAccountCredentialsResponse,
+>;
+
+pub type PaymentInitiationRecipientCreateType = dyn self::api::ConnectorIntegration<
+    RecipientCreate,
+    RecipientCreateRequest,
+    RecipientCreateResponse,
 >;
 
 #[derive(Clone, Debug, strum::EnumString, strum::Display)]
@@ -129,11 +168,37 @@ impl ErrorResponse {
     }
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum MerchantAccountData {
+    Iban {
+        iban: Secret<String>,
+        name: String,
+    },
+    Bacs {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+    },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantRecipientData {
+    RecipientId(Secret<String>),
+    WalletId(Secret<String>),
+    AccountData(MerchantAccountData),
+}
+
 #[derive(Default, Debug, Clone, serde::Deserialize)]
 pub enum ConnectorAuthType {
     BodyKey {
         client_id: Secret<String>,
         secret: Secret<String>,
+    },
+    OpenBankingAuth {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
