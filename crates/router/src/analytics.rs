@@ -11,7 +11,7 @@ pub mod routes {
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
         GetGlobalSearchRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, ReportRequest,
+        GetSdkEventMetricRequest, GetSearchRequest, ReportRequest, SearchIndex,
     };
     use error_stack::ResultExt;
     use router_env::AnalyticsFlow;
@@ -111,7 +111,7 @@ pub mod routes {
             state,
             &req,
             domain.into_inner(),
-            |_, _, domain| async {
+            |_, _, domain: analytics::AnalyticsDomain| async {
                 analytics::core::get_domain_info(domain)
                     .await
                     .map(ApplicationResponse::Json)
@@ -593,26 +593,19 @@ pub mod routes {
     pub async fn get_global_search_results(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        json_payload: web::Json<[GetApiEventMetricRequest; 1]>,
+        json_payload: web::Json<GetGlobalSearchRequest>,
     ) -> impl Responder {
-        // safety: This shouldn't panic owing to the data type
-        #[allow(clippy::expect_used)]
-        let payload = json_payload
-            .into_inner()
-            .to_vec()
-            .pop()
-            .expect("Couldn't get GetGlobalSearchRequest");
         let flow = AnalyticsFlow::GetGlobalSearchResults;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
-            payload,
+            json_payload.into_inner(),
             |state, auth: AuthenticationData, req| async move {
-                analytics::api_event::get_api_event_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
+                analytics::search::msearch_results(
                     req,
+                    &auth.merchant_account.merchant_id,
+                    &state.conf.opensearch_config.host,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -626,26 +619,22 @@ pub mod routes {
     pub async fn get_search_results(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
-        json_payload: web::Json<[GetApiEventMetricRequest; 1]>,
+        json_payload: web::Json<GetSearchRequest>,
+        index: actix_web::web::Path<SearchIndex>,
     ) -> impl Responder {
-        // safety: This shouldn't panic owing to the data type
-        #[allow(clippy::expect_used)]
-        let payload = json_payload
-            .into_inner()
-            .to_vec()
-            .pop()
-            .expect("Couldn't get GetApiEventMetricRequest");
-        let flow = AnalyticsFlow::GetApiEventMetrics;
+        let flow = AnalyticsFlow::GetSearchResults;
+        // let search_index = index.clone();
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
-            payload,
+            json_payload.into_inner(),
             |state, auth: AuthenticationData, req| async move {
-                analytics::api_event::get_api_event_metrics(
-                    &state.pool,
-                    &auth.merchant_account.merchant_id,
+                analytics::search::search_results(
                     req,
+                    &auth.merchant_account.merchant_id,
+                    &state.conf.opensearch_config.host,
+                    SearchIndex::PaymentAttempts,
                 )
                 .await
                 .map(ApplicationResponse::Json)

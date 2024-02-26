@@ -511,3 +511,8 @@ pub struct ReportConfig {
     pub dispute_function: String,
     pub region: String,
 }
+
+#[derive(Clone, Debug, serde::Deserialize, Default, serde::Serialize)]
+pub struct OpensearchConfig {
+    pub host: String,
+}

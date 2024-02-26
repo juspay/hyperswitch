@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use common_utils::pii::EmailStrategy;
 use masking::Secret;
+use serde_json::Value;
 
 use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
@@ -267,7 +268,7 @@ pub struct GetSearchRequest {
     pub filters: search::SearchFilters,
 }
 
-#[derive(Debug, strum::EnumIter)]
+#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize)]
 pub enum SearchIndex {
     PaymentAttempts,
     PaymentIntents,
@@ -282,4 +283,12 @@ impl ToString for SearchIndex {
             Self::Refunds => "hyperswitch-refund-events",
         })
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSearchResponse {
+    pub count: u64,
+    pub index: SearchIndex,
+    pub hits: Vec<Value>,
 }
