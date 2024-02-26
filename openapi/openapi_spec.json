@@ -11687,6 +11687,26 @@
           }
         ]
       },
+      "PaymentMethodDataRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -12310,7 +12330,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -12667,7 +12687,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -13067,7 +13087,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -14064,7 +14084,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true

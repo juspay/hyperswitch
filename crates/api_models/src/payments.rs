@@ -1053,6 +1053,7 @@ pub enum BankDebitData {
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
     pub payment_method_data: PaymentMethodData,
+    /// billing details for the payment, this billing detail is tied to the payment method
     pub billing: Option<Address>,
 }
 
