@@ -992,15 +992,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
         let refund_status = enums::RefundStatus::try_from(item.response.sale_status.clone())?;
         let response = if is_refund_failure(refund_status) {
             let payme_response = &item.response;
-            let status_error_code = payme_response.status_error_code.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "status_error_code",
-                },
-            )?;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
             Err(types::ErrorResponse {
-                code: status_error_code.to_string(),
-                message: status_error_code.to_string(),
-                reason: Some(status_error_code.to_string()),
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
@@ -1069,20 +1071,23 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
         let status = enums::AttemptStatus::from(item.response.sale_status.clone());
         let response = if is_payment_failure(status) {
             let payme_response = &item.response;
-            let status_error_code = payme_response.status_error_code.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "status_error_code",
-                },
-            )?;
+            let status_error_code = payme_response
+                .status_error_code
+                .map(|error_code| error_code.to_string());
             Err(types::ErrorResponse {
-                code: status_error_code.to_string(),
-                message: status_error_code.to_string(),
-                reason: Some(status_error_code.to_string()),
+                code: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: status_error_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: status_error_code,
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: payme_response.payme_transaction_id.clone(),
             })
         } else {
+            // Since we are not receiving payme_sale_id, we are not populating the transaction response
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
