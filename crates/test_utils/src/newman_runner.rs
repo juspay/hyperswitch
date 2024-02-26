@@ -98,8 +98,10 @@ pub fn generate_newman_command() -> ReturnArgs {
     Newman runner
     Certificate keys are added through secrets in CI, so there's no need to explicitly pass it as arguments.
     It can be overrided by explictly passing cartificates as arguments.
-    If the collection takes in ceritificates (stripe collection for example) during MCA step, then it should be passed mandatorily.
-    Else the collection fail.
+
+    If the collection takes in ceritificates (stripe collection for example) during MCA step,
+    then Stripe's certificates will be passed mandatorily (for now).
+    If any other connector requires certificates to be passed, that has to be passed explicitly for now.
     */
 
     let mut newman_command = Command::new("newman");
