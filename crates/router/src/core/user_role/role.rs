@@ -93,8 +93,8 @@ pub async fn list_invitable_roles_with_permissions(
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
-        .map(
-            |(role_id, role_info)| role_api::RoleInfoWithPermissionsResponse {
+        .map(|(role_id, role_info)| {
+            role_api::RoleInfoResponse::Permissions(role_api::RoleInfoWithPermissionsResponse {
                 permissions: role_info
                     .get_permissions_set()
                     .into_iter()
@@ -103,8 +103,8 @@ pub async fn list_invitable_roles_with_permissions(
                 role_id: role_id.to_string(),
                 role_name: role_info.get_role_name().to_string(),
                 role_scope: role_info.get_scope(),
-            },
-        );
+            })
+        });
 
     let custom_roles_map = state
         .store
@@ -116,23 +116,23 @@ pub async fn list_invitable_roles_with_permissions(
             let role_info = roles::RoleInfo::from(role);
             role_info
                 .is_invitable()
-                .then_some(role_api::RoleInfoWithPermissionsResponse {
-                    permissions: role_info
-                        .get_permissions_set()
-                        .into_iter()
-                        .map(Into::into)
-                        .collect(),
-                    role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
-                    role_scope: role_info.get_scope(),
-                })
+                .then_some(role_api::RoleInfoResponse::Permissions(
+                    role_api::RoleInfoWithPermissionsResponse {
+                        permissions: role_info
+                            .get_permissions_set()
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                        role_id: role_info.get_role_id().to_string(),
+                        role_name: role_info.get_role_name().to_string(),
+                        role_scope: role_info.get_scope(),
+                    },
+                ))
         });
 
-    Ok(ApplicationResponse::Json(
-        role_api::ListRolesResponse::Permissions(
-            predefined_roles_map.chain(custom_roles_map).collect(),
-        ),
-    ))
+    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
+        predefined_roles_map.chain(custom_roles_map).collect(),
+    )))
 }
 
 pub async fn list_invitable_roles_with_groups(
@@ -142,14 +142,14 @@ pub async fn list_invitable_roles_with_groups(
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
-        .map(
-            |(role_id, role_info)| role_api::RoleInfoWithGroupsResponse {
+        .map(|(role_id, role_info)| {
+            role_api::RoleInfoResponse::Groups(role_api::RoleInfoWithGroupsResponse {
                 groups: role_info.get_permission_groups().to_vec(),
                 role_id: role_id.to_string(),
                 role_name: role_info.get_role_name().to_string(),
                 role_scope: role_info.get_scope(),
-            },
-        );
+            })
+        });
 
     let custom_roles_map = state
         .store
@@ -161,17 +161,19 @@ pub async fn list_invitable_roles_with_groups(
             let role_info = roles::RoleInfo::from(role);
             role_info
                 .is_invitable()
-                .then_some(role_api::RoleInfoWithGroupsResponse {
-                    groups: role_info.get_permission_groups().to_vec(),
-                    role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
-                    role_scope: role_info.get_scope(),
-                })
+                .then_some(role_api::RoleInfoResponse::Groups(
+                    role_api::RoleInfoWithGroupsResponse {
+                        groups: role_info.get_permission_groups().to_vec(),
+                        role_id: role_info.get_role_id().to_string(),
+                        role_name: role_info.get_role_name().to_string(),
+                        role_scope: role_info.get_scope(),
+                    },
+                ))
         });
 
-    Ok(ApplicationResponse::Json(
-        role_api::ListRolesResponse::Groups(predefined_roles_map.chain(custom_roles_map).collect()),
-    ))
+    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
+        predefined_roles_map.chain(custom_roles_map).collect(),
+    )))
 }
 
 pub async fn get_role_with_permissions(

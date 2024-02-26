@@ -9,11 +9,7 @@ pub struct CreateRoleRequest {
 }
 
 #[derive(Debug, serde::Serialize)]
-#[serde(tag = "response_type", rename_all = "snake_case")]
-pub enum ListRolesResponse {
-    Permissions(Vec<RoleInfoWithPermissionsResponse>),
-    Groups(Vec<RoleInfoWithGroupsResponse>),
-}
+pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
 #[derive(Debug, serde::Deserialize)]
 pub struct GetGroupsQueryParam {
