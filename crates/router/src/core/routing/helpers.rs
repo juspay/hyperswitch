@@ -71,8 +71,9 @@ pub async fn get_merchant_routing_dictionary(
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let key = get_default_config_key(merchant_id);
+    let key = get_default_config_key(merchant_id, transaction_type);
     let maybe_config = db.find_config_by_key(&key).await;
 
     match maybe_config {
@@ -116,8 +117,9 @@ pub async fn update_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
-    let key = get_default_config_key(merchant_id);
+    let key = get_default_config_key(merchant_id, transaction_type);
     let config_str = connectors
         .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -468,8 +470,15 @@ pub fn get_pg_agnostic_mandate_config_key(merchant_id: &str) -> String {
 
 /// Provides the identifier for the specific merchant's default_config
 #[inline(always)]
-pub fn get_default_config_key(merchant_id: &str) -> String {
-    format!("routing_default_{merchant_id}")
+pub fn get_default_config_key(
+    merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
+) -> String {
+    match transaction_type {
+        storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
+    }
 }
 pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
     format!("payment_config_id_{merchant_id}")

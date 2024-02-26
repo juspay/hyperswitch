@@ -5,6 +5,7 @@ use masking::Secret;
 
 use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
+    disputes::DisputeDimensions,
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
@@ -246,4 +247,27 @@ pub struct GetApiEventMetricRequest {
     pub metrics: HashSet<ApiEventMetrics>,
     #[serde(default)]
     pub delta: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct GetDisputeFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<DisputeDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DisputeFiltersResponse {
+    pub query_data: Vec<DisputeFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+
+pub struct DisputeFilterValue {
+    pub dimension: DisputeDimensions,
+    pub values: Vec<String>,
 }

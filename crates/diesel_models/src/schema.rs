@@ -31,6 +31,7 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
+        email -> Nullable<Bytea>,
     }
 }
 
@@ -689,6 +690,8 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
         mandate_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
     }
 }
 

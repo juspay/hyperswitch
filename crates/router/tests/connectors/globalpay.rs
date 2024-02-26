@@ -64,6 +64,7 @@ impl Globalpay {
                         ..Default::default()
                     }),
                     phone: None,
+                    ..Default::default()
                 }),
                 ..Default::default()
             }),

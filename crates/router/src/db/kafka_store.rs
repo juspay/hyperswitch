@@ -284,7 +284,10 @@ impl ConfigInterface for KafkaStore {
             .await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store.delete_config_by_key(key).await
     }
 
@@ -1421,21 +1424,38 @@ impl ProcessTrackerInterface for KafkaStore {
             .process_tracker_update_process_status_by_ids(task_ids, task_update)
             .await
     }
-    async fn update_process_tracker(
-        &self,
-        this: storage::ProcessTracker,
-        process: storage::ProcessTrackerUpdate,
-    ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-        self.diesel_store
-            .update_process_tracker(this, process)
-            .await
-    }
 
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
     ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
         self.diesel_store.insert_process(new).await
+    }
+
+    async fn reset_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store.reset_process(this, schedule_time).await
+    }
+
+    async fn retry_process(
+        &self,
+        this: storage::ProcessTracker,
+        schedule_time: PrimitiveDateTime,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store.retry_process(this, schedule_time).await
+    }
+
+    async fn finish_process_with_business_status(
+        &self,
+        this: storage::ProcessTracker,
+        business_status: String,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_business_status(this, business_status)
+            .await
     }
 
     async fn find_processes_by_time_status(
@@ -2314,6 +2334,17 @@ impl RoleInterface for KafkaStore {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store.find_role_by_role_id(role_id).await
+    }
+
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+            .await
     }
 
     async fn update_role_by_role_id(

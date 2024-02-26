@@ -6,7 +6,7 @@ pub mod validator;
 use std::vec::IntoIter;
 
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -65,7 +65,7 @@ pub async fn get_connector_choice(
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
     eligible_connectors: Option<Vec<api_models::enums::Connector>>,
-) -> RouterResult<api::ConnectorCallType> {
+) -> RouterResult<api::ConnectorData> {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
             .into_iter()
@@ -102,6 +102,8 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 merchant_account,
+                key_store,
+                Some(request_straight_through),
                 key_store,
                 Some(request_straight_through),
                 &mut routing_data,
@@ -1324,6 +1326,7 @@ pub async fn response_handler(
         api::payments::Address {
             phone: Some(phone_details),
             address: Some(address_details),
+            email: a.email.to_owned().map(pii::Email::from),
         }
     });
 

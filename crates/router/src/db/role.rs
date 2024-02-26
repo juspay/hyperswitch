@@ -1,3 +1,4 @@
+use common_enums::enums;
 use diesel_models::role as storage;
 use error_stack::{IntoReport, ResultExt};
 
@@ -18,6 +19,13 @@ pub trait RoleInterface {
     async fn find_role_by_role_id(
         &self,
         role_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError>;
+
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
     async fn update_role_by_role_id(
@@ -54,6 +62,19 @@ impl RoleInterface for Store {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::find_by_role_id(&conn, role_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -149,35 +170,51 @@ impl RoleInterface for MockDb {
             )
     }
 
+    async fn find_role_by_role_id_in_merchant_scope(
+        &self,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        roles
+            .iter()
+            .find(|role| {
+                role.role_id == role_id
+                    && (role.merchant_id == merchant_id
+                        || (role.org_id == org_id && role.scope == enums::RoleScope::Organization))
+            })
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No role available in merchant scope for role_id = {role_id}, \
+                    merchant_id = {merchant_id} and org_id = {org_id}"
+                ))
+                .into(),
+            )
+    }
+
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
         role_update: storage::RoleUpdate,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let mut roles = self.roles.lock().await;
-        let last_modified_at = common_utils::date_time::now();
-
         roles
             .iter_mut()
             .find(|role| role.role_id == role_id)
             .map(|role| {
                 *role = match role_update {
-                    storage::RoleUpdate::UpdateGroup {
+                    storage::RoleUpdate::UpdateDetails {
                         groups,
-                        last_modified_by,
-                    } => storage::Role {
-                        groups,
-                        last_modified_by,
-                        last_modified_at,
-                        ..role.to_owned()
-                    },
-                    storage::RoleUpdate::UpdateRoleName {
-                        role_name,
-                        last_modified_by,
-                    } => storage::Role {
                         role_name,
                         last_modified_at,
                         last_modified_by,
+                    } => storage::Role {
+                        groups: groups.unwrap_or(role.groups.to_owned()),
+                        role_name: role_name.unwrap_or(role.role_name.to_owned()),
+                        last_modified_by,
+                        last_modified_at,
                         ..role.to_owned()
                     },
                 };

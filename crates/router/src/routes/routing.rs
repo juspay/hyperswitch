@@ -23,7 +23,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -37,7 +37,6 @@ pub async fn routing_create_config(
                 auth.merchant_account,
                 auth.key_store,
                 payload,
-                #[cfg(feature = "business_profile_routing")]
                 transaction_type,
             )
         },
@@ -258,6 +257,7 @@ pub async fn routing_update_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     oss_api::server_wrap(
         Flow::RoutingUpdateDefaultConfig,
@@ -265,7 +265,12 @@ pub async fn routing_update_default_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, updated_config| {
-            routing::update_default_routing_config(state, auth.merchant_account, updated_config)
+            routing::update_default_routing_config(
+                state,
+                auth.merchant_account,
+                updated_config,
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -285,6 +290,7 @@ pub async fn routing_update_default_config(
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
@@ -292,7 +298,7 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _| {
-            routing::retrieve_default_routing_config(state, auth.merchant_account)
+            routing::retrieve_default_routing_config(state, auth.merchant_account, transaction_type)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -559,6 +565,7 @@ pub async fn routing_retrieve_linked_config(
 pub async fn routing_retrieve_default_config_for_profiles(
     state: web::Data<AppState>,
     req: HttpRequest,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
@@ -566,7 +573,11 @@ pub async fn routing_retrieve_default_config_for_profiles(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _| {
-            routing::retrieve_default_routing_config_for_profiles(state, auth.merchant_account)
+            routing::retrieve_default_routing_config_for_profiles(
+                state,
+                auth.merchant_account,
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -592,6 +603,7 @@ pub async fn routing_update_default_config_for_profile(
     req: HttpRequest,
     path: web::Path<String>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+    transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let routing_payload_wrapper = routing_types::RoutingPayloadWrapper {
         updated_config: json_payload.into_inner(),
@@ -608,6 +620,7 @@ pub async fn routing_update_default_config_for_profile(
                 auth.merchant_account,
                 wrapper.updated_config,
                 wrapper.profile_id,
+                transaction_type,
             )
         },
         #[cfg(not(feature = "release"))]
