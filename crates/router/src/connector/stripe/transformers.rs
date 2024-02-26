@@ -3637,11 +3637,11 @@ pub struct Evidence {
     #[serde(rename = "evidence[customer_communication]")]
     pub customer_communication: Option<String>,
     #[serde(rename = "evidence[customer_email_address]")]
-    pub customer_email_address: Option<Secret<String>>,
+    pub customer_email_address: Option<Secret<String, pii::EmailStrategy>>,
     #[serde(rename = "evidence[customer_name]")]
     pub customer_name: Option<Secret<String>>,
     #[serde(rename = "evidence[customer_purchase_ip]")]
-    pub customer_purchase_ip: Option<Secret<String>>,
+    pub customer_purchase_ip: Option<Secret<String, pii::IpAddress>>,
     #[serde(rename = "evidence[customer_signature]")]
     pub customer_signature: Option<Secret<String>>,
     #[serde(rename = "evidence[product_description]")]
