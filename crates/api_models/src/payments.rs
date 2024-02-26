@@ -1233,6 +1233,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
+            Self::OpenBanking => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -1501,6 +1502,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
+    OpenBanking,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

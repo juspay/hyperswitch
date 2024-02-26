@@ -193,3 +193,7 @@ api_secret = "Secret key"
 [placetopay]
 api_key= "Login"
 key1= "Trankey"
+
+
+[plaid]
+api_key="API Key"

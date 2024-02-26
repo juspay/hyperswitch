@@ -1597,6 +1597,17 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::BankRedirect(data)) => match data {
+            api_models::payments::BankRedirectData::OpenBanking => {
+                if connector.connector_name == router_types::Connector::Plaid {
+                    router_data = router_data.preprocessing_steps(state, connector).await?;
+                    (router_data, true)
+                } else {
+                    (router_data, should_continue_payment)
+                }
+            }
+            _ => (router_data, should_continue_payment),
+        },
         _ => {
             // 3DS validation for paypal cards after verification (authorize call)
             if connector.connector_name == router_types::Connector::Paypal
