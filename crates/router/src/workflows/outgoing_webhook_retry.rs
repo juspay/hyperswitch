@@ -4,6 +4,7 @@ use api_models::{
 };
 use common_utils::ext_traits::{StringExt, ValueExt};
 use error_stack::ResultExt;
+use router_env::tracing::{self, instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     types::process_data,
@@ -22,6 +23,7 @@ pub struct OutgoingWebhookRetryWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
+    #[instrument(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
@@ -89,7 +91,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                 logger::warn!(
                     %event_id,
                     "The current status of the resource `{}` (event type: {:?}) and the status of \
-                    the resource when the event was created (event type: {}) differ, finishing task",
+                    the resource when the event was created (event type: {:?}) differ, finishing task",
                     tracking_data.primary_object_id,
                     event_type,
                     tracking_data.event_type
@@ -106,6 +108,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn error_handler<'a>(
         &'a self,
         state: &'a AppState,
@@ -144,6 +147,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
 ///   seconds between them by default.
 /// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
 ///   with merchant ID `merchant_id1`.
+#[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -188,6 +192,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 }
 
 /// Schedule the webhook delivery task for retry
+#[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -210,6 +215,7 @@ pub(crate) async fn retry_webhook_delivery_task(
     }
 }
 
+#[instrument(skip_all)]
 async fn get_outgoing_webhook_content_and_event_type(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -276,6 +282,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 }
             }?;
             let event_type = Option::<EventType>::foreign_from(payments_response.status);
+            logger::debug!(current_resource_status=%payments_response.status);
 
             Ok((
                 OutgoingWebhookContent::PaymentDetails(payments_response),
@@ -293,6 +300,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let refund = refund_retrieve_core(state, merchant_account, key_store, request).await?;
             let event_type = Option::<EventType>::foreign_from(refund.refund_status);
+            logger::debug!(current_resource_status=%refund.refund_status);
             let refund_response = RefundResponse::foreign_from(refund);
 
             Ok((
@@ -324,6 +332,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 }
                 .map(Box::new)?;
             let event_type = Some(EventType::foreign_from(dispute_response.dispute_status));
+            logger::debug!(current_resource_status=%dispute_response.dispute_status);
 
             Ok((
                 OutgoingWebhookContent::DisputeDetails(dispute_response),
@@ -354,6 +363,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 }
                 .map(Box::new)?;
             let event_type = Option::<EventType>::foreign_from(mandate_response.status);
+            logger::debug!(current_resource_status=%mandate_response.status);
 
             Ok((
                 OutgoingWebhookContent::MandateDetails(mandate_response),
