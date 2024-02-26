@@ -1591,5 +1591,22 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     )
     .map_err(errors::StorageError::from)?;
 
-    db.insert_process(process_tracker_entry).await
+    match db.insert_process(process_tracker_entry).await {
+        Ok(process_tracker) => {
+            crate::routes::metrics::TASKS_ADDED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[add_attributes("flow", "OutgoingWebhookRetry")],
+            );
+            Ok(process_tracker)
+        }
+        Err(error) => {
+            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[add_attributes("flow", "OutgoingWebhookRetry")],
+            );
+            Err(error)
+        }
+    }
 }
