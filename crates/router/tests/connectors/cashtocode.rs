@@ -82,6 +82,7 @@ impl CashtocodeTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),

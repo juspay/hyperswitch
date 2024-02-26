@@ -82,6 +82,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -361,6 +363,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
 }
 
 ///

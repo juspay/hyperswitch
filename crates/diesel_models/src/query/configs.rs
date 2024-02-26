@@ -50,8 +50,11 @@ impl Config {
     }
 
     #[instrument(skip(conn))]
-    pub async fn delete_by_key(conn: &PgPooledConn, key: &str) -> StorageResult<bool> {
-        generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::key.eq(key.to_owned()))
-            .await
+    pub async fn delete_by_key(conn: &PgPooledConn, key: &str) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::key.eq(key.to_owned()),
+        )
+        .await
     }
 }
