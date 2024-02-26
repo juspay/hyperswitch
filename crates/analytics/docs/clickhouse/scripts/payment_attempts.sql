@@ -37,7 +37,7 @@ CREATE TABLE payment_attempts_queue (
     `net_amount` Nullable(UInt64) ,
     `unified_code`  Nullable(String),
     `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String)
+    `mandate_data`  Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
@@ -84,7 +84,7 @@ CREATE TABLE payment_attempt_dist (
     `net_amount` Nullable(UInt64) ,
     `unified_code`  Nullable(String),
     `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String)
+    `mandate_data`  Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
@@ -141,7 +141,7 @@ CREATE MATERIALIZED VIEW kafka_parse_pa TO payment_attempt_dist (
     `net_amount` Nullable(UInt64) ,
     `unified_code`  Nullable(String),
     `unified_message`  Nullable(String),
-    `mandate_data`  Nullable(String)
+    `mandate_data`  Nullable(String),
     `inserted_at` DateTime64(3),
     `sign_flag` Int8
 ) AS
