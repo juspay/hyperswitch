@@ -1107,7 +1107,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
-                        customer_id: Some(customer_id),
+                        customer_id,
                         card_network: card
                             .card_network
                             .as_ref()
@@ -1125,7 +1125,7 @@ pub(crate) async fn get_payment_method_create_request(
                         wallet: None,
                         card: None,
                         metadata: None,
-                        customer_id: Some(customer.customer_id.to_owned()),
+                        customer_id: customer.customer_id.to_owned(),
                         card_network: None,
                     };
                     Ok(payment_method_request)

@@ -49,8 +49,8 @@ pub struct PaymentMethodCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    #[schema(value_type = String, example = "cus_meowerunwiuwiwqw")]
+    pub customer_id: String,
 
     /// The card network
     #[schema(example = "Visa")]
@@ -142,7 +142,7 @@ pub struct PaymentMethodResponse {
 
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
-    pub customer_id: Option<String>,
+    pub customer_id: String,
 
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]

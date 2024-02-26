@@ -312,11 +312,7 @@ async fn skip_saving_card_in_locker(
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     let merchant_id = &merchant_account.merchant_id;
-    let customer_id = payment_method_request
-        .clone()
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")?;
+    let customer_id = payment_method_request.clone().customer_id;
     let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
 
     let last4_digits = payment_method_request
@@ -350,7 +346,7 @@ async fn skip_saving_card_in_locker(
             };
             let pm_resp = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id,
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
@@ -369,7 +365,7 @@ async fn skip_saving_card_in_locker(
             let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id,
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
@@ -396,10 +392,7 @@ pub async fn save_in_locker(
 )> {
     payment_method_request.validate()?;
     let merchant_id = &merchant_account.merchant_id;
-    let customer_id = payment_method_request
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")?;
+    let customer_id = payment_method_request.customer_id.clone();
     match payment_method_request.card.clone() {
         Some(card) => payment_methods::cards::add_card_to_locker(
             state,
@@ -415,7 +408,7 @@ pub async fn save_in_locker(
             let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id,
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,

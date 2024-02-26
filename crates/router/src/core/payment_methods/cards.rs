@@ -116,7 +116,7 @@ pub fn store_default_payment_method(
     let pm_id = generate_id(consts::ID_LENGTH, "pm");
     let payment_method_response = api::PaymentMethodResponse {
         merchant_id: merchant_id.to_string(),
-        customer_id: Some(customer_id.to_owned()),
+        customer_id: customer_id.to_owned(),
         payment_method_id: pm_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
@@ -141,7 +141,7 @@ pub async fn add_payment_method(
     req.validate()?;
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
-    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
+    let customer_id = req.customer_id.clone();
 
     let response = match req.payment_method {
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
@@ -385,7 +385,7 @@ pub async fn update_customer_payment_method(
         card: req.card,
         wallet: req.wallet,
         metadata: req.metadata,
-        customer_id: Some(pm.customer_id),
+        customer_id: pm.customer_id,
         card_network: req
             .card_network
             .as_ref()
@@ -3184,7 +3184,7 @@ pub async fn retrieve_payment_method(
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodResponse {
             merchant_id: pm.merchant_id,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,

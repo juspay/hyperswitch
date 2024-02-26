@@ -116,7 +116,7 @@ pub async fn call_to_locker(
             wallet: None,
             bank_transfer: None,
             metadata: pm.metadata,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             card_network: card.card_brand,
         };
 
