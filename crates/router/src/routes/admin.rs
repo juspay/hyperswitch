@@ -322,7 +322,7 @@ pub async fn payment_connector_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantConnectorAccountRead,
+                required_permission: Permission::MerchantAccountRead,
             },
             req.headers(),
         ),
