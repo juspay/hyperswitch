@@ -2,8 +2,10 @@ use api_models::analytics::{
     GetGlobalSearchRequest, GetSearchRequest, GetSearchResponse, SearchIndex,
 };
 use common_utils::errors::CustomResult;
-use opensearch::http::transport::Transport;
-use opensearch::{http::request::JsonBody, MsearchParts, OpenSearch, SearchParts};
+use opensearch::{
+    http::{request::JsonBody, transport::Transport},
+    MsearchParts, OpenSearch, SearchParts,
+};
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
