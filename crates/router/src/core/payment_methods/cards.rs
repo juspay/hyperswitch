@@ -2689,7 +2689,8 @@ pub async fn list_customer_payment_method(
                         card_details,
                         None,
                         PaymentTokenData::permanent_card(
-                            pm.payment_method_id.clone(),
+                            Some(pm.payment_method_id.clone()),
+                            pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
                             pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
                         ),
                     )

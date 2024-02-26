@@ -13,8 +13,9 @@ pub enum PaymentTokenKind {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
-    pub payment_method_id: String,
-    pub locker_id: String,
+    pub payment_method_id: Option<String>,
+    pub locker_id: Option<String>,
+    pub token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -35,10 +36,15 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
-    pub fn permanent_card(payment_method_id: String, locker_id: String) -> Self {
+    pub fn permanent_card(
+        payment_method_id: Option<String>,
+        locker_id: Option<String>,
+        token: String,
+    ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
+            token,
         })
     }
 
