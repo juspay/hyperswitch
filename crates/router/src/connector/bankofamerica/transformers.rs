@@ -1446,9 +1446,9 @@ impl<F>
                             resource_id: types::ResponseId::NoResponseId,
                             redirection_data,
                             mandate_reference: None,
-                            connector_metadata: Some(
-                                serde_json::json!({"three_ds_data":three_ds_data}),
-                            ),
+                            connector_metadata: Some(serde_json::json!({
+                                "three_ds_data": three_ds_data
+                            })),
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
