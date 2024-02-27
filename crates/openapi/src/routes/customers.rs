@@ -129,7 +129,7 @@ pub async fn customers_mandates_list() {}
     responses(
         (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
         (status = 400, description = "If that Payment Method has already been set as default for that customer"),
-        (status = 404, description = "If that Payment Method was not found for the customer")
+        (status = 404, description = "Payment Method not found for the customer")
     ),
     tag = "Customer Set Default Payment Method",
     operation_id = "Set the Payment Method as Default",

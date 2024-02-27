@@ -4115,7 +4115,7 @@
             "description": "If that Payment Method has already been set as default for that customer"
           },
           "404": {
-            "description": "If that Payment Method was not found for the customer"
+            "description": "Payment Method not found for the customer"
           }
         },
         "security": [
