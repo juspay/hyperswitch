@@ -1544,7 +1544,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
 pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
-    token: &str,
+    locker_id: &str,
+    payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
@@ -1555,10 +1556,11 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::UnprocessableEntity {
             message: "no customer id provided for the payment".to_string(),
         })?;
-    let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, token)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to fetch card information from the permanent locker")?;
+    let card =
+        cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch card information from the permanent locker")?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
@@ -1591,7 +1593,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-    cards::update_last_used_at(token, state).await?;
+    cards::update_last_used_at(payment_method_id, state).await?;
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
