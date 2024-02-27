@@ -744,10 +744,18 @@ pub struct PaymentMethodDeleteResponse {
 }
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerDefaultPaymentMethodResponse {
+    /// The unique identifier of the Payment method
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub default_payment_method_id: Option<String>,
+    /// The unique identifier of the customer.
+    #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: String,
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -824,7 +832,6 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2024-02-24T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_used_at: Option<time::PrimitiveDateTime>,
-
     /// Indicates if the payment method has been set to default or not
     #[schema(example = true)]
     pub default_payment_method_set: bool,

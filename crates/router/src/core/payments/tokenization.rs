@@ -76,6 +76,7 @@ where
                 .unwrap_or(false);
 
             let pm_id = if future_usage_validation {
+
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
@@ -468,16 +469,18 @@ pub async fn save_in_locker(
         .clone()
         .get_required_value("customer_id")?;
     match payment_method_request.card.clone() {
-        Some(card) => payment_methods::cards::add_card_to_locker(
-            state,
-            payment_method_request,
-            &card,
-            &customer_id,
-            merchant_account,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
+        Some(card) => {
+            payment_methods::cards::add_card_to_locker(
+                state,
+                payment_method_request,
+                &card,
+                &customer_id,
+                merchant_account,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
         None => {
             let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {

@@ -7361,21 +7361,25 @@
         "properties": {
           "default_payment_method_id": {
             "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy",
             "nullable": true
           },
           "customer_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.PaymentMethodType"
+                "$ref": "#/components/schemas/PaymentMethodType"
               }
             ],
             "nullable": true
-          },
-          "payment_method": {
-            "$ref": "#/components/schemas/api_enums.PaymentMethod"
           }
         }
       },

@@ -133,9 +133,9 @@ pub fn store_default_payment_method(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
     };
+
     (payment_method_response, None)
 }
-
 #[instrument(skip_all)]
 pub async fn get_or_insert_payment_method(
     db: &dyn db::StorageInterface,
