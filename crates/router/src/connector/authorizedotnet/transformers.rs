@@ -568,7 +568,7 @@ impl<F, T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (
+        (item, is_auto_capture): (
             types::ResponseRouterData<
                 F,
                 AuthorizedotnetPaymentsResponse,
@@ -578,12 +578,11 @@ impl<F, T>
             bool,
         ),
     ) -> Result<Self, Self::Error> {
-        let item = data.0;
         match &item.response.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
                 let status = enums::AttemptStatus::foreign_from((
                     transaction_response.response_code.clone(),
-                    data.1,
+                    is_auto_capture,
                 ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
                     errors.iter().next().map(|error| types::ErrorResponse {
