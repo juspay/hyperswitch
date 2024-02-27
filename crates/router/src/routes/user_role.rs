@@ -18,14 +18,22 @@ use crate::{
 pub async fn get_authorization_info(
     state: web::Data<AppState>,
     http_req: HttpRequest,
+    query: web::Query<role_api::GetGroupsQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetAuthorizationInfo;
+    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &http_req,
         (),
-        |state, _: (), _| user_role_core::get_authorization_info(state),
+        |state, _: (), _| async move {
+            if respond_with_groups {
+                user_role_core::get_authorization_info_with_groups(state).await
+            } else {
+                user_role_core::get_authorization_info_with_modules(state).await
+            }
+        },
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))

@@ -19,14 +19,27 @@ use crate::{
 
 pub mod role;
 
-pub async fn get_authorization_info(
+pub async fn get_authorization_info_with_modules(
     _state: AppState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
-            info::get_authorization_info()
+            info::get_module_authorization_info()
                 .into_iter()
-                .map(Into::into)
+                .map(|module_info| user_role_api::AuthorizationInfo::Module(module_info.into()))
+                .collect(),
+        ),
+    ))
+}
+
+pub async fn get_authorization_info_with_groups(
+    _state: AppState,
+) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
+    Ok(ApplicationResponse::Json(
+        user_role_api::AuthorizationInfoResponse(
+            info::get_group_authorization_info()
+                .into_iter()
+                .map(|group_info| user_role_api::AuthorizationInfo::Group(group_info.into()))
                 .collect(),
         ),
     ))

@@ -8,6 +8,12 @@ pub struct CreateRoleRequest {
     pub role_scope: RoleScope,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateRoleRequest {
+    pub groups: Option<Vec<PermissionGroup>>,
+    pub role_name: Option<String>,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
@@ -17,7 +23,7 @@ pub struct GetGroupsQueryParam {
 }
 
 #[derive(Debug, serde::Serialize)]
-#[serde(tag = "response_type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum RoleInfoResponse {
     Permissions(RoleInfoWithPermissionsResponse),
     Groups(RoleInfoWithGroupsResponse),
@@ -37,12 +43,6 @@ pub struct RoleInfoWithGroupsResponse {
     pub groups: Vec<PermissionGroup>,
     pub role_name: String,
     pub role_scope: RoleScope,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateRoleRequest {
-    pub groups: Option<Vec<PermissionGroup>>,
-    pub role_name: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
