@@ -116,3 +116,22 @@ pub async fn customers_list() {}
     security(("api_key" = []))
 )]
 pub async fn customers_mandates_list() {}
+
+/// Customers - Set Default Payment Method
+///
+/// Set the Payment Method as Default for the Customer.
+#[utoipa::path(
+    get,
+    path = "/{customer_id}/payment_methods/{method_id}",
+    params (
+        ("method_id" = String, Path, description = "Set the Payment Method as Default for the Customer"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 404, description = "If that Payment Method has already been set as default for that customer")
+    ),
+    tag = "Customer Set Default Payment Method",
+    operation_id = "Set the Payment Method as Default",
+    security(("ephemeral_key" = []))
+)]
+pub async fn default_payment_method_set_api() {}

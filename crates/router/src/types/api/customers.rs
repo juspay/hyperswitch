@@ -32,7 +32,7 @@ impl From<(domain::Customer, Option<payments::AddressDetails>)> for CustomerResp
             created_at: cust.created_at,
             metadata: cust.metadata,
             address,
-            default_payment_method: cust.default_payment_method,
+            default_payment_method_id: cust.default_payment_method,
         }
         .into()
     }

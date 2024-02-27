@@ -4080,6 +4080,47 @@
           }
         ]
       }
+    },
+    "/{customer_id}/payment_methods/{method_id}": {
+      "get": {
+        "tags": [
+          "Customer Set Default Payment Method"
+        ],
+        "summary": "Customers - Set Default Payment Method",
+        "description": "Customers - Set Default Payment Method\n\nSet the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "Set the Payment Method as Default for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "If that Payment Method has already been set as default for that customer"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -7308,6 +7349,33 @@
           }
         }
       },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/api_enums.PaymentMethod"
+          }
+        }
+      },
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
@@ -7664,12 +7732,27 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
           },
-          "default_payment_method": {
+          "default_payment_method_id": {
             "type": "string",
             "description": "The identifier for the default payment method.",
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "DefaultPaymentMethod": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "string"
           }
         }
       },

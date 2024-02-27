@@ -118,7 +118,7 @@ impl PaymentMethod {
                 .eq(customer_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                 .and(dsl::status.eq(status)),
-            None,
+            limit,
             None,
             Some(dsl::last_used_at.desc()),
         )

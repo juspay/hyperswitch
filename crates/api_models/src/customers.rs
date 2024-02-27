@@ -75,7 +75,7 @@ pub struct CustomerResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The identifier for the default payment method.
     #[schema(max_length = 255, example = "pm_djh2837dwduh890123")]
-    pub default_payment_method: Option<String>,
+    pub default_payment_method_id: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
