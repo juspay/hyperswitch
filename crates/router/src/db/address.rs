@@ -404,7 +404,7 @@ mod storage {
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
                     address
-                        .update_address(&conn, address_update.into())
+                        .update(&conn, address_update.into())
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -475,7 +475,7 @@ mod storage {
                 MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     address_new
-                        .insert_address(&conn)
+                        .insert(&conn)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -558,7 +558,7 @@ mod storage {
                 .construct_new()
                 .await
                 .change_context(errors::StorageError::EncryptionError)?
-                .insert_address(&conn)
+                .insert(&conn)
                 .await
                 .map_err(Into::into)
                 .into_report()

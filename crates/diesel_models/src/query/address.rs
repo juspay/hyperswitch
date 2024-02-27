@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl AddressNew {
-    pub async fn insert_address(self, conn: &PgPooledConn) -> StorageResult<Address> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -52,7 +52,7 @@ impl Address {
         }
     }
 
-    pub async fn update_address(
+    pub async fn update(
         self,
         conn: &PgPooledConn,
         address_update_internal: AddressUpdateInternal,
