@@ -3,7 +3,8 @@ use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
 
-use super::{EventType, RawEvent};
+use super::EventType;
+use crate::services::kafka::KafkaMessage;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -96,14 +97,12 @@ impl OutgoingWebhookEvent {
     }
 }
 
-impl TryFrom<OutgoingWebhookEvent> for RawEvent {
-    type Error = serde_json::Error;
+impl KafkaMessage for OutgoingWebhookEvent {
+    fn event_type(&self) -> EventType {
+        EventType::OutgoingWebhookLogs
+    }
 
-    fn try_from(value: OutgoingWebhookEvent) -> Result<Self, Self::Error> {
-        Ok(Self {
-            event_type: EventType::OutgoingWebhookLogs,
-            key: value.merchant_id.clone(),
-            payload: serde_json::to_value(value)?,
-        })
+    fn key(&self) -> String {
+        self.event_id.clone()
     }
 }
