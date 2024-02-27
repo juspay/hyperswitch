@@ -7,10 +7,7 @@ use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        WalletData,
-    },
+    connector::utils::{self, CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -553,207 +550,40 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
             AuthorizedotnetVoidStatus::Declined | AuthorizedotnetVoidStatus::Error => {
                 Self::VoidFailed
             }
-            AuthorizedotnetVoidStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetVoidStatus::HeldForReview => Self::VoidInitiated,
         }
     }
 }
 
-impl<F>
-    TryFrom<
+impl<F, T>
+    TryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
-            types::PaymentsAuthorizeData,
+            T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        data: (
+            types::ResponseRouterData<
+                F,
+                AuthorizedotnetPaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
+        let item = data.0;
         match &item.response.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
                 let status = enums::AttemptStatus::foreign_from((
                     transaction_response.response_code.clone(),
-                    item.data.request.is_auto_capture()?,
-                ));
-                let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
-                        code: error.error_code.clone(),
-                        message: error.error_text.clone(),
-                        reason: None,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                    })
-                });
-                let metadata = transaction_response
-                    .account_number
-                    .as_ref()
-                    .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
-                    })
-                    .transpose()
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
-                    })?;
-                let url = transaction_response
-                    .secure_acceptance
-                    .as_ref()
-                    .and_then(|x| x.secure_acceptance_url.to_owned());
-                let redirection_data =
-                    url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
-                Ok(Self {
-                    status,
-                    response: match error {
-                        Some(err) => Err(err),
-                        None => Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                            redirection_data,
-                            mandate_reference: None,
-                            connector_metadata: metadata,
-                            network_txn_id: transaction_response
-                                .network_trans_id
-                                .clone()
-                                .map(|network_trans_id| network_trans_id.expose()),
-                            connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                            incremental_authorization_allowed: None,
-                        }),
-                    },
-                    ..item.data
-                })
-            }
-            Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
-                Ok(Self {
-                    status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)?),
-                    ..item.data
-                })
-            }
-        }
-    }
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        match &item.response.transaction_response {
-            Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
-                let status = enums::AttemptStatus::foreign_from((
-                    transaction_response.response_code.clone(),
-                    true,
-                ));
-                let error = transaction_response.errors.as_ref().and_then(|errors| {
-                    errors.iter().next().map(|error| types::ErrorResponse {
-                        code: error.error_code.clone(),
-                        message: error.error_text.clone(),
-                        reason: None,
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                    })
-                });
-                let metadata = transaction_response
-                    .account_number
-                    .as_ref()
-                    .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
-                    })
-                    .transpose()
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_metadata",
-                    })?;
-                let url = transaction_response
-                    .secure_acceptance
-                    .as_ref()
-                    .and_then(|x| x.secure_acceptance_url.to_owned());
-                let redirection_data =
-                    url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
-                Ok(Self {
-                    status,
-                    response: match error {
-                        Some(err) => Err(err),
-                        None => Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                            redirection_data,
-                            mandate_reference: None,
-                            connector_metadata: metadata,
-                            network_txn_id: transaction_response
-                                .network_trans_id
-                                .clone()
-                                .map(|network_trans_id| network_trans_id.expose()),
-                            connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
-                            incremental_authorization_allowed: None,
-                        }),
-                    },
-                    ..item.data
-                })
-            }
-            Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
-                Ok(Self {
-                    status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)?),
-                    ..item.data
-                })
-            }
-        }
-    }
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        match &item.response.transaction_response {
-            Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
-                let status = enums::AttemptStatus::foreign_from((
-                    transaction_response.response_code.clone(),
-                    true,
+                    data.1,
                 ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
                     errors.iter().next().map(|error| types::ErrorResponse {
