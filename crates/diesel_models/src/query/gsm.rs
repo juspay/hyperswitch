@@ -14,7 +14,7 @@ impl GatewayStatusMappingNew {
 }
 
 impl GatewayStatusMap {
-    pub async fn find_gsm(
+    pub async fn find(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -34,7 +34,7 @@ impl GatewayStatusMap {
         .await
     }
 
-    pub async fn retrieve_gsm_decision(
+    pub async fn retrieve_decision(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -42,12 +42,12 @@ impl GatewayStatusMap {
         code: String,
         message: String,
     ) -> StorageResult<String> {
-        Self::find_gsm(conn, connector, flow, sub_flow, code, message)
+        Self::find(conn, connector, flow, sub_flow, code, message)
             .await
             .map(|item| item.decision)
     }
 
-    pub async fn update_gsm(
+    pub async fn update(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -80,7 +80,7 @@ impl GatewayStatusMap {
         })
     }
 
-    pub async fn delete_gsm(
+    pub async fn delete(
         conn: &PgPooledConn,
         connector: String,
         flow: String,

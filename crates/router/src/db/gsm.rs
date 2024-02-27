@@ -72,7 +72,7 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<String, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::GatewayStatusMap::retrieve_gsm_decision(
+        storage::GatewayStatusMap::retrieve_decision(
             &conn, connector, flow, sub_flow, code, message,
         )
         .await
@@ -90,7 +90,7 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::GatewayStatusMap::find_gsm(&conn, connector, flow, sub_flow, code, message)
+        storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
             .await
             .map_err(Into::into)
             .into_report()
@@ -107,7 +107,7 @@ impl GsmInterface for Store {
         data: storage::GatewayStatusMappingUpdate,
     ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::update_gsm(&conn, connector, flow, sub_flow, code, message, data)
+        storage::GatewayStatusMap::update(&conn, connector, flow, sub_flow, code, message, data)
             .await
             .map_err(Into::into)
             .into_report()
@@ -123,7 +123,7 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::delete_gsm(&conn, connector, flow, sub_flow, code, message)
+        storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
             .await
             .map_err(Into::into)
             .into_report()

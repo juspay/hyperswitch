@@ -43,7 +43,7 @@ impl FileMetadata {
         .await
     }
 
-    pub async fn update_file(
+    pub async fn update(
         self,
         conn: &PgPooledConn,
         file_metadata: FileMetadataUpdate,

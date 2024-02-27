@@ -14,7 +14,7 @@ impl LockerMockUpNew {
 }
 
 impl LockerMockUp {
-    pub async fn find_locker_by_card_id(conn: &PgPooledConn, card_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_card_id(conn: &PgPooledConn, card_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::card_id.eq(card_id.to_owned()),
@@ -22,7 +22,7 @@ impl LockerMockUp {
         .await
     }
 
-    pub async fn delete_locker_by_card_id(
+    pub async fn delete_by_card_id(
         conn: &PgPooledConn,
         card_id: &str,
     ) -> StorageResult<Self> {

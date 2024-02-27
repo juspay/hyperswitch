@@ -67,7 +67,7 @@ impl Dispute {
         .await
     }
 
-    pub async fn update_dispute(
+    pub async fn update(
         self,
         conn: &PgPooledConn,
         dispute: DisputeUpdate,

@@ -79,7 +79,7 @@ impl DashboardMetadataInterface for Store {
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::DashboardMetadata::update_dashboard_metadata(
+        storage::DashboardMetadata::update(
             &conn,
             user_id,
             merchant_id,

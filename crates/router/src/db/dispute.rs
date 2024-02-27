@@ -127,7 +127,7 @@ impl DisputeInterface for Store {
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update_dispute(&conn, dispute)
+        this.update(&conn, dispute)
             .await
             .map_err(Into::into)
             .into_report()

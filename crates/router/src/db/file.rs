@@ -78,7 +78,7 @@ impl FileMetadataInterface for Store {
         file_metadata: storage::FileMetadataUpdate,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update_file(&conn, file_metadata)
+        this.update(&conn, file_metadata)
             .await
             .map_err(Into::into)
             .into_report()

@@ -52,7 +52,7 @@ impl ConnectorResponseNew {
 
 impl ConnectorResponse {
     #[instrument(skip(conn))]
-    pub async fn update_connector_response(
+    pub async fn update(
         self,
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,

@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     enums,
@@ -19,7 +18,7 @@ impl DashboardMetadataNew {
 }
 
 impl DashboardMetadata {
-    pub async fn update_dashboard_metadata(
+    pub async fn update(
         conn: &PgPooledConn,
         user_id: Option<String>,
         merchant_id: String,
@@ -118,7 +117,6 @@ impl DashboardMetadata {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         conn: &PgPooledConn,
         user_id: String,
