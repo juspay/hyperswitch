@@ -3,14 +3,8 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-#[cfg(feature = "hashicorp-vault")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, StrongSecret};
+use masking::PeekInterface;
 use serde::Serialize;
 
 use self::blacklist::BlackList;
@@ -20,13 +14,14 @@ use super::jwt;
 #[cfg(feature = "recon")]
 use super::recon::ReconToken;
 #[cfg(feature = "olap")]
+use crate::configs::Settings;
+#[cfg(feature = "olap")]
 use crate::consts;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(feature = "recon")]
 use crate::routes::AppState;
 use crate::{
-    configs::settings,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -108,7 +103,7 @@ pub struct UserAuthToken {
 
 #[cfg(feature = "olap")]
 impl UserAuthToken {
-    pub async fn new_token(user_id: String, settings: &settings::Settings) -> UserResult<String> {
+    pub async fn new_token(user_id: String, settings: &Settings) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let token_payload = Self { user_id, exp };
@@ -131,7 +126,7 @@ impl AuthToken {
         user_id: String,
         merchant_id: String,
         role_id: String,
-        settings: &settings::Settings,
+        settings: &Settings,
         org_id: String,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
@@ -224,16 +219,7 @@ where
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
-            api_keys::get_hash_key(
-                &config.api_keys,
-                #[cfg(feature = "aws_kms")]
-                aws_kms::core::get_aws_kms_client(&config.kms).await,
-                #[cfg(feature = "hashicorp-vault")]
-                external_services::hashicorp_vault::core::get_hashicorp_client(&config.hc_vault)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-            .await?
+            config.api_keys.get_inner().get_hash_key()?
         };
         let hashed_api_key = api_key.keyed_hash(hash_key.peek());
 
@@ -285,41 +271,6 @@ where
     }
 }
 
-static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
-    tokio::sync::OnceCell::const_new();
-
-pub async fn get_admin_api_key(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
-) -> RouterResult<&'static StrongSecret<String>> {
-    ADMIN_API_KEY
-        .get_or_try_init(|| async {
-            #[cfg(not(feature = "aws_kms"))]
-            let admin_api_key = secrets.admin_api_key.clone();
-
-            #[cfg(feature = "aws_kms")]
-            let admin_api_key = secrets
-                .kms_encrypted_admin_api_key
-                .decrypt_inner(aws_kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to AWS KMS decrypt admin API key")?;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let admin_api_key = masking::Secret::new(admin_api_key)
-                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt admin API key")?
-                .expose();
-
-            Ok(StrongSecret::new(admin_api_key))
-        })
-        .await
-}
-
 #[derive(Debug)]
 pub struct UserWithoutMerchantJWTAuth;
 
@@ -367,17 +318,7 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key = get_admin_api_key(
-            &conf.secrets,
-            #[cfg(feature = "aws_kms")]
-            aws_kms::core::get_aws_kms_client(&conf.kms).await,
-            #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::core::get_hashicorp_client(&conf.hc_vault)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting admin api key")?,
-        )
-        .await?;
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
         if request_admin_api_key != admin_api_key.peek() {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
@@ -912,43 +853,12 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
-static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::OnceCell::const_new();
-
-pub async fn get_jwt_secret(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-) -> RouterResult<&'static StrongSecret<String>> {
-    JWT_SECRET
-        .get_or_try_init(|| async {
-            #[cfg(feature = "aws_kms")]
-            let jwt_secret = secrets
-                .kms_encrypted_jwt_secret
-                .decrypt_inner(aws_kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to AWS KMS decrypt JWT secret")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let jwt_secret = secrets.jwt_secret.clone();
-
-            Ok(StrongSecret::new(jwt_secret))
-        })
-        .await
-}
-
 pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
     let conf = state.conf();
-    let secret = get_jwt_secret(
-        &conf.secrets,
-        #[cfg(feature = "aws_kms")]
-        aws_kms::core::get_aws_kms_client(&conf.kms).await,
-    )
-    .await?
-    .peek()
-    .as_bytes();
+    let secret = conf.secrets.get_inner().jwt_secret.peek().as_bytes();
 
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
@@ -1009,33 +919,6 @@ where
 }
 
 #[cfg(feature = "recon")]
-static RECON_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
-    tokio::sync::OnceCell::const_new();
-
-#[cfg(feature = "recon")]
-pub async fn get_recon_admin_api_key(
-    secrets: &settings::Secrets,
-    #[cfg(feature = "aws_kms")] kms_client: &aws_kms::core::AwsKmsClient,
-) -> RouterResult<&'static StrongSecret<String>> {
-    RECON_API_KEY
-        .get_or_try_init(|| async {
-            #[cfg(feature = "aws_kms")]
-            let recon_admin_api_key = secrets
-                .kms_encrypted_recon_admin_api_key
-                .decrypt_inner(kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt recon admin API key")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let recon_admin_api_key = secrets.recon_admin_api_key.clone();
-
-            Ok(StrongSecret::new(recon_admin_api_key))
-        })
-        .await
-}
-
-#[cfg(feature = "recon")]
 pub struct ReconAdmin;
 
 #[async_trait]
@@ -1053,14 +936,9 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key = get_recon_admin_api_key(
-            &conf.secrets,
-            #[cfg(feature = "aws_kms")]
-            aws_kms::core::get_aws_kms_client(&conf.kms).await,
-        )
-        .await?;
+        let admin_api_key = conf.secrets.get_inner().recon_admin_api_key.peek();
 
-        if request_admin_api_key != admin_api_key.peek() {
+        if request_admin_api_key != admin_api_key {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Recon Admin Authentication Failure"))?;
         }

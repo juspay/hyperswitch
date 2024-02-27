@@ -17,7 +17,6 @@ pub async fn apple_pay_merchant_registration(
 ) -> impl Responder {
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
-    let kms_conf = &state.clone().conf.kms;
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -26,9 +25,7 @@ pub async fn apple_pay_merchant_registration(
         |state, _, body| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
-                &req,
                 body,
-                kms_conf,
                 merchant_id.clone(),
             )
         },

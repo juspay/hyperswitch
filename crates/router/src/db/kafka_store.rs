@@ -1274,6 +1274,15 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_locker_id(locker_id)
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
