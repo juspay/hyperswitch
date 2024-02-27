@@ -150,7 +150,6 @@ pub async fn make_connector_decision(
 ) -> RouterResult<PayoutData> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            println!("predetermined");
             call_connector_payout(
                 state,
                 merchant_account,
@@ -162,7 +161,6 @@ pub async fn make_connector_decision(
             .await
         }
         api::ConnectorCallType::Retryable(connectors) => {
-            println!("retryable");
             let mut connectors = connectors.into_iter();
 
             let connector_data = get_next_connector(&mut connectors)?;
