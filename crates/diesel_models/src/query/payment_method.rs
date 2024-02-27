@@ -100,7 +100,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &str,
