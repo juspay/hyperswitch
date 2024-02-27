@@ -1041,7 +1041,7 @@ pub enum CheckoutRedirectResponseStatus {
 pub struct CheckoutRedirectResponse {
     pub status: Option<CheckoutRedirectResponseStatus>,
     #[serde(rename = "cko-session-id")]
-    pub cko_session_id: Option<Secret<String>>,
+    pub cko_session_id: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, &ActionResponse>>
