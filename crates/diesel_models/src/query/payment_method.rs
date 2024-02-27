@@ -2,7 +2,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 
 use super::generics;
 use crate::{
-    errors,
+    enums as storage_enums, errors,
     payment_method::{self, PaymentMethod, PaymentMethodNew},
     schema::payment_methods::dsl,
     PgPooledConn, StorageResult,
@@ -93,6 +93,31 @@ impl PaymentMethod {
             dsl::customer_id
                 .eq(customer_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_by_customer_id_merchant_id_status(
+        conn: &PgPooledConn,
+        customer_id: &str,
+        merchant_id: &str,
+        status: storage_enums::PaymentMethodStatus,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq(status)),
             None,
             None,
             None,
