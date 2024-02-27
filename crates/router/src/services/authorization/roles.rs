@@ -84,23 +84,6 @@ impl RoleInfo {
     }
 }
 
-pub async fn get_role_info_from_role_id(
-    state: &AppState,
-    role_id: &str,
-    merchant_id: &str,
-    org_id: &str,
-) -> CustomResult<RoleInfo, errors::StorageError> {
-    if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
-        Ok(role.clone())
-    } else {
-        state
-            .store
-            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
-            .await
-            .map(RoleInfo::from)
-    }
-}
-
 impl From<diesel_models::role::Role> for RoleInfo {
     fn from(role: diesel_models::role::Role) -> Self {
         Self {
