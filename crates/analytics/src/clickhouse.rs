@@ -23,6 +23,7 @@ use crate::{
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
     connector_events::events::ConnectorEventsResult,
+    disputes::filters::DisputeFilterRow,
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
@@ -130,7 +131,8 @@ impl AnalyticsDataSource for ClickhouseClient {
         match table {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
-            | AnalyticsCollection::PaymentIntent => {
+            | AnalyticsCollection::PaymentIntent
+            | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
             AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
@@ -167,6 +169,7 @@ impl super::outgoing_webhook_event::events::OutgoingWebhookLogsFilterAnalytics
     for ClickhouseClient
 {
 }
+impl super::disputes::filters::DisputeFilterAnalytics for ClickhouseClient {}
 
 #[derive(Debug, serde::Serialize)]
 struct CkhQuery {
@@ -276,6 +279,18 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
     }
 }
 
+impl TryInto<DisputeFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<DisputeFilterRow, Self::Error> {
+        serde_json::from_value(self)
+            .into_report()
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse DisputeFilterRow in clickhouse results",
+            ))
+    }
+}
+
 impl TryInto<ApiEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
@@ -374,6 +389,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
+            Self::Dispute => Ok("dispute".to_string()),
         }
     }
 }

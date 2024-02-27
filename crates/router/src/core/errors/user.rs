@@ -62,6 +62,10 @@ pub enum UserErrors {
     RoleNotFound,
     #[error("InvalidRoleOperationWithMessage")]
     InvalidRoleOperationWithMessage(String),
+    #[error("RoleNameParsingError")]
+    RoleNameParsingError,
+    #[error("RoleNameAlreadyExists")]
+    RoleNameAlreadyExists,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -159,6 +163,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidRoleOperationWithMessage(_) => {
                 AER::BadRequest(ApiError::new(sub_code, 33, self.get_error_message(), None))
             }
+            Self::RoleNameParsingError => {
+                AER::BadRequest(ApiError::new(sub_code, 34, self.get_error_message(), None))
+            }
+            Self::RoleNameAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 35, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -193,6 +203,8 @@ impl UserErrors {
             Self::MaxInvitationsError => "Maximum invite count per request exceeded",
             Self::RoleNotFound => "Role Not Found",
             Self::InvalidRoleOperationWithMessage(error_message) => error_message,
+            Self::RoleNameParsingError => "Invalid Role Name",
+            Self::RoleNameAlreadyExists => "Role name already exists",
         }
     }
 }

@@ -1,6 +1,6 @@
 use strum::Display;
 
-#[derive(PartialEq, Display, Clone, Debug, Copy)]
+#[derive(PartialEq, Display, Clone, Debug, Copy, Eq, Hash)]
 pub enum Permission {
     PaymentRead,
     PaymentWrite,
@@ -12,7 +12,6 @@ pub enum Permission {
     MerchantAccountWrite,
     MerchantConnectorAccountRead,
     MerchantConnectorAccountWrite,
-    ForexRead,
     RoutingRead,
     RoutingWrite,
     DisputeRead,
@@ -21,8 +20,6 @@ pub enum Permission {
     MandateWrite,
     CustomerRead,
     CustomerWrite,
-    FileRead,
-    FileWrite,
     Analytics,
     ThreeDsDecisionManagerWrite,
     ThreeDsDecisionManagerRead,
@@ -50,7 +47,6 @@ impl Permission {
             Self::MerchantConnectorAccountWrite => {
                 "Create, update, verify and delete connector configurations"
             }
-            Self::ForexRead => "Query Forex data",
             Self::RoutingRead => "View routing configuration",
             Self::RoutingWrite => "Create and activate routing configurations",
             Self::DisputeRead => "View disputes",
@@ -59,8 +55,6 @@ impl Permission {
             Self::MandateWrite => "Create and update mandates",
             Self::CustomerRead => "View customers",
             Self::CustomerWrite => "Create, update and delete customers",
-            Self::FileRead => "View files",
-            Self::FileWrite => "Create, update and delete files",
             Self::Analytics => "Access to analytics module",
             Self::ThreeDsDecisionManagerWrite => "Create and update 3DS decision rules",
             Self::ThreeDsDecisionManagerRead => {

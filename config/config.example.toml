@@ -115,12 +115,9 @@ route_to_trace = ["*/confirm"]
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
-admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when KMS is disabled.
-kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
-jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when KMS is disabled.
-kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
-kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
+admin_api_key = "test_admin"             # admin API key for admin authentication.
+jwt_secret = "secret"                    # JWT secret used for user authentication.
+recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -156,8 +153,6 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
-kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -322,11 +317,6 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
 
-# AWS KMS configuration. Only applicable when the `aws_kms` feature flag is enabled.
-[kms]
-key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
-region = "" # The AWS region used by the KMS SDK for decrypting data.
-
 [cors]
 max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
 origins = "http://localhost:8080" # List of origins that are allowed to make requests.
@@ -445,7 +435,7 @@ pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -568,3 +558,17 @@ file_storage_backend = "aws_s3"            # File storage backend to be used
 [file_storage.aws_s3]
 region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage
+
+[secrets_management]
+secrets_manager = "aws_kms"               # Secrets manager client to be used
+
+[secrets_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+
+[encryption_management]
+encryption_manager = "aws_kms"            # Encryption manager client to be used
+
+[encryption_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.

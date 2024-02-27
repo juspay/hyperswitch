@@ -923,7 +923,7 @@ pub async fn create_payment_connector(
         disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: Some(connector_label),
+        connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label.clone(),
@@ -947,11 +947,22 @@ pub async fn create_payment_connector(
         status: connector_status,
     };
 
-    let mut default_routing_config =
-        routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+    let transaction_type = match req.connector_type {
+        #[cfg(feature = "payouts")]
+        api_enums::ConnectorType::PayoutProcessor => api_enums::TransactionType::Payout,
+        _ => api_enums::TransactionType::Payment,
+    };
 
-    let mut default_routing_config_for_profile =
-        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
+    let mut default_routing_config =
+        routing_helpers::get_merchant_default_config(&*state.store, merchant_id, &transaction_type)
+            .await?;
+
+    let mut default_routing_config_for_profile = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        &profile_id,
+        &transaction_type,
+    )
+    .await?;
 
     let mca = state
         .store
@@ -960,7 +971,7 @@ pub async fn create_payment_connector(
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id: profile_id.clone(),
-                connector_name: req.connector_name.to_string(),
+                connector_label,
             },
         )?;
 
@@ -981,6 +992,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 merchant_id,
                 default_routing_config.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -990,6 +1002,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 &profile_id.clone(),
                 default_routing_config_for_profile.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -1277,7 +1290,7 @@ pub async fn update_payment_connector(
         .change_context(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name: request_connector_label.unwrap_or_default(),
+                connector_label: request_connector_label.unwrap_or_default(),
             },
         )
         .attach_printable_lazy(|| {
