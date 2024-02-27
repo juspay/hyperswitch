@@ -448,6 +448,10 @@ pub struct PaymentsRequest {
 
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
+
+    /// Whether to perform external authentication (if applicable)
+    #[schema(example = true)]
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl PaymentsRequest {
@@ -2097,13 +2101,17 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
-    RedirectToUrl { redirect_to_url: String },
+    RedirectToUrl {
+        redirect_to_url: String,
+    },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    ThirdPartySdkSessionToken {
+        session_token: Option<SessionToken>,
+    },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
@@ -2124,6 +2132,29 @@ pub enum NextActionData {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
     },
+    ThreeDsInvoke {
+        three_ds_data: ThreeDsData,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThreeDsData {
+    /// ThreeDS authentication url - to initiate authentication
+    pub three_ds_authentication_url: String,
+    /// ThreeDS authorize url - to complete the payment authorization after authentication
+    pub three_ds_authorize_url: String,
+    /// ThreeDS method details
+    pub three_ds_method_details: ThreeDsMethodData,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThreeDsMethodData {
+    /// Whether ThreeDS method data submission is required
+    pub three_ds_method_data_submission: bool,
+    /// ThreeDS method data
+    pub three_ds_method_data: String,
+    /// ThreeDS method url
+    pub three_ds_method_url: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -2517,6 +2548,12 @@ pub struct PaymentsResponse {
     /// List of incremental authorizations happened to the payment
     pub incremental_authorizations: Option<Vec<IncrementalAuthorizationResponse>>,
 
+    /// Details of external authentication
+    pub external_authentication_details: Option<ExternalAuthenticationDetailsResponse>,
+
+    /// Flag indicating if external 3ds authentication is made or not
+    pub request_external_3ds_authentication: Option<bool>,
+
     /// Date Time expiry of the payment
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -2524,6 +2561,26 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+}
+
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+pub struct ExternalAuthenticationDetailsResponse {
+    /// Authentication Type - Challenge / Frictionless
+    #[schema(value_type = Option<DecoupledAuthenticationType>)]
+    pub authentication_flow: Option<enums::DecoupledAuthenticationType>,
+    /// Electronic Commerce Indicator (eci)
+    pub electronic_commerce_indicator: Option<String>,
+    /// Authentication Status
+    #[schema(value_type = Option<AuthenticationStatus>)]
+    pub status: enums::AuthenticationStatus,
+    /// DS Transaction ID
+    pub ds_transaction_id: Option<String>,
+    /// Message Version
+    pub version: Option<String>,
+    /// Error Code
+    pub error_code: Option<String>,
+    /// Error Message
+    pub error_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -3361,6 +3418,87 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub amount: i64,
     /// Reason for incremental authorization
     pub reason: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+    /// Client Secret
+    pub client_secret: String,
+    /// SDK Information if request is from SDK
+    pub sdk_information: Option<SDKInformation>,
+    /// Device Channel indicating whether request is coming from App or Browser
+    pub device_channel: DeviceChannel,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
+pub enum DeviceChannel {
+    APP,
+    BRW,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct SDKInformation {
+    /// Unique ID created on installations of the 3DS Requestor App on a Consumer Device
+    pub sdk_app_id: String,
+    /// JWE Object containing data encrypted by the SDK for the DS to decrypt
+    pub sdk_enc_data: String,
+    /// Public key component of the ephemeral key pair generated by the 3DS SDK
+    pub sdk_ephem_pub_key: SDKEphemPubKey,
+    /// Unique transaction identifier assigned by the 3DS SDK
+    pub sdk_trans_id: String,
+    /// Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App
+    pub sdk_reference_number: String,
+    /// Indicates maximum amount of time
+    pub sdk_max_timeout: String,
+}
+
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct SDKEphemPubKey {
+    kty: String,
+    y: String,
+    x: String,
+    crv: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
+pub enum TransStatus {
+    /// Authentication/ Account Verification Successful
+    Y,
+    /// Not Authenticated /Account Not Verified; Transaction denied
+    N,
+    /// Authentication/ Account Verification Could Not Be Performed; Technical or other problem, as indicated in ARes or RReq
+    U,
+    /// Attempts Processing Performed; Not Authenticated/Verified , but a proof of attempted authentication/verification is provided
+    A,
+    /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
+    R,
+    /// Challenge Required; Additional authentication is required using the CReq/CRes
+    C,
+    /// Challenge Required; Decoupled Authentication confirmed.
+    D,
+    /// Informational Only; 3DS Requestor challenge preference acknowledged.
+    I,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsExternalAuthenticationResponse {
+    /// Indicates the trans status
+    pub trans_status: TransStatus,
+    /// ACS URL to be used for challenge submission
+    pub acs_url: Option<Url>,
+    /// Challenge request which should be sent to acs_url
+    pub challenge_request: Option<String>,
+    /// Unique identifier assigned by the EMVCo
+    pub acs_reference_number: Option<String>,
+    /// Unique identifier assigned by the ACS to identify a single transaction
+    pub acs_trans_id: Option<String>,
+    /// Unique identifier assigned by the 3DS Server to identify a single transaction
+    pub three_dsserver_trans_id: Option<String>,
+    /// Contains the JWS object created by the ACS for the ARes message
+    pub acs_signed_content: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
