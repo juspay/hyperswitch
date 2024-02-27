@@ -17,8 +17,7 @@ async fn main() -> DrainerResult<()> {
 
     let state = settings::AppState::new(conf.clone()).await;
 
-    let store = services::Store::new(&state.conf, false).await;
-    let store = std::sync::Arc::new(store);
+    let store = std::sync::Arc::new(services::Store::new(&state.conf, false).await);
 
     #[cfg(feature = "vergen")]
     println!("Starting drainer (Version: {})", router_env::git_tag!());

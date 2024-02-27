@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::api::{admin, refunds};
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct StripeCreateRefundRequest {
     pub refund_id: Option<String>,
     pub amount: Option<i64>,
