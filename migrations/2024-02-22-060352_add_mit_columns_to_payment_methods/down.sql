@@ -7,6 +7,4 @@ ALTER TABLE payment_methods
 DROP COLUMN customer_acceptance;
 
 ALTER TABLE payment_methods
-DROP COLUMN connector_mit_details;
-
-DROP TYPE "PaymentMethodStatus";
+DROP COLUMN connector_mandate_details;

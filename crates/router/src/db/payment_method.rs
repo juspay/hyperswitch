@@ -185,7 +185,7 @@ impl PaymentMethodInterface for MockDb {
             payment_method_issuer_code: payment_method_new.payment_method_issuer_code,
             metadata: payment_method_new.metadata,
             payment_method_data: payment_method_new.payment_method_data,
-            connector_mit_details: payment_method_new.connector_mit_details,
+            connector_mandate_details: payment_method_new.connector_mandate_details,
             customer_acceptance: payment_method_new.customer_acceptance,
             status: payment_method_new.status,
         };
