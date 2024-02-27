@@ -677,8 +677,11 @@ pub fn validate_amount_to_capture_and_capture_method(
             .unwrap_or(0);
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+        let amount_to_capture = request
+            .amount_to_capture
+            .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
         if let Some((total_capturable_amount, amount_to_capture)) =
-            total_capturable_amount.zip(request.amount_to_capture)
+            total_capturable_amount.zip(amount_to_capture)
         {
             utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
