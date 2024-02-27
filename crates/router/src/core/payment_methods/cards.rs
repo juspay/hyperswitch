@@ -2667,9 +2667,10 @@ pub async fn list_customer_payment_method(
     let requires_cvv = is_requires_cvv.config != "false";
 
     let resp = db
-        .find_payment_method_by_customer_id_merchant_id_list(
+        .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
             &merchant_account.merchant_id,
+            common_enums::PaymentMethodStatus::Active,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
