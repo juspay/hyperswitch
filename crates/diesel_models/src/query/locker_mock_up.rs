@@ -22,10 +22,7 @@ impl LockerMockUp {
         .await
     }
 
-    pub async fn delete_by_card_id(
-        conn: &PgPooledConn,
-        card_id: &str,
-    ) -> StorageResult<Self> {
+    pub async fn delete_by_card_id(conn: &PgPooledConn, card_id: &str) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::card_id.eq(card_id.to_owned()),
