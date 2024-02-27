@@ -68,7 +68,7 @@ endif
 #	make fmt [writing=(no|yes)]
 
 fmt :
-	cargo +nightly fmt --all $(if $(call eq,$(writing),yes),,-- --check)
+	cargo +nightly fmt --all $(if $(call eq,$(writing),yes),-- --check,)
 
 # Lint Rust sources with Clippy.
 #
