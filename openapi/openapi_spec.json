@@ -13110,7 +13110,7 @@
           },
           "acs_url": {
             "type": "string",
-            "description": "ACS URL to be used for challenge",
+            "description": "ACS URL to be used for challenge submission",
             "nullable": true
           },
           "challenge_request": {
@@ -13120,22 +13120,22 @@
           },
           "acs_reference_number": {
             "type": "string",
-            "description": "ACS Reference Number",
+            "description": "Unique identifier assigned by the EMVCo",
             "nullable": true
           },
           "acs_trans_id": {
             "type": "string",
-            "description": "ACS Trans ID",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
             "nullable": true
           },
           "three_dsserver_trans_id": {
             "type": "string",
-            "description": "Three DS Trans ID",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
             "nullable": true
           },
           "acs_signed_content": {
             "type": "string",
-            "description": "ACS Signed Content",
+            "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
           }
         }
@@ -16095,22 +16095,27 @@
         ],
         "properties": {
           "sdk_app_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique ID created on installations of the 3DS Requestor App on a Consumer Device"
           },
           "sdk_enc_data": {
-            "type": "string"
+            "type": "string",
+            "description": "JWE Object containing data encrypted by the SDK for the DS to decrypt"
           },
           "sdk_ephem_pub_key": {
             "$ref": "#/components/schemas/SDKEphemPubKey"
           },
           "sdk_trans_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique transaction identifier assigned by the 3DS SDK"
           },
           "sdk_reference_number": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App"
           },
           "sdk_max_timeout": {
-            "type": "string"
+            "type": "string",
+            "description": "Indicates maximum amount of time"
           }
         }
       },
