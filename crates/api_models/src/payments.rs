@@ -3431,6 +3431,19 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub sdk_information: Option<SDKInformation>,
     /// DeviceChannel
     pub device_channel: DeviceChannel,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: ThreeDSCompInd,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Default)]
+pub enum ThreeDSCompInd {
+    /// 3DS method successfully completed
+    Y,
+    /// 3DS method was not successful
+    N,
+    /// 3DS method URL was unavailable
+    #[default]
+    U,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]

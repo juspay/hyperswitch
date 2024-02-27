@@ -3284,6 +3284,7 @@ pub async fn payment_external_authentication(
         (authentication_data, authentication),
         return_url,
         req.sdk_information,
+        req.threeds_method_comp_ind,
         optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
     )
     .await?;

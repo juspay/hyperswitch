@@ -38,6 +38,7 @@ pub fn construct_authentication_router_data(
     authentication_data: (super::types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
     sdk_information: Option<api_models::payments::SDKInformation>,
+    threeds_method_comp_ind: api_models::payments::ThreeDSCompInd,
     email: Option<common_utils::pii::Email>,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
@@ -64,6 +65,7 @@ pub fn construct_authentication_router_data(
         sdk_information,
         email,
         three_ds_requestor_url: authentication_details.three_ds_requestor_url,
+        threeds_method_comp_ind,
     };
     construct_router_data(
         authentication_connector,
