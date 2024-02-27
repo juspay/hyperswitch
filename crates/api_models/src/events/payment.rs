@@ -132,7 +132,15 @@ impl ApiEventMetric for PaymentMethodListRequest {
 
 impl ApiEventMetric for PaymentMethodListResponse {}
 
-impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {}
+impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.default_payment_method_id.clone().unwrap_or_default(),
+            payment_method: Some(self.payment_method),
+            payment_method_type: self.payment_method_type,
+        })
+    }
+}
 
 impl ApiEventMetric for PaymentListFilterConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
