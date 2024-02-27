@@ -78,6 +78,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_list,
         routes::payments::payments_incremental_authorization,
         routes::payment_link::payment_link_retrieve,
+        routes::payments::payments_external_authentication,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -372,6 +373,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
         api_models::payments::IncrementalAuthorizationResponse,
+        api_models::payments::PaymentsExternalAuthenticationRequest,
+        api_models::payments::PaymentsExternalAuthenticationResponse,
+        api_models::payments::SDKInformation,
+        api_models::payments::SDKEphemPubKey,
+        api_models::payments::DeviceChannel,
+        api_models::payments::ThreeDSCompInd,
+        api_models::payments::TransStatus,
         api_models::payments::BrowserInformation,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,

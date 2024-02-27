@@ -188,7 +188,7 @@ pub struct TokenRequest {
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeTokenResponse {
-    pub id: String,
+    pub id: Secret<String>,
     pub object: String,
 }
 
@@ -198,7 +198,7 @@ pub struct CustomerRequest {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
-    pub source: Option<String>,
+    pub source: Option<Secret<String>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -324,7 +324,7 @@ pub struct StripeBlik {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_options[blik][code]")]
-    pub code: String,
+    pub code: Secret<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -499,7 +499,7 @@ pub struct StripeApplePay {
     pub pk_token: Secret<String>,
     pub pk_token_instrument_name: String,
     pub pk_token_payment_network: String,
-    pub pk_token_transaction_id: String,
+    pub pk_token_transaction_id: Secret<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -547,7 +547,7 @@ pub enum WechatClient {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct GooglepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
-    pub token: String,
+    pub token: Secret<String>,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
 }
@@ -1536,9 +1536,9 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                                 .payment_method
                                 .network
                                 .to_owned(),
-                            pk_token_transaction_id: applepay_data
-                                .transaction_identifier
-                                .to_owned(),
+                            pk_token_transaction_id: Secret::new(
+                                applepay_data.transaction_identifier.to_owned(),
+                            ),
                         })));
                 };
                 let pmd = apple_pay_decrypt_data
@@ -1611,11 +1611,11 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             payments::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: blik_code.clone().ok_or(
+                    code: Secret::new(blik_code.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "blik_code",
                         },
-                    )?,
+                    )?),
                 })),
             )),
             payments::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
@@ -2042,7 +2042,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             email: item.request.email.to_owned(),
             phone: item.request.phone.to_owned(),
             name: item.request.name.to_owned(),
-            source: item.request.preprocessing_id.to_owned(),
+            source: item.request.preprocessing_id.to_owned().map(Secret::new),
         })
     }
 }
@@ -2096,8 +2096,8 @@ pub struct PaymentIntentResponse {
     pub status: StripePaymentStatus,
     pub client_secret: Option<Secret<String>>,
     pub created: i32,
-    pub customer: Option<String>,
-    pub payment_method: Option<String>,
+    pub customer: Option<Secret<String>>,
+    pub payment_method: Option<Secret<String>>,
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
@@ -2206,7 +2206,7 @@ pub struct StripeCharge {
 #[derive(Deserialize, Clone, Debug, Serialize)]
 pub struct StripeBankRedirectDetails {
     #[serde(rename = "generated_sepa_debit")]
-    attached_payment_method: Option<String>,
+    attached_payment_method: Option<Secret<String>>,
 }
 
 impl Deref for PaymentIntentSyncResponse {
@@ -2308,7 +2308,7 @@ pub struct SetupIntentResponse {
     pub object: String,
     pub status: StripePaymentStatus, // Change to SetupStatus
     pub client_secret: Secret<String>,
-    pub customer: Option<String>,
+    pub customer: Option<Secret<String>>,
     pub payment_method: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
@@ -2327,7 +2327,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
             connector_mandate_id: payment_method_options.and_then(|options| match options {
                 StripePaymentMethodOptions::Card {
                     mandate_options, ..
-                } => mandate_options.map(|mandate_options| mandate_options.reference),
+                } => mandate_options.map(|mandate_options| mandate_options.reference.expose()),
                 StripePaymentMethodOptions::Klarna {}
                 | StripePaymentMethodOptions::Affirm {}
                 | StripePaymentMethodOptions::AfterpayClearpay {}
@@ -2369,7 +2369,10 @@ impl<F, T>
             });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
-            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
+            types::MandateReference::foreign_from((
+                item.response.payment_method_options,
+                pm.expose(),
+            ))
         });
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
@@ -2488,14 +2491,19 @@ impl<F, T>
                     Some(StripeChargeEnum::ChargeObject(charge)) => {
                         match charge.payment_method_details {
                             Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
-                                bancontact.attached_payment_method.unwrap_or(pm)
+                                bancontact
+                                    .attached_payment_method
+                                    .map(|attached_payment_method| attached_payment_method.expose())
+                                    .unwrap_or(pm.expose())
                             }
-                            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
-                                ideal.attached_payment_method.unwrap_or(pm)
-                            }
-                            Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
-                                sofort.attached_payment_method.unwrap_or(pm)
-                            }
+                            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => ideal
+                                .attached_payment_method
+                                .map(|attached_payment_method| attached_payment_method.expose())
+                                .unwrap_or(pm.expose()),
+                            Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => sofort
+                                .attached_payment_method
+                                .map(|attached_payment_method| attached_payment_method.expose())
+                                .unwrap_or(pm.expose()),
                             Some(StripePaymentMethodDetailsResponse::Blik)
                             | Some(StripePaymentMethodDetailsResponse::Eps)
                             | Some(StripePaymentMethodDetailsResponse::Fpx)
@@ -2513,10 +2521,10 @@ impl<F, T>
                             | Some(StripePaymentMethodDetailsResponse::Wechatpay)
                             | Some(StripePaymentMethodDetailsResponse::Alipay)
                             | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
-                            | None => pm,
+                            | None => pm.expose(),
                         }
                     }
-                    Some(StripeChargeEnum::ChargeId(_)) | None => pm,
+                    Some(StripeChargeEnum::ChargeId(_)) | None => pm.expose(),
                 },
             ))
         });
@@ -2751,17 +2759,17 @@ pub struct StripeFinanicalInformation {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaFinancialDetails {
-    pub account_holder_name: String,
-    pub bic: String,
-    pub country: String,
-    pub iban: String,
+    pub account_holder_name: Secret<String>,
+    pub bic: Secret<String>,
+    pub country: Secret<String>,
+    pub iban: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct BacsFinancialDetails {
-    pub account_holder_name: String,
-    pub account_number: String,
-    pub sort_code: String,
+    pub account_holder_name: Secret<String>,
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
 }
 
 // REFUND :
@@ -2962,7 +2970,7 @@ pub struct StripeBillingAddress {
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
     pub payment_intent: Option<String>,
-    pub payment_intent_client_secret: Option<String>,
+    pub payment_intent_client_secret: Option<Secret<String>>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -3036,7 +3044,7 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    reference: String, // Extendable, But only important field to be captured
+    reference: Secret<String>, // Extendable, But only important field to be captured
 }
 /// Represents the capture request body for stripe connector.
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -3238,7 +3246,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.id,
+                token: item.response.id.expose(),
             }),
             ..item.data
         })
@@ -3619,7 +3627,7 @@ pub struct Evidence {
     #[serde(rename = "evidence[access_activity_log]")]
     pub access_activity_log: Option<String>,
     #[serde(rename = "evidence[billing_address]")]
-    pub billing_address: Option<String>,
+    pub billing_address: Option<Secret<String>>,
     #[serde(rename = "evidence[cancellation_policy]")]
     pub cancellation_policy: Option<String>,
     #[serde(rename = "evidence[cancellation_policy_disclosure]")]
@@ -3629,17 +3637,17 @@ pub struct Evidence {
     #[serde(rename = "evidence[customer_communication]")]
     pub customer_communication: Option<String>,
     #[serde(rename = "evidence[customer_email_address]")]
-    pub customer_email_address: Option<String>,
+    pub customer_email_address: Option<Secret<String, pii::EmailStrategy>>,
     #[serde(rename = "evidence[customer_name]")]
-    pub customer_name: Option<String>,
+    pub customer_name: Option<Secret<String>>,
     #[serde(rename = "evidence[customer_purchase_ip]")]
-    pub customer_purchase_ip: Option<String>,
+    pub customer_purchase_ip: Option<Secret<String, pii::IpAddress>>,
     #[serde(rename = "evidence[customer_signature]")]
-    pub customer_signature: Option<String>,
+    pub customer_signature: Option<Secret<String>>,
     #[serde(rename = "evidence[product_description]")]
     pub product_description: Option<String>,
     #[serde(rename = "evidence[receipt]")]
-    pub receipt: Option<String>,
+    pub receipt: Option<Secret<String>>,
     #[serde(rename = "evidence[refund_policy]")]
     pub refund_policy: Option<String>,
     #[serde(rename = "evidence[refund_policy_disclosure]")]
@@ -3651,15 +3659,15 @@ pub struct Evidence {
     #[serde(rename = "evidence[service_documentation]")]
     pub service_documentation: Option<String>,
     #[serde(rename = "evidence[shipping_address]")]
-    pub shipping_address: Option<String>,
+    pub shipping_address: Option<Secret<String>>,
     #[serde(rename = "evidence[shipping_carrier]")]
     pub shipping_carrier: Option<String>,
     #[serde(rename = "evidence[shipping_date]")]
     pub shipping_date: Option<String>,
     #[serde(rename = "evidence[shipping_documentation]")]
-    pub shipping_documentation: Option<String>,
+    pub shipping_documentation: Option<Secret<String>>,
     #[serde(rename = "evidence[shipping_tracking_number]")]
-    pub shipping_tracking_number: Option<String>,
+    pub shipping_tracking_number: Option<Secret<String>>,
     #[serde(rename = "evidence[uncategorized_file]")]
     pub uncategorized_file: Option<String>,
     #[serde(rename = "evidence[uncategorized_text]")]
@@ -3708,31 +3716,46 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
         let submit_evidence_request_data = item.request.clone();
         Ok(Self {
             access_activity_log: submit_evidence_request_data.access_activity_log,
-            billing_address: submit_evidence_request_data.billing_address,
+            billing_address: submit_evidence_request_data
+                .billing_address
+                .map(Secret::new),
             cancellation_policy: submit_evidence_request_data.cancellation_policy_provider_file_id,
             cancellation_policy_disclosure: submit_evidence_request_data
                 .cancellation_policy_disclosure,
             cancellation_rebuttal: submit_evidence_request_data.cancellation_rebuttal,
             customer_communication: submit_evidence_request_data
                 .customer_communication_provider_file_id,
-            customer_email_address: submit_evidence_request_data.customer_email_address,
-            customer_name: submit_evidence_request_data.customer_name,
-            customer_purchase_ip: submit_evidence_request_data.customer_purchase_ip,
-            customer_signature: submit_evidence_request_data.customer_signature_provider_file_id,
+            customer_email_address: submit_evidence_request_data
+                .customer_email_address
+                .map(Secret::new),
+            customer_name: submit_evidence_request_data.customer_name.map(Secret::new),
+            customer_purchase_ip: submit_evidence_request_data
+                .customer_purchase_ip
+                .map(Secret::new),
+            customer_signature: submit_evidence_request_data
+                .customer_signature_provider_file_id
+                .map(Secret::new),
             product_description: submit_evidence_request_data.product_description,
-            receipt: submit_evidence_request_data.receipt_provider_file_id,
+            receipt: submit_evidence_request_data
+                .receipt_provider_file_id
+                .map(Secret::new),
             refund_policy: submit_evidence_request_data.refund_policy_provider_file_id,
             refund_policy_disclosure: submit_evidence_request_data.refund_policy_disclosure,
             refund_refusal_explanation: submit_evidence_request_data.refund_refusal_explanation,
             service_date: submit_evidence_request_data.service_date,
             service_documentation: submit_evidence_request_data
                 .service_documentation_provider_file_id,
-            shipping_address: submit_evidence_request_data.shipping_address,
+            shipping_address: submit_evidence_request_data
+                .shipping_address
+                .map(Secret::new),
             shipping_carrier: submit_evidence_request_data.shipping_carrier,
             shipping_date: submit_evidence_request_data.shipping_date,
             shipping_documentation: submit_evidence_request_data
-                .shipping_documentation_provider_file_id,
-            shipping_tracking_number: submit_evidence_request_data.shipping_tracking_number,
+                .shipping_documentation_provider_file_id
+                .map(Secret::new),
+            shipping_tracking_number: submit_evidence_request_data
+                .shipping_tracking_number
+                .map(Secret::new),
             uncategorized_file: submit_evidence_request_data.uncategorized_file_provider_file_id,
             uncategorized_text: submit_evidence_request_data.uncategorized_text,
             submit: true,

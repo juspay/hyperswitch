@@ -3431,6 +3431,19 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub sdk_information: Option<SDKInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
     pub device_channel: DeviceChannel,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: ThreeDSCompInd,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Default)]
+pub enum ThreeDSCompInd {
+    /// 3DS method successfully completed
+    Y,
+    /// 3DS method was not successful
+    N,
+    /// 3DS method URL was unavailable
+    #[default]
+    U,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
@@ -3489,7 +3502,7 @@ pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the trans status
     pub trans_status: TransStatus,
     /// ACS URL to be used for challenge submission
-    pub acs_url: Option<Url>,
+    pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
     /// Unique identifier assigned by the EMVCo

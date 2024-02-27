@@ -112,7 +112,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
-        if let Some(common_enums::PaymentSource::Webhook) = payment_confirm_source {
+        if [
+            Some(common_enums::PaymentSource::Webhook),
+            Some(common_enums::PaymentSource::ExternalAuthenticator),
+        ]
+        .contains(&payment_confirm_source)
+        {
             helpers::validate_payment_status_against_not_allowed_statuses(
                 &payment_intent.status,
                 &[

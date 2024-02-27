@@ -84,9 +84,11 @@ pub async fn make_payout_method_data<'a>(
                 .attach_printable("failed to deserialize hyperswitch token data")?;
 
             let payment_token = match payment_token_data {
-                storage::PaymentTokenData::PermanentCard(storage::CardTokenData { token }) => {
-                    Some(token)
-                }
+                storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
+                    locker_id,
+                    token,
+                    ..
+                }) => locker_id.or(Some(token)),
                 storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
                     token,
                 }) => Some(token),
@@ -370,11 +372,13 @@ pub async fn save_payout_data_to_locker(
         card_network: None,
     };
 
+    let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
     cards::create_payment_method(
         db,
         &payment_method,
         &payout_attempt.customer_id,
-        &stored_resp.card_reference,
+        &payment_method_id,
+        Some(stored_resp.card_reference),
         &merchant_account.merchant_id,
         None,
         card_details_encrypted,

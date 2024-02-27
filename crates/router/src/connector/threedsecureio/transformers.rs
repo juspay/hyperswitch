@@ -1,4 +1,4 @@
-use api_models::payments::{DeviceChannel, SDKEphemPubKey};
+use api_models::payments::{DeviceChannel, SDKEphemPubKey, ThreeDSCompInd};
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
@@ -418,17 +418,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
                 .into_report()
                 .attach_printable("missing return_url")?,
-            three_dscomp_ind: if request
-                .authentication_data
-                .0
-                .three_ds_method_data
-                .three_ds_method_url
-                .is_some()
-            {
-                "Y".to_string()
-            } else {
-                "U".to_string()
-            },
+            three_dscomp_ind: request.threeds_method_comp_ind.clone(),
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
             acquirer_bin: acquirer_details.acquirer_bin,
             acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
@@ -614,7 +604,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub three_dsserver_trans_id: String,
     pub acct_number: cards::CardNumber,
     pub notification_url: String,
-    pub three_dscomp_ind: String,
+    pub three_dscomp_ind: ThreeDSCompInd,
     pub three_dsrequestor_url: String,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,

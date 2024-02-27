@@ -1206,6 +1206,7 @@ pub async fn payments_incremental_authorization(
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/3ds/authentication",
+    request_body=PaymentsExternalAuthenticationRequest,
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
