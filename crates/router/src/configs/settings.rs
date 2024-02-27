@@ -130,6 +130,7 @@ pub struct Settings {
     pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
+    #[cfg(feature = "olap")]
     pub opensearch_config: OpensearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]

@@ -256,20 +256,28 @@ pub struct GetApiEventMetricRequest {
 pub struct GetGlobalSearchRequest {
     pub query: String,
     #[serde(default)]
-    pub filters: search::SearchFilters,
+    pub filters: Option<search::SearchFilters>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSearchRequest {
-    pub offset: u64,
-    pub count: u64,
+    pub offset: i64,
+    pub count: i64,
     pub query: String,
     #[serde(default)]
-    pub filters: search::SearchFilters,
+    pub filters: Option<search::SearchFilters>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSearchRequestWithIndex {
+    pub index: SearchIndex,
+    pub search_req: GetSearchRequest,
 }
 
 #[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SearchIndex {
     PaymentAttempts,
     PaymentIntents,

@@ -99,6 +99,7 @@ impl_misc_api_event_type!(
     GetGlobalSearchRequest,
     GetSearchRequest,
     GetSearchResponse,
+    GetSearchRequestWithIndex,
     GetDisputeFilterRequest,
     DisputeFiltersResponse
 );

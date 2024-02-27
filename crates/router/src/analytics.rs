@@ -11,7 +11,8 @@ pub mod routes {
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
         GetGlobalSearchRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, GetSearchRequest, ReportRequest, SearchIndex,
+        GetSdkEventMetricRequest, GetSearchRequest, GetSearchRequestWithIndex, ReportRequest,
+        SearchIndex,
     };
     use error_stack::ResultExt;
     use router_env::AnalyticsFlow;
@@ -627,18 +628,20 @@ pub mod routes {
         index: actix_web::web::Path<SearchIndex>,
     ) -> impl Responder {
         let flow = AnalyticsFlow::GetSearchResults;
-        // let search_index = index.clone();
+        let indexed_req = GetSearchRequestWithIndex {
+            search_req: json_payload.into_inner(),
+            index: index.into_inner(),
+        };
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
-            json_payload.into_inner(),
+            indexed_req,
             |state, auth: AuthenticationData, req| async move {
                 analytics::search::search_results(
                     req,
                     &auth.merchant_account.merchant_id,
                     &state.conf.opensearch_config.host,
-                    SearchIndex::PaymentAttempts,
                 )
                 .await
                 .map(ApplicationResponse::Json)

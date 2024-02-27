@@ -1,9 +1,15 @@
 use api_models::analytics::{
-    GetGlobalSearchRequest, GetSearchRequest, GetSearchResponse, SearchIndex,
+    GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, SearchIndex,
 };
 use common_utils::errors::CustomResult;
-use opensearch::http::transport::Transport;
-use opensearch::{http::request::JsonBody, MsearchParts, OpenSearch, SearchParts};
+use opensearch::auth::Credentials;
+use opensearch::http::transport::SingleNodeConnectionPool;
+// use opensearch::http::transport::Transport;
+use opensearch::http::transport::TransportBuilder;
+use opensearch::http::Url;
+use opensearch::{
+    cert::CertificateValidation, http::request::JsonBody, MsearchParts, OpenSearch, SearchParts,
+};
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
@@ -46,7 +52,13 @@ struct OpensearchHits<T> {
 }
 
 async fn get_opensearch_client(url: String) -> Result<OpenSearch, OpensearchError> {
-    let transport = Transport::single_node(&url).map_err(|_| OpensearchError::ConnectionError)?;
+    let url = Url::parse(&url).map_err(|_| OpensearchError::ConnectionError)?;
+    let credentials = Credentials::Basic("admin".into(), "admin".into());
+    let transport = TransportBuilder::new(SingleNodeConnectionPool::new(url))
+        .cert_validation(CertificateValidation::None)
+        .auth(credentials)
+        .build()
+        .map_err(|_| OpensearchError::ConnectionError)?;
     Ok(OpenSearch::new(transport))
 }
 
@@ -55,9 +67,13 @@ pub async fn msearch_results(
     merchant_id: &String,
     url: &String,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    let client = get_opensearch_client(url.to_owned())
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    print!("{} hosthere", url);
+    print!("{}", "hostabove".to_string());
+    let client = get_opensearch_client(url.to_owned()).await.map_err(|er| {
+        let er_rep = format!("{er:?}");
+        print!("{}", er_rep);
+        AnalyticsError::UnknownError
+    })?;
 
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
@@ -72,11 +88,12 @@ pub async fn msearch_results(
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
+    println!("{:?}", response);
     let response_body = response
         .json::<OpenMsearchOutput<Value>>()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
-
+    println!("{:?}", response_body);
     Ok(response_body
         .responses
         .into_iter()
@@ -95,18 +112,20 @@ pub async fn msearch_results(
 }
 
 pub async fn search_results(
-    req: GetSearchRequest,
+    req: GetSearchRequestWithIndex,
     merchant_id: &String,
     url: &String,
-    index: SearchIndex,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
+    let search_req = req.search_req;
     let client = get_opensearch_client(url.to_owned())
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
     let response = client
-        .search(SearchParts::Index(&[&index.to_string()]))
-        .body(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
+        .search(SearchParts::Index(&[&req.index.to_string()]))
+        .from(search_req.offset)
+        .size(search_req.count)
+        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
         .send()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
@@ -118,7 +137,7 @@ pub async fn search_results(
 
     Ok(GetSearchResponse {
         count: response_body.hits.total.value,
-        index: index,
+        index: req.index,
         hits: response_body
             .hits
             .hits
