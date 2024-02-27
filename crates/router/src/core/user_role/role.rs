@@ -86,22 +86,25 @@ pub async fn create_role(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn list_invitable_roles(
+// TODO: To be deprecated once groups are stable
+pub async fn list_invitable_roles_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
 ) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
-        .map(|(role_id, role_info)| role_api::RoleInfoResponse {
-            permissions: role_info
-                .get_permissions_set()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            role_id: role_id.to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            role_scope: role_info.get_scope(),
+        .map(|(role_id, role_info)| {
+            role_api::RoleInfoResponse::Permissions(role_api::RoleInfoWithPermissionsResponse {
+                permissions: role_info
+                    .get_permissions_set()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+                role_id: role_id.to_string(),
+                role_name: role_info.get_role_name().to_string(),
+                role_scope: role_info.get_scope(),
+            })
         });
 
     let custom_roles_map = state
@@ -110,17 +113,22 @@ pub async fn list_invitable_roles(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .map(roles::RoleInfo::from)
-        .filter(|role_info| role_info.is_invitable())
-        .map(|role_info| role_api::RoleInfoResponse {
-            permissions: role_info
-                .get_permissions_set()
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-            role_id: role_info.get_role_id().to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            role_scope: role_info.get_scope(),
+        .filter_map(|role| {
+            let role_info = roles::RoleInfo::from(role);
+            role_info
+                .is_invitable()
+                .then_some(role_api::RoleInfoResponse::Permissions(
+                    role_api::RoleInfoWithPermissionsResponse {
+                        permissions: role_info
+                            .get_permissions_set()
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                        role_id: role_info.get_role_id().to_string(),
+                        role_name: role_info.get_role_name().to_string(),
+                        role_scope: role_info.get_scope(),
+                    },
+                ))
         });
 
     Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
@@ -128,12 +136,54 @@ pub async fn list_invitable_roles(
     )))
 }
 
-pub async fn get_role(
+pub async fn list_invitable_roles_with_groups(
+    state: AppState,
+    user_from_token: UserFromToken,
+) -> UserResponse<role_api::ListRolesResponse> {
+    let predefined_roles_map = PREDEFINED_ROLES
+        .iter()
+        .filter(|(_, role_info)| role_info.is_invitable())
+        .map(|(role_id, role_info)| {
+            role_api::RoleInfoResponse::Groups(role_api::RoleInfoWithGroupsResponse {
+                groups: role_info.get_permission_groups().to_vec(),
+                role_id: role_id.to_string(),
+                role_name: role_info.get_role_name().to_string(),
+                role_scope: role_info.get_scope(),
+            })
+        });
+
+    let custom_roles_map = state
+        .store
+        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter_map(|role| {
+            let role_info = roles::RoleInfo::from(role);
+            role_info
+                .is_invitable()
+                .then_some(role_api::RoleInfoResponse::Groups(
+                    role_api::RoleInfoWithGroupsResponse {
+                        groups: role_info.get_permission_groups().to_vec(),
+                        role_id: role_info.get_role_id().to_string(),
+                        role_name: role_info.get_role_name().to_string(),
+                        role_scope: role_info.get_scope(),
+                    },
+                ))
+        });
+
+    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
+        predefined_roles_map.chain(custom_roles_map).collect(),
+    )))
+}
+
+// TODO: To be deprecated once groups are stable
+pub async fn get_role_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoResponse> {
-    let role_info = roles::get_role_info_from_role_id(
+    let role_info = roles::RoleInfo::from_role_id(
         &state,
         &role.role_id,
         &user_from_token.merchant_id,
@@ -152,12 +202,42 @@ pub async fn get_role(
         .map(Into::into)
         .collect();
 
-    Ok(ApplicationResponse::Json(role_api::RoleInfoResponse {
-        permissions,
-        role_id: role.role_id,
-        role_name: role_info.get_role_name().to_string(),
-        role_scope: role_info.get_scope(),
-    }))
+    Ok(ApplicationResponse::Json(
+        role_api::RoleInfoResponse::Permissions(role_api::RoleInfoWithPermissionsResponse {
+            permissions,
+            role_id: role.role_id,
+            role_name: role_info.get_role_name().to_string(),
+            role_scope: role_info.get_scope(),
+        }),
+    ))
+}
+
+pub async fn get_role_with_groups(
+    state: AppState,
+    user_from_token: UserFromToken,
+    role: role_api::GetRoleRequest,
+) -> UserResponse<role_api::RoleInfoResponse> {
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    if role_info.is_internal() {
+        return Err(UserErrors::InvalidRoleId.into());
+    }
+
+    Ok(ApplicationResponse::Json(
+        role_api::RoleInfoResponse::Groups(role_api::RoleInfoWithGroupsResponse {
+            groups: role_info.get_permission_groups().to_vec(),
+            role_id: role.role_id,
+            role_name: role_info.get_role_name().to_string(),
+            role_scope: role_info.get_scope(),
+        }),
+    ))
 }
 
 pub async fn update_role(
@@ -182,7 +262,7 @@ pub async fn update_role(
         .await?;
     }
 
-    let role_info = roles::get_role_info_from_role_id(
+    let role_info = roles::RoleInfo::from_role_id(
         &state,
         role_id,
         &user_from_token.merchant_id,
