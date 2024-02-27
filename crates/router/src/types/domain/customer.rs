@@ -31,22 +31,22 @@ impl super::behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: __self.id.ok_or(ValidationError::MissingRequiredField {
+            id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
-            customer_id: __self.customer_id,
-            merchant_id: __self.merchant_id,
-            name: __self.name.map(|value| value.into()),
-            email: __self.email.map(|value| value.into()),
-            phone: __self.phone.map(Encryption::from),
-            phone_country_code: __self.phone_country_code,
-            description: __self.description,
-            created_at: __self.created_at,
-            metadata: __self.metadata,
-            modified_at: __self.modified_at,
-            connector_customer: __self.connector_customer,
-            address_id: __self.address_id,
-            default_payment_method: __self.default_payment_method,
+            customer_id: self.customer_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(|value| value.into()),
+            email: self.email.map(|value| value.into()),
+            phone: self.phone.map(Encryption::from),
+            phone_country_code: self.phone_country_code,
+            description: self.description,
+            created_at: self.created_at,
+            metadata: self.metadata,
+            modified_at: self.modified_at,
+            connector_customer: self.connector_customer,
+            address_id: self.address_id,
+            default_payment_method: self.default_payment_method,
         })
     }
 
