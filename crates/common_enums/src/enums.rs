@@ -2246,6 +2246,7 @@ pub enum RoleScope {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
