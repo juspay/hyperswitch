@@ -24,7 +24,10 @@ optin = "optin" # Boku preflow name
 optin_id = "optin_id" # Boku's id for optin flow
 deriver = "deriver"
 Deriver = "Deriver"
-requestor_card_reference = "requestor_card_reference" 
+requestor_card_reference = "requestor_card_reference"
+three_ds_requestor_url = "three_ds_requestor_url"
+requestor = "requestor"
+Requestor = "Requestor"
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
