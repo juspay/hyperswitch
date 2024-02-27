@@ -597,7 +597,7 @@ impl<F>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone()).encode_to_value()
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -620,7 +620,10 @@ impl<F>
                             redirection_data,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -680,7 +683,7 @@ impl<F>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone()).encode_to_value()
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -703,7 +706,10 @@ impl<F>
                             redirection_data,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
