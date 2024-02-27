@@ -1,6 +1,6 @@
 use api_models::payments;
 use error_stack::report;
-use masking::{Secret, ExposeInterface};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
