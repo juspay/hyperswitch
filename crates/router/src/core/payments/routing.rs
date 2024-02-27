@@ -818,6 +818,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         profile_id.clone(),
     )
     .await?;
+
     let fallback_selection = perform_fallback_routing(
         state,
         key_store,
@@ -828,6 +829,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         profile_id,
     )
     .await;
+
     final_selection.append(
         &mut fallback_selection
             .unwrap_or_default()
