@@ -64,21 +64,23 @@ impl DBOperation {
         Ok(match self {
             Self::Insert { insertable } => match insertable {
                 Insertable::PaymentIntent(a) => {
-                    DBResult::PaymentIntent(Box::new(a.insert(conn).await?))
+                    DBResult::PaymentIntent(Box::new(a.insert_payment_intent(conn).await?))
                 }
                 Insertable::PaymentAttempt(a) => {
-                    DBResult::PaymentAttempt(Box::new(a.insert(conn).await?))
+                    DBResult::PaymentAttempt(Box::new(a.insert_payment_attempt(conn).await?))
                 }
                 Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
-                Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert_address(conn).await?)),
+                Insertable::Address(addr) => {
+                    DBResult::Address(Box::new(addr.insert_address(conn).await?))
+                }
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }
             },
             Self::Update { updatable } => match updatable {
-                Updateable::PaymentIntentUpdate(a) => {
-                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
+                Updateable::PaymentIntentUpdate(a) => DBResult::PaymentIntent(Box::new(
+                    a.orig.update_payment_intent(conn, a.update_data).await?,
+                )),
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),

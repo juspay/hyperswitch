@@ -34,6 +34,7 @@ pub trait CaptureInterface {
 mod storage {
     use error_stack::IntoReport;
     use router_env::{instrument, tracing};
+
     use super::CaptureInterface;
     use crate::{
         connection,

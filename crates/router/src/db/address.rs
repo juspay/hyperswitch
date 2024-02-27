@@ -1,6 +1,5 @@
 use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -216,7 +215,7 @@ mod storage {
                 })
                 .await
         }
-        
+
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,

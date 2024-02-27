@@ -22,7 +22,10 @@ use crate::{
 
 impl PaymentAttemptNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
+    pub async fn insert_payment_attempt(
+        self,
+        conn: &PgPooledConn,
+    ) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self.populate_derived_fields()).await
     }
 }
@@ -88,6 +91,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[instrument(skip(conn))]
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -120,6 +124,7 @@ impl PaymentAttempt {
         )
     }
 
+    #[instrument(skip(conn))]
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -242,6 +247,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[instrument(skip(conn))]
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
@@ -344,6 +350,7 @@ impl PaymentAttempt {
             filter_authentication_type,
         ))
     }
+    #[instrument(skip(conn))]
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
         merchant_id: &str,

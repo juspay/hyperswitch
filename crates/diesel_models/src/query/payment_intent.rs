@@ -13,14 +13,14 @@ use crate::{
 
 impl PaymentIntentNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
+    pub async fn insert_payment_intent(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl PaymentIntent {
     #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_payment_intent(
         self,
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,

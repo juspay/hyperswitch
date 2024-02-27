@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl AuthorizationNew {
-    pub async fn insert_authorization(self, conn: &PgPooledConn) -> StorageResult<Authorization> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authorization> {
         generics::generic_insert(conn, self).await
     }
 }

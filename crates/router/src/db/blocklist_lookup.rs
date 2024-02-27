@@ -39,7 +39,7 @@ impl BlocklistLookupInterface for Store {
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         blocklist_lookup_entry
-            .insert_blocklist_lookup(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()

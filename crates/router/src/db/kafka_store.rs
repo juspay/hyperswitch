@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use router_env::{instrument, tracing};
+
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::errors::CustomResult;
 use data_models::payments::{

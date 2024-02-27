@@ -8,7 +8,7 @@ use crate::{
 };
 
 impl BlocklistNew {
-    pub async fn insert_blocklist(self, conn: &PgPooledConn) -> StorageResult<Blocklist> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Blocklist> {
         generics::generic_insert(conn, self).await
     }
 }

@@ -7,7 +7,7 @@ use crate::{errors, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResul
 
 impl MandateNew {
     #[instrument(skip(conn))]
-    pub async fn insert_mandate(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
         generics::generic_insert(conn, self).await
     }
 }

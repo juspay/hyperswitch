@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl ConfigNew {
-    pub async fn insert_config(self, conn: &PgPooledConn) -> StorageResult<Config> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Config> {
         generics::generic_insert(conn, self).await
     }
 }

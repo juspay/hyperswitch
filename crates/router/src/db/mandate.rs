@@ -119,13 +119,14 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         mandate
-            .insert_mandate(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()

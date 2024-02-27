@@ -1,5 +1,6 @@
 use diesel_models::routing_algorithm as routing_storage;
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
 
 use crate::{
@@ -52,6 +53,7 @@ pub trait RoutingAlgorithmInterface {
 
 #[async_trait::async_trait]
 impl RoutingAlgorithmInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_routing_algorithm(
         &self,
         routing_algorithm: routing_storage::RoutingAlgorithm,
@@ -64,6 +66,7 @@ impl RoutingAlgorithmInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &str,
@@ -80,6 +83,7 @@ impl RoutingAlgorithmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
         algorithm_id: &str,
@@ -96,6 +100,7 @@ impl RoutingAlgorithmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         algorithm_id: &str,
@@ -112,6 +117,7 @@ impl RoutingAlgorithmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
         profile_id: &str,
@@ -127,6 +133,7 @@ impl RoutingAlgorithmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         merchant_id: &str,

@@ -39,7 +39,7 @@ impl AuthorizationInterface for Store {
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         authorization
-            .insert_authorization(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()

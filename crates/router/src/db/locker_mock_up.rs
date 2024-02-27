@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -27,6 +28,7 @@ pub trait LockerMockUpInterface {
 
 #[async_trait::async_trait]
 impl LockerMockUpInterface for Store {
+    #[instrument(skip_all)]
     async fn find_locker_by_card_id(
         &self,
         card_id: &str,
@@ -38,14 +40,16 @@ impl LockerMockUpInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn insert_locker_mock_up(
         &self,
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert_locker_mock_up(&conn).await.map_err(Into::into).into_report()
+        new.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_locker_mock_up(
         &self,
         card_id: &str,

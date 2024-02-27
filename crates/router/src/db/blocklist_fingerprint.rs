@@ -33,7 +33,7 @@ impl BlocklistFingerprintInterface for Store {
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         pm_fingerprint_new
-            .insert_blocklist_fingerprint(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
@@ -59,7 +59,6 @@ impl BlocklistFingerprintInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for MockDb {
-
     async fn insert_blocklist_fingerprint_entry(
         &self,
         _pm_fingerprint_new: storage::BlocklistFingerprintNew,

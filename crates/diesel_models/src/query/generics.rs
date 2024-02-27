@@ -101,7 +101,6 @@ where
     .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
 }
 
-
 pub async fn generic_update<T, V, P>(
     conn: &PgPooledConn,
     predicate: P,

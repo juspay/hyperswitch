@@ -323,7 +323,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         new.to_storage_model()
-            .insert(&conn)
+            .insert_payment_intent(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
@@ -340,7 +340,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         this.to_storage_model()
-            .update(&conn, payment_intent.to_storage_model())
+            .update_payment_intent(&conn, payment_intent.to_storage_model())
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());

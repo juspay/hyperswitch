@@ -47,7 +47,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         payment_attempt
             .to_storage_model()
-            .insert(&conn)
+            .insert_payment_attempt(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());

@@ -52,7 +52,7 @@ impl BlocklistInterface for Store {
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         pm_blocklist
-            .insert_blocklist(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()

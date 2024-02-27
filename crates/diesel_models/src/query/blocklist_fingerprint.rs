@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
 };
 
 impl BlocklistFingerprintNew {
-    pub async fn insert_blocklist_fingerprint(self, conn: &PgPooledConn) -> StorageResult<BlocklistFingerprint> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BlocklistFingerprint> {
         generics::generic_insert(conn, self).await
     }
 }
