@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub mod api_logs;
+pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod outgoing_webhook_logs;
@@ -24,6 +25,7 @@ pub enum EventType {
     ConnectorApiLogs,
     OutgoingWebhookLogs,
     Dispute,
+    AuditEvent,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

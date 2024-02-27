@@ -92,6 +92,7 @@ pub struct KafkaSettings {
     connector_logs_topic: String,
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
+    audit_events_topic: String,
 }
 
 impl KafkaSettings {
@@ -151,6 +152,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.audit_events_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Audit Events topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -165,6 +172,7 @@ pub struct KafkaProducer {
     connector_logs_topic: String,
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
+    audit_events_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -204,6 +212,7 @@ impl KafkaProducer {
             connector_logs_topic: conf.connector_logs_topic.clone(),
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
+            audit_events_topic: conf.audit_events_topic.clone(),
         })
     }
 
@@ -217,6 +226,7 @@ impl KafkaProducer {
             EventType::ConnectorApiLogs => &self.connector_logs_topic,
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
+            EventType::AuditEvent => &self.audit_events_topic,
         };
         self.producer
             .0
