@@ -1,5 +1,3 @@
-pm.environment.set("random_number", _.random(100, 100000));
-
 // Validate status 2xx 
 pm.test("[POST]::/payments - Status code is 2xx", function () {
    pm.response.to.be.success;

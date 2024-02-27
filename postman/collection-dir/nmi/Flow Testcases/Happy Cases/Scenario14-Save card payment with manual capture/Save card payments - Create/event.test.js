@@ -1,4 +1,3 @@
-pm.environment.set("random_number", _.random(100, 100000));
 // Set the environment variable 'amount' with the value from the response
 pm.environment.set("amount", pm.response.json().amount);
 
