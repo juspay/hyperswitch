@@ -279,7 +279,7 @@ pub async fn payment_intents_confirm(
         }
     };
 
-    tracing::Span::current().record("payment_id", &stripe_payload.id.as_ref());
+    tracing::Span::current().record("payment_id", stripe_payload.id.as_ref());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
