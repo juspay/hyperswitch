@@ -95,15 +95,15 @@ pub struct MerchantAccountCreate {
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 
-    /// External 3DS Authentication Details
+    /// External 3DS authentication details
     pub authentication_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationDetails {
-    /// List of Authentication Connectors
+    /// List of authentication connectors
     pub authentication_connectors: Vec<String>,
-    /// Three DS Requestor URL
+    /// ThreeDS requestor url
     pub three_ds_requestor_url: String,
 }
 
@@ -188,7 +188,7 @@ pub struct MerchantAccountUpdate {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
-    // External 3DS Authentication Details
+    // External 3DS authentication details
     pub authentication_details: Option<AuthenticationDetails>,
 }
 
@@ -282,7 +282,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
 
-    // External 3DS Authentication Details
+    // External 3DS authentication details
     pub authentication_details: Option<serde_json::Value>,
 }
 

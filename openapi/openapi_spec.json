@@ -4676,11 +4676,11 @@
             "items": {
               "type": "string"
             },
-            "description": "List of Authentication Connectors"
+            "description": "List of authentication connectors"
           },
           "three_ds_requestor_url": {
             "type": "string",
-            "description": "Three DS Requestor URL"
+            "description": "ThreeDS requestor url"
           }
         }
       },
@@ -12623,7 +12623,7 @@
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
-            "description": "flag to request separate authentication",
+            "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
           }
@@ -13007,7 +13007,7 @@
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
-            "description": "flag to request separate authentication",
+            "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
           }
@@ -13424,7 +13424,7 @@
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
-            "description": "flag to request separate authentication",
+            "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
           }
@@ -13897,7 +13897,7 @@
           },
           "request_external_3ds_authentication": {
             "type": "boolean",
-            "description": "Flag indicating if external 3ds authentication request will be made or not",
+            "description": "Flag indicating if external 3ds authentication is made or not",
             "nullable": true
           },
           "expires_on": {
@@ -14403,7 +14403,7 @@
           },
           "request_external_three_ds_authentication": {
             "type": "boolean",
-            "description": "flag to request separate authentication",
+            "description": "Whether to perform external authentication (if applicable)",
             "example": true,
             "nullable": true
           }
@@ -16385,11 +16385,11 @@
         "properties": {
           "three_ds_authentication_url": {
             "type": "string",
-            "description": "Three DS Authentication URL"
+            "description": "ThreeDS authentication url - to initiate authentication"
           },
           "three_ds_authorize_url": {
             "type": "string",
-            "description": "Three DS Authorize URL"
+            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
           },
           "three_ds_method_details": {
             "$ref": "#/components/schemas/ThreeDsMethodData"
@@ -16405,15 +16405,15 @@
         "properties": {
           "three_ds_method_data_submission": {
             "type": "boolean",
-            "description": "Three DS Method Data Submission Required"
+            "description": "Whether ThreeDS method data submission is required"
           },
           "three_ds_method_data": {
             "type": "string",
-            "description": "Three DS Method Data"
+            "description": "ThreeDS method data"
           },
           "three_ds_method_url": {
             "type": "string",
-            "description": "Three DS Method URL",
+            "description": "ThreeDS method url",
             "nullable": true
           }
         }
