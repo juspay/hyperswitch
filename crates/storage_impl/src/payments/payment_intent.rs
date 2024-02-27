@@ -316,6 +316,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
@@ -323,7 +324,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         new.to_storage_model()
-            .insert_payment_intent(&conn)
+            .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
@@ -332,6 +333,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(PaymentIntent::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -340,7 +342,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         this.to_storage_model()
-            .update_payment_intent(&conn, payment_intent.to_storage_model())
+            .update(&conn, payment_intent.to_storage_model())
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(er.current_context());
@@ -366,6 +368,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })
     }
 
+    #[instrument(skip_all)]
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -394,6 +397,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
@@ -507,6 +511,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         merchant_id: &str,
@@ -520,6 +525,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn get_filtered_payment_intents_attempt(
         &self,
         merchant_id: &str,
@@ -660,6 +666,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &str,

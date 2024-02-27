@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -12,15 +11,13 @@ use crate::{
 };
 
 impl PaymentIntentNew {
-    #[instrument(skip(conn))]
-    pub async fn insert_payment_intent(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl PaymentIntent {
-    #[instrument(skip(conn))]
-    pub async fn update_payment_intent(
+    pub async fn update(
         self,
         conn: &PgPooledConn,
         payment_intent: PaymentIntentUpdate,
@@ -44,7 +41,6 @@ impl PaymentIntent {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -59,7 +55,6 @@ impl PaymentIntent {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,

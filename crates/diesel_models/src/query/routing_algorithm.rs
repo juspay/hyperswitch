@@ -226,7 +226,6 @@ impl RoutingAlgorithm {
             .collect())
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_metadata_by_merchant_id_transaction_type(
         conn: &PgPooledConn,
         merchant_id: &str,

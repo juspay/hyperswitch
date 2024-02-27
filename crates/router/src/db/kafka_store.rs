@@ -14,7 +14,7 @@ use diesel_models::{
 };
 use masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
-use router_env::{instrument, logger, tracing};
+use router_env::logger;
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
