@@ -3496,7 +3496,7 @@ pub struct PaymentsExternalAuthenticationResponse {
     /// Indicates the trans status
     pub trans_status: TransStatus,
     /// ACS URL to be used for challenge
-    pub acs_url: Option<Url>,
+    pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
     /// ACS Reference Number

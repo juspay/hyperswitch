@@ -2893,6 +2893,57 @@
         ]
       }
     },
+    "/payments/{payment_id}/3ds/authentication": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - External 3DS Authentication",
+        "description": "Payments - External 3DS Authentication\n\nExternal 3DS Authentication is performed and returns the AuthenticationResponse",
+        "operationId": "Initiate external authentication for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsExternalAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsExternalAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
@@ -7683,6 +7734,13 @@
         "enum": [
           "challenge",
           "frictionless"
+        ]
+      },
+      "DeviceChannel": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "BRW"
         ]
       },
       "DisputeResponse": {
@@ -13013,6 +13071,75 @@
           }
         }
       },
+      "PaymentsExternalAuthenticationRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SDKInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDSCompInd"
+          }
+        }
+      },
+      "PaymentsExternalAuthenticationResponse": {
+        "type": "object",
+        "required": [
+          "trans_status"
+        ],
+        "properties": {
+          "trans_status": {
+            "$ref": "#/components/schemas/TransStatus"
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "ACS URL to be used for challenge",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "ACS Reference Number",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "ACS Trans ID",
+            "nullable": true
+          },
+          "three_dsserver_trans_id": {
+            "type": "string",
+            "description": "Three DS Trans ID",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "ACS Signed Content",
+            "nullable": true
+          }
+        }
+      },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
         "required": [
@@ -15933,6 +16060,60 @@
           }
         }
       },
+      "SDKEphemPubKey": {
+        "type": "object",
+        "required": [
+          "kty",
+          "y",
+          "x",
+          "crv"
+        ],
+        "properties": {
+          "kty": {
+            "type": "string"
+          },
+          "y": {
+            "type": "string"
+          },
+          "x": {
+            "type": "string"
+          },
+          "crv": {
+            "type": "string"
+          }
+        }
+      },
+      "SDKInformation": {
+        "type": "object",
+        "required": [
+          "sdk_app_id",
+          "sdk_enc_data",
+          "sdk_ephem_pub_key",
+          "sdk_trans_id",
+          "sdk_reference_number",
+          "sdk_max_timeout"
+        ],
+        "properties": {
+          "sdk_app_id": {
+            "type": "string"
+          },
+          "sdk_enc_data": {
+            "type": "string"
+          },
+          "sdk_ephem_pub_key": {
+            "$ref": "#/components/schemas/SDKEphemPubKey"
+          },
+          "sdk_trans_id": {
+            "type": "string"
+          },
+          "sdk_reference_number": {
+            "type": "string"
+          },
+          "sdk_max_timeout": {
+            "type": "string"
+          }
+        }
+      },
       "SamsungPayWalletData": {
         "type": "object",
         "required": [
@@ -16375,6 +16556,14 @@
           }
         }
       },
+      "ThreeDSCompInd": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U"
+        ]
+      },
       "ThreeDsData": {
         "type": "object",
         "required": [
@@ -16450,6 +16639,19 @@
       },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransStatus": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U",
+          "A",
+          "R",
+          "C",
+          "D",
+          "I"
+        ]
       },
       "TransactionType": {
         "type": "string",
