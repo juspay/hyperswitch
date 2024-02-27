@@ -212,8 +212,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
             .parse_struct("AuthorizedotnetPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -353,7 +355,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         let connector_req =
             authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -400,8 +401,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: authorizedotnet::AuthorizedotnetPaymentsResponse = intermediate_response
             .parse_struct("AuthorizedotnetPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
