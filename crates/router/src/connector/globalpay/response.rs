@@ -55,9 +55,9 @@ pub struct GlobalpayPaymentsResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Action {
     /// The id of the app that was used to create the token.
-    pub app_id: Option<String>,
+    pub app_id: Option<Secret<String>>,
     /// The name of the app the user gave to the application.
-    pub app_name: Option<String>,
+    pub app_name: Option<Secret<String>>,
     /// A unique identifier for the object created by Global Payments. The first 3 characters
     /// identifies the resource an id relates to.
     pub id: Option<Secret<String>>,
