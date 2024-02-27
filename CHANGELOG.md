@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.26.0-hotfix1
+
+### Features
+
+- **connector:** [Payme] Add Void flow to Payme ([#3839](https://github.com/juspay/hyperswitch/pull/3839)) ([`f60d989`](https://github.com/juspay/hyperswitch/commit/f60d9899f17c8064ce49b63760493a894c64f474))
+
+- - -
+
 ## 2024.02.26.0
 
 ### Features
