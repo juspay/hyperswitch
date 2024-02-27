@@ -202,7 +202,7 @@ function boot() {
       "amount": (paymentDetails.amount - charges).toFixed(2),
       "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
       "product_name": "Miscellaneous charges\n" +
-                      "(includes taxes, shipping, etc.)",
+                      "(includes taxes, shipping, discounts, offers etc.)",
       "quantity": null
     });
   }
