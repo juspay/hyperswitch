@@ -135,8 +135,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ))
                     .await;
 
-
-
                     if let Err(err) = result {
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
                     }
