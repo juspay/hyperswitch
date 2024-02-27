@@ -11,7 +11,9 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
+use std::{
+    collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
+};
 
 use api_models::{self, enums, payments::HeaderPayload};
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
@@ -53,6 +55,7 @@ use crate::{
         utils,
     },
     db::StorageInterface,
+    events::audit_events::AuditEventType,
     logger,
     routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     services::{self, api::Authenticate},
@@ -2073,6 +2076,18 @@ where
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub frm_metadata: Option<serde_json::Value>,
+    pub changes: HashMap<String, String>,
+}
+
+impl<F> PaymentData<F>
+where
+    F: Clone,
+{
+    pub fn get_audit_event(&self) -> AuditEventType {
+        AuditEventType::PaymentUpdate {
+            data: self.changes.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -433,6 +433,7 @@ async fn get_tracker_for_sync<
         incremental_authorization_details: None,
         authorizations,
         frm_metadata: None,
+        changes: HashMap::new(),
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

@@ -151,6 +151,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             }),
             authorizations: vec![],
             frm_metadata: None,
+            changes: std::collections::HashMap::new(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -255,6 +255,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: None,
+            changes: std::collections::HashMap::new(),
         };
 
         let customer_details = Some(CustomerDetails {
