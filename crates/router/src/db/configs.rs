@@ -51,7 +51,10 @@ pub trait ConfigInterface {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError>;
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -154,7 +157,10 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let deleted = storage::Config::delete_by_key(&conn, key)
             .await
@@ -226,15 +232,15 @@ impl ConfigInterface for MockDb {
         result
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         let mut configs = self.configs.lock().await;
         let result = configs
             .iter()
             .position(|c| c.key == key)
-            .map(|index| {
-                configs.remove(index);
-                true
-            })
+            .map(|index| configs.remove(index))
             .ok_or_else(|| {
                 errors::StorageError::ValueNotFound("cannot find config to delete".to_string())
                     .into()

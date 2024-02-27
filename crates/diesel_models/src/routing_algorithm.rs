@@ -15,6 +15,7 @@ pub struct RoutingAlgorithm {
     pub algorithm_data: serde_json::Value,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub algorithm_for: enums::TransactionType,
 }
 
 pub struct RoutingAlgorithmMetadata {
@@ -24,6 +25,7 @@ pub struct RoutingAlgorithmMetadata {
     pub kind: enums::RoutingAlgorithmKind,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub algorithm_for: enums::TransactionType,
 }
 
 pub struct RoutingProfileMetadata {
@@ -34,4 +36,5 @@ pub struct RoutingProfileMetadata {
     pub kind: enums::RoutingAlgorithmKind,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub algorithm_for: enums::TransactionType,
 }
