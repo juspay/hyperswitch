@@ -10,14 +10,12 @@ use crate::{
 };
 
 impl DisputeNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Dispute> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Dispute {
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -70,8 +68,7 @@ impl Dispute {
         .await
     }
 
-    #[instrument(skip(conn))]
-    pub async fn update(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
+    pub async fn update_dispute(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,

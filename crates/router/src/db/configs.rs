@@ -65,9 +65,10 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        config.insert(&conn).await.map_err(Into::into).into_report()
+        config.insert_config(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_config_in_database(
         &self,
         key: &str,
@@ -81,6 +82,7 @@ impl ConfigInterface for Store {
     }
 
     //update in DB and remove in redis and cache
+    #[instrument(skip_all)]
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -92,6 +94,7 @@ impl ConfigInterface for Store {
         .await
     }
 
+    #[instrument(skip_all)]
     async fn find_config_by_key_from_db(
         &self,
         key: &str,
@@ -104,6 +107,7 @@ impl ConfigInterface for Store {
     }
 
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
+    #[instrument(skip_all)]
     async fn find_config_by_key(
         &self,
         key: &str,
@@ -118,6 +122,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
+    #[instrument(skip_all)]
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
@@ -141,7 +146,7 @@ impl ConfigInterface for Store {
                                     key: key.to_string(),
                                     config: c,
                                 }
-                                .insert(&conn)
+                                .insert_config(&conn)
                                 .await
                                 .map_err(Into::into)
                                 .into_report()
@@ -157,6 +162,7 @@ impl ConfigInterface for Store {
         cache::get_or_populate_in_memory(self, key, find_else_unwrap_or, &CONFIG_CACHE).await
     }
 
+    #[instrument(skip_all)]
     async fn delete_config_by_key(
         &self,
         key: &str,

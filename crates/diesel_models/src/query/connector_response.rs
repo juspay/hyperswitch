@@ -15,7 +15,7 @@ use crate::{
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
+    pub async fn insert_connector_response(self, conn: &PgPooledConn) -> StorageResult<ConnectorResponse> {
         let payment_attempt_update = PaymentAttemptUpdate::ConnectorResponse {
             authentication_data: self.authentication_data.clone(),
             encoded_data: self.encoded_data.clone(),
@@ -52,7 +52,7 @@ impl ConnectorResponseNew {
 
 impl ConnectorResponse {
     #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_connector_response(
         self,
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,

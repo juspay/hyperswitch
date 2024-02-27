@@ -10,14 +10,12 @@ use crate::{
 };
 
 impl AddressNew {
-    #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
+    pub async fn insert_address(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Address {
-    #[instrument(skip(conn))]
     pub async fn find_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,
@@ -26,7 +24,6 @@ impl Address {
             .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
@@ -56,8 +53,7 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_address(
         self,
         conn: &PgPooledConn,
         address_update_internal: AddressUpdateInternal,
@@ -82,7 +78,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
@@ -110,7 +105,6 @@ impl Address {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -140,7 +134,6 @@ impl Address {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_address_id<'a>(
         conn: &PgPooledConn,
         address_id: &str,

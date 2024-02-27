@@ -13,14 +13,13 @@ use crate::{
 };
 
 impl DashboardMetadataNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl DashboardMetadata {
-    pub async fn update(
+    pub async fn update_dashboard_metadata(
         conn: &PgPooledConn,
         user_id: Option<String>,
         merchant_id: String,
@@ -119,6 +118,7 @@ impl DashboardMetadata {
         .await
     }
 
+    #[instrument(skip(conn))]
     pub async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         conn: &PgPooledConn,
         user_id: String,

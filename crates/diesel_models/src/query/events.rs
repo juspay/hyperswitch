@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -9,15 +8,13 @@ use crate::{
 };
 
 impl EventNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Event> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Event {
-    #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_event(
         conn: &PgPooledConn,
         event_id: &str,
         event: EventUpdate,

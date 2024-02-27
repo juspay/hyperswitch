@@ -1,5 +1,6 @@
 use diesel_models::gsm as storage;
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -52,6 +53,7 @@ pub trait GsmInterface {
 
 #[async_trait::async_trait]
 impl GsmInterface for Store {
+    #[instrument(skip_all)]
     async fn add_gsm_rule(
         &self,
         rule: storage::GatewayStatusMappingNew,
@@ -60,6 +62,7 @@ impl GsmInterface for Store {
         rule.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_gsm_decision(
         &self,
         connector: String,
@@ -69,7 +72,7 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<String, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::GatewayStatusMap::retrieve_decision(
+        storage::GatewayStatusMap::retrieve_gsm_decision(
             &conn, connector, flow, sub_flow, code, message,
         )
         .await
@@ -77,6 +80,7 @@ impl GsmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_gsm_rule(
         &self,
         connector: String,
@@ -86,12 +90,13 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::GatewayStatusMap::find(&conn, connector, flow, sub_flow, code, message)
+        storage::GatewayStatusMap::find_gsm(&conn, connector, flow, sub_flow, code, message)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_gsm_rule(
         &self,
         connector: String,
@@ -102,12 +107,13 @@ impl GsmInterface for Store {
         data: storage::GatewayStatusMappingUpdate,
     ) -> CustomResult<storage::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::update(&conn, connector, flow, sub_flow, code, message, data)
+        storage::GatewayStatusMap::update_gsm(&conn, connector, flow, sub_flow, code, message, data)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_gsm_rule(
         &self,
         connector: String,
@@ -117,7 +123,7 @@ impl GsmInterface for Store {
         message: String,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
+        storage::GatewayStatusMap::delete_gsm(&conn, connector, flow, sub_flow, code, message)
             .await
             .map_err(Into::into)
             .into_report()

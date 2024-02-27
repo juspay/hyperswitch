@@ -6,14 +6,12 @@ use crate::{
 };
 
 impl FraudCheckNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FraudCheck> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl FraudCheck {
-    #[instrument(skip(conn))]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,

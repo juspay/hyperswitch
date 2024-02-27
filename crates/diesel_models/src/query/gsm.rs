@@ -1,18 +1,20 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
+use router_env::{instrument, tracing};
 
 use crate::{
     errors, gsm::*, query::generics, schema::gateway_status_map::dsl, PgPooledConn, StorageResult,
 };
 
 impl GatewayStatusMappingNew {
+    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GatewayStatusMap> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl GatewayStatusMap {
-    pub async fn find(
+    pub async fn find_gsm(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -32,7 +34,7 @@ impl GatewayStatusMap {
         .await
     }
 
-    pub async fn retrieve_decision(
+    pub async fn retrieve_gsm_decision(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -40,12 +42,12 @@ impl GatewayStatusMap {
         code: String,
         message: String,
     ) -> StorageResult<String> {
-        Self::find(conn, connector, flow, sub_flow, code, message)
+        Self::find_gsm(conn, connector, flow, sub_flow, code, message)
             .await
             .map(|item| item.decision)
     }
 
-    pub async fn update(
+    pub async fn update_gsm(
         conn: &PgPooledConn,
         connector: String,
         flow: String,
@@ -78,7 +80,7 @@ impl GatewayStatusMap {
         })
     }
 
-    pub async fn delete(
+    pub async fn delete_gsm(
         conn: &PgPooledConn,
         connector: String,
         flow: String,

@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -48,6 +49,7 @@ pub trait MandateInterface {
 
 #[async_trait::async_trait]
 impl MandateInterface for Store {
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -60,6 +62,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_connector_mandate_id(
         &self,
         merchant_id: &str,
@@ -76,6 +79,7 @@ impl MandateInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &str,
@@ -88,6 +92,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &str,
@@ -101,6 +106,7 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_mandates_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -119,7 +125,7 @@ impl MandateInterface for Store {
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         mandate
-            .insert(&conn)
+            .insert_mandate(&conn)
             .await
             .map_err(Into::into)
             .into_report()

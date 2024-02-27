@@ -3,6 +3,7 @@ use error_stack::IntoReport;
 use storage_impl::redis::cache::CacheKind;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::ACCOUNTS_CACHE;
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -52,18 +53,20 @@ pub trait ApiKeyInterface {
 
 #[async_trait::async_trait]
 impl ApiKeyInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_api_key(
         &self,
         api_key: storage::ApiKeyNew,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         api_key
-            .insert(&conn)
+            .insert_api_key(&conn)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_api_key(
         &self,
         merchant_id: String,
@@ -113,6 +116,7 @@ impl ApiKeyInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn revoke_api_key(
         &self,
         merchant_id: &str,
@@ -156,6 +160,7 @@ impl ApiKeyInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
         merchant_id: &str,
@@ -168,6 +173,7 @@ impl ApiKeyInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_api_key_by_hash_optional(
         &self,
         hashed_api_key: storage::HashedApiKey,
@@ -198,6 +204,7 @@ impl ApiKeyInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn list_api_keys_by_merchant_id(
         &self,
         merchant_id: &str,

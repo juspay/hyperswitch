@@ -10,14 +10,12 @@ use crate::{
 };
 
 impl BusinessProfileNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BusinessProfile> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl BusinessProfile {
-    #[instrument(skip(conn))]
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
@@ -38,7 +36,6 @@ impl BusinessProfile {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_profile_id(conn: &PgPooledConn, profile_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -47,7 +44,6 @@ impl BusinessProfile {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
         profile_name: &str,

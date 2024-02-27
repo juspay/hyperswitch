@@ -1,6 +1,7 @@
 use diesel_models::{enums, user::dashboard_metadata as storage};
 use error_stack::{IntoReport, ResultExt};
 use storage_impl::MockDb;
+use router_env::{instrument, tracing};
 
 use crate::{
     connection,
@@ -55,6 +56,7 @@ pub trait DashboardMetadataInterface {
 
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_metadata(
         &self,
         metadata: storage::DashboardMetadataNew,
@@ -67,6 +69,7 @@ impl DashboardMetadataInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_metadata(
         &self,
         user_id: Option<String>,
@@ -76,7 +79,7 @@ impl DashboardMetadataInterface for Store {
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::DashboardMetadata::update(
+        storage::DashboardMetadata::update_dashboard_metadata(
             &conn,
             user_id,
             merchant_id,
@@ -89,6 +92,7 @@ impl DashboardMetadataInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_user_scoped_dashboard_metadata(
         &self,
         user_id: &str,
@@ -109,6 +113,7 @@ impl DashboardMetadataInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &str,
@@ -126,6 +131,8 @@ impl DashboardMetadataInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+
+    #[instrument(skip_all)]
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
@@ -142,6 +149,7 @@ impl DashboardMetadataInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
         &self,
         user_id: &str,

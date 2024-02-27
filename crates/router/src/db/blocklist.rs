@@ -52,12 +52,13 @@ impl BlocklistInterface for Store {
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         pm_blocklist
-            .insert(&conn)
+            .insert_blocklist(&conn)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -70,6 +71,7 @@ impl BlocklistInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -81,6 +83,7 @@ impl BlocklistInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -101,6 +104,7 @@ impl BlocklistInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -168,6 +172,7 @@ impl BlocklistInterface for KafkaStore {
         self.diesel_store.insert_blocklist_entry(pm_blocklist).await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -178,6 +183,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -188,6 +194,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
         merchant_id: &str,
@@ -200,6 +207,7 @@ impl BlocklistInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
         merchant_id: &str,

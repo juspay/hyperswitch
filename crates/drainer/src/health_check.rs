@@ -124,7 +124,7 @@ impl HealthCheckInterface for Store {
                         config: "test_value".to_string(),
                     };
 
-                    config.insert(&conn).await.map_err(|err| {
+                    config.insert_config(&conn).await.map_err(|err| {
                         logger::error!(write_err=?err,"Error while writing to database");
                         HealthCheckDBError::DbWriteError
                     })?;

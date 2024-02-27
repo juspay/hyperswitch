@@ -32,7 +32,7 @@ impl LockerMockUpInterface for Store {
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::LockerMockUp::find_by_card_id(&conn, card_id)
+        storage::LockerMockUp::find_locker_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -43,7 +43,7 @@ impl LockerMockUpInterface for Store {
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into).into_report()
+        new.insert_locker_mock_up(&conn).await.map_err(Into::into).into_report()
     }
 
     async fn delete_locker_mock_up(
@@ -51,7 +51,7 @@ impl LockerMockUpInterface for Store {
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::LockerMockUp::delete_by_card_id(&conn, card_id)
+        storage::LockerMockUp::delete_locker_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
             .into_report()

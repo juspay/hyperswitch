@@ -1,5 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
-
+use router_env::{instrument, tracing};
 use super::{MockDb, Store};
 use crate::{
     connection,
@@ -48,6 +48,7 @@ pub trait DisputeInterface {
 
 #[async_trait::async_trait]
 impl DisputeInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
@@ -60,6 +61,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &str,
@@ -78,6 +80,7 @@ impl DisputeInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
         merchant_id: &str,
@@ -90,6 +93,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -102,6 +106,7 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -114,13 +119,14 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_dispute(
         &self,
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, dispute)
+        this.update_dispute(&conn, dispute)
             .await
             .map_err(Into::into)
             .into_report()

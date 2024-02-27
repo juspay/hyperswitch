@@ -39,12 +39,13 @@ impl BlocklistLookupInterface for Store {
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         blocklist_lookup_entry
-            .insert(&conn)
+            .insert_blocklist_lookup(&conn)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -57,6 +58,7 @@ impl BlocklistLookupInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -109,6 +111,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,
@@ -119,6 +122,7 @@ impl BlocklistLookupInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
         merchant_id: &str,

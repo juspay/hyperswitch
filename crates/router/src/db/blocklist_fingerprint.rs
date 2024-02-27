@@ -33,12 +33,13 @@ impl BlocklistFingerprintInterface for Store {
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         pm_fingerprint_new
-            .insert(&conn)
+            .insert_blocklist_fingerprint(&conn)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -58,7 +59,7 @@ impl BlocklistFingerprintInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for MockDb {
-    #[instrument(skip_all)]
+
     async fn insert_blocklist_fingerprint_entry(
         &self,
         _pm_fingerprint_new: storage::BlocklistFingerprintNew,
@@ -87,6 +88,7 @@ impl BlocklistFingerprintInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,

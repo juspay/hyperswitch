@@ -10,14 +10,12 @@ use crate::{
 };
 
 impl CustomerNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Customer {
-    #[instrument(skip(conn))]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: String,
@@ -45,7 +43,6 @@ impl Customer {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -60,7 +57,6 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -73,7 +69,6 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -88,7 +83,6 @@ impl Customer {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
