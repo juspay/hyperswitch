@@ -10,7 +10,7 @@ use crate::{
     connector::utils::{self, CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -258,8 +258,8 @@ struct TransactionVoidOrCaptureRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
+    ref_id: Option<String>,
     transaction_request: TransactionRequest,
-    ref_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -326,12 +326,16 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
 
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
-
+        let ref_id = if item.router_data.connector_request_reference_id.len() <= 20 {
+            Some(item.router_data.connector_request_reference_id.clone())
+        } else {
+            None
+        };
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
+                ref_id,
                 transaction_request,
-                ref_id: item.router_data.connector_request_reference_id.clone(),
             },
         })
     }
@@ -413,10 +417,16 @@ pub enum AuthorizedotnetRefundStatus {
     HeldForReview,
 }
 
-impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AuthorizedotnetPaymentStatus) -> Self {
+impl ForeignFrom<(AuthorizedotnetPaymentStatus, bool)> for enums::AttemptStatus {
+    fn foreign_from((item, auto_capture): (AuthorizedotnetPaymentStatus, bool)) -> Self {
         match item {
-            AuthorizedotnetPaymentStatus::Approved => Self::Pending,
+            AuthorizedotnetPaymentStatus::Approved => {
+                if auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
             AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
                 Self::Failure
             }
@@ -536,35 +546,44 @@ pub enum AuthorizedotnetVoidStatus {
 impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
     fn from(item: AuthorizedotnetVoidStatus) -> Self {
         match item {
-            AuthorizedotnetVoidStatus::Approved => Self::VoidInitiated,
-            AuthorizedotnetVoidStatus::Declined | AuthorizedotnetVoidStatus::Error => Self::Failure,
-            AuthorizedotnetVoidStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetVoidStatus::Approved => Self::Voided,
+            AuthorizedotnetVoidStatus::Declined | AuthorizedotnetVoidStatus::Error => {
+                Self::VoidFailed
+            }
+            AuthorizedotnetVoidStatus::HeldForReview => Self::VoidInitiated,
         }
     }
 }
 
 impl<F, T>
-    TryFrom<
+    TryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        (item, is_auto_capture): (
+            types::ResponseRouterData<
+                F,
+                AuthorizedotnetPaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
         match &item.response.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
-                let status = enums::AttemptStatus::from(transaction_response.response_code.clone());
+                let status = enums::AttemptStatus::foreign_from((
+                    transaction_response.response_code.clone(),
+                    is_auto_capture,
+                ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
