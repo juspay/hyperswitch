@@ -3,7 +3,7 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    errors,
+    enums as storage_enums, errors,
     payment_method::{self, PaymentMethod, PaymentMethodNew},
     schema::payment_methods::dsl,
     PgPooledConn, StorageResult,
@@ -98,6 +98,27 @@ impl PaymentMethod {
                 .eq(customer_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
             limit,
+            None,
+            Some(dsl::last_used_at.desc()),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_by_customer_id_merchant_id_status(
+        conn: &PgPooledConn,
+        customer_id: &str,
+        merchant_id: &str,
+        status: storage_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq(status)),
+            None,
             None,
             Some(dsl::last_used_at.desc()),
         )

@@ -27,6 +27,14 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError>;
 
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError>;
+
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
@@ -105,6 +113,26 @@ impl PaymentMethodInterface for Store {
             &conn,
             customer_id,
             merchant_id,
+            limit,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
+
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentMethod::find_by_customer_id_merchant_id_status(
+            &conn,
+            customer_id,
+            merchant_id,
+            status,
             limit,
         )
         .await
@@ -204,6 +232,9 @@ impl PaymentMethodInterface for MockDb {
             metadata: payment_method_new.metadata,
             payment_method_data: payment_method_new.payment_method_data,
             last_used_at: payment_method_new.last_used_at,
+            connector_mandate_details: payment_method_new.connector_mandate_details,
+            customer_acceptance: payment_method_new.customer_acceptance,
+            status: payment_method_new.status,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)
@@ -227,6 +258,34 @@ impl PaymentMethodInterface for MockDb {
                 errors::StorageError::ValueNotFound("cannot find payment method".to_string())
                     .into(),
             )
+        } else {
+            Ok(payment_methods_found)
+        }
+    }
+
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+        _limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_methods_found: Vec<storage::PaymentMethod> = payment_methods
+            .iter()
+            .filter(|pm| {
+                pm.customer_id == customer_id
+                    && pm.merchant_id == merchant_id
+                    && pm.status == status
+            })
+            .cloned()
+            .collect();
+
+        if payment_methods_found.is_empty() {
+            Err(errors::StorageError::ValueNotFound(
+                "cannot find payment methods".to_string(),
+            ))
+            .into_report()
         } else {
             Ok(payment_methods_found)
         }
