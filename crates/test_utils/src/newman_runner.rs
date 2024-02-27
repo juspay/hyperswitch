@@ -97,10 +97,10 @@ pub fn generate_newman_command() -> ReturnArgs {
     /*
     Newman runner
     Certificate keys are added through secrets in CI, so there's no need to explicitly pass it as arguments.
-    It can be overridden by explicitly passing cartificates as arguments.
+    It can be overridden by explicitly passing certificates as arguments.
 
-    If the collection takes in ceritificates (stripe collection for example) during MCA step,
-    then Stripe's certificates will be passed mandatorily (for now).
+    If the collection requires certificates (Stripe collection for example) during the merchant connector account create step,
+    then Stripe's certificates will be passed implicitly (for now).
     If any other connector requires certificates to be passed, that has to be passed explicitly for now.
     */
 
@@ -232,12 +232,12 @@ pub fn generate_newman_command() -> ReturnArgs {
     }
 }
 
-// If the connector name exists in refactorable_connector_names,
+// If the connector name exists in dynamic_amount_connectors,
 // the corresponding collection is refactored in run time to remove double quotes
 pub fn check_connector_for_dynamic_amount(connector_name: &str) -> &str {
-    let refactorable_connector_names = ["nmi", "powertranz"];
+    let dynamic_amount_connectors = ["nmi", "powertranz"];
 
-    if refactorable_connector_names.contains(&connector_name) {
+    if dynamic_amount_connectors.contains(&connector_name) {
         return remove_quotes_for_integer_values(connector_name).unwrap_or(connector_name);
     }
 
