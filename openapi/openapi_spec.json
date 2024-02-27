@@ -941,14 +941,12 @@
               "examples": {
                 "Disable KV for Merchant": {
                   "value": {
-                    "kv_enabled": "false",
-                    "merchant_id": "merchant_abc"
+                    "kv_enabled": "false"
                   }
                 },
                 "Enable KV for Merchant": {
                   "value": {
-                    "kv_enabled": "true",
-                    "merchant_id": "merchant_abc"
+                    "kv_enabled": "true"
                   }
                 }
               }

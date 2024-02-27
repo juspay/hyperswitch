@@ -134,12 +134,12 @@ pub async fn delete_merchant_account() {}
         content = ToggleKVRequest,
         examples (
             ("Enable KV for Merchant" = (
-                value = json!({"merchant_id": "merchant_abc",
+                value = json!({
                 "kv_enabled": "true"
                 })
         )),
         ("Disable KV for Merchant" = (
-                value = json!({"merchant_id": "merchant_abc",
+                value = json!({
                 "kv_enabled": "false"
                 })
         )))
