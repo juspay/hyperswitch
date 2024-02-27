@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::enums::BankNames;
 use common_utils::pii::Email;
 use error_stack::report;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -382,7 +382,7 @@ pub struct Instruction {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct BankDetails {
     #[serde(rename = "bankAccount.holder")]
-    pub account_holder: String,
+    pub account_holder: Secret<String>,
 }
 
 #[allow(dead_code)]
@@ -657,10 +657,11 @@ impl FromStr for AciPaymentStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
     id: String,
-    registration_id: Option<String>,
+    registration_id: Option<Secret<String>>,
     // ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,
+    // Number useful for support purposes.
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
@@ -734,7 +735,7 @@ impl<F, T>
             .response
             .registration_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
 

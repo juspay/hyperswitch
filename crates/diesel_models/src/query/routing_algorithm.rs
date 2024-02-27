@@ -59,6 +59,7 @@ impl RoutingAlgorithm {
                 dsl::kind,
                 dsl::created_at,
                 dsl::modified_at,
+                dsl::algorithm_for,
             ))
             .filter(
                 dsl::algorithm_id
@@ -74,6 +75,7 @@ impl RoutingAlgorithm {
                 enums::RoutingAlgorithmKind,
                 PrimitiveDateTime,
                 PrimitiveDateTime,
+                enums::TransactionType,
             )>(conn)
             .await
             .into_report()
@@ -83,7 +85,16 @@ impl RoutingAlgorithm {
             .ok_or(DatabaseError::NotFound)
             .into_report()
             .map(
-                |(profile_id, algorithm_id, name, description, kind, created_at, modified_at)| {
+                |(
+                    profile_id,
+                    algorithm_id,
+                    name,
+                    description,
+                    kind,
+                    created_at,
+                    modified_at,
+                    algorithm_for,
+                )| {
                     RoutingProfileMetadata {
                         profile_id,
                         algorithm_id,
@@ -92,6 +103,7 @@ impl RoutingAlgorithm {
                         kind,
                         created_at,
                         modified_at,
+                        algorithm_for,
                     }
                 },
             )
@@ -111,6 +123,7 @@ impl RoutingAlgorithm {
                 dsl::kind,
                 dsl::created_at,
                 dsl::modified_at,
+                dsl::algorithm_for,
             ))
             .filter(dsl::profile_id.eq(profile_id.to_owned()))
             .limit(limit)
@@ -122,13 +135,22 @@ impl RoutingAlgorithm {
                 enums::RoutingAlgorithmKind,
                 PrimitiveDateTime,
                 PrimitiveDateTime,
+                enums::TransactionType,
             )>(conn)
             .await
             .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
-                |(algorithm_id, name, description, kind, created_at, modified_at)| {
+                |(
+                    algorithm_id,
+                    name,
+                    description,
+                    kind,
+                    created_at,
+                    modified_at,
+                    algorithm_for,
+                )| {
                     RoutingAlgorithmMetadata {
                         algorithm_id,
                         name,
@@ -136,6 +158,7 @@ impl RoutingAlgorithm {
                         kind,
                         created_at,
                         modified_at,
+                        algorithm_for,
                     }
                 },
             )
@@ -157,6 +180,7 @@ impl RoutingAlgorithm {
                 dsl::kind,
                 dsl::created_at,
                 dsl::modified_at,
+                dsl::algorithm_for,
             ))
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .limit(limit)
@@ -170,13 +194,23 @@ impl RoutingAlgorithm {
                 enums::RoutingAlgorithmKind,
                 PrimitiveDateTime,
                 PrimitiveDateTime,
+                enums::TransactionType,
             )>(conn)
             .await
             .into_report()
             .change_context(DatabaseError::Others)?
             .into_iter()
             .map(
-                |(profile_id, algorithm_id, name, description, kind, created_at, modified_at)| {
+                |(
+                    profile_id,
+                    algorithm_id,
+                    name,
+                    description,
+                    kind,
+                    created_at,
+                    modified_at,
+                    algorithm_for,
+                )| {
                     RoutingProfileMetadata {
                         profile_id,
                         algorithm_id,
@@ -185,6 +219,71 @@ impl RoutingAlgorithm {
                         kind,
                         created_at,
                         modified_at,
+                        algorithm_for,
+                    }
+                },
+            )
+            .collect())
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn list_metadata_by_merchant_id_transaction_type(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        transaction_type: &enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<RoutingProfileMetadata>> {
+        Ok(Self::table()
+            .select((
+                dsl::profile_id,
+                dsl::algorithm_id,
+                dsl::name,
+                dsl::description,
+                dsl::kind,
+                dsl::created_at,
+                dsl::modified_at,
+                dsl::algorithm_for,
+            ))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::algorithm_for.eq(transaction_type.to_owned()))
+            .limit(limit)
+            .offset(offset)
+            .order(dsl::modified_at.desc())
+            .load_async::<(
+                String,
+                String,
+                String,
+                Option<String>,
+                enums::RoutingAlgorithmKind,
+                PrimitiveDateTime,
+                PrimitiveDateTime,
+                enums::TransactionType,
+            )>(conn)
+            .await
+            .into_report()
+            .change_context(DatabaseError::Others)?
+            .into_iter()
+            .map(
+                |(
+                    profile_id,
+                    algorithm_id,
+                    name,
+                    description,
+                    kind,
+                    created_at,
+                    modified_at,
+                    algorithm_for,
+                )| {
+                    RoutingProfileMetadata {
+                        profile_id,
+                        algorithm_id,
+                        name,
+                        description,
+                        kind,
+                        created_at,
+                        modified_at,
+                        algorithm_for,
                     }
                 },
             )

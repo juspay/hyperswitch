@@ -49,6 +49,14 @@ pub trait RoutingAlgorithmInterface {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        merchant_id: &str,
+        transaction_type: &common_enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
 }
 
 #[async_trait::async_trait]
@@ -151,6 +159,26 @@ impl RoutingAlgorithmInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        merchant_id: &str,
+        transaction_type: &common_enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        let conn = connection::pg_connection_write(self).await?;
+        routing_storage::RoutingAlgorithm::list_metadata_by_merchant_id_transaction_type(
+            &conn,
+            merchant_id,
+            transaction_type,
+            limit,
+            offset,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -198,6 +226,16 @@ impl RoutingAlgorithmInterface for MockDb {
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
         _merchant_id: &str,
+        _limit: i64,
+        _offset: i64,
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        _merchant_id: &str,
+        _transaction_type: &common_enums::TransactionType,
         _limit: i64,
         _offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
