@@ -28,6 +28,7 @@ pub async fn get_authorization_info(
         &http_req,
         (),
         |state, _: (), _| async move {
+            // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 user_role_core::get_authorization_info_with_groups(state).await
             } else {
@@ -85,6 +86,7 @@ pub async fn list_all_roles(
         &req,
         (),
         |state, user, _| async move {
+            // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 role_core::list_invitable_roles_with_groups(state, user).await
             } else {
@@ -114,6 +116,7 @@ pub async fn get_role(
         &req,
         request_payload,
         |state, user, payload| async move {
+            // TODO: Permissions to be deprecated once groups are stable
             if respond_with_groups {
                 role_core::get_role_with_groups(state, user, payload).await
             } else {

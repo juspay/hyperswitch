@@ -26,6 +26,7 @@ pub fn get_permission_info_from_permissions(permissions: &[Permission]) -> Vec<P
         .collect()
 }
 
+// TODO: Deprecate once groups are stable
 #[derive(PartialEq, EnumIter, Clone)]
 pub enum PermissionModule {
     Payments,
@@ -61,6 +62,7 @@ impl PermissionModule {
     }
 }
 
+// TODO: Deprecate once groups are stable
 pub struct ModuleInfo {
     pub module: PermissionModule,
     pub description: &'static str,

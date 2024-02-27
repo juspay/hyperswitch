@@ -19,6 +19,7 @@ use crate::{
 
 pub mod role;
 
+// TODO: To be deprecated once groups are stable
 pub async fn get_authorization_info_with_modules(
     _state: AppState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {

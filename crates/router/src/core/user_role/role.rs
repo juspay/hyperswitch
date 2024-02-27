@@ -86,6 +86,7 @@ pub async fn create_role(
     Ok(ApplicationResponse::StatusOk)
 }
 
+// TODO: To be deprecated once groups are stable
 pub async fn list_invitable_roles_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
@@ -176,6 +177,7 @@ pub async fn list_invitable_roles_with_groups(
     )))
 }
 
+// TODO: To be deprecated once groups are stable
 pub async fn get_role_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
