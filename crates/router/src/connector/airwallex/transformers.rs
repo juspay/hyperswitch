@@ -1,5 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -416,10 +416,10 @@ pub enum AirwallexNextActionStage {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
-    jwt: Option<String>,
+    jwt: Option<Secret<String>>,
     #[serde(rename = "threeDSMethodData")]
-    three_ds_method_data: Option<String>,
-    token: Option<String>,
+    three_ds_method_data: Option<Secret<String>>,
+    token: Option<Secret<String>>,
     provider: Option<String>,
     version: Option<String>,
 }
@@ -439,7 +439,7 @@ pub struct AirwallexPaymentsResponse {
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
@@ -450,7 +450,7 @@ pub struct AirwallexPaymentsSyncResponse {
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
@@ -464,18 +464,27 @@ fn get_redirection_form(
             //Some form fields might be empty based on the authentication type by the connector
             (
                 "JWT".to_string(),
-                response_url_data.data.jwt.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .jwt
+                    .map(|jwt| jwt.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "threeDSMethodData".to_string(),
                 response_url_data
                     .data
                     .three_ds_method_data
+                    .map(|three_ds_method_data| three_ds_method_data.expose())
                     .unwrap_or_default(),
             ),
             (
                 "token".to_string(),
-                response_url_data.data.token.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .token
+                    .map(|token: Secret<String>| token.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "provider".to_string(),
