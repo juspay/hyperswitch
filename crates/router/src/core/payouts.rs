@@ -63,9 +63,9 @@ pub async fn get_connector_choice(
     key_store: &domain::MerchantKeyStore,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
-    payout_data: &mut PayoutData,
+    payout_data: &mut PayoutData,   
     eligible_connectors: Option<Vec<api_models::enums::Connector>>,
-) -> RouterResult<api::ConnectorData> {
+) -> RouterResult<api::ConnectorCallType> {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
             .into_iter()
@@ -102,8 +102,6 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 merchant_account,
-                key_store,
-                Some(request_straight_through),
                 key_store,
                 Some(request_straight_through),
                 &mut routing_data,
@@ -152,6 +150,7 @@ pub async fn make_connector_decision(
 ) -> RouterResult<PayoutData> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
+            println!("predetermined");
             call_connector_payout(
                 state,
                 merchant_account,
@@ -163,6 +162,7 @@ pub async fn make_connector_decision(
             .await
         }
         api::ConnectorCallType::Retryable(connectors) => {
+            println!("retryable");
             let mut connectors = connectors.into_iter();
 
             let connector_data = get_next_connector(&mut connectors)?;
