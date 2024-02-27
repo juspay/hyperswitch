@@ -70,7 +70,9 @@ impl DBOperation {
                     DBResult::PaymentAttempt(Box::new(a.insert(conn).await?))
                 }
                 Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
-                Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert_address(conn).await?)),
+                Insertable::Address(addr) => {
+                    DBResult::Address(Box::new(addr.insert_address(conn).await?))
+                }
                 Insertable::ReverseLookUp(rev) => {
                     DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
                 }

@@ -1,6 +1,7 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
 use error_stack::IntoReport;
 use router_env::{instrument, tracing};
+
 use super::MockDb;
 use crate::{
     connection,
@@ -36,7 +37,6 @@ pub trait FraudCheckInterface {
 
 #[async_trait::async_trait]
 impl FraudCheckInterface for Store {
-    
     #[instrument(skip_all)]
     async fn insert_fraud_check_response(
         &self,
@@ -58,7 +58,7 @@ impl FraudCheckInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
-    
+
     #[instrument(skip_all)]
     async fn find_fraud_check_by_payment_id(
         &self,

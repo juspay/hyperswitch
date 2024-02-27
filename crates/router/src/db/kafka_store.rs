@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use router_env::{instrument, tracing};
+
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::errors::CustomResult;
 use data_models::payments::{
@@ -14,7 +14,7 @@ use diesel_models::{
 };
 use masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,

@@ -59,7 +59,6 @@ impl BlocklistFingerprintInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for MockDb {
-
     async fn insert_blocklist_fingerprint_entry(
         &self,
         _pm_fingerprint_new: storage::BlocklistFingerprintNew,

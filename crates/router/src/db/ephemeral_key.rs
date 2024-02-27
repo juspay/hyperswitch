@@ -27,6 +27,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
+    use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::RedisConnInterface;
     use time::ext::NumericalDuration;
 
@@ -36,7 +37,6 @@ mod storage {
         services::Store,
         types::storage::ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     };
-    use router_env::{instrument, tracing};
 
     #[async_trait::async_trait]
     impl EphemeralKeyInterface for Store {

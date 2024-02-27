@@ -9,7 +9,10 @@ use crate::{
 };
 
 impl BlocklistFingerprintNew {
-    pub async fn insert_blocklist_fingerprint(self, conn: &PgPooledConn) -> StorageResult<BlocklistFingerprint> {
+    pub async fn insert_blocklist_fingerprint(
+        self,
+        conn: &PgPooledConn,
+    ) -> StorageResult<BlocklistFingerprint> {
         generics::generic_insert(conn, self).await
     }
 }

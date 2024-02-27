@@ -9,7 +9,10 @@ use crate::{
 };
 
 impl BlocklistLookupNew {
-    pub async fn insert_blocklist_lookup(self, conn: &PgPooledConn) -> StorageResult<BlocklistLookup> {
+    pub async fn insert_blocklist_lookup(
+        self,
+        conn: &PgPooledConn,
+    ) -> StorageResult<BlocklistLookup> {
         generics::generic_insert(conn, self).await
     }
 }

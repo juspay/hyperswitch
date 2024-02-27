@@ -216,7 +216,7 @@ mod storage {
                 })
                 .await
         }
-        
+
         #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,

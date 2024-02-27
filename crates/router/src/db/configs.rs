@@ -65,7 +65,11 @@ impl ConfigInterface for Store {
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        config.insert_config(&conn).await.map_err(Into::into).into_report()
+        config
+            .insert_config(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     #[instrument(skip_all)]

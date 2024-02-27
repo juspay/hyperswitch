@@ -68,7 +68,11 @@ impl Dispute {
         .await
     }
 
-    pub async fn update_dispute(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
+    pub async fn update_dispute(
+        self,
+        conn: &PgPooledConn,
+        dispute: DisputeUpdate,
+    ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,

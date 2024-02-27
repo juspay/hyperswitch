@@ -43,7 +43,10 @@ impl LockerMockUpInterface for Store {
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert_locker_mock_up(&conn).await.map_err(Into::into).into_report()
+        new.insert_locker_mock_up(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn delete_locker_mock_up(
