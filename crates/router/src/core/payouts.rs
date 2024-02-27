@@ -63,7 +63,7 @@ pub async fn get_connector_choice(
     key_store: &domain::MerchantKeyStore,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
-    payout_data: &mut PayoutData,   
+    payout_data: &mut PayoutData,
     eligible_connectors: Option<Vec<api_models::enums::Connector>>,
 ) -> RouterResult<api::ConnectorCallType> {
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
