@@ -97,10 +97,10 @@ pub fn generate_newman_command() -> ReturnArgs {
     /*
     Newman runner
     Certificate keys are added through secrets in CI, so there's no need to explicitly pass it as arguments.
-    It can be overridden by explicitly passing cartificates as arguments.
+    It can be overridden by explicitly passing certificates as arguments.
 
-    If the collection takes in ceritificates (stripe collection for example) during MCA step,
-    then Stripe's certificates will be passed mandatorily (for now).
+    If the collection requires certificates (Stripe collection for example) during the merchant connector account create step,
+    then Stripe's certificates will be passed implicitly (for now).
     If any other connector requires certificates to be passed, that has to be passed explicitly for now.
     */
 
@@ -110,7 +110,7 @@ pub fn generate_newman_command() -> ReturnArgs {
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
     // validation of connector is needed here as a work around to the limitation of the fork of newman that Hyperswitch uses
-    if let Some(auth_type) = inner_map.get(check_connector_for_dynamic_amount(&connector_name)) {
+    if let Some(auth_type) = inner_map.get(dynamic_amount_connectors(&connector_name)) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
                 newman_command.args([
@@ -232,9 +232,12 @@ pub fn generate_newman_command() -> ReturnArgs {
     }
 }
 
-// If the connector name exists in refactorable_connector_names,
-// the corresponding collection is refactored in run time to remove double quotes
-pub fn check_connector_for_dynamic_amount(connector_name: &str) -> &str {
+/*
+If the connector name exists in refactorable_connector_names,
+the corresponding collection is refactored by converting the amount back to integer values in
+run time by removing double quotes
+*/
+pub fn dynamic_amount_connectors(connector_name: &str) -> &str {
     let refactorable_connector_names = ["nmi", "powertranz"];
 
     if refactorable_connector_names.contains(&connector_name) {
