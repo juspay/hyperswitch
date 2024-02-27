@@ -1286,13 +1286,13 @@ pub struct FileUploadResponse {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Evidence {
-    pub proof_of_delivery_or_service_file: Option<Secret<String>>,
-    pub invoice_or_receipt_file: Option<Secret<String>>,
-    pub invoice_showing_distinct_transactions_file: Option<Secret<String>>,
-    pub customer_communication_file: Option<Secret<String>>,
-    pub refund_or_cancellation_policy_file: Option<Secret<String>>,
-    pub recurring_transaction_agreement_file: Option<Secret<String>>,
-    pub additional_evidence_file: Option<Secret<String>>,
+    pub proof_of_delivery_or_service_file: Option<String>,
+    pub invoice_or_receipt_file: Option<String>,
+    pub invoice_showing_distinct_transactions_file: Option<String>,
+    pub customer_communication_file: Option<String>,
+    pub refund_or_cancellation_policy_file: Option<String>,
+    pub recurring_transaction_agreement_file: Option<String>,
+    pub additional_evidence_file: Option<String>,
 }
 
 impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
@@ -1326,26 +1326,18 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
         let submit_evidence_request_data = item.request.clone();
         Ok(Self {
             proof_of_delivery_or_service_file: submit_evidence_request_data
-                .shipping_documentation_provider_file_id
-                .map(Secret::new),
-            invoice_or_receipt_file: submit_evidence_request_data
-                .receipt_provider_file_id
-                .map(Secret::new),
+                .shipping_documentation_provider_file_id,
+            invoice_or_receipt_file: submit_evidence_request_data.receipt_provider_file_id,
             invoice_showing_distinct_transactions_file: submit_evidence_request_data
-                .invoice_showing_distinct_transactions_provider_file_id
-                .map(Secret::new),
+                .invoice_showing_distinct_transactions_provider_file_id,
             customer_communication_file: submit_evidence_request_data
-                .customer_communication_provider_file_id
-                .map(Secret::new),
+                .customer_communication_provider_file_id,
             refund_or_cancellation_policy_file: submit_evidence_request_data
-                .refund_policy_provider_file_id
-                .map(Secret::new),
+                .refund_policy_provider_file_id,
             recurring_transaction_agreement_file: submit_evidence_request_data
-                .recurring_transaction_agreement_provider_file_id
-                .map(Secret::new),
+                .recurring_transaction_agreement_provider_file_id,
             additional_evidence_file: submit_evidence_request_data
-                .uncategorized_file_provider_file_id
-                .map(Secret::new),
+                .uncategorized_file_provider_file_id,
         })
     }
 }
