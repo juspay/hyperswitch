@@ -12,7 +12,7 @@ pub fn get_module_authorization_info() -> Vec<ModuleInfo> {
 
 pub fn get_group_authorization_info() -> Vec<GroupInfo> {
     PermissionGroup::iter()
-        .map(|group| get_group_info_from_permission_group(group))
+        .map(get_group_info_from_permission_group)
         .collect()
 }
 

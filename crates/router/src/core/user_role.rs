@@ -39,7 +39,7 @@ pub async fn get_authorization_info_with_groups(
         user_role_api::AuthorizationInfoResponse(
             info::get_group_authorization_info()
                 .into_iter()
-                .map(|group_info| user_role_api::AuthorizationInfo::Group(group_info.into()))
+                .map(user_role_api::AuthorizationInfo::Group)
                 .collect(),
         ),
     ))
