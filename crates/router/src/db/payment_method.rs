@@ -15,6 +15,11 @@ pub trait PaymentMethodInterface {
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -47,6 +52,17 @@ impl PaymentMethodInterface for Store {
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentMethod::find_by_locker_id(&conn, locker_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -127,6 +143,25 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_method = payment_methods
+            .iter()
+            .find(|pm| pm.locker_id == Some(locker_id.to_string()))
+            .cloned();
+
+        match payment_method {
+            Some(pm) => Ok(pm),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method".to_string(),
+            )
+            .into()),
+        }
+    }
+
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
@@ -142,6 +177,7 @@ impl PaymentMethodInterface for MockDb {
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,
+            locker_id: payment_method_new.locker_id,
             accepted_currency: payment_method_new.accepted_currency,
             scheme: payment_method_new.scheme,
             token: payment_method_new.token,

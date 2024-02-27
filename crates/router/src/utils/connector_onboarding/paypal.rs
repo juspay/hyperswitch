@@ -20,7 +20,8 @@ pub async fn generate_access_token(state: AppState) -> RouterResult<types::Acces
         &state.conf.connectors,
         connector.to_string().as_str(),
     )?;
-    let connector_auth = super::get_connector_auth(connector, &state.conf.connector_onboarding)?;
+    let connector_auth =
+        super::get_connector_auth(connector, state.conf.connector_onboarding.get_inner())?;
 
     connector::Paypal::get_access_token(
         &state,
