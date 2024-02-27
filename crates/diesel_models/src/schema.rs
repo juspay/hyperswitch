@@ -31,6 +31,7 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
+        email -> Nullable<Bytea>,
     }
 }
 
@@ -828,6 +829,8 @@ diesel::table! {
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        locker_id -> Nullable<Varchar>,
         connector_mandate_details -> Nullable<Jsonb>,
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -851,7 +854,7 @@ diesel::table! {
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 64]
-        connector -> Varchar,
+        connector -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payout_id -> Varchar,
         #[max_length = 64]
@@ -870,6 +873,7 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        routing_info -> Nullable<Jsonb>,
     }
 }
 
@@ -1044,6 +1048,7 @@ diesel::table! {
         algorithm_data -> Jsonb,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        algorithm_for -> TransactionType,
     }
 }
 

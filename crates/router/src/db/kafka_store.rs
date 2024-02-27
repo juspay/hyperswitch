@@ -284,7 +284,10 @@ impl ConfigInterface for KafkaStore {
             .await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store.delete_config_by_key(key).await
     }
 
@@ -1281,6 +1284,15 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_locker_id(locker_id)
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
@@ -1827,6 +1839,23 @@ impl RoutingAlgorithmInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
         self.diesel_store
             .list_routing_algorithm_metadata_by_merchant_id(merchant_id, limit, offset)
+            .await
+    }
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        merchant_id: &str,
+        transaction_type: &enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+                merchant_id,
+                transaction_type,
+                limit,
+                offset,
+            )
             .await
     }
 }

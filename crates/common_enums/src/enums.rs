@@ -2200,6 +2200,29 @@ pub enum ConnectorStatus {
     Debug,
     Eq,
     PartialEq,
+    strum::Display,
+    strum::EnumString,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    Default,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionType {
+    #[default]
+    Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
