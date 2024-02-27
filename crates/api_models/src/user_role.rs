@@ -55,7 +55,7 @@ pub enum PermissionModule {
 pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
 
 #[derive(Debug, serde::Serialize)]
-#[serde(tag = "response_type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum AuthorizationInfo {
     Module(ModuleInfo),
     Group(GroupInfo),
