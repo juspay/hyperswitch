@@ -103,6 +103,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
+            | Flow::PaymentsRetrieveForceSync
             | Flow::PaymentsUpdate
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
@@ -124,6 +125,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
+            | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
