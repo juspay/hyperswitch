@@ -1,5 +1,6 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
+
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use error_stack::{IntoReport, ResultExt};
 
@@ -93,6 +94,7 @@ pub trait RefundInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::RefundInterface;
     use crate::{
@@ -101,7 +103,6 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums},
     };
-    use router_env::{instrument, tracing};
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
