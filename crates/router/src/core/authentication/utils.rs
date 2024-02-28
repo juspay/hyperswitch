@@ -189,7 +189,7 @@ pub async fn update_trackers<F: Clone, Req>(
             AuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
-                authentication_connector_id,
+                connector_authentication_id,
                 three_ds_method_data,
                 three_ds_method_url,
                 message_version,
@@ -212,7 +212,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    authentication_connector_id: Some(authentication_connector_id),
+                    connector_authentication_id: Some(connector_authentication_id),
                     payment_method_id: token.map(|token| format!("eph_{}", token)),
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::Started),
@@ -233,7 +233,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    authentication_connector_id: None,
+                    connector_authentication_id: None,
                     payment_method_id: None,
                     authentication_type: Some(match authn_flow_type {
                         AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
@@ -259,7 +259,7 @@ pub async fn update_trackers<F: Clone, Req>(
                         Encode::encode_to_value(&authentication_data)
                             .change_context(ApiErrorResponse::InternalServerError)?,
                     ),
-                    authentication_connector_id: None,
+                    connector_authentication_id: None,
                     payment_method_id: None,
                     authentication_type: None,
                     authentication_status: Some(common_enums::AuthenticationStatus::foreign_from(
@@ -271,7 +271,7 @@ pub async fn update_trackers<F: Clone, Req>(
             }
         }),
         Err(error) => Some(storage::AuthenticationUpdate::ErrorUpdate {
-            authentication_connector_id: error.connector_transaction_id,
+            connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
             error_message: Some(error.message),
             error_code: Some(error.code),
@@ -315,7 +315,7 @@ pub async fn create_new_authentication(
         authentication_id: authentication_id.clone(),
         merchant_id,
         authentication_connector,
-        authentication_connector_id: None,
+        connector_authentication_id: None,
         authentication_data: None,
         payment_method_id: "".into(),
         authentication_type: None,
