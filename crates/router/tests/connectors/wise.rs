@@ -56,8 +56,9 @@ impl WiseTest {
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::GBP),
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::GB),
                         city: Some("London".to_string()),
@@ -68,8 +69,8 @@ impl WiseTest {
                     phone: None,
                     email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Bacs(
                 api::BacsBankTransfer {
                     bank_sort_code: "231470".to_string().into(),

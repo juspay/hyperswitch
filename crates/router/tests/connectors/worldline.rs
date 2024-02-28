@@ -43,8 +43,9 @@ impl utils::Connector for WorldlineTest {
 impl WorldlineTest {
     fn get_payment_info() -> Option<PaymentInfo> {
         Some(PaymentInfo {
-            address: Some(PaymentAddress {
-                billing: Some(Address {
+            address: Some(PaymentAddress::new(
+                None,
+                Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
@@ -52,8 +53,8 @@ impl WorldlineTest {
                     phone: None,
                     email: None,
                 }),
-                ..Default::default()
-            }),
+                None,
+            )),
             ..Default::default()
         })
     }
@@ -175,9 +176,7 @@ async fn should_throw_missing_required_field_for_country() {
         .make_payment(
             authorize_data,
             Some(PaymentInfo {
-                address: Some(PaymentAddress {
-                    ..Default::default()
-                }),
+                address: Some(PaymentAddress::new(None, None, None)),
                 ..Default::default()
             }),
         )
