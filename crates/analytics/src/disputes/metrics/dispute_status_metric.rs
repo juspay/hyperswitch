@@ -37,11 +37,13 @@ where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
         let mut query_builder = QueryBuilder::new(AnalyticsCollection::Dispute);
-        let dimensions = dimensions.to_vec();
+        // let dimensions = dimensions.to_vec();
 
-        for dim in dimensions.iter() {
+        for dim in dimensions {
             query_builder.add_select_column(dim).switch()?;
         }
+
+        query_builder.add_select_column("dispute_status").switch()?;
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -70,9 +72,13 @@ where
 
         time_range.set_filter_clause(&mut query_builder).switch()?;
 
-        for dim in dimensions.iter() {
+        for dim in dimensions {
             query_builder.add_group_by_clause(dim).switch()?;
         }
+
+        query_builder
+            .add_group_by_clause("dispute_status")
+            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
