@@ -1,20 +1,24 @@
 use api_models::analytics::{
     GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, SearchIndex,
 };
-use common_utils::errors::CustomResult;
-use opensearch::auth::Credentials;
-use opensearch::http::transport::SingleNodeConnectionPool;
-// use opensearch::http::transport::Transport;
-use crate::errors::AnalyticsError;
-use crate::OpensearchConfig;
 use aws_config::{self, meta::region::RegionProviderChain, Region};
-use opensearch::http::transport::TransportBuilder;
-use opensearch::http::Url;
+use common_utils::errors::CustomResult;
 use opensearch::{
-    cert::CertificateValidation, http::request::JsonBody, MsearchParts, OpenSearch, SearchParts,
+    auth::Credentials,
+    cert::CertificateValidation,
+    http::{
+        request::JsonBody,
+        transport::{SingleNodeConnectionPool, TransportBuilder},
+        Url,
+    },
+    MsearchParts, OpenSearch, SearchParts,
 };
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
+
+// use opensearch::http::transport::Transport;
+use crate::errors::AnalyticsError;
+use crate::OpensearchConfig;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpensearchError {
