@@ -1,17 +1,17 @@
 pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, refunds},
-    routes,
+    logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -25,6 +25,10 @@ pub async fn refund_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+
+    tracing::Span::current().record("payment_id", &payload.payment_intent.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
     let create_refund_req: refund_types::RefundRequest = payload.into();
 

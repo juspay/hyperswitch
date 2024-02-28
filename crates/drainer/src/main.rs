@@ -15,8 +15,9 @@ async fn main() -> DrainerResult<()> {
     conf.validate()
         .expect("Failed to validate drainer configuration");
 
-    let store = services::Store::new(&conf, false).await;
-    let store = std::sync::Arc::new(store);
+    let state = settings::AppState::new(conf.clone()).await;
+
+    let store = std::sync::Arc::new(services::Store::new(&state.conf, false).await);
 
     #[cfg(feature = "vergen")]
     println!("Starting drainer (Version: {})", router_env::git_tag!());
@@ -28,7 +29,7 @@ async fn main() -> DrainerResult<()> {
     );
 
     #[allow(clippy::expect_used)]
-    let web_server = Box::pin(start_web_server(conf.clone(), store.clone()))
+    let web_server = Box::pin(start_web_server(state.conf.as_ref().clone(), store.clone()))
         .await
         .expect("Failed to create the server");
 

@@ -60,7 +60,7 @@ impl<T>
         })
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -507,7 +507,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
     pub status: u16,
     pub error: String,
@@ -515,7 +515,7 @@ pub struct IatapayErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
     pub path: String,

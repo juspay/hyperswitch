@@ -51,7 +51,7 @@ pub struct PaymentAttempt {
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
-    pub mandate_details: Option<storage_enums::MandateTypeDetails>,
+    pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
@@ -64,6 +64,8 @@ pub struct PaymentAttempt {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub mandate_data: Option<storage_enums::MandateDetails>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -126,7 +128,7 @@ pub struct PaymentAttemptNew {
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
-    pub mandate_details: Option<storage_enums::MandateTypeDetails>,
+    pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -138,6 +140,8 @@ pub struct PaymentAttemptNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub mandate_data: Option<storage_enums::MandateDetails>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -175,6 +179,7 @@ pub enum PaymentAttemptUpdate {
         capture_method: Option<storage_enums::CaptureMethod>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -210,6 +215,7 @@ pub enum PaymentAttemptUpdate {
         amount_capturable: Option<i64>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
     },
@@ -349,6 +355,7 @@ pub struct PaymentAttemptUpdateInternal {
     encoded_data: Option<String>,
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
+    fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -409,6 +416,7 @@ impl PaymentAttemptUpdate {
             encoded_data,
             unified_code,
             unified_message,
+            fingerprint_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -450,6 +458,7 @@ impl PaymentAttemptUpdate {
             encoded_data: encoded_data.or(source.encoded_data),
             unified_code: unified_code.unwrap_or(source.unified_code),
             unified_message: unified_message.unwrap_or(source.unified_message),
+            fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
     }
@@ -474,6 +483,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
             } => Self {
                 amount: Some(amount),
@@ -492,6 +502,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 capture_method,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 updated_by,
                 ..Default::default()
             },
@@ -525,6 +536,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -547,6 +559,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id: merchant_connector_id.map(Some),
                 surcharge_amount,
                 tax_amount,
+                fingerprint_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

@@ -13,12 +13,6 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -181,6 +175,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
                         updated_by: storage_scheme.to_string(),
+                        email: address
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .async_lift(|inner| {
+                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                            })
+                            .await?,
                     })
                 }
                 .await
@@ -370,6 +372,12 @@ pub async fn get_domain_address_for_payments(
                 .await?,
             payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
+            email: address
+                .email
+                .as_ref()
+                .cloned()
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
+                .await?,
         })
     }
     .await
@@ -669,8 +677,11 @@ pub fn validate_amount_to_capture_and_capture_method(
             .unwrap_or(0);
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+        let amount_to_capture = request
+            .amount_to_capture
+            .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
         if let Some((total_capturable_amount, amount_to_capture)) =
-            total_capturable_amount.zip(request.amount_to_capture)
+            total_capturable_amount.zip(amount_to_capture)
         {
             utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -779,7 +790,7 @@ pub fn validate_mandate(
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
-            reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            reason: "Expected one out of mandate_id and mandate_data but got both".into(),
         },
     )? {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
@@ -950,7 +961,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(true),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -963,7 +974,7 @@ pub fn verify_mandate_details(
                 .unwrap_or(false),
             || {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "request amount is greater than mandate amount".to_string()
+                    reason: "request amount is greater than mandate amount".into()
                 }))
             },
         ),
@@ -975,7 +986,7 @@ pub fn verify_mandate_details(
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "cross currency mandates not supported".to_string()
+                reason: "cross currency mandates not supported".into()
             }))
         },
     )
@@ -1032,7 +1043,6 @@ where
                     );
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
-                        .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
@@ -2890,16 +2900,13 @@ pub async fn get_merchant_connector_account(
                     },
                 )?;
 
-            #[cfg(feature = "aws_kms")]
             let private_key = state
-                .kms_secrets
+                .conf
                 .jwekey
-                .peek()
+                .get_inner()
                 .tunnel_private_key
+                .peek()
                 .as_bytes();
-
-            #[cfg(not(feature = "aws_kms"))]
-            let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
@@ -3201,6 +3208,8 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            mandate_data: old_payment_attempt.mandate_data,
+            fingerprint_id: None,
         }
     }
 
@@ -3535,38 +3544,13 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let apple_pay_ppc = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::get_aws_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "aws_kms"))]
-        let cert_data = &apple_pay_ppc;
+        let cert_data = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc
+            .clone()
+            .expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3618,39 +3602,14 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let apple_pay_ppc_key = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client =
-                external_services::hashicorp_vault::get_hashicorp_client(&state.conf.hc_vault)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?;
+        let decrypted_apple_pay_ppc_key = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc_key
+            .clone()
+            .expose();
 
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .fetch_inner::<hashicorp_vault::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::get_aws_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc_key)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "aws_kms"))]
-        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

@@ -30,6 +30,7 @@ use actix_web::{
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
+use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
@@ -91,7 +92,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit);
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -135,14 +136,13 @@ pub fn mk_app(
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
             .service(routes::Blocklist::server(state.clone()))
-            .service(routes::LockerMigrate::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
             .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
             .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "aws_kms"))]
+    #[cfg(feature = "olap")]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
@@ -175,7 +175,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
@@ -231,6 +231,7 @@ impl Stop for mpsc::Sender<()> {
 
 pub fn get_application_builder(
     request_body_limit: usize,
+    cors: settings::CorsSettings,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -257,7 +258,7 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
-        .wrap(cors::cors())
+        .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::LogSpanInitializer)

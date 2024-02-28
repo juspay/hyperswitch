@@ -152,7 +152,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct CheckoutTokenResponse {
     token: Secret<String>,
 }
@@ -207,7 +207,7 @@ pub struct ApplePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: Option<Secret<String>>,
+    eci: Option<String>,
     cryptogram: Secret<String>,
 }
 
@@ -555,7 +555,7 @@ pub struct PaymentsResponse {
     response_summary: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
     ActionResponse(Vec<ActionResponse>),
@@ -723,7 +723,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
 pub struct PaymentVoidRequest {
     reference: String,
 }
-#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentVoidResponse {
     #[serde(skip)]
     pub(super) status: u16,
@@ -816,7 +816,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsCaptureRouterData>> for Payment
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
@@ -885,7 +885,7 @@ impl<F> TryFrom<&CheckoutRouterData<&types::RefundsRouterData<F>>> for RefundReq
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -943,14 +943,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Serialize)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -962,7 +962,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
@@ -1278,7 +1278,7 @@ pub fn construct_file_upload_request(
     Ok(multipart)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileUploadResponse {
     #[serde(rename = "id")]
     pub file_id: String,

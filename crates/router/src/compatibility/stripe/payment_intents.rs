@@ -2,17 +2,17 @@ pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
-    routes,
+    logger, routes,
     services::{api, authentication as auth},
     types::api as api_types,
 };
 
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -26,6 +26,9 @@ pub async fn payment_intents_create(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+    tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
     let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
@@ -264,7 +267,7 @@ pub async fn payment_intents_update(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -281,6 +284,10 @@ pub async fn payment_intents_confirm(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", stripe_payload.id.as_ref());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
         Ok(req) => req,
@@ -332,7 +339,7 @@ pub async fn payment_intents_confirm(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -348,6 +355,10 @@ pub async fn payment_intents_capture(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", &stripe_payload.payment_id.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let payload = payment_types::PaymentsCaptureRequest {
         payment_id: path.into_inner(),
@@ -389,7 +400,7 @@ pub async fn payment_intents_capture(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -406,6 +417,10 @@ pub async fn payment_intents_cancel(
             return api::log_and_return_error_response(report!(errors::StripeErrorCode::from(err)))
         }
     };
+
+    tracing::Span::current().record("payment_id", &payment_id.clone());
+
+    logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
     let mut payload: payment_types::PaymentsCancelRequest = stripe_payload.into();
     payload.payment_id = payment_id;

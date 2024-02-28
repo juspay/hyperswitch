@@ -114,6 +114,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_list,
         routes::customers::customers_update,
         routes::customers::customers_delete,
+        routes::customers::customers_mandates_list,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
@@ -405,6 +406,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PayoutEntityType,
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
+        api_models::enums::TransactionType,
         api_models::payments::FrmMessage,
         api_models::webhooks::OutgoingWebhook,
         api_models::webhooks::OutgoingWebhookContent,

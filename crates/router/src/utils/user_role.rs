@@ -1,40 +1,11 @@
 use api_models::user_role as user_role_api;
+use error_stack::ResultExt;
 
 use crate::{
-    consts,
     core::errors::{UserErrors, UserResult},
-    services::authorization::{
-        permissions::Permission,
-        predefined_permissions::{self, RoleInfo},
-    },
+    routes::AppState,
+    services::authorization::permissions::Permission,
 };
-
-pub fn is_internal_role(role_id: &str) -> bool {
-    role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
-        || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub fn validate_role_id(role_id: &str) -> UserResult<()> {
-    if predefined_permissions::is_role_invitable(role_id) {
-        return Ok(());
-    }
-    Err(UserErrors::InvalidRoleId.into())
-}
-
-pub fn get_role_name_and_permission_response(
-    role_info: &RoleInfo,
-) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
-    role_info.get_name().map(|name| {
-        (
-            role_info
-                .get_permissions()
-                .iter()
-                .map(|&per| per.into())
-                .collect::<Vec<user_role_api::Permission>>(),
-            name,
-        )
-    })
-}
 
 impl From<Permission> for user_role_api::Permission {
     fn from(value: Permission) -> Self {
@@ -49,7 +20,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountWrite => Self::MerchantAccountWrite,
             Permission::MerchantConnectorAccountRead => Self::MerchantConnectorAccountRead,
             Permission::MerchantConnectorAccountWrite => Self::MerchantConnectorAccountWrite,
-            Permission::ForexRead => Self::ForexRead,
             Permission::RoutingRead => Self::RoutingRead,
             Permission::RoutingWrite => Self::RoutingWrite,
             Permission::DisputeRead => Self::DisputeRead,
@@ -58,8 +28,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MandateWrite => Self::MandateWrite,
             Permission::CustomerRead => Self::CustomerRead,
             Permission::CustomerWrite => Self::CustomerWrite,
-            Permission::FileRead => Self::FileRead,
-            Permission::FileWrite => Self::FileWrite,
             Permission::Analytics => Self::Analytics,
             Permission::ThreeDsDecisionManagerWrite => Self::ThreeDsDecisionManagerWrite,
             Permission::ThreeDsDecisionManagerRead => Self::ThreeDsDecisionManagerRead,
@@ -70,4 +38,25 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
         }
     }
+}
+
+pub async fn is_role_name_already_present_for_merchant(
+    state: &AppState,
+    role_name: &str,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    let role_name_list: Vec<String> = state
+        .store
+        .list_all_roles(merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .iter()
+        .map(|role| role.role_name.to_owned())
+        .collect();
+
+    if role_name_list.contains(&role_name.to_string()) {
+        return Err(UserErrors::RoleNameAlreadyExists.into());
+    }
+    Ok(())
 }

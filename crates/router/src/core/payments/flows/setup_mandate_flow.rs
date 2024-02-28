@@ -1,3 +1,4 @@
+use api_models::enums::{PaymentMethod, PaymentMethodType};
 use async_trait::async_trait;
 use error_stack::{IntoReport, ResultExt};
 
@@ -68,7 +69,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .as_ref()
             .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
         {
-            self.update_mandate_flow(
+            Box::pin(self.update_mandate_flow(
                 state,
                 merchant_account,
                 mandate_id,
@@ -78,7 +79,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 &state.conf.mandates.update_mandate_supported,
                 connector_request,
                 maybe_customer,
-            )
+            ))
             .await
         } else {
             let connector_integration: services::BoxedConnectorIntegration<
@@ -275,17 +276,33 @@ impl types::SetupMandateRouterData {
         let payment_method_type = self.request.payment_method_type;
 
         let payment_method = self.request.payment_method_data.get_payment_method();
-        let supported_connectors_config =
-            payment_method
-                .zip(payment_method_type)
-                .map_or(false, |(pm, pmt)| {
+        let supported_connectors_config = payment_method.zip(payment_method_type).map_or_else(
+            || {
+                if payment_method == Some(PaymentMethod::Card) {
                     cards::filter_pm_based_on_update_mandate_support_for_connector(
                         supported_connectors_for_update_mandate,
-                        &pm,
-                        &pmt,
+                        &PaymentMethod::Card,
+                        &PaymentMethodType::Credit,
+                        connector.connector_name,
+                    ) && cards::filter_pm_based_on_update_mandate_support_for_connector(
+                        supported_connectors_for_update_mandate,
+                        &PaymentMethod::Card,
+                        &PaymentMethodType::Debit,
                         connector.connector_name,
                     )
-                });
+                } else {
+                    false
+                }
+            },
+            |(pm, pmt)| {
+                cards::filter_pm_based_on_update_mandate_support_for_connector(
+                    supported_connectors_for_update_mandate,
+                    &pm,
+                    &pmt,
+                    connector.connector_name,
+                )
+            },
+        );
         if supported_connectors_config {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
@@ -378,9 +395,13 @@ impl types::SetupMandateRouterData {
                 Err(_) => Ok(resp),
             }
         } else {
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("Update Mandate Flow not implemented for the connector ")?
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "Update Mandate flow not implemented for the connector {:?}",
+                    connector.connector_name
+                ),
+            })
+            .into_report()
         }
     }
 }

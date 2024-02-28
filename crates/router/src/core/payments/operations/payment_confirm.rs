@@ -25,7 +25,6 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -354,7 +353,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .browser_info
             .clone()
             .or(payment_attempt.browser_info)
-            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .as_ref()
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -441,28 +441,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         setup_mandate = setup_mandate.map(|mut sm| {
-            sm.mandate_type = payment_attempt
-                .mandate_details
-                .clone()
-                .and_then(|mandate| match mandate {
-                    data_models::mandates::MandateTypeDetails::MandateType(mandate_type) => {
-                        Some(mandate_type)
-                    }
-                    data_models::mandates::MandateTypeDetails::MandateDetails(mandate_details) => {
-                        mandate_details.mandate_type
-                    }
-                })
-                .or(sm.mandate_type);
+            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm.update_mandate_id = payment_attempt
-                .mandate_details
+                .mandate_data
                 .clone()
-                .and_then(|mandate| match mandate {
-                    data_models::mandates::MandateTypeDetails::MandateType(_) => None,
-                    data_models::mandates::MandateTypeDetails::MandateDetails(update_id) => {
-                        Some(update_id.update_mandate_id)
-                    }
-                })
-                .flatten()
+                .and_then(|mandate| mandate.update_mandate_id)
                 .or(sm.update_mandate_id);
             sm
         });
@@ -714,7 +697,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -756,6 +739,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
+        let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .surcharge_details
@@ -791,6 +775,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        fingerprint_id: m_fingerprint_id,
                     },
                     storage_scheme,
                 )
@@ -801,7 +786,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         );
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
-        let m_fingerprint_id = payment_data.payment_intent.fingerprint_id.clone();
         let m_customer_id = customer_id.clone();
         let m_shipping_address_id = shipping_address.clone();
         let m_billing_address_id = billing_address.clone();
@@ -838,7 +822,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        fingerprint_id: m_fingerprint_id,
+                        fingerprint_id: None,
                         session_expiry,
                     },
                     storage_scheme,

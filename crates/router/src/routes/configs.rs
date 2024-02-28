@@ -71,3 +71,24 @@ pub async fn config_key_update(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::ConfigKeyDelete))]
+pub async fn config_key_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::ConfigKeyDelete;
+    let key = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        key,
+        |state, _, key| configs::config_delete(state, key),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
