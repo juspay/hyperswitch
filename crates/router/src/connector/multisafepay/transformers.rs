@@ -1,4 +1,4 @@
-use common_utils::pii::Email;
+use common_utils::pii::{Email, IpAddress};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -68,7 +68,7 @@ pub enum Gateway {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Coupons {
-    pub allow: Option<Vec<String>>,
+    pub allow: Option<Vec<Secret<String>>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -126,20 +126,20 @@ pub struct Browser {
 pub struct Customer {
     pub browser: Option<Browser>,
     pub locale: Option<String>,
-    pub ip_address: Option<String>,
-    pub forward_ip: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
+    pub forward_ip: Option<Secret<String, IpAddress>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub gender: Option<String>,
-    pub birthday: Option<String>,
-    pub address1: Option<String>,
-    pub address2: Option<String>,
-    pub house_number: Option<String>,
-    pub zip_code: Option<String>,
+    pub birthday: Option<Secret<String>>,
+    pub address1: Option<Secret<String>>,
+    pub address2: Option<Secret<String>>,
+    pub house_number: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
     pub city: Option<String>,
     pub state: Option<String>,
     pub country: Option<String>,
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     pub email: Option<Email>,
     pub user_agent: Option<String>,
     pub referrer: Option<String>,
@@ -150,7 +150,7 @@ pub struct Customer {
 pub struct CardInfo {
     pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
-    pub card_expiry_date: Option<i32>,
+    pub card_expiry_date: Option<Secret<i32>>,
     pub card_cvc: Option<Secret<String>>,
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
@@ -159,7 +159,7 @@ pub struct CardInfo {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct GpayInfo {
-    pub payment_token: Option<String>,
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -242,7 +242,7 @@ pub struct MultisafepayPaymentsRequest {
     pub shopping_cart: Option<ShoppingCart>,
     pub items: Option<String>,
     pub recurring_model: Option<MandateType>,
-    pub recurring_id: Option<String>,
+    pub recurring_id: Option<Secret<String>>,
     pub capture: Option<String>,
     pub days_active: Option<i32>,
     pub seconds_active: Option<i32>,
@@ -423,7 +423,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
         let gateway_info = match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
-                card_expiry_date: Some(
+                card_expiry_date: Some(Secret::new(
                     (format!(
                         "{}{}",
                         ccard.get_card_expiry_year_2_digit()?.expose(),
@@ -431,7 +431,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     ))
                     .parse::<i32>()
                     .unwrap_or_default(),
-                ),
+                )),
                 card_cvc: Some(ccard.card_cvc.clone()),
                 card_holder_name: None,
                 flexible_3d: None,
@@ -442,7 +442,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 api::WalletData::GooglePay(ref google_pay) => {
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
-                            payment_token: Some(google_pay.tokenization_data.token.clone()),
+                            payment_token: Some(Secret::new(
+                                google_pay.tokenization_data.token.clone(),
+                            )),
                         }
                     })))
                 }
@@ -543,7 +545,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
                     Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_ids,
-                    )) => connector_mandate_ids.connector_mandate_id,
+                    )) => connector_mandate_ids.connector_mandate_id.map(Secret::new),
                     _ => None,
                 }),
             days_active: Some(30),
@@ -619,13 +621,13 @@ pub struct Data {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 
 pub struct MultisafepayPaymentDetails {
-    pub account_holder_name: Option<String>,
-    pub account_id: Option<String>,
-    pub card_expiry_date: Option<i32>,
+    pub account_holder_name: Option<Secret<String>>,
+    pub account_id: Option<Secret<String>>,
+    pub card_expiry_date: Option<Secret<String>>,
     pub external_transaction_id: Option<serde_json::Value>,
-    pub last4: Option<serde_json::Value>,
+    pub last4: Option<String>,
     pub recurring_flow: Option<String>,
-    pub recurring_id: Option<String>,
+    pub recurring_id: Option<Secret<String>>,
     pub recurring_model: Option<String>,
     #[serde(rename = "type")]
     pub payment_type: Option<String>,
@@ -685,7 +687,7 @@ impl<F, T>
                             .payment_details
                             .and_then(|payment_details| payment_details.recurring_id)
                             .map(|id| types::MandateReference {
-                                connector_mandate_id: Some(id),
+                                connector_mandate_id: Some(id.expose()),
                                 payment_method_id: None,
                             }),
                         connector_metadata: None,
