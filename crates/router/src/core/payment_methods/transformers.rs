@@ -374,46 +374,6 @@ pub fn mk_add_card_response_hs(
     }
 }
 
-pub fn mk_add_card_response(
-    card: api::CardDetail,
-    response: AddCardResponse,
-    req: api::PaymentMethodCreate,
-    merchant_id: &str,
-) -> api::PaymentMethodResponse {
-    let mut card_number = card.card_number.peek().to_owned();
-    let card = api::CardDetailFromLocker {
-        scheme: None,
-        last4_digits: Some(card_number.split_off(card_number.len() - 4)),
-        issuer_country: None, // [#256] bin mapping
-        card_number: Some(card.card_number),
-        expiry_month: Some(card.card_exp_month),
-        expiry_year: Some(card.card_exp_year),
-        card_token: Some(response.external_id.into()), // [#256]
-        card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: card.card_holder_name,
-        nick_name: card.nick_name,
-        card_isin: None,
-        card_issuer: None,
-        card_network: None,
-        card_type: None,
-        saved_to_locker: true,
-    };
-    api::PaymentMethodResponse {
-        merchant_id: merchant_id.to_owned(),
-        customer_id: req.customer_id,
-        payment_method_id: response.card_id,
-        payment_method: req.payment_method,
-        payment_method_type: req.payment_method_type,
-        bank_transfer: None,
-        card: Some(card),
-        metadata: req.metadata,
-        created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // [#256] Pending on discussion, and not stored in the card locker
-        payment_experience: None,           // [#256]
-    }
-}
-
 pub fn mk_add_card_request(
     locker: &settings::Locker,
     card: &api::CardDetail,
