@@ -1,13 +1,11 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
-use router_env::{instrument, tracing};
 
 use crate::{
     errors, gsm::*, query::generics, schema::gateway_status_map::dsl, PgPooledConn, StorageResult,
 };
 
 impl GatewayStatusMappingNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GatewayStatusMap> {
         generics::generic_insert(conn, self).await
     }
