@@ -42,7 +42,6 @@ mod storage {
         services::Store,
         types::storage::{capture::*, enums},
     };
-    use router_env::{instrument, tracing};
 
     #[async_trait::async_trait]
     impl CaptureInterface for Store {
@@ -108,6 +107,7 @@ mod storage {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::CaptureInterface;
     use crate::{
@@ -116,7 +116,6 @@ mod storage {
         services::Store,
         types::storage::{capture::*, enums},
     };
-    use router_env::{instrument, tracing};
 
     #[async_trait::async_trait]
     impl CaptureInterface for Store {
