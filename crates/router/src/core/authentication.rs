@@ -35,7 +35,7 @@ pub async fn perform_authentication(
     authentication_data: (types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
     sdk_information: Option<payments::SdkInformation>,
-    threeds_method_comp_ind: api_models::payments::ThreeDSCompInd,
+    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(

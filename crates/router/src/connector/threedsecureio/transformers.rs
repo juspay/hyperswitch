@@ -1,4 +1,4 @@
-use api_models::payments::{DeviceChannel, ThreeDSCompInd};
+use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
@@ -418,7 +418,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
                 .into_report()
                 .attach_printable("missing return_url")?,
-            three_dscomp_ind: ThreeDSecureIoThreeDSCompInd::from(
+            three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator::from(
                 request.threeds_method_comp_ind.clone(),
             ),
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
@@ -522,7 +522,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .map(|sdk_info| sdk_info.sdk_trans_id),
             sdk_max_timeout: sdk_information
                 .clone()
-                .map(|sdk_info| sdk_info.sdk_max_timeout),
+                .map(|sdk_info| sdk_info.sdk_max_timeout.to_string()),
             device_render_options: match request.device_channel {
                 DeviceChannel::App => Some(DeviceRenderOptions {
                     sdk_interface: "01".to_string(),
@@ -597,7 +597,7 @@ pub struct ThreedsecureioAuthenticationSuccessResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum ThreeDSecureIoThreeDSCompInd {
+pub enum ThreeDSecureIoThreeDsCompletionIndicator {
     Y,
     N,
     U,
@@ -613,7 +613,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub three_dsserver_trans_id: String,
     pub acct_number: cards::CardNumber,
     pub notification_url: String,
-    pub three_dscomp_ind: ThreeDSecureIoThreeDSCompInd,
+    pub three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator,
     pub three_dsrequestor_url: String,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
@@ -715,12 +715,12 @@ pub enum ThreedsecureioTransStatus {
     C,
 }
 
-impl From<ThreeDSCompInd> for ThreeDSecureIoThreeDSCompInd {
-    fn from(value: ThreeDSCompInd) -> Self {
+impl From<ThreeDsCompletionIndicator> for ThreeDSecureIoThreeDsCompletionIndicator {
+    fn from(value: ThreeDsCompletionIndicator) -> Self {
         match value {
-            ThreeDSCompInd::Success => Self::Y,
-            ThreeDSCompInd::Failure => Self::N,
-            ThreeDSCompInd::NotAvailable => Self::U,
+            ThreeDsCompletionIndicator::Success => Self::Y,
+            ThreeDsCompletionIndicator::Failure => Self::N,
+            ThreeDsCompletionIndicator::NotAvailable => Self::U,
         }
     }
 }
