@@ -122,7 +122,7 @@ pub async fn customers_mandates_list() {}
 /// Set the Payment Method as Default for the Customer.
 #[utoipa::path(
     get,
-    path = "/{customer_id}/payment_methods/{method_id}",
+    path = "/{customer_id}/payment_methods/{payment_method_id}/default",
     params (
         ("method_id" = String, Path, description = "Set the Payment Method as Default for the Customer"),
     ),

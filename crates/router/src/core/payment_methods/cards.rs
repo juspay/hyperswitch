@@ -3095,12 +3095,18 @@ pub async fn set_default_payment_method(
         .find_payment_method(&payment_method_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-    if payment_method.customer_id != customer_id {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "The payment_method_id is not valid for the Customer".to_string(),
-        })
-        .into_report()?
-    }
+
+    utils::when(
+        payment_method.customer_id != customer_id
+            && payment_method.merchant_id != merchant_account.merchant_id,
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "The payment_method_id is not valid".to_string(),
+            })
+            .into_report()
+        },
+    )?;
+
     utils::when(
         Some(payment_method_id.clone()) == customer.default_payment_method_id,
         || {

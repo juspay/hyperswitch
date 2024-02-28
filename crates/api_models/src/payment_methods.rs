@@ -754,7 +754,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 

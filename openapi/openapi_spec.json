@@ -4081,7 +4081,7 @@
         ]
       }
     },
-    "/{customer_id}/payment_methods/{method_id}": {
+    "/{customer_id}/payment_methods/{payment_method_id}/default": {
       "get": {
         "tags": [
           "Customer Set Default Payment Method"
@@ -7744,7 +7744,7 @@
             "description": "The identifier for the default payment method.",
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 64
           }
         }
       },
