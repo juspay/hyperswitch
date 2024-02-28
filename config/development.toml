@@ -573,15 +573,10 @@ enabled = true
 file_storage_backend = "file_system"
 
 [opensearch]
-source = "basic"
-
-[opensearch.basic]
+auth = "basic"
 username = "admin"
 password = "admin"
 host = "https://localhost:9200"
-
-[opensearch.aws]
-host = ""
 region = ""
 
 [opensearch_indexes]

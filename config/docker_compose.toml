@@ -426,17 +426,13 @@ source = "logs"
 file_storage_backend = "file_system"
 
 [opensearch]
-source = "basic"
-
-[opensearch.basic]
+auth = "basic"
 username = "admin"
 password = "admin"
 host = "https://localhost:9200"
-
-[opensearch.aws]
-host = ""
 region = ""
 
+# TODO : make opensearch indexes configurable
 [opensearch_indexes]
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"

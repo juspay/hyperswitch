@@ -574,17 +574,13 @@ key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [opensearch]
-source = "basic"
-
-[opensearch.basic]
+auth = "basic"
 username = "admin"
 password = "admin"
 host = "https://localhost:9200"
-
-[opensearch.aws]
-host = ""
 region = ""
 
+# TODO : make opensearch indexes configurable
 [opensearch_indexes]
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"

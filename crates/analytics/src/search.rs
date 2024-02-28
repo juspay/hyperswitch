@@ -49,7 +49,7 @@ struct OpensearchResultsTotal {
 
 #[derive(Debug, serde::Deserialize)]
 struct OpensearchHits<T> {
-    _search: T,
+    _source: T,
 }
 
 async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
@@ -125,7 +125,7 @@ pub async fn msearch_results(
                 .hits
                 .hits
                 .into_iter()
-                .map(|hit| hit._search)
+                .map(|hit| hit._source)
                 .collect(),
         })
         .collect())
@@ -163,7 +163,7 @@ pub async fn search_results(
             .hits
             .hits
             .into_iter()
-            .map(|hit| hit._search)
+            .map(|hit| hit._source)
             .collect(),
     })
 }

@@ -514,7 +514,7 @@ pub struct ReportConfig {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(tag = "source")]
+#[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
 pub enum OpensearchConfig {
     Basic {

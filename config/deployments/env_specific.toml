@@ -200,17 +200,13 @@ refund_function = "report_download_config_refund_function"   # Config to downloa
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
-source = "basic"
-
-[opensearch.basic]
+auth = "basic"
 username = "admin"
 password = "admin"
 host = "https://localhost:9200"
-
-[opensearch.aws]
-host = ""
 region = ""
 
+# TODO : make opensearch indexes configurable
 [opensearch_indexes]
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
@@ -236,15 +232,15 @@ shutdown_timeout = 30
 request_body_limit = 32_768
 
 [secrets_management]
-secrets_manager = "aws_kms"               # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used
 
 [secrets_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
 [encryption_management]
-encryption_manager = "aws_kms"            # Encryption manager client to be used
+encryption_manager = "aws_kms" # Encryption manager client to be used
 
 [encryption_management.aws_kms]
-key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
-region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.

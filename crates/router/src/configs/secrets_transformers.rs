@@ -343,6 +343,8 @@ pub(crate) async fn fetch_raw_secrets(
         payment_link: conf.payment_link,
         #[cfg(feature = "olap")]
         analytics: conf.analytics,
+        #[cfg(feature = "olap")]
+        opensearch: conf.opensearch,
         #[cfg(feature = "kv_store")]
         kv_config: conf.kv_config,
         #[cfg(feature = "frm")]
