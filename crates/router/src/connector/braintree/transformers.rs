@@ -158,7 +158,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                                 utils::get_unimplemented_payment_method_error_message("braintree"),
                             ))
                         }
-                    }?,
+                    }?
+                    .into(),
                 }))
             }
             api::PaymentMethodData::PayLater(_)
