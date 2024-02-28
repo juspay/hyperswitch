@@ -4112,7 +4112,7 @@
             }
           },
           "400": {
-            "description": "If that Payment Method has already been set as default for that customer"
+            "description": "Payment Method has already been set as default for that customer"
           },
           "404": {
             "description": "Payment Method not found for the customer"
