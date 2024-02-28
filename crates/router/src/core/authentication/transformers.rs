@@ -37,7 +37,7 @@ pub fn construct_authentication_router_data(
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: (super::types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
-    sdk_information: Option<api_models::payments::SDKInformation>,
+    sdk_information: Option<api_models::payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDSCompInd,
     email: Option<common_utils::pii::Email>,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
@@ -174,17 +174,17 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     })
 }
 
-impl ForeignFrom<payments::TransStatus> for common_enums::AuthenticationStatus {
-    fn foreign_from(trans_status: payments::TransStatus) -> Self {
+impl ForeignFrom<payments::TransactionStatus> for common_enums::AuthenticationStatus {
+    fn foreign_from(trans_status: payments::TransactionStatus) -> Self {
         match trans_status {
-            api_models::payments::TransStatus::Y => Self::Success,
-            api_models::payments::TransStatus::N
-            | api_models::payments::TransStatus::R
-            | api_models::payments::TransStatus::U
-            | api_models::payments::TransStatus::A => Self::Failed,
-            api_models::payments::TransStatus::C
-            | api_models::payments::TransStatus::D
-            | api_models::payments::TransStatus::I => Self::Pending,
+            api_models::payments::TransactionStatus::Success => Self::Success,
+            api_models::payments::TransactionStatus::Failure
+            | api_models::payments::TransactionStatus::Rejected
+            | api_models::payments::TransactionStatus::VerificationNotPerformed
+            | api_models::payments::TransactionStatus::NotVerified => Self::Failed,
+            api_models::payments::TransactionStatus::ChallengeRequired
+            | api_models::payments::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | api_models::payments::TransactionStatus::InformationOnly => Self::Pending,
         }
     }
 }

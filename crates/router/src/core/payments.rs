@@ -3293,7 +3293,7 @@ pub async fn payment_external_authentication(
     .await?;
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
-            trans_status: authentication_response.trans_status,
+            transaction_status: authentication_response.trans_status,
             acs_url: authentication_response
                 .acs_url
                 .as_ref()

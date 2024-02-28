@@ -34,7 +34,7 @@ pub async fn perform_authentication(
     device_channel: payments::DeviceChannel,
     authentication_data: (types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
-    sdk_information: Option<payments::SDKInformation>,
+    sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: api_models::payments::ThreeDSCompInd,
     email: Option<common_utils::pii::Email>,
 ) -> CustomResult<core_types::api::authentication::AuthenticationResponse, ApiErrorResponse> {

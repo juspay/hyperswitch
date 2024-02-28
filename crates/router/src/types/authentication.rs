@@ -23,10 +23,10 @@ pub enum AuthenticationResponseData {
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
         cavv: Option<String>,
-        trans_status: api_models::payments::TransStatus,
+        trans_status: api_models::payments::TransactionStatus,
     },
     PostAuthNResponse {
-        trans_status: api_models::payments::TransStatus,
+        trans_status: api_models::payments::TransactionStatus,
         authentication_value: Option<String>,
         eci: Option<String>,
     },
@@ -103,7 +103,7 @@ pub struct ConnectorAuthenticationRequestData {
         storage::Authentication,
     ),
     pub return_url: Option<String>,
-    pub sdk_information: Option<api_models::payments::SDKInformation>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub email: Option<Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDSCompInd,
     pub three_ds_requestor_url: String,

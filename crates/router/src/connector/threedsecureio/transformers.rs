@@ -1,4 +1,4 @@
-use api_models::payments::{DeviceChannel, SDKEphemPubKey, ThreeDSCompInd};
+use api_models::payments::{DeviceChannel, ThreeDSCompInd};
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
@@ -343,7 +343,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
         let browser_details = match request.browser_details.clone() {
             Some(details) => Ok::<Option<types::BrowserInformation>, Self::Error>(Some(details)),
             None => {
-                if request.device_channel == DeviceChannel::BRW {
+                if request.device_channel == DeviceChannel::Browser {
                     Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "browser_info",
                     })?
@@ -389,12 +389,12 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
 
         let authentication_data = &request.authentication_data.0;
         let sdk_information = match request.device_channel {
-            DeviceChannel::APP => Some(item.router_data.request.sdk_information.clone().ok_or(
+            DeviceChannel::App => Some(item.router_data.request.sdk_information.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "sdk_information",
                 },
             )?),
-            DeviceChannel::BRW => None,
+            DeviceChannel::Browser => None,
         };
         let acquirer_details = authentication_data
             .acquirer_details
@@ -450,8 +450,8 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             bill_addr_state: billing_state.peek().to_string(),
             three_dsrequestor_authentication_ind: "01".to_string(),
             device_channel: match item.router_data.request.device_channel.clone() {
-                DeviceChannel::APP => "01",
-                DeviceChannel::BRW => "02",
+                DeviceChannel::App => "01",
+                DeviceChannel::Browser => "02",
             }
             .to_string(),
             message_category: match item.router_data.request.message_category.clone() {
@@ -522,11 +522,11 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .clone()
                 .map(|sdk_info| sdk_info.sdk_max_timeout),
             device_render_options: match request.device_channel {
-                DeviceChannel::APP => Some(DeviceRenderOptions {
+                DeviceChannel::App => Some(DeviceRenderOptions {
                     sdk_interface: "01".to_string(),
                     sdk_ui_type: vec!["01".to_string()],
                 }),
-                DeviceChannel::BRW => None,
+                DeviceChannel::Browser => None,
             },
             cardholder_name: card_details.card_holder_name,
             email: request.email.clone(),
@@ -630,7 +630,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub browser_user_agent: Option<String>,
     pub sdk_app_id: Option<String>,
     pub sdk_enc_data: Option<String>,
-    pub sdk_ephem_pub_key: Option<SDKEphemPubKey>,
+    pub sdk_ephem_pub_key: Option<std::collections::HashMap<String, String>>,
     pub sdk_reference_number: Option<String>,
     pub sdk_trans_id: Option<String>,
     pub mcc: String,
@@ -706,15 +706,15 @@ pub enum ThreedsecureioTransStatus {
     C,
 }
 
-impl From<ThreedsecureioTransStatus> for api_models::payments::TransStatus {
+impl From<ThreedsecureioTransStatus> for api_models::payments::TransactionStatus {
     fn from(value: ThreedsecureioTransStatus) -> Self {
         match value {
-            ThreedsecureioTransStatus::Y => Self::Y,
-            ThreedsecureioTransStatus::N => Self::N,
-            ThreedsecureioTransStatus::U => Self::U,
-            ThreedsecureioTransStatus::A => Self::A,
-            ThreedsecureioTransStatus::R => Self::R,
-            ThreedsecureioTransStatus::C => Self::C,
+            ThreedsecureioTransStatus::Y => Self::Success,
+            ThreedsecureioTransStatus::N => Self::Failure,
+            ThreedsecureioTransStatus::U => Self::VerificationNotPerformed,
+            ThreedsecureioTransStatus::A => Self::NotVerified,
+            ThreedsecureioTransStatus::R => Self::Rejected,
+            ThreedsecureioTransStatus::C => Self::ChallengeRequired,
         }
     }
 }

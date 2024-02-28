@@ -37,7 +37,7 @@ pub struct AuthenticationData {
     pub three_ds_method_data: ThreeDsMethodData,
     pub message_version: String,
     pub eci: Option<String>,
-    pub trans_status: api_models::payments::TransStatus,
+    pub trans_status: api_models::payments::TransactionStatus,
     pub acquirer_details: Option<AcquirerDetails>,
 }
 
