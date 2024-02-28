@@ -33,7 +33,7 @@ pub enum EventType {
 #[serde(rename_all = "lowercase")]
 pub enum EventsConfig {
     Kafka {
-        kafka: KafkaSettings,
+        kafka: Box<KafkaSettings>,
     },
     #[default]
     Logs,

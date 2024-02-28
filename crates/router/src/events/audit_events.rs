@@ -10,14 +10,20 @@ use crate::{
 
 #[derive(Debug, Clone, Serialize)]
 pub enum AuditEventType {
-    Error { error_message: String },
+    Error {
+        error_message: String,
+    },
     PaymentCreated,
     ConnectorDecided,
     ConnectorCalled,
     RefundCreated,
     RefundSuccess,
     RefundFail,
-    PaymentUpdate { data: HashMap<String, String> },
+    PaymentUpdate {
+        payment_id: String,
+        merchant_id: String,
+        data: HashMap<String, String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

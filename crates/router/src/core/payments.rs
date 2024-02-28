@@ -2085,6 +2085,8 @@ where
 {
     pub fn get_audit_event(&self) -> AuditEventType {
         AuditEventType::PaymentUpdate {
+            payment_id: self.payment_intent.payment_id.clone(),
+            merchant_id: self.payment_intent.merchant_id.clone(),
             data: self.changes.clone(),
         }
     }
