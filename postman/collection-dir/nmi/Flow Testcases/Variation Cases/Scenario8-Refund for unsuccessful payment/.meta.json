@@ -2,7 +2,6 @@
   "childrenOrder": [
     "Payments - Create",
     "Payments - Retrieve",
-    "Payments - Retrieve-copy",
     "Refunds - Create"
   ]
 }

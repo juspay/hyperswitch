@@ -591,7 +591,7 @@ pub struct BluesnapCompletePaymentsRequest {
     amount: String,
     currency: enums::Currency,
     card_transaction_type: BluesnapTxnType,
-    pf_token: String,
+    pf_token: Secret<String>,
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
@@ -627,7 +627,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     meta_data: Vec::<RequestMetadata>::foreign_from(metadata.peek().to_owned()),
                 });
 
-        let pf_token = item
+        let token = item
             .router_data
             .request
             .redirect_response
@@ -673,7 +673,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                 item.router_data.request.get_email()?,
             )?,
             merchant_transaction_id: Some(item.router_data.connector_request_reference_id.clone()),
-            pf_token,
+            pf_token: Secret::new(token),
             transaction_meta_data,
         })
     }

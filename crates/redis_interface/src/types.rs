@@ -255,3 +255,22 @@ impl fred::types::FromRedis for DelReply {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum SaddReply {
+    KeySet,
+    KeyNotSet,
+}
+
+impl fred::types::FromRedis for SaddReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected sadd command reply",
+            )),
+        }
+    }
+}

@@ -49,11 +49,16 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Merchants account create flow.
@@ -82,6 +87,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -116,6 +123,8 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
@@ -339,6 +348,8 @@ pub enum Flow {
     InviteMultipleUser,
     /// Reinvite user
     ReInviteUser,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
     /// Delete user role
     DeleteUserRole,
     /// Incremental Authorization flow
@@ -359,6 +370,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
 }
 
 ///

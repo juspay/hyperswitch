@@ -1,42 +1,23 @@
 use common_utils::ext_traits::ConfigExt;
+use masking::PeekInterface;
 use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(not(feature = "aws_kms"))]
-        {
-            when(self.jwt_secret.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "JWT secret must not be empty".into(),
-                ))
-            })?;
+        when(self.jwt_secret.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "JWT secret must not be empty".into(),
+            ))
+        })?;
 
-            when(self.admin_api_key.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "admin API key must not be empty".into(),
-                ))
-            })?;
-        }
+        when(self.admin_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "admin API key must not be empty".into(),
+            ))
+        })?;
 
-        #[cfg(feature = "aws_kms")]
-        {
-            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "KMS encrypted JWT secret must not be empty".into(),
-                ))
-            })?;
-
-            when(
-                self.kms_encrypted_admin_api_key.is_default_or_empty(),
-                || {
-                    Err(ApplicationError::InvalidConfigurationValueError(
-                        "KMS encrypted admin API key must not be empty".into(),
-                    ))
-                },
-            )?;
-        }
         when(self.master_enc_key.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Master encryption key must not be empty".into(),
@@ -155,19 +136,20 @@ impl super::settings::ApiKeys {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        #[cfg(feature = "aws_kms")]
-        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "API key hashing key must not be empty when KMS feature is enabled".into(),
-            ))
-        });
-
-        #[cfg(not(feature = "aws_kms"))]
-        when(self.hash_key.is_empty(), || {
+        when(self.hash_key.peek().is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
             ))
-        })
+        })?;
+
+        #[cfg(feature = "email")]
+        when(self.expiry_reminder_days.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key expiry reminder days must not be empty".into(),
+            ))
+        })?;
+
+        Ok(())
     }
 }
 

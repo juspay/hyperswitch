@@ -54,6 +54,7 @@ fn get_payment_info() -> Option<PaymentInfo> {
                     ..Default::default()
                 }),
                 phone: None,
+                email: None,
             }),
             ..Default::default()
         }),
