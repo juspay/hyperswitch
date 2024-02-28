@@ -98,7 +98,7 @@ impl AuthenticationInterface for MockDb {
             merchant_id: authentication.merchant_id,
             authentication_status: authentication.authentication_status,
             authentication_connector: authentication.authentication_connector,
-            authentication_connector_id: authentication.authentication_connector_id,
+            connector_authentication_id: authentication.connector_authentication_id,
             authentication_data: authentication.authentication_data,
             payment_method_id: authentication.payment_method_id,
             authentication_type: authentication.authentication_type,

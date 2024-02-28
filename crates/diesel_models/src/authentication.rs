@@ -10,7 +10,7 @@ pub struct Authentication {
     pub authentication_id: String,
     pub merchant_id: String,
     pub authentication_connector: String,
-    pub authentication_connector_id: Option<String>,
+    pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: String,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
@@ -31,7 +31,7 @@ pub struct AuthenticationNew {
     pub authentication_id: String,
     pub merchant_id: String,
     pub authentication_connector: String,
-    pub authentication_connector_id: Option<String>,
+    pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: String,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
@@ -46,7 +46,7 @@ pub struct AuthenticationNew {
 pub enum AuthenticationUpdate {
     AuthenticationDataUpdate {
         authentication_data: Option<serde_json::Value>,
-        authentication_connector_id: Option<String>,
+        connector_authentication_id: Option<String>,
         payment_method_id: Option<String>,
         authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_status: Option<common_enums::AuthenticationStatus>,
@@ -60,14 +60,14 @@ pub enum AuthenticationUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
-        authentication_connector_id: Option<String>,
+        connector_authentication_id: Option<String>,
     },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationUpdateInternal {
-    pub authentication_connector_id: Option<String>,
+    pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: Option<String>,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
@@ -82,7 +82,7 @@ pub struct AuthenticationUpdateInternal {
 impl AuthenticationUpdateInternal {
     pub fn apply_changeset(self, source: Authentication) -> Authentication {
         let Self {
-            authentication_connector_id,
+            connector_authentication_id,
             authentication_data,
             payment_method_id,
             authentication_type,
@@ -94,8 +94,8 @@ impl AuthenticationUpdateInternal {
             connector_metadata,
         } = self;
         Authentication {
-            authentication_connector_id: authentication_connector_id
-                .or(source.authentication_connector_id),
+            connector_authentication_id: connector_authentication_id
+                .or(source.connector_authentication_id),
             authentication_data: authentication_data.or(source.authentication_data),
             payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
             authentication_type: authentication_type.or(source.authentication_type),
@@ -116,7 +116,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
         match auth_update {
             AuthenticationUpdate::AuthenticationDataUpdate {
                 authentication_data,
-                authentication_connector_id,
+                connector_authentication_id,
                 authentication_type,
                 authentication_status,
                 payment_method_id,
@@ -124,7 +124,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 connector_metadata,
             } => Self {
                 authentication_data,
-                authentication_connector_id,
+                connector_authentication_id,
                 authentication_type,
                 authentication_status,
                 authentication_lifecycle_status,
@@ -138,13 +138,13 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_message,
                 error_code,
                 authentication_status,
-                authentication_connector_id,
+                connector_authentication_id,
             } => Self {
                 error_code,
                 error_message,
                 authentication_status: Some(authentication_status),
                 authentication_data: None,
-                authentication_connector_id,
+                connector_authentication_id,
                 authentication_type: None,
                 authentication_lifecycle_status: None,
                 modified_at: common_utils::date_time::now(),
@@ -154,7 +154,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status,
             } => Self {
-                authentication_connector_id: None,
+                connector_authentication_id: None,
                 authentication_data: None,
                 payment_method_id: None,
                 authentication_type: None,

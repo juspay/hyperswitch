@@ -435,7 +435,7 @@ impl
                         maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
                             pre_authn_response.acs_end_protocol_version.clone(),
                         )?,
-                        authentication_connector_id: pre_authn_response.threeds_server_trans_id,
+                        connector_authentication_id: pre_authn_response.threeds_server_trans_id,
                         three_ds_method_data: three_ds_method_data_base64,
                         three_ds_method_url: pre_authn_response.threeds_method_url,
                         message_version: pre_authn_response.acs_end_protocol_version.clone(),

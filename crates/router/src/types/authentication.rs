@@ -14,7 +14,7 @@ pub enum AuthenticationResponseData {
     PreAuthNResponse {
         threeds_server_transaction_id: String,
         maximum_supported_3ds_version: (i64, i64, i64),
-        authentication_connector_id: String,
+        connector_authentication_id: String,
         three_ds_method_data: String,
         three_ds_method_url: Option<String>,
         message_version: String,

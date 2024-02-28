@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS Authentication (
     authentication_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
     authentication_connector VARCHAR(64) NOT NULL,
-    authentication_connector_id VARCHAR(64),
+    connector_authentication_id VARCHAR(64),
     authentication_data JSONB,
     payment_method_id VARCHAR(64) NOT NULL,
     authentication_type "DecoupledAuthenticationType",
