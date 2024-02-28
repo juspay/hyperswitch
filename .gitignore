@@ -261,3 +261,5 @@ result*
 
 # node_modules
 node_modules/
+
+creds.json

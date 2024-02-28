@@ -1,0 +1,21 @@
+{
+    "amount": 6540,
+    "currency": "USD",
+    "capture_method": "automatic",
+    "off_session": true,
+    "confirm": true,
+    "description": "Initiated by merchant",
+    "mandate_id": "mandate_id",
+    "customer_id": "StripeCustomer",
+    "billing": {
+      "address": {
+        "line1": "1467",
+        "line2": "Harrison Street",
+        "line3": "Harrison Street",
+        "city": "San Fransico",
+        "state": "California",
+        "zip": "94122",
+        "country": "US"
+      }
+    }
+  }

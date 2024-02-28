@@ -1,0 +1,42 @@
+{
+    "client_secret": "",
+    "return_url": "https://hyperswitch.io/",
+    "payment_method": "card",
+    "confirm": true,
+    "payment_method_data": {
+      "card": {
+        "_comment": "these details are fetched from utils",
+        "card_number": "YourCardNumberHere",  
+        "card_exp_month": "04",
+        "card_exp_year": "24",
+        "card_holder_name": "xyz",
+        "card_cvc": "424",
+        "card_issuer": "",
+        "card_network": "Visa"
+      }
+    },
+    "billing": {
+      "address": {
+        "state": "New York",
+        "city": "New York",
+        "country": "US",
+        "first_name": "Arun",
+        "last_name": "MishraArunMishra",
+        "zip": "10001",
+        "line1": "123 Main Street Apt 4B"
+      }
+    },
+    "email": "hyperswitch_sdk_demo_id@gmail.com",
+    "browser_info": {
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+      "language": "en-US",
+      "color_depth": 30,
+      "screen_height": 1117,
+      "screen_width": 1728,
+      "time_zone": -330,
+      "java_enabled": true,
+      "java_script_enabled": true
+    }
+  }
+  
