@@ -501,6 +501,7 @@ mod storage {
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
+                        email: address_new.email.clone(),
                     };
 
                     let redis_entry = kv::TypedSql {
@@ -656,7 +657,7 @@ impl AddressInterface for MockDb {
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -667,7 +668,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -687,7 +689,7 @@ impl AddressInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -698,7 +700,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address_updated) => address_updated
                 .convert(key_store.key.get_inner())
                 .await
@@ -757,7 +760,7 @@ impl AddressInterface for MockDb {
         address_update: storage_types::AddressUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-        match self
+        let updated_addr = self
             .addresses
             .lock()
             .await
@@ -771,7 +774,8 @@ impl AddressInterface for MockDb {
                     AddressUpdateInternal::from(address_update).create_address(a.clone());
                 *a = address_updated.clone();
                 address_updated
-            }) {
+            });
+        match updated_addr {
             Some(address) => {
                 let address: domain::Address = address
                     .convert(key_store.key.get_inner())

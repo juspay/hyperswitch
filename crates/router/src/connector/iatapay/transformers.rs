@@ -6,7 +6,9 @@ use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{
+        self as connector_util, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
@@ -45,7 +47,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, _amount, item): (
+        (currency_unit, currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -53,12 +55,12 @@ impl<T>
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(_amount, _currency)?,
+            amount: connector_util::get_amount_as_f64(currency_unit, amount, currency)?,
             router_data: item,
         })
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -136,7 +138,6 @@ impl
         let payment_method = item.router_data.payment_method;
         let country = match payment_method {
             PaymentMethod::Upi => "IN".to_string(),
-
             PaymentMethod::Card
             | PaymentMethod::CardRedirect
             | PaymentMethod::PayLater
@@ -154,7 +155,19 @@ impl
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
-            _ => None,
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => None,
         };
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.router_data.connector_auth_type)?
@@ -212,25 +225,21 @@ pub enum IatapayPaymentStatus {
     Initiated,
     Authorized,
     Settled,
-    Tobeinvestigated,
-    Blocked,
     Cleared,
     Failed,
-    Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
-    #[serde(other)]
-    Unknown,
 }
 
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
     fn from(item: IatapayPaymentStatus) -> Self {
         match item {
-            IatapayPaymentStatus::Authorized | IatapayPaymentStatus::Settled => Self::Charged,
+            IatapayPaymentStatus::Authorized
+            | IatapayPaymentStatus::Settled
+            | IatapayPaymentStatus::Cleared => Self::Charged,
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
-            _ => Self::Voided,
         }
     }
 }
@@ -256,9 +265,6 @@ pub struct IatapayPaymentsResponse {
     pub merchant_payment_id: Option<String>,
     pub amount: f64,
     pub currency: String,
-    pub country: Option<String>,
-    pub locale: Option<String>,
-    pub bank_transfer_description: Option<String>,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
@@ -276,7 +282,7 @@ fn get_iatpay_response(
     errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::from(response.status);
-    let error = if status == enums::AttemptStatus::Failure {
+    let error = if connector_util::is_payment_failure(status) {
         Some(types::ErrorResponse {
             code: response
                 .failure_code
@@ -433,11 +439,32 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_details
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_details,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -450,17 +477,37 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        let response = if connector_util::is_refund_failure(refund_status) {
+            Err(types::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_details
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_details,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.iata_refund_id.clone()),
+            })
+        } else {
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.iata_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
     pub status: u16,
     pub error: String,
@@ -468,8 +515,101 @@ pub struct IatapayErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
     pub path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IatapayPaymentWebhookBody {
+    pub status: IatapayWebhookStatus,
+    pub iata_payment_id: String,
+    pub merchant_payment_id: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_details: Option<String>,
+    pub amount: f64,
+    pub currency: String,
+    pub checkout_methods: Option<CheckoutMethod>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IatapayRefundWebhookBody {
+    pub status: IatapayRefundWebhookStatus,
+    pub iata_refund_id: String,
+    pub merchant_refund_id: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_details: Option<String>,
+    pub amount: f64,
+    pub currency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum IatapayWebhookResponse {
+    IatapayPaymentWebhookBody(IatapayPaymentWebhookBody),
+    IatapayRefundWebhookBody(IatapayRefundWebhookBody),
+}
+
+impl TryFrom<IatapayWebhookResponse> for api::IncomingWebhookEvent {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payload: IatapayWebhookResponse) -> CustomResult<Self, errors::ConnectorError> {
+        match payload {
+            IatapayWebhookResponse::IatapayPaymentWebhookBody(wh_body) => match wh_body.status {
+                IatapayWebhookStatus::Authorized | IatapayWebhookStatus::Settled => {
+                    Ok(Self::PaymentIntentSuccess)
+                }
+                IatapayWebhookStatus::Initiated => Ok(Self::PaymentIntentProcessing),
+                IatapayWebhookStatus::Failed => Ok(Self::PaymentIntentFailure),
+                IatapayWebhookStatus::Created
+                | IatapayWebhookStatus::Cleared
+                | IatapayWebhookStatus::Tobeinvestigated
+                | IatapayWebhookStatus::Blocked
+                | IatapayWebhookStatus::UnexpectedSettled
+                | IatapayWebhookStatus::Unknown => Ok(Self::EventNotSupported),
+            },
+            IatapayWebhookResponse::IatapayRefundWebhookBody(wh_body) => match wh_body.status {
+                IatapayRefundWebhookStatus::Authorized | IatapayRefundWebhookStatus::Settled => {
+                    Ok(Self::RefundSuccess)
+                }
+                IatapayRefundWebhookStatus::Failed => Ok(Self::RefundFailure),
+                IatapayRefundWebhookStatus::Created
+                | IatapayRefundWebhookStatus::Locked
+                | IatapayRefundWebhookStatus::Initiated
+                | IatapayRefundWebhookStatus::Unknown => Ok(Self::EventNotSupported),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IatapayWebhookStatus {
+    Created,
+    Initiated,
+    Authorized,
+    Settled,
+    Cleared,
+    Failed,
+    Tobeinvestigated,
+    Blocked,
+    #[serde(rename = "UNEXPECTED SETTLED")]
+    UnexpectedSettled,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IatapayRefundWebhookStatus {
+    Created,
+    Initiated,
+    Authorized,
+    Settled,
+    Failed,
+    Locked,
+    #[serde(other)]
+    Unknown,
 }

@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
-#[cfg(all(feature = "kms", feature = "olap"))]
-use analytics::AnalyticsConfig;
+#[cfg(all(feature = "business_profile_routing", feature = "olap"))]
+use api_models::routing::RoutingRetrieveQuery;
+#[cfg(feature = "olap")]
+use common_enums::TransactionType;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
-#[cfg(feature = "kms")]
-use external_services::kms::{self, decrypt::KmsDecrypt};
-#[cfg(all(feature = "olap", feature = "kms"))]
-use masking::PeekInterface;
+use external_services::file_storage::FileStorageInterface;
+use hyperswitch_interfaces::{
+    encryption_interface::EncryptionManagementInterface,
+    secrets_interface::secret_state::{RawSecret, SecuredSecret},
+};
 use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
@@ -26,18 +29,19 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "olap")]
 use super::routing as cloud_routing;
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{
-    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*,
-    locker_migration, payment_link::*, user::*, user_role::*,
+    admin::*, api_keys::*, connector_onboarding::*, disputes::*, files::*, gsm::*, payment_link::*,
+    user::*, user_role::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use crate::configs::secrets_transformers;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -46,6 +50,7 @@ use crate::routes::recon as recon_routes;
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
+    core::routing,
     db::{StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
@@ -56,16 +61,16 @@ pub use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Arc<settings::Settings>,
+    pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
-    #[cfg(feature = "kms")]
-    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pool: crate::analytics::AnalyticsProvider,
     pub request_id: Option<RequestId>,
+    pub file_storage_client: Box<dyn FileStorageInterface>,
+    pub encryption_client: Box<dyn EncryptionManagementInterface>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -75,7 +80,7 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> settings::Settings;
+    fn conf(&self) -> settings::Settings<RawSecret>;
     fn store(&self) -> Box<dyn StorageInterface>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
@@ -87,7 +92,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings {
+    fn conf(&self) -> settings::Settings<RawSecret> {
         self.conf.as_ref().to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
@@ -124,7 +129,7 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings) -> impl EmailService {
+pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> impl EmailService {
     match settings.email.active_email_client {
         external_services::email::AvailableEmailClients::SES => {
             AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
@@ -137,15 +142,28 @@ impl AppState {
     ///
     /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
-        #[cfg_attr(not(all(feature = "olap", feature = "kms")), allow(unused_mut))]
-        mut conf: settings::Settings,
+        conf: settings::Settings<SecuredSecret>,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+        #[allow(clippy::expect_used)]
+        let secret_management_client = conf
+            .secrets_management
+            .get_secret_management_client()
+            .await
+            .expect("Failed to create secret management client");
+
+        let conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+
+        #[allow(clippy::expect_used)]
+        let encryption_client = conf
+            .encryption_management
+            .get_encryption_management_client()
+            .await
+            .expect("Failed to create encryption client");
+
         Box::pin(async move {
-            #[cfg(feature = "kms")]
-            let kms_client = kms::get_kms_client(&conf.kms).await;
             let testable = storage_impl == StorageImpl::PostgresqlTest;
             #[allow(clippy::expect_used)]
             let event_handler = conf
@@ -153,6 +171,7 @@ impl AppState {
                 .get_event_handler()
                 .await
                 .expect("Failed to create event handler");
+
             let store: Box<dyn StorageInterface> = match storage_impl {
                 StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match &event_handler {
                     EventsHandler::Kafka(kafka_client) => Box::new(
@@ -180,45 +199,13 @@ impl AppState {
                 ),
             };
 
-            #[cfg(all(feature = "kms", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            match conf.analytics {
-                AnalyticsConfig::Clickhouse { .. } => {}
-                AnalyticsConfig::Sqlx { ref mut sqlx }
-                | AnalyticsConfig::CombinedCkh { ref mut sqlx, .. }
-                | AnalyticsConfig::CombinedSqlx { ref mut sqlx, .. } => {
-                    sqlx.password = kms_client
-                        .decrypt(&sqlx.password.peek())
-                        .await
-                        .expect("Failed to decrypt password")
-                        .into();
-                }
-            };
-
-            #[cfg(all(feature = "kms", feature = "olap"))]
-            #[allow(clippy::expect_used)]
-            {
-                conf.connector_onboarding = conf
-                    .connector_onboarding
-                    .decrypt_inner(kms_client)
-                    .await
-                    .expect("Failed to decrypt connector onboarding credentials");
-            }
-
             #[cfg(feature = "olap")]
             let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
 
-            #[cfg(feature = "kms")]
-            #[allow(clippy::expect_used)]
-            let kms_secrets = settings::ActiveKmsSecrets {
-                jwekey: conf.jwekey.clone().into(),
-            }
-            .decrypt_inner(kms_client)
-            .await
-            .expect("Failed while performing KMS decryption");
-
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
+
+            let file_storage_client = conf.file_storage.get_file_storage_client().await;
 
             Self {
                 flow_name: String::from("default"),
@@ -226,20 +213,20 @@ impl AppState {
                 conf: Arc::new(conf),
                 #[cfg(feature = "email")]
                 email_client,
-                #[cfg(feature = "kms")]
-                kms_secrets: Arc::new(kms_secrets),
                 api_client,
                 event_handler,
                 #[cfg(feature = "olap")]
                 pool,
                 request_id: None,
+                file_storage_client,
+                encryption_client,
             }
         })
         .await
     }
 
     pub async fn new(
-        conf: settings::Settings,
+        conf: settings::Settings<SecuredSecret>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
@@ -260,7 +247,7 @@ impl Health {
         web::scope("health")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
-            .service(web::resource("/deep_check").route(web::post().to(deep_health_check)))
+            .service(web::resource("/ready").route(web::get().to(deep_health_check)))
     }
 }
 
@@ -404,7 +391,8 @@ pub struct Routing;
 #[cfg(feature = "olap")]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/routing")
+        #[allow(unused_mut)]
+        let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/active")
@@ -412,18 +400,57 @@ impl Routing {
             )
             .service(
                 web::resource("")
-                    .route(web::get().to(cloud_routing::routing_retrieve_dictionary))
-                    .route(web::post().to(cloud_routing::routing_create_config)),
+                    .route(
+                        #[cfg(feature = "business_profile_routing")]
+                        web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
+                            cloud_routing::list_routing_configs(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payment,
+                            )
+                        }),
+                        #[cfg(not(feature = "business_profile_routing"))]
+                        web::get().to(cloud_routing::list_routing_configs),
+                    )
+                    .route(web::post().to(|state, req, payload| {
+                        cloud_routing::routing_create_config(
+                            state,
+                            req,
+                            payload,
+                            &TransactionType::Payment,
+                        )
+                    })),
             )
             .service(
                 web::resource("/default")
-                    .route(web::get().to(cloud_routing::routing_retrieve_default_config))
-                    .route(web::post().to(cloud_routing::routing_update_default_config)),
+                    .route(web::get().to(|state, req| {
+                        cloud_routing::routing_retrieve_default_config(
+                            state,
+                            req,
+                            &TransactionType::Payment,
+                        )
+                    }))
+                    .route(web::post().to(|state, req, payload| {
+                        cloud_routing::routing_update_default_config(
+                            state,
+                            req,
+                            payload,
+                            &TransactionType::Payment,
+                        )
+                    })),
             )
-            .service(
-                web::resource("/deactivate")
-                    .route(web::post().to(cloud_routing::routing_unlink_config)),
-            )
+            .service(web::resource("/deactivate").route(web::post().to(
+                |state, req, #[cfg(feature = "business_profile_routing")] payload| {
+                    cloud_routing::routing_unlink_config(
+                        state,
+                        req,
+                        #[cfg(feature = "business_profile_routing")]
+                        payload,
+                        &TransactionType::Payment,
+                    )
+                },
+            )))
             .service(
                 web::resource("/decision")
                     .route(web::put().to(cloud_routing::upsert_decision_manager_config))
@@ -439,23 +466,140 @@ impl Routing {
                     ),
             )
             .service(
+                web::resource("/default/profile/{profile_id}").route(web::post().to(
+                    |state, req, path, payload| {
+                        cloud_routing::routing_update_default_config_for_profile(
+                            state,
+                            req,
+                            path,
+                            payload,
+                            &TransactionType::Payment,
+                        )
+                    },
+                )),
+            )
+            .service(
+                web::resource("/default/profile").route(web::get().to(|state, req| {
+                    cloud_routing::routing_retrieve_default_config_for_profiles(
+                        state,
+                        req,
+                        &TransactionType::Payment,
+                    )
+                })),
+            );
+
+        #[cfg(feature = "payouts")]
+        {
+            route = route
+                .service(
+                    web::resource("/payouts")
+                        .route(
+                            #[cfg(feature = "business_profile_routing")]
+                            web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
+                                cloud_routing::list_routing_configs(
+                                    state,
+                                    req,
+                                    #[cfg(feature = "business_profile_routing")]
+                                    path,
+                                    #[cfg(feature = "business_profile_routing")]
+                                    &TransactionType::Payout,
+                                )
+                            }),
+                            #[cfg(not(feature = "business_profile_routing"))]
+                            web::get().to(cloud_routing::list_routing_configs),
+                        )
+                        .route(web::post().to(|state, req, payload| {
+                            cloud_routing::routing_create_config(
+                                state,
+                                req,
+                                payload,
+                                &TransactionType::Payout,
+                            )
+                        })),
+                )
+                .service(
+                    web::resource("/payouts/default")
+                        .route(web::get().to(|state, req| {
+                            cloud_routing::routing_retrieve_default_config(
+                                state,
+                                req,
+                                &TransactionType::Payout,
+                            )
+                        }))
+                        .route(web::post().to(|state, req, payload| {
+                            cloud_routing::routing_update_default_config(
+                                state,
+                                req,
+                                payload,
+                                &TransactionType::Payout,
+                            )
+                        })),
+                )
+                .service(
+                    web::resource("/payouts/{algorithm_id}/activate").route(web::post().to(
+                        |state, req, path| {
+                            cloud_routing::routing_link_config(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payout,
+                            )
+                        },
+                    )),
+                )
+                .service(web::resource("/payouts/deactivate").route(web::post().to(
+                    |state, req, #[cfg(feature = "business_profile_routing")] payload| {
+                        cloud_routing::routing_unlink_config(
+                            state,
+                            req,
+                            #[cfg(feature = "business_profile_routing")]
+                            payload,
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
+                .service(
+                    web::resource("/payouts/default/profile/{profile_id}").route(web::post().to(
+                        |state, req, path, payload| {
+                            cloud_routing::routing_update_default_config_for_profile(
+                                state,
+                                req,
+                                path,
+                                payload,
+                                &TransactionType::Payout,
+                            )
+                        },
+                    )),
+                )
+                .service(
+                    web::resource("/payouts/default/profile").route(web::get().to(|state, req| {
+                        cloud_routing::routing_retrieve_default_config_for_profiles(
+                            state,
+                            req,
+                            &TransactionType::Payout,
+                        )
+                    })),
+                );
+        }
+
+        route = route
+            .service(
                 web::resource("/{algorithm_id}")
                     .route(web::get().to(cloud_routing::routing_retrieve_config)),
             )
             .service(
-                web::resource("/{algorithm_id}/activate")
-                    .route(web::post().to(cloud_routing::routing_link_config)),
-            )
-            .service(
-                web::resource("/default/profile/{profile_id}").route(
-                    web::post().to(cloud_routing::routing_update_default_config_for_profile),
-                ),
-            )
-            .service(
-                web::resource("/default/profile").route(
-                    web::get().to(cloud_routing::routing_retrieve_default_config_for_profiles),
-                ),
-            )
+                web::resource("/{algorithm_id}/activate").route(web::post().to(
+                    |state, req, path| {
+                        cloud_routing::routing_link_config(
+                            state,
+                            req,
+                            path,
+                            &TransactionType::Payment,
+                        )
+                    },
+                )),
+            );
+        route
     }
 }
 
@@ -604,6 +748,9 @@ impl Blocklist {
                     .route(web::post().to(blocklist::add_entry_to_blocklist))
                     .route(web::delete().to(blocklist::remove_entry_from_blocklist)),
             )
+            .service(
+                web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
+            )
     }
 }
 
@@ -746,7 +893,8 @@ impl Configs {
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
-                    .route(web::post().to(config_key_update)),
+                    .route(web::post().to(config_key_update))
+                    .route(web::delete().to(config_key_delete)),
             )
     }
 }
@@ -781,7 +929,8 @@ impl Disputes {
             .service(
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
-                    .route(web::put().to(attach_dispute_evidence)),
+                    .route(web::put().to(attach_dispute_evidence))
+                    .route(web::delete().to(delete_dispute_evidence)),
             )
             .service(
                 web::resource("/evidence/{dispute_id}")
@@ -841,6 +990,10 @@ impl PaymentLink {
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
             )
+            .service(
+                web::resource("status/{merchant_id}/{payment_id}")
+                    .route(web::get().to(payment_link_status)),
+            )
     }
 }
 
@@ -879,10 +1032,10 @@ impl Gsm {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(feature = "olap")]
 pub struct Verify;
 
-#[cfg(all(feature = "olap", feature = "kms"))]
+#[cfg(feature = "olap")]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")
@@ -906,7 +1059,11 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
 
         route = route
-            .service(web::resource("/signin").route(web::post().to(user_signin)))
+            .service(
+                web::resource("/signin").route(web::post().to(user_signin_without_invite_checks)),
+            )
+            .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
+            .service(web::resource("/signout").route(web::post().to(signout)))
             .service(web::resource("/change_password").route(web::post().to(change_password)))
             .service(web::resource("/internal_signup").route(web::post().to(internal_user_signup)))
             .service(web::resource("/switch_merchant").route(web::post().to(switch_merchant_id)))
@@ -915,14 +1072,7 @@ impl User {
                     .route(web::post().to(user_merchant_account_create)),
             )
             .service(web::resource("/switch/list").route(web::get().to(list_merchant_ids_for_user)))
-            .service(web::resource("/user/list").route(web::get().to(get_user_details)))
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
-            .service(web::resource("/user/update_role").route(web::post().to(update_user_role)))
-            .service(web::resource("/role/list").route(web::get().to(list_roles)))
-            .service(web::resource("/role").route(web::get().to(get_role_from_token)))
-            .service(web::resource("/role/{role_id}").route(web::get().to(get_role)))
-            .service(web::resource("/user/invite").route(web::post().to(invite_user)))
-            .service(web::resource("/user/invite/accept").route(web::post().to(accept_invitation)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
@@ -930,14 +1080,6 @@ impl User {
                     .route(web::post().to(set_dashboard_metadata)),
             );
 
-        #[cfg(feature = "dummy_connector")]
-        {
-            route = route.service(
-                web::resource("/sample_data")
-                    .route(web::post().to(generate_sample_data))
-                    .route(web::delete().to(delete_sample_data)),
-            )
-        }
         #[cfg(feature = "email")]
         {
             route = route
@@ -950,30 +1092,68 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
-                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
+                .service(
+                    web::resource("/verify_email")
+                        .route(web::post().to(verify_email_without_invite_checks)),
+                )
+                .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
                         .route(web::post().to(verify_email_request)),
+                )
+                .service(web::resource("/user/resend_invite").route(web::post().to(resend_invite)))
+                .service(
+                    web::resource("/accept_invite_from_email")
+                        .route(web::post().to(accept_invite_from_email)),
                 );
         }
         #[cfg(not(feature = "email"))]
         {
             route = route.service(web::resource("/signup").route(web::post().to(user_signup)))
         }
-        route
-    }
-}
 
-pub struct LockerMigrate;
+        // User management
+        route = route.service(
+            web::scope("/user")
+                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("/invite").route(web::post().to(invite_user)))
+                .service(
+                    web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
+                )
+                .service(web::resource("/invite/accept").route(web::post().to(accept_invitation)))
+                .service(web::resource("/update_role").route(web::post().to(update_user_role)))
+                .service(
+                    web::resource("/transfer_ownership")
+                        .route(web::post().to(transfer_org_ownership)),
+                )
+                .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
+        );
 
-#[cfg(feature = "olap")]
-impl LockerMigrate {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("locker_migration/{merchant_id}")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("").route(web::post().to(locker_migration::rust_locker_migration)),
+        // Role information
+        route = route.service(
+            web::scope("/role")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(get_role_from_token))
+                        .route(web::post().to(create_role)),
+                )
+                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(
+                    web::resource("/{role_id}")
+                        .route(web::get().to(get_role))
+                        .route(web::put().to(update_role)),
+                ),
+        );
+
+        #[cfg(feature = "dummy_connector")]
+        {
+            route = route.service(
+                web::resource("/sample_data")
+                    .route(web::post().to(generate_sample_data))
+                    .route(web::delete().to(delete_sample_data)),
             )
+        }
+        route
     }
 }
 

@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, ForeignIDRef};
+use crate::{
+    errors,
+    mandates::{MandateDataType, MandateDetails},
+    ForeignIDRef,
+};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -155,6 +159,8 @@ pub struct PaymentAttempt {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -184,7 +190,7 @@ pub struct PaymentAttemptNew {
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
     pub amount: i64,
-    /// amount + surcharge_amount + tax_amount  
+    /// amount + surcharge_amount + tax_amount
     /// This field will always be derived before updating in the Database
     pub net_amount: i64,
     pub currency: Option<storage_enums::Currency>,
@@ -232,6 +238,8 @@ pub struct PaymentAttemptNew {
     pub merchant_connector_id: Option<String>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub mandate_data: Option<MandateDetails>,
+    pub fingerprint_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -264,6 +272,7 @@ pub enum PaymentAttemptUpdate {
         capture_method: Option<storage_enums::CaptureMethod>,
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        fingerprint_id: Option<String>,
         updated_by: String,
     },
     UpdateTrackers {
@@ -301,8 +310,15 @@ pub enum PaymentAttemptUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
+        fingerprint_id: Option<String>,
     },
     RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        updated_by: String,
+    },
+    BlocklistUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,

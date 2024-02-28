@@ -2,7 +2,7 @@ use api_models::payments;
 use base64::Engine;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -113,9 +113,9 @@ pub struct MerchantDefinedInformation {
 pub struct BankOfAmericaConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
     cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     specification_version: Option<String>,
 }
 
@@ -213,7 +213,7 @@ pub struct BillTo {
     first_name: Secret<String>,
     last_name: Secret<String>,
     address1: Secret<String>,
-    locality: String,
+    locality: Secret<String>,
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
@@ -235,7 +235,7 @@ fn build_bill_to(
         first_name: address.get_first_name()?.to_owned(),
         last_name: address.get_last_name()?.to_owned(),
         address1: address.get_line1()?.to_owned(),
-        locality: address.get_city()?.to_owned(),
+        locality: Secret::new(address.get_city()?.to_owned()),
         administrative_area: Secret::from(state),
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
@@ -330,21 +330,34 @@ impl
     From<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         Option<PaymentSolution>,
+        Option<String>,
     )> for ProcessingInformation
 {
     fn from(
-        (item, solution): (
+        (item, solution, network): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             Option<PaymentSolution>,
+            Option<String>,
         ),
     ) -> Self {
+        let commerce_indicator = match network {
+            Some(card_network) => match card_network.to_lowercase().as_str() {
+                "amex" => "aesk",
+                "discover" => "dipb",
+                "mastercard" => "spa",
+                "visa" => "internet",
+                _ => "internet",
+            },
+            None => "internet",
+        }
+        .to_string();
         Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             payment_solution: solution.map(String::from),
-            commerce_indicator: String::from("internet"),
+            commerce_indicator,
         }
     }
 }
@@ -427,22 +440,22 @@ pub struct ClientProcessorInformation {
     avs: Option<Avs>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientRiskInformation {
     rules: Option<Vec<ClientRiskInformationRules>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ClientRiskInformationRules {
-    name: String,
+    name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Avs {
     code: String,
-    code_raw: String,
+    code_raw: Option<String>,
 }
 
 impl
@@ -489,7 +502,7 @@ impl
             })?
             .parse_value("BankOfAmericaThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "Merchant connector account metadata",
+                config: "metadata",
             })?;
 
         let processing_information =
@@ -552,7 +565,7 @@ impl
                 card_type,
             },
         });
-        let processing_information = ProcessingInformation::from((item, None));
+        let processing_information = ProcessingInformation::from((item, None, None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -574,20 +587,25 @@ impl
     TryFrom<(
         &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
         Box<ApplePayPredecryptData>,
+        payments::ApplePayWalletData,
     )> for BankOfAmericaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (item, apple_pay_data): (
+        (item, apple_pay_data, apple_pay_wallet_data): (
             &BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>,
             Box<ApplePayPredecryptData>,
+            payments::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_billing()?, email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
-        let processing_information =
-            ProcessingInformation::from((item, Some(PaymentSolution::ApplePay)));
+        let processing_information = ProcessingInformation::from((
+            item,
+            Some(PaymentSolution::ApplePay),
+            Some(apple_pay_wallet_data.payment_method.network),
+        ));
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year()?;
@@ -640,7 +658,7 @@ impl
             },
         });
         let processing_information =
-            ProcessingInformation::from((item, Some(PaymentSolution::GooglePay)));
+            ProcessingInformation::from((item, Some(PaymentSolution::GooglePay), None));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information =
             item.router_data.request.metadata.clone().map(|metadata| {
@@ -672,7 +690,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     match item.router_data.payment_method_token.clone() {
                         Some(payment_method_token) => match payment_method_token {
                             types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                                Self::try_from((item, decrypt_data))
+                                Self::try_from((item, decrypt_data, apple_pay_data))
                             }
                             types::PaymentMethodToken::Token(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
@@ -685,6 +703,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             let processing_information = ProcessingInformation::from((
                                 item,
                                 Some(PaymentSolution::ApplePay),
+                                Some(apple_pay_data.payment_method.network),
                             ));
                             let client_reference_information =
                                 ClientReferenceInformation::from(item);
@@ -825,7 +844,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaPaymentStatus {
     Authorized,
@@ -886,15 +905,15 @@ impl ForeignFrom<(BankofamericaPaymentStatus, bool)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationResponse {
-    access_token: String,
-    device_data_collection_url: String,
+    access_token: Secret<String>,
+    device_data_collection_url: Secret<String>,
     reference_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthSetupInfoResponse {
     id: String,
@@ -902,21 +921,21 @@ pub struct ClientAuthSetupInfoResponse {
     consumer_authentication_information: BankOfAmericaConsumerAuthInformationResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaAuthSetupResponse {
     ClientAuthSetupInfo(ClientAuthSetupInfoResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPaymentsResponse {
     ClientReferenceInformation(BankOfAmericaClientReferenceResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaClientReferenceResponse {
     id: String,
@@ -927,14 +946,14 @@ pub struct BankOfAmericaClientReferenceResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaErrorInformationResponse {
     id: String,
     error_information: BankOfAmericaErrorInformation,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BankOfAmericaErrorInformation {
     reason: Option<String>,
     message: Option<String>,
@@ -1066,10 +1085,12 @@ impl<F>
                     redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .expose(),
                         ddc_url: info_response
                             .consumer_authentication_information
-                            .device_data_collection_url,
+                            .device_data_collection_url
+                            .expose(),
                         reference_id: info_response
                             .consumer_authentication_information
                             .reference_id,
@@ -1310,7 +1331,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsCompleteAuthorizeRouterDat
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankOfAmericaAuthEnrollmentStatus {
     PendingAuthentication,
@@ -1322,10 +1343,10 @@ pub enum BankOfAmericaAuthEnrollmentStatus {
 pub struct BankOfAmericaConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
     cavv: Option<String>,
-    ucaf_authentication_data: Option<String>,
+    ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,
-    directory_server_transaction_id: Option<String>,
+    directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
 }
 
@@ -1334,17 +1355,17 @@ pub struct BankOfAmericaThreeDSMetadata {
     three_ds_data: BankOfAmericaConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformationEnrollmentResponse {
-    access_token: Option<String>,
+    access_token: Option<Secret<String>>,
     step_up_url: Option<String>,
     //Added to segregate the three_ds_data in a separate struct
     #[serde(flatten)]
     validate_response: BankOfAmericaConsumerAuthValidateResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientAuthCheckInfoResponse {
     id: String,
@@ -1354,7 +1375,7 @@ pub struct ClientAuthCheckInfoResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaPreProcessingResponse {
     ClientAuthCheckInfo(Box<ClientAuthCheckInfoResponse>),
@@ -1420,7 +1441,8 @@ impl<F>
                     let redirection_data = match (
                         info_response
                             .consumer_authentication_information
-                            .access_token,
+                            .access_token
+                            .map(|access_token| access_token.expose()),
                         info_response
                             .consumer_authentication_information
                             .step_up_url,
@@ -1446,9 +1468,9 @@ impl<F>
                             resource_id: types::ResponseId::NoResponseId,
                             redirection_data,
                             mandate_reference: None,
-                            connector_metadata: Some(
-                                serde_json::json!({"three_ds_data":three_ds_data}),
-                            ),
+                            connector_metadata: Some(serde_json::json!({
+                                "three_ds_data": three_ds_data
+                            })),
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
@@ -1644,14 +1666,14 @@ impl<F>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaTransactionResponse {
     ApplicationInformation(BankOfAmericaApplicationInfoResponse),
     ErrorInformation(BankOfAmericaErrorInformationResponse),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaApplicationInfoResponse {
     id: String,
@@ -1660,7 +1682,7 @@ pub struct BankOfAmericaApplicationInfoResponse {
     error_information: Option<BankOfAmericaErrorInformation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInformation {
     status: BankofamericaPaymentStatus,
@@ -1879,7 +1901,7 @@ impl From<BankofamericaRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRefundResponse {
     id: String,
@@ -1903,7 +1925,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BankOfAmericaRefundR
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BankofamericaRefundStatus {
     Succeeded,
@@ -1913,13 +1935,13 @@ pub enum BankofamericaRefundStatus {
     Voided,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncApplicationInformation {
     status: BankofamericaRefundStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaRsyncResponse {
     id: String,
@@ -1945,7 +1967,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BankOfAmericaRsyncResp
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaStandardErrorResponse {
     pub error_information: Option<ErrorInformation>,
@@ -1955,7 +1977,7 @@ pub struct BankOfAmericaStandardErrorResponse {
     pub details: Option<Vec<Details>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaServerErrorResponse {
     pub status: Option<String>,
@@ -1963,7 +1985,7 @@ pub struct BankOfAmericaServerErrorResponse {
     pub reason: Option<Reason>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Reason {
     SystemError,
@@ -1971,32 +1993,32 @@ pub enum Reason {
     ServiceTimeout,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BankOfAmericaAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum BankOfAmericaErrorResponse {
     AuthenticationError(BankOfAmericaAuthenticationErrorResponse),
     StandardError(BankOfAmericaStandardErrorResponse),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Details {
     pub field: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ErrorInformation {
     pub message: String,
     pub reason: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AuthenticationErrorInformation {
     pub rmsg: String,
 }
@@ -2023,7 +2045,7 @@ impl
                 client_risk_information.rules.map(|rules| {
                     rules
                         .iter()
-                        .map(|risk_info| format!(" , {}", risk_info.name))
+                        .map(|risk_info| format!(" , {}", risk_info.name.clone().expose()))
                         .collect::<Vec<String>>()
                         .join("")
                 })

@@ -9,7 +9,7 @@ use diesel_models::{
 };
 
 use crate::{
-    core::errors,
+    core::{errors, routing},
     types::transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
 };
 
@@ -20,11 +20,11 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
             #[cfg(feature = "business_profile_routing")]
             profile_id: value.profile_id,
             name: value.name,
-
             kind: value.kind.foreign_into(),
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: Some(value.algorithm_for),
         }
     }
 }
@@ -40,6 +40,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: Some(value.algorithm_for),
         }
     }
 }
@@ -59,6 +60,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
                 .parse_value::<Algorithm>("RoutingAlgorithm")?,
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
+            algorithm_for: value.algorithm_for,
         })
     }
 }
@@ -81,6 +83,16 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::Priority => Self::Priority,
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
+        }
+    }
+}
+
+impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::TransactionType {
+    fn from(value: &routing::TransactionData<'_, F>) -> Self {
+        match value {
+            routing::TransactionData::Payment(_) => Self::Payment,
+            #[cfg(feature = "payouts")]
+            routing::TransactionData::Payout(_) => Self::Payout,
         }
     }
 }

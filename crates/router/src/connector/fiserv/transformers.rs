@@ -271,14 +271,14 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub details: Option<Vec<ErrorDetails>>,
     pub error: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     #[serde(rename = "type")]

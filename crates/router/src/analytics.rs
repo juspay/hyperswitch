@@ -21,7 +21,7 @@ pub mod routes {
         routes::AppState,
         services::{
             api,
-            authentication::{self as auth, AuthToken, AuthenticationData},
+            authentication::{self as auth, AuthenticationData},
             authorization::permissions::Permission,
             ApplicationResponse,
         },
@@ -87,6 +87,10 @@ pub mod routes {
                     .service(
                         web::resource("metrics/api_events")
                             .route(web::post().to(get_api_events_metrics)),
+                    )
+                    .service(
+                        web::resource("filters/disputes")
+                            .route(web::post().to(get_dispute_filters)),
                     )
             }
             route
@@ -378,23 +382,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GenerateRefundReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -430,23 +424,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GenerateDisputeReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -482,23 +466,13 @@ pub mod routes {
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
     ) -> impl Responder {
-        let state_ref = &state;
-        let req_headers = &req.headers();
-
         let flow = AnalyticsFlow::GeneratePaymentReport;
         Box::pin(api::server_wrap(
             flow,
             state.clone(),
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, payload| async move {
-                let jwt_payload =
-                    auth::parse_jwt_payload::<AppState, AuthToken>(req_headers, state_ref).await;
-
-                let user_id = jwt_payload
-                    .change_context(AnalyticsError::UnknownError)?
-                    .user_id;
-
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload| async move {
                 let user = UserInterface::find_user_by_id(&*state.store, &user_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -523,7 +497,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth(Permission::Analytics),
+            &auth::JWTAuth(Permission::PaymentWrite),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -606,6 +580,32 @@ pub mod routes {
                 connector_events_core(&state.pool, req, auth.merchant_account.merchant_id)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_dispute_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetDisputeFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req| async move {
+                analytics::disputes::get_filters(
+                    &state.pool,
+                    req,
+                    &auth.merchant_account.merchant_id,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

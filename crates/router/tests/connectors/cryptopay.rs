@@ -55,6 +55,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
             ..Default::default()
         }),
@@ -81,6 +82,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         order_details: None,
         order_category: None,
         email: None,
+        customer_name: None,
         payment_experience: None,
         payment_method_type: None,
         session_token: None,

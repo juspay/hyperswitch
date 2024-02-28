@@ -7,7 +7,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payments};
+use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -48,10 +48,6 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
-    #[serde(
-        default,
-        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
-    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
@@ -157,6 +153,7 @@ pub struct PayoutCreateRequest {
 pub enum PayoutMethodData {
     Card(Card),
     Bank(Bank),
+    Wallet(Wallet),
 }
 
 impl Default for PayoutMethodData {
@@ -260,6 +257,19 @@ pub struct SepaBankTransfer {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
     pub bic: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Wallet {
+    Paypal(Paypal),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Paypal {
+    /// Email linked with paypal account
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize)]

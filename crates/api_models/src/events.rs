@@ -1,5 +1,6 @@
 pub mod connector_onboarding;
 pub mod customer;
+pub mod dispute;
 pub mod gsm;
 mod locker_migration;
 pub mod payment;
@@ -44,8 +45,6 @@ impl_misc_api_event_type!(
     RetrievePaymentLinkResponse,
     MandateListConstraints,
     CreateFileResponse,
-    DisputeResponse,
-    SubmitEvidenceRequest,
     MerchantConnectorResponse,
     MerchantConnectorId,
     MandateResponse,
@@ -96,7 +95,9 @@ impl_misc_api_event_type!(
     SdkEventsRequest,
     ReportRequest,
     ConnectorEventsRequest,
-    OutgoingWebhookLogsRequest
+    OutgoingWebhookLogsRequest,
+    GetDisputeFilterRequest,
+    DisputeFiltersResponse
 );
 
 #[cfg(feature = "stripe")]
