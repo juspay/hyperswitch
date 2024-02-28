@@ -70,7 +70,7 @@ diesel::table! {
         #[max_length = 64]
         authentication_connector -> Varchar,
         #[max_length = 64]
-        authentication_connector_id -> Nullable<Varchar>,
+        connector_authentication_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Jsonb>,
         #[max_length = 64]
         payment_method_id -> Varchar,
