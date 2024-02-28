@@ -3428,11 +3428,11 @@ pub struct PaymentsExternalAuthenticationRequest {
     /// Device Channel indicating whether request is coming from App or Browser
     pub device_channel: DeviceChannel,
     /// Indicates if 3DS method data was successfully completed or not
-    pub threeds_method_comp_ind: ThreeDSCompInd,
+    pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Default)]
-pub enum ThreeDSCompInd {
+pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed
     #[serde(rename = "Y")]
     Success,
@@ -3465,8 +3465,8 @@ pub struct SdkInformation {
     pub sdk_trans_id: String,
     /// Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App
     pub sdk_reference_number: String,
-    /// Indicates maximum amount of time
-    pub sdk_max_timeout: String,
+    /// Indicates maximum amount of time in minutes
+    pub sdk_max_timeout: i8,
 }
 
 #[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]

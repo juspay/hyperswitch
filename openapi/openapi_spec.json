@@ -13096,7 +13096,7 @@
             "$ref": "#/components/schemas/DeviceChannel"
           },
           "threeds_method_comp_ind": {
-            "$ref": "#/components/schemas/ThreeDSCompInd"
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
           }
         }
       },
@@ -16108,8 +16108,9 @@
             "description": "Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App"
           },
           "sdk_max_timeout": {
-            "type": "string",
-            "description": "Indicates maximum amount of time"
+            "type": "integer",
+            "format": "int32",
+            "description": "Indicates maximum amount of time in minutes"
           }
         }
       },
@@ -16543,7 +16544,7 @@
           }
         }
       },
-      "ThreeDSCompInd": {
+      "ThreeDsCompletionIndicator": {
         "type": "string",
         "enum": [
           "Y",
