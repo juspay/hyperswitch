@@ -24,6 +24,7 @@ pub struct GetGroupsQueryParam {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
 pub enum GetRoleFromTokenResponse {
     Permissions(Vec<Permission>),
     Groups(Vec<PermissionGroup>),
