@@ -1708,7 +1708,7 @@ impl
     fn handle_response(
         &self,
         data: &types::RetrieveFileRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
     ) -> CustomResult<
         types::RouterData<
@@ -1719,7 +1719,10 @@ impl
         errors::ConnectorError,
     > {
         let response = res.response;
-        router_env::logger::info!(connector_response=?response);
+
+        event_builder.map(|event| event.set_response_body(&serde_json::json!({"connector_response_type": "file", "status_code": res.status_code})));
+        router_env::logger::info!(connector_response_type=?"file");
+
         Ok(types::RetrieveFileRouterData {
             response: Ok(types::RetrieveFileResponse {
                 file_data: response.to_vec(),
@@ -1737,6 +1740,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
