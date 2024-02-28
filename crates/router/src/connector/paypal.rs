@@ -417,8 +417,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error,
-            message: response.error_description.clone(),
+            code: response.error.clone(),
+            message: response.error.clone(),
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
