@@ -264,11 +264,25 @@ impl ConnectorCommon for Paypal {
                 .or(Some(err_reason)),
             None => Some(response.message.to_owned()),
         };
+        let errors_list = response.details.unwrap_or_default();
+        let option_error_code_message =
+            connector_utils::get_error_code_error_message_based_on_priority(
+                Self.clone(),
+                errors_list
+                    .into_iter()
+                    .map(|errors| errors.into())
+                    .collect(),
+            );
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.name,
-            message: response.message.clone(),
+            code: option_error_code_message
+                .clone()
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: option_error_code_message
+                .map(|error_code_message| error_code_message.error_message)
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
             connector_transaction_id: None,
