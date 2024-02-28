@@ -17,8 +17,7 @@ use opensearch::{
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
-use crate::errors::AnalyticsError;
-use crate::OpensearchConfig;
+use crate::{errors::AnalyticsError, OpensearchConfig};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpensearchError {
