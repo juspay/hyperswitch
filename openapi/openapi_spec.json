@@ -7684,6 +7684,13 @@
           "frictionless"
         ]
       },
+      "DeviceChannel": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "BRW"
+        ]
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -16485,6 +16492,14 @@
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
           }
         }
+      },
+      "ThreeDSCompInd": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U"
+        ]
       },
       "ThreeDsData": {
         "type": "object",
