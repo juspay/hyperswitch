@@ -186,9 +186,7 @@ pub async fn get_filters(
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
         .filter_map(|fil: DisputeFilterRow| match dim {
-            DisputeDimensions::DisputeStatus => fil.dispute_status,
             DisputeDimensions::DisputeStage => fil.dispute_stage,
-            DisputeDimensions::ConnectorStatus => fil.connector_status,
             DisputeDimensions::Connector => fil.connector,
         })
         .collect::<Vec<String>>();

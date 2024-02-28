@@ -476,11 +476,6 @@ impl<'a> FromRow<'a, PgRow> for super::disputes::metrics::DisputeMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let connector_status: Option<String> =
-            row.try_get("connector_status").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -500,7 +495,6 @@ impl<'a> FromRow<'a, PgRow> for super::disputes::metrics::DisputeMetricRow {
             dispute_stage,
             dispute_status,
             connector,
-            connector_status,
             total,
             count,
             start_bucket,

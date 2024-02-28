@@ -11,8 +11,8 @@ use api_models::{
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, DisputeStatus,
-        PaymentMethod, PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
+        PaymentMethodType,
     },
     refunds::RefundStatus,
 };
@@ -385,12 +385,7 @@ impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventName
 
 impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
 
-impl_to_sql_for_to_string!(
-    &DisputeDimensions,
-    DisputeDimensions,
-    DisputeStage,
-    DisputeStatus
-);
+impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
 
 #[derive(Debug)]
 pub enum FilterTypes {

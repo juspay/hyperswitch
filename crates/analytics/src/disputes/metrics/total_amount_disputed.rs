@@ -3,7 +3,6 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -45,7 +44,7 @@ where
 
         query_builder
             .add_select_column(Aggregate::Sum {
-                field: "amount",
+                field: "dispute_amount",
                 alias: Some("total"),
             })
             .switch()?;
@@ -83,10 +82,7 @@ where
                 .switch()?;
         }
         query_builder
-            .add_filter_clause(
-                DisputeDimensions::DisputeStatus,
-                storage_enums::DisputeStatus::DisputeWon,
-            )
+            .add_filter_clause("dispute_status", "dispute_won")
             .switch()?;
 
         query_builder
@@ -100,7 +96,6 @@ where
                     DisputeMetricsBucketIdentifier::new(
                         i.dispute_stage.as_ref().map(|i| i.0),
                         i.connector.clone(),
-                        i.dispute_status.as_ref().map(|i| i.0),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

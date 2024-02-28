@@ -3,8 +3,6 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use common_enums::DisputeStatus;
-
 use super::{NameDescription, TimeRange};
 
 #[derive(
@@ -47,8 +45,6 @@ pub enum DisputeDimensions {
     // Do not change the order of these enums
     // Consult the Dashboard FE folks since these also affects the order of metrics on FE
     Connector,
-    DisputeStatus,
-    ConnectorStatus,
     DisputeStage,
 }
 
@@ -82,7 +78,6 @@ pub struct DisputeFilters {
 pub struct DisputeMetricsBucketIdentifier {
     pub dispute_stage: Option<DisputeStage>,
     pub connector: Option<String>,
-    pub dispute_status: Option<DisputeStatus>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -94,7 +89,6 @@ impl Hash for DisputeMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.dispute_stage.hash(state);
         self.connector.hash(state);
-        self.dispute_status.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -112,13 +106,11 @@ impl DisputeMetricsBucketIdentifier {
     pub fn new(
         dispute_stage: Option<DisputeStage>,
         connector: Option<String>,
-        dispute_status: Option<DisputeStatus>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
             dispute_stage,
             connector,
-            dispute_status,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }

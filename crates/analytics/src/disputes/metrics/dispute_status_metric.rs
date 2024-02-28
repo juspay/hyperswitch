@@ -37,9 +37,7 @@ where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
         let mut query_builder = QueryBuilder::new(AnalyticsCollection::Dispute);
-        let mut dimensions = dimensions.to_vec();
-
-        dimensions.push(DisputeDimensions::DisputeStatus);
+        let dimensions = dimensions.to_vec();
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
@@ -93,7 +91,6 @@ where
                     DisputeMetricsBucketIdentifier::new(
                         i.dispute_stage.as_ref().map(|i| i.0),
                         i.connector.clone(),
-                        i.dispute_status.as_ref().map(|i| i.0),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
