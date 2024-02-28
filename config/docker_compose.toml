@@ -429,7 +429,7 @@ file_storage_backend = "file_system"
 auth = "basic"
 username = "admin"
 password = "admin"
-host = "https://localhost:9200"
+host = "https://opensearch:9200"
 region = ""
 
 # TODO : make opensearch indexes configurable
