@@ -1,6 +1,5 @@
 #[cfg(feature = "olap")]
 use std::collections::HashSet;
-use router_env::{instrument, tracing};
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 use error_stack::{IntoReport, ResultExt};
 
@@ -102,6 +101,7 @@ mod storage {
         services::Store,
         types::storage::{self as storage_types, enums},
     };
+    use router_env::{instrument, tracing};
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
