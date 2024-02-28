@@ -817,21 +817,27 @@ function handleCartView(paymentDetails) {
           item,
           paymentDetails,
           index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE,
-          // @ts-ignore
           cartItemsNode
         );
       });
     }
-    // @ts-ignore
-    cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
-    // @ts-ignore
-    cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
-    // @ts-ignore
-    cartButtonTextNode.innerText = "Show Less";
-    // @ts-ignore
-    cartButtonImageNode.innerHTML =
-    // @ts-ignore
-    document.getElementById("arrow-up").innerHTML;
+    if (cartItemsNode instanceof HTMLDivElement){
+      cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
+      
+      cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
+    }
+
+    if (cartButtonTextNode instanceof HTMLSpanElement) {
+      cartButtonTextNode.innerText = "Show Less";
+    }
+
+    var arrowUpImage = document.getElementById("arrow-up");
+    if (
+      cartButtonImageNode instanceof Object &&
+      arrowUpImage instanceof Object
+    ) {
+      cartButtonImageNode.innerHTML = arrowUpImage.innerHTML;
+    }
   } else {
     if (cartItemsNode instanceof HTMLDivElement) {
       cartItemsNode.style.maxHeight = "300px";
@@ -859,13 +865,16 @@ function handleCartView(paymentDetails) {
     setTimeout(function () {
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      // @ts-ignore
-      cartButtonTextNode.innerText =
-        "Show More (" + hiddenItemsCount + ")";
-      // @ts-ignore
-      cartButtonImageNode.innerHTML =
-        // @ts-ignore
-        document.getElementById("arrow-down").innerHTML;
+      if (cartButtonTextNode instanceof HTMLSpanElement) {
+        cartButtonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
+      }
+      var arrowDownImage = document.getElementById("arrow-down");
+      if (
+        cartButtonImageNode instanceof Object &&
+        arrowDownImage instanceof Object
+      ) {
+        cartButtonImageNode.innerHTML = arrowDownImage.innerHTML;
+      }
     }, 250);
   }
 }
