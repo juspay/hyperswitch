@@ -312,13 +312,16 @@ pub enum AuthorizationType {
     Pre,
 }
 
-impl From<enums::CaptureMethod> for AuthorizationType {
-    fn from(item: enums::CaptureMethod) -> Self {
-        match item {
-            enums::CaptureMethod::Manual => Self::Pre,
-            euclid::enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Self::Final,
+impl TryFrom<enums::CaptureMethod> for AuthorizationType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(capture_method: enums::CaptureMethod) -> Result<Self, Self::Error> {
+        match capture_method {
+            enums::CaptureMethod::Manual => Ok(Self::Pre),
+            enums::CaptureMethod::Automatic => Ok(Self::Final),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                utils::construct_not_supported_error_report(capture_method, "authorizedotnet"),
+            )?,
         }
     }
 }
@@ -332,13 +335,13 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let (payment_details, processing_options, subsequent_auth_information) =
             get_pm_and_subsequent_auth_detail(item)?;
-        let authorization_indicator_type =
-            item.router_data
-                .request
-                .capture_method
-                .map(|c| AuthorizationIndicator {
-                    authorization_indicator: c.into(),
-                });
+        let authorization_indicator_type = match item.router_data.request.capture_method {
+            Some(capture_method) => Some(AuthorizationIndicator {
+                authorization_indicator: capture_method.try_into()?,
+            }),
+            None => None,
+        };
+
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::from(item.router_data.request.capture_method),
             amount: item.amount,
