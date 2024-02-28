@@ -37,7 +37,6 @@ where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
         let mut query_builder = QueryBuilder::new(AnalyticsCollection::Dispute);
-        // let dimensions = dimensions.to_vec();
 
         for dim in dimensions {
             query_builder.add_select_column(dim).switch()?;
