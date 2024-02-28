@@ -3421,6 +3421,7 @@ pub struct PaymentsExternalAuthenticationRequest {
     #[serde(skip)]
     pub payment_id: String,
     /// Client Secret
+    #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,

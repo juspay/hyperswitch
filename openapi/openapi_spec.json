@@ -13081,7 +13081,8 @@
         ],
         "properties": {
           "client_secret": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Client Secret"
           },
           "sdk_information": {
             "allOf": [
