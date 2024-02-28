@@ -1340,6 +1340,16 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(merchant_id, payout_attempt_id)
+            .await
+    }
+
     async fn update_payout_attempt_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -1348,6 +1358,21 @@ impl PayoutAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
         self.diesel_store
             .update_payout_attempt_by_merchant_id_payout_id(merchant_id, payout_id, payout)
+            .await
+    }
+
+    async fn update_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+        payout: storage::PayoutAttemptUpdate,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .update_payout_attempt_by_merchant_id_payout_attempt_id(
+                merchant_id,
+                payout_attempt_id,
+                payout,
+            )
             .await
     }
 
