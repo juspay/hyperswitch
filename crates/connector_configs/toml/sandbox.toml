@@ -232,6 +232,8 @@ api_key="Adyen API Key"
 key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
+[adyen.metadata]
+endpoint_prefix="Live endpoint prefix"
 [adyen.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
@@ -2508,6 +2510,8 @@ api_key="Api Key"
   payment_method_type = "sepa"
 [[adyen_payout.wallet]]
   payment_method_type = "paypal"
+[adyen_payout.metadata]
+  endpoint_prefix="Live endpoint prefix"
 [adyen_payout.connector_auth.SignatureKey]
 api_key = "Adyen API Key (Payout creation)"
 api_secret = "Adyen Key (Payout submission)"

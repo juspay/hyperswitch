@@ -2,7 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, pii};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
@@ -59,6 +59,21 @@ impl<T>
             amount,
             router_data: item,
         })
+    }
+}
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct AdyenConnectorMetadataObject {
+    pub endpoint_prefix: String,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for AdyenConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
     }
 }
 
@@ -281,7 +296,6 @@ pub struct AdyenRefusal {
 #[derive(Debug, Clone, Serialize, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirection {
-    #[serde(rename = "redirectResult")]
     pub redirect_result: String,
     #[serde(rename = "type")]
     pub type_of_redirection_result: Option<String>,
