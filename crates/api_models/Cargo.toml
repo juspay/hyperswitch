@@ -19,7 +19,7 @@ detailed_errors = []
 payouts = []
 frm = []
 olap = []
-openapi = ["common_enums/openapi"]
+openapi = ["common_enums/openapi", "olap", "backwards_compatibility", "business_profile_routing", "connector_choice_mca_id", "recon", "dummy_connector", "olap"]
 recon = []
 
 [dependencies]

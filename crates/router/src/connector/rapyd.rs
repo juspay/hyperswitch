@@ -2,7 +2,11 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::{date_time, ext_traits::StringExt, request::RequestContent};
+use common_utils::{
+    date_time,
+    ext_traits::{Encode, StringExt},
+    request::RequestContent,
+};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -938,19 +942,16 @@ impl api::IncomingWebhook for Rapyd {
             transformers::WebhookData::Payment(payment_data) => {
                 let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
 
-                utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(
-                    &rapyd_response,
-                )
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-            }
-            transformers::WebhookData::Refund(refund_data) => {
-                utils::Encode::<transformers::RefundResponseData>::encode_to_value(&refund_data)
+                rapyd_response
+                    .encode_to_value()
                     .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
             }
-            transformers::WebhookData::Dispute(dispute_data) => {
-                utils::Encode::<transformers::DisputeResponseData>::encode_to_value(&dispute_data)
-                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-            }
+            transformers::WebhookData::Refund(refund_data) => refund_data
+                .encode_to_value()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            transformers::WebhookData::Dispute(dispute_data) => dispute_data
+                .encode_to_value()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         };
         Ok(Box::new(res_json))
     }

@@ -6,6 +6,7 @@ use router_env::{instrument, tracing};
 
 use super::helpers;
 use crate::{
+    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate, payment_methods, payments,
@@ -19,7 +20,7 @@ use crate::{
         domain,
         storage::{self, enums as storage_enums},
     },
-    utils::OptionExt,
+    utils::{generate_id, OptionExt},
 };
 
 #[instrument(skip_all)]
@@ -85,7 +86,7 @@ where
                 .await?;
                 let merchant_id = &merchant_account.merchant_id;
 
-                let locker_response = if !state.conf.locker.locker_enabled {
+                let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
                     skip_saving_card_in_locker(
                         merchant_account,
                         payment_method_create_request.to_owned(),
@@ -100,9 +101,7 @@ where
                     .await?
                 };
 
-                let duplication_check = locker_response.1;
-
-                let pm_card_details = locker_response.0.card.as_ref().map(|card| {
+                let pm_card_details = resp.card.as_ref().map(|card| {
                     api::payment_methods::PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
                         card.clone(),
                     ))
@@ -115,13 +114,44 @@ where
                     )
                     .await;
 
+                let mut payment_method_id = resp.payment_method_id.clone();
+                let mut locker_id = None;
+
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
                         payment_methods::transformers::DataDuplicationCheck::Duplicated => {
-                            let existing_pm = db
-                                .find_payment_method(&locker_response.0.payment_method_id)
-                                .await;
-                            match existing_pm {
+                            let payment_method = {
+                                let existing_pm_by_pmid =
+                                    db.find_payment_method(&payment_method_id).await;
+
+                                if let Err(err) = existing_pm_by_pmid {
+                                    if err.current_context().is_db_not_found() {
+                                        locker_id = Some(payment_method_id.clone());
+                                        let existing_pm_by_locker_id = db
+                                            .find_payment_method_by_locker_id(&payment_method_id)
+                                            .await;
+
+                                        match &existing_pm_by_locker_id {
+                                            Ok(pm) => {
+                                                payment_method_id = pm.payment_method_id.clone()
+                                            }
+                                            Err(_) => {
+                                                payment_method_id =
+                                                    generate_id(consts::ID_LENGTH, "pm")
+                                            }
+                                        };
+                                        existing_pm_by_locker_id
+                                    } else {
+                                        Err(err)
+                                    }
+                                } else {
+                                    existing_pm_by_pmid
+                                }
+                            };
+
+                            resp.payment_method_id = payment_method_id;
+
+                            match payment_method {
                                 Ok(pm) => {
                                     let pm_metadata = create_payment_method_metadata(
                                         pm.metadata.as_ref(),
@@ -146,7 +176,8 @@ where
                                             db,
                                             &payment_method_create_request,
                                             &customer.customer_id,
-                                            &locker_response.0.payment_method_id,
+                                            &resp.payment_method_id,
+                                            locker_id,
                                             merchant_id,
                                             pm_metadata,
                                             pm_data_encrypted,
@@ -165,22 +196,87 @@ where
                         }
                         payment_methods::transformers::DataDuplicationCheck::MetaDataChanged => {
                             if let Some(card) = payment_method_create_request.card.clone() {
+                                let payment_method = {
+                                    let existing_pm_by_pmid =
+                                        db.find_payment_method(&payment_method_id).await;
+
+                                    if let Err(err) = existing_pm_by_pmid {
+                                        if err.current_context().is_db_not_found() {
+                                            locker_id = Some(payment_method_id.clone());
+                                            let existing_pm_by_locker_id = db
+                                                .find_payment_method_by_locker_id(
+                                                    &payment_method_id,
+                                                )
+                                                .await;
+
+                                            match &existing_pm_by_locker_id {
+                                                Ok(pm) => {
+                                                    payment_method_id = pm.payment_method_id.clone()
+                                                }
+                                                Err(_) => {
+                                                    payment_method_id =
+                                                        generate_id(consts::ID_LENGTH, "pm")
+                                                }
+                                            };
+                                            existing_pm_by_locker_id
+                                        } else {
+                                            Err(err)
+                                        }
+                                    } else {
+                                        existing_pm_by_pmid
+                                    }
+                                };
+
+                                resp.payment_method_id = payment_method_id;
+
+                                let existing_pm =
+                                    match payment_method {
+                                        Ok(pm) => Ok(pm),
+                                        Err(err) => {
+                                            if err.current_context().is_db_not_found() {
+                                                payment_methods::cards::insert_payment_method(
+                                                    db,
+                                                    &resp,
+                                                    payment_method_create_request.clone(),
+                                                    key_store,
+                                                    &merchant_account.merchant_id,
+                                                    &customer.customer_id,
+                                                    resp.metadata.clone().map(|val| val.expose()),
+                                                    locker_id,
+                                                )
+                                                .await
+                                            } else {
+                                                Err(err)
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Error while finding payment method")
+                                            }
+                                        }
+                                    }?;
+
                                 payment_methods::cards::delete_card_from_locker(
                                     state,
                                     &customer.customer_id,
                                     merchant_id,
-                                    &locker_response.0.payment_method_id,
+                                    existing_pm
+                                        .locker_id
+                                        .as_ref()
+                                        .unwrap_or(&existing_pm.payment_method_id),
                                 )
                                 .await?;
 
                                 let add_card_resp = payment_methods::cards::add_card_hs(
                                     state,
-                                    payment_method_create_request.clone(),
+                                    payment_method_create_request,
                                     &card,
                                     customer.customer_id.clone(),
                                     merchant_account,
-                                    api::enums::LockerChoice::Tartarus,
-                                    Some(&locker_response.0.payment_method_id),
+                                    api::enums::LockerChoice::HyperswitchCardVault,
+                                    Some(
+                                        existing_pm
+                                            .locker_id
+                                            .as_ref()
+                                            .unwrap_or(&existing_pm.payment_method_id),
+                                    ),
                                 )
                                 .await;
 
@@ -188,7 +284,7 @@ where
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
                                         merchant_id,
-                                        &locker_response.0.payment_method_id,
+                                        &resp.payment_method_id,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -201,90 +297,59 @@ where
                                         ))?
                                 };
 
-                                let existing_pm = db
-                                    .find_payment_method(&locker_response.0.payment_method_id)
+                                let updated_card = Some(CardDetailFromLocker {
+                                    scheme: None,
+                                    last4_digits: Some(card.card_number.clone().get_last4()),
+                                    issuer_country: None,
+                                    card_number: Some(card.card_number),
+                                    expiry_month: Some(card.card_exp_month),
+                                    expiry_year: Some(card.card_exp_year),
+                                    card_token: None,
+                                    card_fingerprint: None,
+                                    card_holder_name: card.card_holder_name,
+                                    nick_name: card.nick_name,
+                                    card_network: None,
+                                    card_isin: None,
+                                    card_issuer: None,
+                                    card_type: None,
+                                    saved_to_locker: true,
+                                });
+
+                                let updated_pmd = updated_card.as_ref().map(|card| {
+                                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                                        card.clone(),
+                                    ))
+                                });
+                                let pm_data_encrypted =
+                                    payment_methods::cards::create_encrypted_payment_method_data(
+                                        key_store,
+                                        updated_pmd,
+                                    )
                                     .await;
-                                match existing_pm {
-                                    Ok(pm) => {
-                                        let updated_card = Some(CardDetailFromLocker {
-                                            scheme: None,
-                                            last4_digits: Some(
-                                                card.card_number.clone().get_last4(),
-                                            ),
-                                            issuer_country: None,
-                                            card_number: Some(card.card_number),
-                                            expiry_month: Some(card.card_exp_month),
-                                            expiry_year: Some(card.card_exp_year),
-                                            card_token: None,
-                                            card_fingerprint: None,
-                                            card_holder_name: card.card_holder_name,
-                                            nick_name: card.nick_name,
-                                            card_network: None,
-                                            card_isin: None,
-                                            card_issuer: None,
-                                            card_type: None,
-                                            saved_to_locker: true,
-                                        });
 
-                                        let updated_pmd = updated_card.as_ref().map(|card| {
-                                            PaymentMethodsData::Card(
-                                                CardDetailsPaymentMethod::from(card.clone()),
-                                            )
-                                        });
-                                        let pm_data_encrypted =
-                                            payment_methods::cards::create_encrypted_payment_method_data(
-                                                key_store,
-                                                updated_pmd,
-                                            )
-                                            .await;
+                                let pm_update =
+                                    storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
+                                        payment_method_data: pm_data_encrypted,
+                                    };
 
-                                        let pm_update =
-                                            storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
-                                                payment_method_data: pm_data_encrypted,
-                                            };
-
-                                        db.update_payment_method(pm, pm_update)
-                                            .await
-                                            .change_context(
-                                                errors::ApiErrorResponse::InternalServerError,
-                                            )
-                                            .attach_printable(
-                                                "Failed to add payment method in db",
-                                            )?;
-                                    }
-                                    Err(err) => {
-                                        if err.current_context().is_db_not_found() {
-                                            payment_methods::cards::insert_payment_method(
-                                                db,
-                                                &locker_response.0,
-                                                payment_method_create_request,
-                                                key_store,
-                                                merchant_id,
-                                                &customer.customer_id,
-                                                None,
-                                            )
-                                            .await
-                                        } else {
-                                            Err(err)
-                                                .change_context(
-                                                    errors::ApiErrorResponse::InternalServerError,
-                                                )
-                                                .attach_printable(
-                                                    "Error while finding payment method",
-                                                )
-                                        }?;
-                                    }
-                                }
+                                db.update_payment_method(existing_pm, pm_update)
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to add payment method in db")?;
                             }
                         }
                     },
                     None => {
                         let pm_metadata = create_payment_method_metadata(None, connector_token)?;
+
+                        locker_id = Some(resp.payment_method_id);
+                        resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                         payment_methods::cards::create_payment_method(
                             db,
                             &payment_method_create_request,
                             &customer.customer_id,
-                            &locker_response.0.payment_method_id,
+                            &resp.payment_method_id,
+                            locker_id,
                             merchant_id,
                             pm_metadata,
                             pm_data_encrypted,
@@ -294,7 +359,7 @@ where
                     }
                 }
 
-                Some(locker_response.0.payment_method_id)
+                Some(resp.payment_method_id)
             } else {
                 None
             };

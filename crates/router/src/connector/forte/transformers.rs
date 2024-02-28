@@ -240,7 +240,7 @@ pub enum ForteAction {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub action: ForteAction,
     pub authorization_amount: Option<f64>,
     pub authorization_code: String,
@@ -289,7 +289,7 @@ impl<F, T>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FortePaymentsSyncResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub status: FortePaymentStatus,
     pub action: ForteAction,
     pub authorization_amount: Option<f64>,
@@ -434,7 +434,7 @@ pub struct CancelResponseStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ForteCancelResponse {
     pub transaction_id: String,
-    pub location_id: String,
+    pub location_id: Secret<String>,
     pub action: String,
     pub authorization_code: String,
     pub entered_by: String,

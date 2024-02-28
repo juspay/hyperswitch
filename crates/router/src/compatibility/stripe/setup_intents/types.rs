@@ -37,6 +37,7 @@ impl From<StripeBillingDetails> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: details.email,
         }
     }
 }
@@ -143,6 +144,7 @@ impl From<Shipping> for payments::Address {
                 number: details.phone,
                 country_code: None,
             }),
+            email: None,
         }
     }
 }

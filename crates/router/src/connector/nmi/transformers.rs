@@ -1,6 +1,11 @@
 use api_models::webhooks;
 use cards::CardNumber;
-use common_utils::{errors::CustomResult, ext_traits::XmlExt, pii};
+use common_enums::CountryAlpha2;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::XmlExt,
+    pii::{self, Email},
+};
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -89,6 +94,12 @@ pub struct NmiVaultRequest {
     cvv: Secret<String>,
     first_name: Secret<String>,
     last_name: Secret<String>,
+    address1: Option<Secret<String>>,
+    address2: Option<Secret<String>>,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country: Option<CountryAlpha2>,
     customer_vault: CustomerAction,
 }
 
@@ -113,6 +124,12 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for NmiVaultRequest {
             cvv,
             first_name: billing_details.get_first_name()?.to_owned(),
             last_name: billing_details.get_last_name()?.to_owned(),
+            address1: billing_details.line1.clone(),
+            address2: billing_details.line2.clone(),
+            city: billing_details.city.clone(),
+            state: billing_details.state.clone(),
+            country: billing_details.country,
+            zip: billing_details.zip.clone(),
             customer_vault: CustomerAction::AddCustomer,
         })
     }
@@ -241,12 +258,13 @@ pub struct NmiCompleteRequest {
     transaction_type: TransactionType,
     security_key: Secret<String>,
     orderid: Option<String>,
-    ccnumber: CardNumber,
-    ccexp: Secret<String>,
+    customer_vault_id: String,
+    email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
     xid: Option<String>,
     eci: Option<String>,
+    cvv: Secret<String>,
     three_ds_version: Option<String>,
     directory_server_id: Option<String>,
 }
@@ -261,6 +279,7 @@ pub struct NmiRedirectResponseData {
     three_ds_version: Option<String>,
     order_id: Option<String>,
     directory_server_id: Option<String>,
+    customer_vault_id: Option<String>,
 }
 
 impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for NmiCompleteRequest {
@@ -285,16 +304,20 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
                 field_name: "three_ds_data",
             })?;
 
-        let (ccnumber, ccexp, ..) =
-            get_card_details(item.router_data.request.payment_method_data.clone())?;
+        let (_, _, cvv) = get_card_details(item.router_data.request.payment_method_data.clone())?;
 
         Ok(Self {
             amount: item.amount,
             transaction_type,
             security_key: auth_type.api_key,
             orderid: three_ds_data.order_id,
-            ccnumber,
-            ccexp,
+            customer_vault_id: three_ds_data.customer_vault_id.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_vault_id",
+                },
+            )?,
+            email: item.router_data.request.email.clone(),
+            cvv,
             cardholder_auth: three_ds_data.card_holder_auth,
             cavv: three_ds_data.cavv,
             xid: three_ds_data.xid,

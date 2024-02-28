@@ -54,7 +54,7 @@ impl<T>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInput {
-    payment_method_id: String,
+    payment_method_id: Secret<String>,
     transaction: TransactionBody,
 }
 
@@ -899,7 +899,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct TokenizePaymentMethodData {
-    id: String,
+    id: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -969,6 +969,7 @@ impl<F, T>
                             .tokenize_credit_card
                             .payment_method
                             .id
+                            .expose()
                             .clone(),
                     })
                 }
@@ -1277,7 +1278,7 @@ impl<F, T>
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeThreeDsResponse {
-    pub nonce: String,
+    pub nonce: Secret<String>,
     pub liability_shifted: bool,
     pub liability_shift_possible: bool,
 }
@@ -1332,7 +1333,7 @@ impl
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: match item.router_data.get_payment_method_token()? {
-                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::Token(token) => token.into(),
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
