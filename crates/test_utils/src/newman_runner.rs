@@ -3,7 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
     path::Path,
-    process::{exit, Command},
+    process::Command,
 };
 
 use clap::{arg, command, Parser};
@@ -57,13 +57,6 @@ fn get_collection_path(name: impl AsRef<str>) -> String {
         "postman/collection-json/{}.postman_collection.json",
         name.as_ref()
     )
-}
-
-// Generates the name of the collection directory for the specified connector.
-// Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
-#[inline]
-fn get_dir_path(name: impl AsRef<str>) -> String {
-    format!("postman/collection-dir/{}", name.as_ref())
 }
 
 // This function currently allows you to add only custom headers.
@@ -286,7 +279,6 @@ Refactoring is done in 2 steps:
 
 pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<(&str, Flag), io::Error> {
     let collection_path = get_collection_path(connector_name);
-    let collection_dir_path = get_dir_path(connector_name);
 
     let values_to_replace = [
         "amount",
@@ -296,36 +288,6 @@ pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<(&str, F
         "refund_amount",
     ];
 
-    let mut newman_command = Command::new("newman");
-    newman_command.args([
-        "dir-import".to_owned(),
-        collection_dir_path,
-        "-o".to_owned(),
-        collection_path.clone(),
-    ]);
-
-    match newman_command.spawn() {
-        Ok(mut child) => {
-            if let Ok(exit_status) = child.wait() {
-                if exit_status.success() {
-                    println!(
-                        "Conversion of collection from directory structure to json successful!"
-                    );
-                } else {
-                    eprintln!("Conversion of collection from directory structure to json failed!");
-                    exit(exit_status.code().unwrap_or(1));
-                }
-            } else {
-                eprintln!("Failed to wait for command execution");
-                exit(1);
-            }
-        }
-        Err(err) => {
-            eprintln!("Failed to execute dir-import: {:?}", err);
-            exit(1);
-        }
-    }
-
     let mut modified_status = false;
     let mut contents = fs::read_to_string(&collection_path)?;
     for value_to_replace in values_to_replace {
@@ -334,17 +296,17 @@ pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<(&str, F
             value_to_replace
         )) {
             contents = re.replace_all(&contents, "$field").to_string();
-
-            let mut file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&collection_path)?;
-
-            file.write_all(contents.as_bytes())?;
-            modified_status = true;
         } else {
             eprintln!("Regex validation failed.");
         }
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&collection_path)?;
+
+        file.write_all(contents.as_bytes())?;
+        modified_status = true;
     }
 
     Ok((
