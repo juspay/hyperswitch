@@ -418,7 +418,9 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)
                 .into_report()
                 .attach_printable("missing return_url")?,
-            three_dscomp_ind: request.threeds_method_comp_ind.clone(),
+            three_dscomp_ind: ThreeDSecureIoThreeDSCompInd::from(
+                request.threeds_method_comp_ind.clone(),
+            ),
             three_dsrequestor_url: request.three_ds_requestor_url.clone(),
             acquirer_bin: acquirer_details.acquirer_bin,
             acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
@@ -595,6 +597,13 @@ pub struct ThreedsecureioAuthenticationSuccessResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub enum ThreeDSecureIoThreeDSCompInd {
+    Y,
+    N,
+    U,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreedsecureioAuthenticationRequest {
     pub ds_start_protocol_version: String,
@@ -604,7 +613,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub three_dsserver_trans_id: String,
     pub acct_number: cards::CardNumber,
     pub notification_url: String,
-    pub three_dscomp_ind: ThreeDSCompInd,
+    pub three_dscomp_ind: ThreeDSecureIoThreeDSCompInd,
     pub three_dsrequestor_url: String,
     pub acquirer_bin: String,
     pub acquirer_merchant_id: String,
@@ -704,6 +713,16 @@ pub enum ThreedsecureioTransStatus {
     /// Authentication/ Account Verification Rejected; Issuer is rejecting authentication/verification and request that authorisation not be attempted.
     R,
     C,
+}
+
+impl From<ThreeDSCompInd> for ThreeDSecureIoThreeDSCompInd {
+    fn from(value: ThreeDSCompInd) -> Self {
+        match value {
+            ThreeDSCompInd::Success => Self::Y,
+            ThreeDSCompInd::Failure => Self::N,
+            ThreeDSCompInd::NotAvailable => Self::U,
+        }
+    }
 }
 
 impl From<ThreedsecureioTransStatus> for api_models::payments::TransactionStatus {

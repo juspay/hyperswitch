@@ -3434,12 +3434,15 @@ pub struct PaymentsExternalAuthenticationRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Default)]
 pub enum ThreeDSCompInd {
     /// 3DS method successfully completed
-    Y,
+    #[serde(rename = "Y")]
+    Success,
     /// 3DS method was not successful
-    N,
+    #[serde(rename = "N")]
+    Failure,
     /// 3DS method URL was unavailable
     #[default]
-    U,
+    #[serde(rename = "U")]
+    NotAvailable,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Eq, PartialEq)]
