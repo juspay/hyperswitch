@@ -433,6 +433,7 @@ pub async fn get_or_create_customer_details(
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
+                default_payment_method_id: None,
             };
 
             Ok(Some(
