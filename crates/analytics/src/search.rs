@@ -5,6 +5,9 @@ use common_utils::errors::CustomResult;
 use opensearch::auth::Credentials;
 use opensearch::http::transport::SingleNodeConnectionPool;
 // use opensearch::http::transport::Transport;
+use crate::errors::AnalyticsError;
+use crate::OpensearchConfig;
+use aws_config::{self, meta::region::RegionProviderChain, Region};
 use opensearch::http::transport::TransportBuilder;
 use opensearch::http::Url;
 use opensearch::{
@@ -12,8 +15,6 @@ use opensearch::{
 };
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
-
-use crate::errors::AnalyticsError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpensearchError {
@@ -51,34 +52,54 @@ struct OpensearchHits<T> {
     _search: T,
 }
 
-async fn get_opensearch_client(url: String) -> Result<OpenSearch, OpensearchError> {
-    let url = Url::parse(&url).map_err(|_| OpensearchError::ConnectionError)?;
-    let credentials = Credentials::Basic("admin".into(), "admin".into());
-    let transport = TransportBuilder::new(SingleNodeConnectionPool::new(url))
-        .cert_validation(CertificateValidation::None)
-        .auth(credentials)
-        .build()
-        .map_err(|_| OpensearchError::ConnectionError)?;
+async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
+    let transport = match auth {
+        OpensearchConfig::Basic {
+            host,
+            username,
+            password,
+        } => {
+            let url = Url::parse(&host).map_err(|_| OpensearchError::ConnectionError)?;
+            let credentials = Credentials::Basic(username, password);
+            TransportBuilder::new(SingleNodeConnectionPool::new(url))
+                .cert_validation(CertificateValidation::None)
+                .auth(credentials)
+                .build()
+                .map_err(|_| OpensearchError::ConnectionError)?
+        }
+        OpensearchConfig::Aws { host, region } => {
+            let url = Url::parse(&host).map_err(|_| OpensearchError::ConnectionError)?;
+            let region_provider = RegionProviderChain::first_try(Region::new(region));
+            let sdk_config = aws_config::from_env().region(region_provider).load().await;
+            let conn_pool = SingleNodeConnectionPool::new(url);
+            TransportBuilder::new(conn_pool)
+                .auth(
+                    sdk_config
+                        .clone()
+                        .try_into()
+                        .map_err(|_| OpensearchError::ConnectionError)?,
+                )
+                .service_name("es")
+                .build()
+                .map_err(|_| OpensearchError::ConnectionError)?
+        }
+    };
     Ok(OpenSearch::new(transport))
 }
 
 pub async fn msearch_results(
     req: GetGlobalSearchRequest,
-    merchant_id: &String,
-    url: &String,
+    _merchant_id: &String,
+    auth: OpensearchConfig,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    print!("{} hosthere", url);
-    print!("{}", "hostabove".to_string());
-    let client = get_opensearch_client(url.to_owned()).await.map_err(|er| {
-        let er_rep = format!("{er:?}");
-        print!("{}", er_rep);
-        AnalyticsError::UnknownError
-    })?;
+    let client = get_opensearch_client(auth)
+        .await
+        .map_err(|_| AnalyticsError::UnknownError)?;
 
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
         msearch_vector.push(json!({"index": index.to_string()}).into());
-        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
+        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": "postman_merchant_GHAction_11f62d0d-df98-4b35-8629-a1eee1edfa92"}}}}}).into());
     }
 
     let response = client
@@ -88,12 +109,11 @@ pub async fn msearch_results(
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
-    println!("{:?}", response);
     let response_body = response
         .json::<OpenMsearchOutput<Value>>()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
-    println!("{:?}", response_body);
+
     Ok(response_body
         .responses
         .into_iter()
@@ -113,11 +133,12 @@ pub async fn msearch_results(
 
 pub async fn search_results(
     req: GetSearchRequestWithIndex,
-    merchant_id: &String,
-    url: &String,
+    _merchant_id: &String,
+    auth: OpensearchConfig,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
-    let client = get_opensearch_client(url.to_owned())
+
+    let client = get_opensearch_client(auth)
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
@@ -125,7 +146,7 @@ pub async fn search_results(
         .search(SearchParts::Index(&[&req.index.to_string()]))
         .from(search_req.offset)
         .size(search_req.count)
-        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
+        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": "postman_merchant_GHAction_11f62d0d-df98-4b35-8629-a1eee1edfa92"}}}}}))
         .send()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;

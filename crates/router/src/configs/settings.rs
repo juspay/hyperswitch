@@ -131,7 +131,7 @@ pub struct Settings {
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     #[cfg(feature = "olap")]
-    pub opensearch_config: OpensearchConfig,
+    pub opensearch: OpensearchConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: ConnectorOnboarding,

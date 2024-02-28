@@ -610,7 +610,7 @@ pub mod routes {
                 analytics::search::msearch_results(
                     req,
                     &auth.merchant_account.merchant_id,
-                    &state.conf.opensearch_config.host,
+                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -641,7 +641,7 @@ pub mod routes {
                 analytics::search::search_results(
                     req,
                     &auth.merchant_account.merchant_id,
-                    &state.conf.opensearch_config.host,
+                    state.conf.opensearch.clone(),
                 )
                 .await
                 .map(ApplicationResponse::Json)

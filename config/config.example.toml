@@ -569,5 +569,19 @@ file_storage_backend = "aws_s3" # File storage backend to be used
 region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
 
-[opensearch_config]
+[opensearch]
+source = "basic"
+
+[opensearch.basic]
+username = "admin"
+password = "admin"
 host = "https://localhost:9200"
+
+[opensearch.aws]
+host = ""
+region = ""
+
+[opensearch_indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"

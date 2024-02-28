@@ -513,7 +513,27 @@ pub struct ReportConfig {
     pub region: String,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, Default, serde::Serialize)]
-pub struct OpensearchConfig {
-    pub host: String,
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(tag = "source")]
+#[serde(rename_all = "lowercase")]
+pub enum OpensearchConfig {
+    Basic {
+        host: String,
+        username: String,
+        password: String,
+    },
+    Aws {
+        host: String,
+        region: String,
+    },
+}
+
+impl Default for OpensearchConfig {
+    fn default() -> Self {
+        Self::Basic {
+            host: "https://localhost:9200".to_string(),
+            username: "admin".to_string(),
+            password: "admin".to_string(),
+        }
+    }
 }

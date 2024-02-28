@@ -205,8 +205,22 @@ payment_function = "report_download_config_payment_function" # Config to downloa
 refund_function = "report_download_config_refund_function"   # Config to download refund report
 region = "report_download_config_region"                     # Region of the bucket
 
-[opensearch_config]
+[opensearch]
+source = "basic"
+
+[opensearch.basic]
+username = "admin"
+password = "admin"
 host = "https://localhost:9200"
+
+[opensearch.aws]
+host = ""
+region = ""
+
+[opensearch_indexes]
+payment_attempts = "hyperswitch-payment-attempt-events"
+payment_intents = "hyperswitch-payment-intent-events"
+refunds = "hyperswitch-refund-events"
 
 # This section provides some secret values.
 [secrets]
