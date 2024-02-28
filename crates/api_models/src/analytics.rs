@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use common_utils::pii::EmailStrategy;
 use masking::Secret;
-use serde_json::Value;
 
 use self::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
@@ -249,57 +248,6 @@ pub struct GetApiEventMetricRequest {
     pub metrics: HashSet<ApiEventMetrics>,
     #[serde(default)]
     pub delta: bool,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetGlobalSearchRequest {
-    pub query: String,
-    #[serde(default)]
-    pub filters: Option<search::SearchFilters>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetSearchRequest {
-    pub offset: i64,
-    pub count: i64,
-    pub query: String,
-    #[serde(default)]
-    pub filters: Option<search::SearchFilters>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetSearchRequestWithIndex {
-    pub index: SearchIndex,
-    pub search_req: GetSearchRequest,
-}
-
-#[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SearchIndex {
-    PaymentAttempts,
-    PaymentIntents,
-    Refunds,
-}
-
-impl ToString for SearchIndex {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::PaymentAttempts => "hyperswitch-payment-attempt-events",
-            Self::PaymentIntents => "hyperswitch-payment-intent-events",
-            Self::Refunds => "hyperswitch-refund-events",
-        })
-    }
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GetSearchResponse {
-    pub count: u64,
-    pub index: SearchIndex,
-    pub hits: Vec<Value>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

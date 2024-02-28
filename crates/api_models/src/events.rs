@@ -23,7 +23,7 @@ use crate::{
     admin::*,
     analytics::{
         api_event::*, connector_events::ConnectorEventsRequest,
-        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, *,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, search::*, *,
     },
     api_keys::*,
     cards_info::*,

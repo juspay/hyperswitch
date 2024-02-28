@@ -1,5 +1,6 @@
-use api_models::analytics::{
-    GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, SearchIndex,
+use api_models::analytics::search::{
+    GetGlobalSearchRequest, GetSearchRequestWithIndex, GetSearchResponse, OpenMsearchOutput,
+    OpensearchOutput, SearchIndex,
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::CustomResult;
@@ -16,7 +17,6 @@ use opensearch::{
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
-// use opensearch::http::transport::Transport;
 use crate::errors::AnalyticsError;
 use crate::OpensearchConfig;
 
@@ -28,32 +28,6 @@ pub enum OpensearchError {
     ResponseNotOK(String),
     #[error("Opensearch response error")]
     ResponseError,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct OpenMsearchOutput<T> {
-    responses: Vec<OpensearchOutput<T>>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct OpensearchOutput<T> {
-    hits: OpensearchResults<T>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct OpensearchResults<T> {
-    total: OpensearchResultsTotal,
-    hits: Vec<OpensearchHits<T>>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct OpensearchResultsTotal {
-    value: u64,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct OpensearchHits<T> {
-    _source: T,
 }
 
 async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {

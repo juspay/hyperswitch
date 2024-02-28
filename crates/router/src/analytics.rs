@@ -8,11 +8,12 @@ pub mod routes {
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
     };
     use api_models::analytics::{
+        search::{
+            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
+        },
         GenerateReportRequest, GetApiEventFiltersRequest, GetApiEventMetricRequest,
-        GetGlobalSearchRequest, GetPaymentFiltersRequest, GetPaymentMetricRequest,
-        GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, GetSearchRequest, GetSearchRequestWithIndex, ReportRequest,
-        SearchIndex,
+        GetPaymentFiltersRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use error_stack::ResultExt;
     use router_env::AnalyticsFlow;
