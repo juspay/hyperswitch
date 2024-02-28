@@ -16,26 +16,25 @@ fn main() {
     };
     let status = child.wait();
 
-    if runner.file_modified_flag {
-        let git_status = Command::new("git")
-            .args([
-                "restore",
-                format!("{}/event.prerequest.js", runner.collection_path).as_str(),
-            ])
-            .output();
+    for flag in runner.file_modified_flag {
+        if flag.modified_status {
+            let git_status = Command::new("git")
+                .args(["restore", &flag.file_to_restore.unwrap_or_default()])
+                .output();
 
-        match git_status {
-            Ok(output) => {
-                if output.status.success() {
-                    let stdout_str = String::from_utf8_lossy(&output.stdout);
-                    println!("Git command executed successfully: {stdout_str}");
-                } else {
-                    let stderr_str = String::from_utf8_lossy(&output.stderr);
-                    eprintln!("Git command failed with error: {stderr_str}");
+            match git_status {
+                Ok(output) => {
+                    if output.status.success() {
+                        let stdout_str = String::from_utf8_lossy(&output.stdout);
+                        println!("Git command executed successfully: {stdout_str}");
+                    } else {
+                        let stderr_str = String::from_utf8_lossy(&output.stderr);
+                        eprintln!("Git command failed with error: {stderr_str}");
+                    }
                 }
-            }
-            Err(e) => {
-                eprintln!("Error running Git: {e}");
+                Err(e) => {
+                    eprintln!("Error running Git: {e}");
+                }
             }
         }
     }

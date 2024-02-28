@@ -40,8 +40,13 @@ struct Args {
 
 pub struct ReturnArgs {
     pub newman_command: Command,
-    pub file_modified_flag: bool,
+    pub file_modified_flag: Vec<Flag>,
     pub collection_path: String,
+}
+
+pub struct Flag {
+    pub modified_status: bool,
+    pub file_to_restore: Option<String>,
 }
 
 // Generates the name of the collection JSON file for the specified connector.
@@ -110,7 +115,10 @@ pub fn generate_newman_command() -> ReturnArgs {
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
     // validation of connector is needed here as a work around to the limitation of the fork of newman that Hyperswitch uses
-    if let Some(auth_type) = inner_map.get(check_connector_for_dynamic_amount(&connector_name)) {
+    let (connector_name, collection_modified_status_flag) =
+        check_connector_for_dynamic_amount(&connector_name);
+
+    if let Some(auth_type) = inner_map.get(connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
                 newman_command.args([
@@ -210,14 +218,24 @@ pub fn generate_newman_command() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    let mut modified = false;
-    if let Some(headers) = &args.custom_headers {
+    let custom_header_exist = check_for_custom_headers(args.custom_headers, &collection_path);
+
+    ReturnArgs {
+        newman_command,
+        file_modified_flag: vec![collection_modified_status_flag, custom_header_exist],
+        collection_path,
+    }
+}
+
+pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Flag {
+    let mut modified_status = false;
+    if let Some(headers) = &headers {
         for header in headers {
             if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert =
                     format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
-                if insert_content(&collection_path, &content_to_insert).is_ok() {
-                    modified = true;
+                if insert_content(path, &content_to_insert).is_ok() {
+                    modified_status = true;
                 }
             } else {
                 eprintln!("Invalid header format: {}", header);
@@ -225,23 +243,34 @@ pub fn generate_newman_command() -> ReturnArgs {
         }
     }
 
-    ReturnArgs {
-        newman_command,
-        file_modified_flag: modified,
-        collection_path,
+    Flag {
+        modified_status,
+        file_to_restore: Some(format!("{}/event.prerequest.js", path)),
     }
 }
 
 // If the connector name exists in dynamic_amount_connectors,
 // the corresponding collection is modified at runtime to remove double quotes
-pub fn check_connector_for_dynamic_amount(connector_name: &str) -> &str {
+pub fn check_connector_for_dynamic_amount(connector_name: &str) -> (&str, Flag) {
     let dynamic_amount_connectors = ["nmi", "powertranz"];
 
     if dynamic_amount_connectors.contains(&connector_name) {
-        return remove_quotes_for_integer_values(connector_name).unwrap_or(connector_name);
+        return remove_quotes_for_integer_values(connector_name).unwrap_or((
+            connector_name,
+            Flag {
+                modified_status: false,
+                file_to_restore: None,
+            },
+        ));
     }
 
-    connector_name
+    (
+        connector_name,
+        Flag {
+            modified_status: false,
+            file_to_restore: None,
+        },
+    )
 }
 
 /*
@@ -255,7 +284,7 @@ Refactoring is done in 2 steps:
   Ex: \"{{amount}}\" -> {{amount}}
 */
 
-pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<&str, io::Error> {
+pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<(&str, Flag), io::Error> {
     let collection_path = get_collection_path(connector_name);
     let collection_dir_path = get_dir_path(connector_name);
 
@@ -297,6 +326,7 @@ pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<&str, io
         }
     }
 
+    let mut modified_status = false;
     let mut contents = fs::read_to_string(&collection_path)?;
     for value_to_replace in values_to_replace {
         if let Ok(re) = Regex::new(&format!(
@@ -311,10 +341,17 @@ pub fn remove_quotes_for_integer_values(connector_name: &str) -> Result<&str, io
                 .open(&collection_path)?;
 
             file.write_all(contents.as_bytes())?;
+            modified_status = true;
         } else {
             eprintln!("Regex validation failed.");
         }
     }
 
-    Ok(connector_name)
+    Ok((
+        connector_name,
+        Flag {
+            modified_status,
+            file_to_restore: Some(collection_path),
+        },
+    ))
 }
