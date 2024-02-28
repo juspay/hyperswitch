@@ -49,11 +49,16 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Merchants account create flow.

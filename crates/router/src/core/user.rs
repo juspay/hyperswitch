@@ -442,7 +442,7 @@ pub async fn invite_user(
         .into());
     }
 
-    let role_info = roles::get_role_info_from_role_id(
+    let role_info = roles::RoleInfo::from_role_id(
         &state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -659,7 +659,7 @@ async fn handle_invitation(
         .into());
     }
 
-    let role_info = roles::get_role_info_from_role_id(
+    let role_info = roles::RoleInfo::from_role_id(
         state,
         &request.role_id,
         &user_from_token.merchant_id,
@@ -1054,7 +1054,7 @@ pub async fn switch_merchant_id(
 
     let user = user_from_token.get_user_from_db(&state).await?;
 
-    let role_info = roles::get_role_info_from_role_id(
+    let role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.merchant_id,
@@ -1207,7 +1207,7 @@ pub async fn get_users_for_merchant_account(
     let users_user_roles_and_roles =
         futures::future::try_join_all(users_and_user_roles.into_iter().map(
             |(user, user_role)| async {
-                roles::get_role_info_from_role_id(
+                roles::RoleInfo::from_role_id(
                     &state,
                     &user_role.role_id,
                     &user_role.merchant_id,

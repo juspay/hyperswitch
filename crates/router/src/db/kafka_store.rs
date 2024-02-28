@@ -1273,6 +1273,26 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_status(customer_id, merchant_id, status)
+            .await
+    }
+
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_locker_id(locker_id)
+            .await
+    }
+
     async fn insert_payment_method(
         &self,
         m: storage::PaymentMethodNew,
@@ -1819,6 +1839,23 @@ impl RoutingAlgorithmInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
         self.diesel_store
             .list_routing_algorithm_metadata_by_merchant_id(merchant_id, limit, offset)
+            .await
+    }
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        merchant_id: &str,
+        transaction_type: &enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+                merchant_id,
+                transaction_type,
+                limit,
+                offset,
+            )
             .await
     }
 }

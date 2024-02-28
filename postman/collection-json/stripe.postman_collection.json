@@ -17960,7 +17960,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":1000}"
+                      "raw": "{\"amount\":1000,\"amount_to_capture\":1000}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id",

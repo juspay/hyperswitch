@@ -2,12 +2,6 @@ use common_utils::date_time;
 #[cfg(feature = "email")]
 use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
-#[cfg(not(feature = "aws_kms"))]
-use masking::ExposeInterface;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
@@ -29,49 +23,16 @@ const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 const API_KEY_EXPIRY_RUNNER: diesel_models::ProcessTrackerRunner =
     diesel_models::ProcessTrackerRunner::ApiKeyExpiryWorkflow;
 
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms::decrypt::AwsKmsDecrypt;
+static HASH_KEY: once_cell::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
+    once_cell::sync::OnceCell::new();
 
-static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
-    tokio::sync::OnceCell::const_new();
-
-pub async fn get_hash_key(
-    api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
-) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
-    HASH_KEY
-        .get_or_try_init(|| async {
-            let hash_key = {
-                #[cfg(feature = "aws_kms")]
-                {
-                    api_key_config.kms_encrypted_hash_key.clone()
-                }
-                #[cfg(not(feature = "aws_kms"))]
-                {
-                    masking::Secret::<_, masking::WithType>::new(api_key_config.hash_key.clone())
-                }
-            };
-
-            #[cfg(feature = "hashicorp-vault")]
-            let hash_key = hash_key
-                .fetch_inner::<external_services::hashicorp_vault::core::Kv2>(hc_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            #[cfg(feature = "aws_kms")]
-            let hash_key = hash_key
-                .decrypt_inner(aws_kms_client)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to AWS KMS decrypt API key hashing key")?;
-
-            #[cfg(not(feature = "aws_kms"))]
-            let hash_key = hash_key.expose();
-
+impl settings::ApiKeys {
+    pub fn get_hash_key(
+        &self,
+    ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
+        HASH_KEY.get_or_try_init(|| {
             <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
-                hex::decode(hash_key)
+                hex::decode(self.hash_key.peek())
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("API key hash key has invalid hexadecimal data")?
@@ -82,7 +43,7 @@ pub async fn get_hash_key(
             .attach_printable("The API hashing key has incorrect length")
             .map(StrongSecret::new)
         })
-        .await
+    }
 }
 
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
@@ -152,13 +113,10 @@ impl PlaintextApiKey {
 #[instrument(skip_all)]
 pub async fn create_api_key(
     state: AppState,
-    #[cfg(feature = "aws_kms")] aws_kms_client: &aws_kms::core::AwsKmsClient,
-    #[cfg(feature = "hashicorp-vault")]
-    hc_client: &external_services::hashicorp_vault::core::HashiCorpVault,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
-    let api_key_config = &state.conf.api_keys;
+    let api_key_config = state.conf.api_keys.get_inner();
     let store = state.store.as_ref();
     // We are not fetching merchant account as the merchant key store is needed to search for a
     // merchant account.
@@ -172,14 +130,7 @@ pub async fn create_api_key(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let hash_key = get_hash_key(
-        api_key_config,
-        #[cfg(feature = "aws_kms")]
-        aws_kms_client,
-        #[cfg(feature = "hashicorp-vault")]
-        hc_client,
-    )
-    .await?;
+    let hash_key = api_key_config.get_hash_key()?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
         key_id: PlaintextApiKey::new_key_id(),
@@ -210,7 +161,7 @@ pub async fn create_api_key(
     #[cfg(feature = "email")]
     {
         if api_key.expires_at.is_some() {
-            let expiry_reminder_days = state.conf.api_keys.expiry_reminder_days.clone();
+            let expiry_reminder_days = state.conf.api_keys.get_inner().expiry_reminder_days.clone();
 
             add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
                 .await
@@ -330,7 +281,7 @@ pub async fn update_api_key(
 
     #[cfg(feature = "email")]
     {
-        let expiry_reminder_days = state.conf.api_keys.expiry_reminder_days.clone();
+        let expiry_reminder_days = state.conf.api_keys.get_inner().expiry_reminder_days.clone();
 
         let task_id = generate_task_id_for_api_key_expiry_workflow(&key_id);
         // In order to determine how to update the existing process in the process_tracker table,
@@ -575,17 +526,7 @@ mod tests {
         let settings = settings::Settings::new().expect("invalid settings");
 
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = get_hash_key(
-            &settings.api_keys,
-            #[cfg(feature = "aws_kms")]
-            external_services::aws_kms::core::get_aws_kms_client(&settings.kms).await,
-            #[cfg(feature = "hashicorp-vault")]
-            external_services::hashicorp_vault::core::get_hashicorp_client(&settings.hc_vault)
-                .await
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+        let hash_key = settings.api_keys.get_inner().get_hash_key().unwrap();
         let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(

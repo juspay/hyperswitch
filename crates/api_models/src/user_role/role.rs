@@ -1,5 +1,7 @@
 use common_enums::{PermissionGroup, RoleScope};
 
+use super::Permission;
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateRoleRequest {
     pub role_name: String,
@@ -16,10 +18,30 @@ pub struct UpdateRoleRequest {
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
+#[derive(Debug, serde::Deserialize)]
+pub struct GetGroupsQueryParam {
+    pub groups: Option<bool>,
+}
+
 #[derive(Debug, serde::Serialize)]
-pub struct RoleInfoResponse {
+#[serde(untagged)]
+pub enum RoleInfoResponse {
+    Permissions(RoleInfoWithPermissionsResponse),
+    Groups(RoleInfoWithGroupsResponse),
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoleInfoWithPermissionsResponse {
     pub role_id: String,
-    pub permissions: Vec<super::Permission>,
+    pub permissions: Vec<Permission>,
+    pub role_name: String,
+    pub role_scope: RoleScope,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoleInfoWithGroupsResponse {
+    pub role_id: String,
+    pub groups: Vec<PermissionGroup>,
     pub role_name: String,
     pub role_scope: RoleScope,
 }
