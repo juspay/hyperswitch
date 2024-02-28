@@ -4,6 +4,7 @@ use std::{
 };
 
 use super::{NameDescription, TimeRange};
+use crate::enums::DisputeStage;
 
 #[derive(
     Clone,
@@ -66,7 +67,6 @@ impl From<DisputeMetrics> for NameDescription {
     }
 }
 
-use crate::enums::DisputeStage;
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct DisputeFilters {
     #[serde(default)]
