@@ -233,7 +233,7 @@ pub fn generate_newman_command() -> ReturnArgs {
 }
 
 // If the connector name exists in dynamic_amount_connectors,
-// the corresponding collection is refactored in run time to remove double quotes
+// the corresponding collection is modified at runtime to remove double quotes
 pub fn check_connector_for_dynamic_amount(connector_name: &str) -> &str {
     let dynamic_amount_connectors = ["nmi", "powertranz"];
 
