@@ -64,7 +64,7 @@ pub struct MolliePaymentsRequest {
     payment_method_data: PaymentMethodData,
     metadata: Option<MollieMetadata>,
     sequence_type: SequenceType,
-    mandate_id: Option<String>,
+    mandate_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
