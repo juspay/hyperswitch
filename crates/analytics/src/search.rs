@@ -93,7 +93,7 @@ async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, Ope
 
 pub async fn msearch_results(
     req: GetGlobalSearchRequest,
-    _merchant_id: &String,
+    merchant_id: &String,
     auth: OpensearchConfig,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
     let client = get_opensearch_client(auth)
@@ -103,7 +103,7 @@ pub async fn msearch_results(
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
         msearch_vector.push(json!({"index": index.to_string()}).into());
-        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": "postman_merchant_GHAction_11f62d0d-df98-4b35-8629-a1eee1edfa92"}}}}}).into());
+        msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
     }
 
     let response = client
@@ -137,7 +137,7 @@ pub async fn msearch_results(
 
 pub async fn search_results(
     req: GetSearchRequestWithIndex,
-    _merchant_id: &String,
+    merchant_id: &String,
     auth: OpensearchConfig,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
@@ -150,7 +150,7 @@ pub async fn search_results(
         .search(SearchParts::Index(&[&req.index.to_string()]))
         .from(search_req.offset)
         .size(search_req.count)
-        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": "postman_merchant_GHAction_11f62d0d-df98-4b35-8629-a1eee1edfa92"}}}}}))
+        .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
         .send()
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
