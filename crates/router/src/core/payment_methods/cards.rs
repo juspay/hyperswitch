@@ -2785,8 +2785,8 @@ pub async fn list_customer_payment_method(
             surcharge_details: None,
             requires_cvv,
             last_used_at: Some(pm.last_used_at),
-            default_payment_method_set: customer.default_payment_method.is_some()
-                && customer.default_payment_method == Some(pm.payment_method_id),
+            default_payment_method_set: customer.default_payment_method_id.is_some()
+                && customer.default_payment_method_id == Some(pm.payment_method_id),
         };
         customer_pms.push(pma.to_owned());
 
@@ -3102,7 +3102,7 @@ pub async fn set_default_payment_method(
         .into_report()?
     }
     utils::when(
-        Some(payment_method_id.clone()) == customer.default_payment_method,
+        Some(payment_method_id.clone()) == customer.default_payment_method_id,
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Payment Method is already set as default".to_string(),
@@ -3112,7 +3112,7 @@ pub async fn set_default_payment_method(
     )?;
 
     let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
-        default_payment_method: Some(payment_method_id.clone()),
+        default_payment_method_id: Some(payment_method_id.clone()),
     };
 
     // update the db with the default payment method id
@@ -3127,7 +3127,7 @@ pub async fn set_default_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update the default payment method id for the customer")?;
     let resp = CustomerDefaultPaymentMethodResponse {
-        default_payment_method_id: updated_customer_details.default_payment_method,
+        default_payment_method_id: updated_customer_details.default_payment_method_id,
         customer_id: customer.customer_id,
         payment_method_type: payment_method.payment_method_type,
         payment_method: payment_method.payment_method,

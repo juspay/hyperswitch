@@ -1403,7 +1403,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                             modified_at: common_utils::date_time::now(),
                             connector_customer: None,
                             address_id: None,
-                            default_payment_method: None,
+                            default_payment_method_id: None,
                         })
                     }
                     .await
