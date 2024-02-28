@@ -38,7 +38,7 @@ where
     {
         let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Dispute);
 
-        for dim in dimensions.iter() {
+        for dim in dimensions {
             query_builder.add_select_column(dim).switch()?;
         }
 
