@@ -932,6 +932,14 @@ pub enum SyncStatus {
     #[serde(rename = "FDSPendingReview")]
     FDSPendingReview,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RSyncStatus {
+    RefundSettledSuccessfully,
+    RefundPendingSettlement,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncTransactionResponse {
@@ -946,19 +954,25 @@ pub struct AuthorizedotnetSyncResponse {
     messages: ResponseMessages,
 }
 
-impl From<SyncStatus> for enums::RefundStatus {
-    fn from(transaction_status: SyncStatus) -> Self {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AuthorizedotnetRSyncResponse {
+    transaction: Option<RSyncTransactionResponse>,
+    messages: ResponseMessages,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RSyncTransactionResponse {
+    #[serde(rename = "transId")]
+    transaction_id: String,
+    transaction_status: RSyncStatus,
+}
+
+impl From<RSyncStatus> for enums::RefundStatus {
+    fn from(transaction_status: RSyncStatus) -> Self {
         match transaction_status {
-            SyncStatus::RefundSettledSuccessfully => Self::Success,
-            SyncStatus::RefundPendingSettlement => Self::Pending,
-            SyncStatus::AuthorizedPendingCapture
-            | SyncStatus::CapturedPendingSettlement
-            | SyncStatus::SettledSuccessfully
-            | SyncStatus::Declined
-            | SyncStatus::Voided
-            | SyncStatus::CouldNotVoid
-            | SyncStatus::GeneralError
-            | SyncStatus::FDSPendingReview => Self::Failure,
+            RSyncStatus::RefundSettledSuccessfully => Self::Success,
+            RSyncStatus::RefundPendingSettlement => Self::Pending,
         }
     }
 }
@@ -980,13 +994,13 @@ impl From<SyncStatus> for enums::AttemptStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(transaction) => {

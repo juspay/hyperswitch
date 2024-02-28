@@ -685,8 +685,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let intermediate_response =
             bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
 
-        let response: authorizedotnet::AuthorizedotnetSyncResponse = intermediate_response
-            .parse_struct("AuthorizedotnetSyncResponse")
+        let response: authorizedotnet::AuthorizedotnetRSyncResponse = intermediate_response
+            .parse_struct("AuthorizedotnetRSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
