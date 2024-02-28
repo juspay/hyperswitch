@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -28,6 +29,7 @@ pub trait EventInterface {
 
 #[async_trait::async_trait]
 impl EventInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_event(
         &self,
         event: storage::EventNew,
@@ -36,6 +38,7 @@ impl EventInterface for Store {
         event.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_event_by_event_id(
         &self,
         event_id: &str,
@@ -47,6 +50,7 @@ impl EventInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_event(
         &self,
         event_id: String,
