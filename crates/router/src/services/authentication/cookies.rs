@@ -4,12 +4,14 @@ use cookie::{
 };
 use masking::{ExposeInterface, Secret};
 
+#[cfg(feature = "olap")]
+use crate::core::errors::{UserErrors, UserResponse};
 use crate::{
     consts::{JWT_TOKEN_COOKIE_NAME, JWT_TOKEN_TIME_IN_SECS},
-    core::errors::{UserErrors, UserResponse},
     services::ApplicationResponse,
 };
 
+#[cfg(feature = "olap")]
 pub fn set_cookie_response<R>(response: R, token: Secret<String>) -> UserResponse<R> {
     let jwt_expiry_in_seconds = JWT_TOKEN_TIME_IN_SECS
         .try_into()
@@ -23,6 +25,7 @@ pub fn set_cookie_response<R>(response: R, token: Secret<String>) -> UserRespons
     Ok(ApplicationResponse::JsonWithHeaders((response, header)))
 }
 
+#[cfg(feature = "olap")]
 pub fn remove_cookie_response() -> UserResponse<()> {
     let (expiry, max_age) = get_expiry_and_max_age_from_seconds(0);
 
