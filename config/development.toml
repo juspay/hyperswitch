@@ -130,6 +130,7 @@ cards = [
     "prophetpay",
     "shift4",
     "square",
+    "stancer",
     "stax",
     "stripe",
     "trustpay",
@@ -207,6 +208,7 @@ shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
+stancer.base_url = "https://api.stancer.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"

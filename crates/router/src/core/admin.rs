@@ -1854,6 +1854,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             square::transformers::SquareAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Stancer => {
+            stancer::transformers::StancerAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Stax => {
             stax::transformers::StaxAuthType::try_from(val)?;
             Ok(())

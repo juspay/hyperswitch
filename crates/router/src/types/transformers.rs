@@ -236,6 +236,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 .into_report()?
             }
             api_enums::Connector::Square => Self::Square,
+            api_enums::Connector::Stancer => Self::Stancer,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
             api_enums::Connector::Trustpay => Self::Trustpay,

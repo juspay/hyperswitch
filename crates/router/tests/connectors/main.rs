@@ -52,6 +52,7 @@ mod prophetpay;
 mod rapyd;
 mod shift4;
 mod square;
+mod stancer;
 mod stax;
 mod stripe;
 mod trustpay;

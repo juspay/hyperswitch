@@ -114,6 +114,7 @@ riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+stancer.base_url = "https://api.stancer.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
@@ -175,6 +176,7 @@ cards = [
     "prophetpay",
     "shift4",
     "square",
+    "stancer",
     "stax",
     "stripe",
     "trustpay",
