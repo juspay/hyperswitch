@@ -33,6 +33,7 @@ use crate::{
     utils::OptionExt,
 };
 pub mod blacklist;
+pub mod cookies;
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
