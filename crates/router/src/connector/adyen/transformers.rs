@@ -245,7 +245,7 @@ impl ForeignFrom<(bool, AdyenStatus, Option<common_enums::PaymentMethodType>)>
     ) -> Self {
         match adyen_status {
             AdyenStatus::AuthenticationFinished => Self::AuthenticationSuccessful,
-            AdyenStatus::AuthenticationNotRequired => Self::Pending,
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::Received => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
                 // In case of Automatic capture Authorized is the final status of the payment
@@ -260,7 +260,6 @@ impl ForeignFrom<(bool, AdyenStatus, Option<common_enums::PaymentMethodType>)>
                 Some(common_enums::PaymentMethodType::Pix) => Self::AuthenticationPending,
                 _ => Self::Pending,
             },
-            AdyenStatus::Received => Self::Started,
             #[cfg(feature = "payouts")]
             AdyenStatus::PayoutConfirmReceived => Self::Started,
             #[cfg(feature = "payouts")]
@@ -1030,6 +1029,9 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             | enums::BankNames::KrungsriBank
             | enums::BankNames::KrungThaiBank
             | enums::BankNames::TheSiamCommercialBank
+            | enums::BankNames::Yoursafe
+            | enums::BankNames::N26
+            | enums::BankNames::NationaleNederlanden
             | enums::BankNames::KasikornBank => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -1093,8 +1095,9 @@ pub struct AdyenCancelRequest {
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelResponse {
-    psp_reference: String,
+    payment_psp_reference: String,
     status: CancelStatus,
+    reference: String,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -1379,16 +1382,17 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             api_models::enums::BankNames::AbnAmro => Self("1121"),
             api_models::enums::BankNames::AsnBank => Self("1151"),
             api_models::enums::BankNames::Bunq => Self("1152"),
-            api_models::enums::BankNames::Handelsbanken => Self("1153"),
             api_models::enums::BankNames::Ing => Self("1154"),
             api_models::enums::BankNames::Knab => Self("1155"),
-            api_models::enums::BankNames::Moneyou => Self("1156"),
+            api_models::enums::BankNames::N26 => Self("1156"),
+            api_models::enums::BankNames::NationaleNederlanden => Self("1157"),
             api_models::enums::BankNames::Rabobank => Self("1157"),
             api_models::enums::BankNames::Regiobank => Self("1158"),
             api_models::enums::BankNames::Revolut => Self("1159"),
             api_models::enums::BankNames::SnsBank => Self("1159"),
             api_models::enums::BankNames::TriodosBank => Self("1159"),
             api_models::enums::BankNames::VanLanschot => Self("1159"),
+            api_models::enums::BankNames::Yoursafe => Self("1159"),
             api_models::enums::BankNames::BankAustria => {
                 Self("e6819e7a-f663-414b-92ec-cf7c82d2f4e5")
             }
@@ -1425,6 +1429,34 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             api_models::enums::BankNames::VolkskreditbankAg => {
                 Self("4a0a975b-0594-4b40-9068-39f77b3a91f9")
             }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Adyen",
+            })?,
+        })
+    }
+}
+
+pub struct AdyenBankNames<'a>(&'a str);
+
+impl<'a> TryFrom<&api_enums::BankNames> for AdyenBankNames<'a> {
+    type Error = Error;
+    fn try_from(bank: &api_enums::BankNames) -> Result<Self, Self::Error> {
+        Ok(match bank {
+            api_models::enums::BankNames::AbnAmro => Self("0031"),
+            api_models::enums::BankNames::AsnBank => Self("0761"),
+            api_models::enums::BankNames::Bunq => Self("0802"),
+            api_models::enums::BankNames::Ing => Self("0721"),
+            api_models::enums::BankNames::Knab => Self("0801"),
+            api_models::enums::BankNames::N26 => Self("0807"),
+            api_models::enums::BankNames::NationaleNederlanden => Self("0808"),
+            api_models::enums::BankNames::Rabobank => Self("0021"),
+            api_models::enums::BankNames::Regiobank => Self("0771"),
+            api_models::enums::BankNames::Revolut => Self("0805"),
+            api_models::enums::BankNames::SnsBank => Self("0751"),
+            api_models::enums::BankNames::TriodosBank => Self("0511"),
+            api_models::enums::BankNames::VanLanschot => Self("0161"),
+            api_models::enums::BankNames::Yoursafe => Self("0806"),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -2093,10 +2125,12 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
     }
 }
 
-impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
     fn try_from(
-        bank_redirect_data: &api_models::payments::BankRedirectData,
+        (bank_redirect_data, test_mode): (&api_models::payments::BankRedirectData, Option<bool>),
     ) -> Result<Self, Self::Error> {
         match bank_redirect_data {
             api_models::payments::BankRedirectData::BancontactCard {
@@ -2168,19 +2202,33 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     payment_type: PaymentType::Giropay,
                 })))
             }
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
-                AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
-                    payment_type: PaymentType::Ideal,
-                    issuer: Some(
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                let issuer = if test_mode.unwrap_or(true) {
+                    Some(
                         AdyenTestBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "ideal.bank_name",
                             },
                         )?)?
                         .0,
-                    ),
-                })),
-            ),
+                    )
+                } else {
+                    Some(
+                        AdyenBankNames::try_from(&bank_name.ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "ideal.bank_name",
+                            },
+                        )?)?
+                        .0,
+                    )
+                };
+                Ok(AdyenPaymentMethod::Ideal(Box::new(
+                    BankRedirectionWithIssuer {
+                        payment_type: PaymentType::Ideal,
+                        issuer,
+                    },
+                )))
+            }
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Ok(AdyenPaymentMethod::OnlineBankingCzechRepublic(Box::new(
                     OnlineBankingCzechRepublicData {
@@ -2706,7 +2754,8 @@ impl<'a>
         let browser_info = get_browser_info(item.router_data)?;
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
-        let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
+        let payment_method =
+            AdyenPaymentMethod::try_from((bank_redirect_data, item.router_data.test_mode))?;
         let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
 
@@ -2953,15 +3002,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     }
 }
 
-impl From<CancelStatus> for storage_enums::AttemptStatus {
-    fn from(status: CancelStatus) -> Self {
-        match status {
-            CancelStatus::Received => Self::Voided,
-            CancelStatus::Processing => Self::Pending,
-        }
-    }
-}
-
 impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     for types::PaymentsCancelRouterData
 {
@@ -2970,14 +3010,16 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
         item: types::PaymentsCancelResponseRouterData<AdyenCancelResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: item.response.status.into(),
+            status: enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.payment_psp_reference,
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
             }),
             ..item.data
@@ -3697,11 +3739,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item
-                    .response
-                    .merchant_reference
-                    .clone()
-                    .or(Some(item.response.psp_reference)),
+                connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
             }),
             amount_captured: Some(item.response.amount.value),

@@ -989,7 +989,7 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id;
+        let id = req.request.connector_transaction_id.clone();
 
         if req.test_mode.unwrap_or(true) {
             Ok(format!(
@@ -1654,6 +1654,17 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Adyen
 {
+    fn build_request(
+        &self,
+        _req: &types::RefundsRouterData<api::RSync>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Rsync".to_owned(),
+            connector: "Adyen".to_owned(),
+        }
+        .into())
+    }
 }
 
 fn get_webhook_object_from_body(
