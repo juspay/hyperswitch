@@ -42,27 +42,6 @@ impl From<Permission> for user_role_api::Permission {
     }
 }
 
-pub async fn is_role_name_already_present_for_merchant(
-    state: &AppState,
-    role_name: &str,
-    merchant_id: &str,
-    org_id: &str,
-) -> UserResult<()> {
-    let role_name_list: Vec<String> = state
-        .store
-        .list_all_roles(merchant_id, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .iter()
-        .map(|role| role.role_name.to_owned())
-        .collect();
-
-    if role_name_list.contains(&role_name.to_string()) {
-        return Err(UserErrors::RoleNameAlreadyExists.into());
-    }
-    Ok(())
-}
-
 pub fn validate_role_groups(groups: &Vec<PermissionGroup>) -> UserResult<()> {
     if groups.is_empty() {
         return Err(UserErrors::InvalidRoleOperation.into())

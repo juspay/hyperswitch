@@ -62,14 +62,6 @@ pub async fn create_role(
             .attach_printable("Non org admin user creating org level role");
     }
 
-    utils::user_role::is_role_name_already_present_for_merchant(
-        &state,
-        &role_name.clone().get_role_name(),
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await?;
-
     let role = state
         .store
         .insert_role(RoleNew {
@@ -269,6 +261,10 @@ pub async fn update_role(
         .await?;
     }
 
+    if let Some(ref groups) = req.groups {
+        utils::user_role::validate_role_groups(groups)?;
+    }
+
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         role_id,
@@ -283,10 +279,6 @@ pub async fn update_role(
     {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Non org admin user changing org level role");
-    }
-
-    if let Some(ref groups) = req.groups {
-        utils::user_role::validate_role_groups(groups)?;
     }
 
     let updated_role = state
