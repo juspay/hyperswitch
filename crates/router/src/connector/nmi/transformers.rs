@@ -258,7 +258,7 @@ pub struct NmiCompleteRequest {
     transaction_type: TransactionType,
     security_key: Secret<String>,
     orderid: Option<String>,
-    customer_vault_id: String,
+    customer_vault_id: Option<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
     cavv: Option<String>,
@@ -311,11 +311,7 @@ impl TryFrom<&NmiRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for Nm
             transaction_type,
             security_key: auth_type.api_key,
             orderid: three_ds_data.order_id,
-            customer_vault_id: three_ds_data.customer_vault_id.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_vault_id",
-                },
-            )?,
+            customer_vault_id: three_ds_data.customer_vault_id,
             email: item.router_data.request.email.clone(),
             cvv,
             cardholder_auth: three_ds_data.card_holder_auth,
