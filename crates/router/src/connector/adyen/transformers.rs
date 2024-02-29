@@ -445,6 +445,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "lowercase")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<PmdForPaymentType>),
     AdyenCard(Box<AdyenCard>),
@@ -3881,7 +3882,9 @@ pub enum WebhookEventCode {
     Authorisation,
     Refund,
     CancelOrRefund,
+    Cancellation,
     RefundFailed,
+    RefundReversed,
     NotificationOfChargeback,
     Chargeback,
     ChargebackReversed,
@@ -3926,31 +3929,66 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
     )
 }
 
-impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for webhooks::IncomingWebhookEvent {
-    fn foreign_from((code, status): (WebhookEventCode, Option<DisputeStatus>)) -> Self {
-        match (code, status) {
-            (WebhookEventCode::Authorisation, _) => Self::PaymentIntentSuccess,
-            (WebhookEventCode::Refund, _) => Self::RefundSuccess,
-            (WebhookEventCode::CancelOrRefund, _) => Self::RefundSuccess,
-            (WebhookEventCode::RefundFailed, _) => Self::RefundFailure,
-            (WebhookEventCode::NotificationOfChargeback, _) => Self::DisputeOpened,
-            (WebhookEventCode::Chargeback, None) => Self::DisputeLost,
-            (WebhookEventCode::Chargeback, Some(DisputeStatus::Won)) => Self::DisputeWon,
-            (WebhookEventCode::Chargeback, Some(DisputeStatus::Lost)) => Self::DisputeLost,
-            (WebhookEventCode::Chargeback, Some(_)) => Self::DisputeOpened,
-            (WebhookEventCode::ChargebackReversed, Some(DisputeStatus::Pending)) => {
-                Self::DisputeChallenged
+fn is_success_scenario(is_success: String) -> bool {
+    is_success.as_str() == "true"
+}
+
+impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
+    for webhooks::IncomingWebhookEvent
+{
+    fn foreign_from(
+        (code, is_success, dispute_status): (WebhookEventCode, String, Option<DisputeStatus>),
+    ) -> Self {
+        match code {
+            WebhookEventCode::Authorisation => {
+                if is_success_scenario(is_success) {
+                    Self::PaymentIntentSuccess
+                } else {
+                    Self::PaymentIntentAuthorizationFailure
+                }
             }
-            (WebhookEventCode::ChargebackReversed, _) => Self::DisputeWon,
-            (WebhookEventCode::SecondChargeback, _) => Self::DisputeLost,
-            (WebhookEventCode::PrearbitrationWon, Some(DisputeStatus::Pending)) => {
-                Self::DisputeOpened
+            WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
+                if is_success_scenario(is_success) {
+                    Self::RefundSuccess
+                } else {
+                    Self::RefundFailure
+                }
             }
-            (WebhookEventCode::PrearbitrationWon, _) => Self::DisputeWon,
-            (WebhookEventCode::PrearbitrationLost, _) => Self::DisputeLost,
-            (WebhookEventCode::Unknown, _) => Self::EventNotSupported,
-            (WebhookEventCode::Capture, _) => Self::PaymentIntentSuccess,
-            (WebhookEventCode::CaptureFailed, _) => Self::PaymentIntentFailure,
+            WebhookEventCode::Cancellation => {
+                if is_success_scenario(is_success) {
+                    Self::PaymentIntentCancelled
+                } else {
+                    Self::PaymentIntentCancelFailure
+                }
+            }
+            WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
+                Self::RefundFailure
+            }
+            WebhookEventCode::NotificationOfChargeback => Self::DisputeOpened,
+            WebhookEventCode::Chargeback => match dispute_status {
+                Some(DisputeStatus::Won) => Self::DisputeWon,
+                Some(DisputeStatus::Lost) | None => Self::DisputeLost,
+                Some(_) => Self::DisputeOpened,
+            },
+            WebhookEventCode::ChargebackReversed => match dispute_status {
+                Some(DisputeStatus::Pending) => Self::DisputeChallenged,
+                _ => Self::DisputeWon,
+            },
+            WebhookEventCode::SecondChargeback => Self::DisputeLost,
+            WebhookEventCode::PrearbitrationWon => match dispute_status {
+                Some(DisputeStatus::Pending) => Self::DisputeOpened,
+                _ => Self::DisputeWon,
+            },
+            WebhookEventCode::PrearbitrationLost => Self::DisputeLost,
+            WebhookEventCode::Capture => {
+                if is_success_scenario(is_success) {
+                    Self::PaymentIntentCaptureSuccess
+                } else {
+                    Self::PaymentIntentCaptureFailure
+                }
+            }
+            WebhookEventCode::CaptureFailed => Self::PaymentIntentCaptureFailure,
+            WebhookEventCode::Unknown => Self::EventNotSupported,
         }
     }
 }
