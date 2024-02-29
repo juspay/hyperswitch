@@ -393,7 +393,6 @@ default_imp_for_connector_redirect_response!(
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
-    connector::Nmi,
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,

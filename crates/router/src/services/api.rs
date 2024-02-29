@@ -1888,6 +1888,19 @@ pub fn build_redirection_form(
                         var responseForm = document.createElement('form');
                         responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
                         responseForm.method='POST';
+
+                        var error_code=document.createElement('input');
+                        error_code.type='hidden';
+                        error_code.name='code';
+                        error_code.value= e.code;
+                        responseForm.appendChild(error_code);
+
+                        var error_message=document.createElement('input');
+                        error_message.type='hidden';
+                        error_message.name='message';
+                        error_message.value= e.message;
+                        responseForm.appendChild(error_message);
+
                         document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
