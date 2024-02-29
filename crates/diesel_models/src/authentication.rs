@@ -25,7 +25,7 @@ pub struct Authentication {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize, Insertable)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
     pub authentication_id: String,
@@ -64,7 +64,7 @@ pub enum AuthenticationUpdate {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Serialize, Deserialize)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationUpdateInternal {
     pub connector_authentication_id: Option<String>,
