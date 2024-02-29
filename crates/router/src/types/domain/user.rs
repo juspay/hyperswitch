@@ -811,15 +811,6 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
     }
 }
 
-impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
-    fn from(value: info::PermissionInfo) -> Self {
-        Self {
-            enum_name: value.enum_name.into(),
-            description: value.description,
-        }
-    }
-}
-
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),

@@ -227,6 +227,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         address_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        default_payment_method_id -> Nullable<Varchar>,
     }
 }
 
@@ -293,6 +295,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        dispute_amount -> Int8,
     }
 }
 
@@ -829,6 +832,13 @@ diesel::table! {
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        locker_id -> Nullable<Varchar>,
+        last_used_at -> Timestamp,
+        connector_mandate_details -> Nullable<Jsonb>,
+        customer_acceptance -> Nullable<Jsonb>,
+        #[max_length = 64]
+        status -> Varchar,
     }
 }
 
@@ -901,6 +911,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        attempt_count -> Int2,
     }
 }
 

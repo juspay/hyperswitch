@@ -22,6 +22,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub connector_customer: Option<serde_json::Value>,
     pub address_id: Option<String>,
+    pub default_payment_method_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -45,6 +46,7 @@ impl super::behaviour::Conversion for Customer {
             modified_at: self.modified_at,
             connector_customer: self.connector_customer,
             address_id: self.address_id,
+            default_payment_method_id: self.default_payment_method_id,
         })
     }
 
@@ -72,6 +74,7 @@ impl super::behaviour::Conversion for Customer {
                 modified_at: item.modified_at,
                 connector_customer: item.connector_customer,
                 address_id: item.address_id,
+                default_payment_method_id: item.default_payment_method_id,
             })
         }
         .await
@@ -114,6 +117,9 @@ pub enum CustomerUpdate {
     ConnectorCustomer {
         connector_customer: Option<serde_json::Value>,
     },
+    UpdateDefaultPaymentMethod {
+        default_payment_method_id: Option<String>,
+    },
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
@@ -138,9 +144,17 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 connector_customer,
                 modified_at: Some(date_time::now()),
                 address_id,
+                ..Default::default()
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+            } => Self {
+                default_payment_method_id,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

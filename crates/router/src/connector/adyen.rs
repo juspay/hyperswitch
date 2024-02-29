@@ -7,6 +7,7 @@ use base64::Engine;
 use common_utils::request::RequestContent;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -467,8 +468,10 @@ impl
             .response
             .parse_struct("AdyenCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -610,8 +613,10 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         let is_multiple_capture_sync = match data.request.sync_type {
             types::SyncRequestType::MultipleCaptureSync(_) => true,
             types::SyncRequestType::SinglePaymentSync => false,
@@ -1513,7 +1518,7 @@ impl api::IncomingWebhook for Adyen {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let base64_signature = notif_item.additional_data.hmac_signature;
+        let base64_signature = notif_item.additional_data.hmac_signature.expose();
         Ok(base64_signature.as_bytes().to_vec())
     }
 
