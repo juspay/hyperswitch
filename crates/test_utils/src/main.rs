@@ -16,28 +16,29 @@ fn main() {
     };
     let status = child.wait();
 
-    for modified_file_path in runner.modified_file_paths {
-        if modified_file_path.is_some() {
-            let git_status = Command::new("git")
-                .args(["restore", &modified_file_path.unwrap_or_default()])
-                .output();
+    // Filter out None values leaving behind Some(Path)
+    runner
+        .modified_file_paths
+        .into_iter()
+        .flatten()
+        .for_each(|path| {
+            let git_status = Command::new("git").args(["restore", &path]).output();
 
             match git_status {
                 Ok(output) => {
                     if output.status.success() {
                         let stdout_str = String::from_utf8_lossy(&output.stdout);
-                        println!("Git command executed successfully: {stdout_str}");
+                        println!("Git command executed successfully: {}", stdout_str);
                     } else {
                         let stderr_str = String::from_utf8_lossy(&output.stderr);
-                        eprintln!("Git command failed with error: {stderr_str}");
+                        eprintln!("Git command failed with error: {}", stderr_str);
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error running Git: {e}");
+                    eprintln!("Error running Git: {}", e);
                 }
             }
-        }
-    }
+        });
 
     let exit_code = match status {
         Ok(exit_status) => {
