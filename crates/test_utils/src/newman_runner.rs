@@ -3,7 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, Write},
     path::Path,
-    process::Command,
+    process::{exit, Command},
 };
 
 use clap::{arg, command, Parser};
@@ -54,6 +54,13 @@ fn get_collection_path(name: impl AsRef<str>) -> String {
     )
 }
 
+// Generates the name of the collection directory for the specified connector.
+// Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
+#[inline]
+fn get_dir_path(name: impl AsRef<str>) -> String {
+    format!("postman/collection-dir/{}", name.as_ref())
+}
+
 // This function currently allows you to add only custom headers.
 // In future, as we scale, this can be modified based on the need
 fn insert_content<T, U>(dir: T, content_to_insert: U) -> std::io::Result<()>
@@ -83,6 +90,7 @@ pub fn generate_newman_command() -> ReturnArgs {
     let admin_api_key = args.admin_api_key;
 
     let collection_path = get_collection_path(&connector_name);
+    let collection_dir_path = get_dir_path(&connector_name);
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = auth_map.inner();
@@ -102,8 +110,10 @@ pub fn generate_newman_command() -> ReturnArgs {
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
+    let custom_header_exist = check_for_custom_headers(args.custom_headers, &collection_dir_path);
+
     // validation of connector is needed here as a work around to the limitation of the fork of newman that Hyperswitch uses
-    let (connector_name, collection_modified_status_flag) =
+    let (connector_name, modified_collection_file_paths) =
         check_connector_for_dynamic_amount(&connector_name);
 
     if let Some(auth_type) = inner_map.get(connector_name) {
@@ -206,11 +216,9 @@ pub fn generate_newman_command() -> ReturnArgs {
         newman_command.arg("--verbose");
     }
 
-    let custom_header_exist = check_for_custom_headers(args.custom_headers, &collection_path);
-
     ReturnArgs {
         newman_command,
-        modified_file_paths: vec![collection_modified_status_flag, custom_header_exist],
+        modified_file_paths: vec![modified_collection_file_paths, custom_header_exist],
         collection_path,
     }
 }
@@ -235,11 +243,20 @@ pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Opt
 // If the connector name exists in dynamic_amount_connectors,
 // the corresponding collection is modified at runtime to remove double quotes
 pub fn check_connector_for_dynamic_amount(connector_name: &str) -> (&str, Option<String>) {
+    let collection_dir_path = get_dir_path(connector_name);
+
     let dynamic_amount_connectors = ["nmi", "powertranz"];
 
     if dynamic_amount_connectors.contains(&connector_name) {
         return remove_quotes_for_integer_values(connector_name).unwrap_or((connector_name, None));
     }
+    /*
+    If connector name does not exist in dynamic_amount_connectors but we run it on custom_pod,
+    Since we're running from collections directly, we'll have to export the collection again and it much simpler.
+    We could directly inject the custom-headers using regex, but it is not encouraged as it is hard
+    to determine the place of edit.
+    */
+    export_collection(connector_name, collection_dir_path);
 
     (connector_name, None)
 }
@@ -259,6 +276,7 @@ pub fn remove_quotes_for_integer_values(
     connector_name: &str,
 ) -> Result<(&str, Option<String>), io::Error> {
     let collection_path = get_collection_path(connector_name);
+    let collection_dir_path = get_dir_path(connector_name);
 
     let values_to_replace = [
         "amount",
@@ -267,6 +285,8 @@ pub fn remove_quotes_for_integer_values(
         "random_number",
         "refund_amount",
     ];
+
+    export_collection(connector_name, collection_dir_path);
 
     let mut contents = fs::read_to_string(&collection_path)?;
     for value_to_replace in values_to_replace {
@@ -288,4 +308,31 @@ pub fn remove_quotes_for_integer_values(
     }
 
     Ok((connector_name, Some(collection_path)))
+}
+
+pub fn export_collection(connector_name: &str, collection_dir_path: String) {
+    let collection_path = get_collection_path(connector_name);
+
+    let mut newman_command = Command::new("newman");
+    newman_command.args([
+        "dir-import".to_owned(),
+        collection_dir_path,
+        "-o".to_owned(),
+        collection_path.clone(),
+    ]);
+
+    match newman_command.spawn().and_then(|mut child| child.wait()) {
+        Ok(exit_status) => {
+            if exit_status.success() {
+                println!("Conversion of collection from directory structure to json successful!");
+            } else {
+                eprintln!("Conversion of collection from directory structure to json failed!");
+                exit(exit_status.code().unwrap_or(1));
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to execute dir-import: {:?}", err);
+            exit(1);
+        }
+    }
 }
