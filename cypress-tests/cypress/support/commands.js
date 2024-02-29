@@ -29,7 +29,7 @@
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { baseUrl } from "../utils/Constants";
 import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
-const adminApiKey = ConnectorAuthDetails.sandbox.ADMIN_API_KEYS ;
+const adminApiKey = ConnectorAuthDetails.integ.ADMIN_API_KEYS ;
 
 Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState) => {
 

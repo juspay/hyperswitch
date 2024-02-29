@@ -1,1 +1,1 @@
-export const baseUrl="https://sandbox.hyperswitch.io"
+export const baseUrl="https://integ-api.hyperswitch.io"
