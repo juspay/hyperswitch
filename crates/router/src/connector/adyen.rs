@@ -1675,7 +1675,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         // for capture_event, original_reference field will have the authorized payment's PSP reference
-        if adyen::is_capture_event(&notif.event_code) {
+        if adyen::is_capture_or_cancel_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     notif

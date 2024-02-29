@@ -3901,10 +3901,12 @@ pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
     matches!(event_code, WebhookEventCode::Authorisation)
 }
 
-pub fn is_capture_event(event_code: &WebhookEventCode) -> bool {
+pub fn is_capture_or_cancel_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
-        WebhookEventCode::Capture | WebhookEventCode::CaptureFailed
+        WebhookEventCode::Capture
+            | WebhookEventCode::CaptureFailed
+            | WebhookEventCode::Cancellation
     )
 }
 
@@ -3914,6 +3916,7 @@ pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
         WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
+            | WebhookEventCode::RefundReversed
     )
 }
 
@@ -3944,7 +3947,7 @@ impl ForeignFrom<(WebhookEventCode, String, Option<DisputeStatus>)>
                 if is_success_scenario(is_success) {
                     Self::PaymentIntentSuccess
                 } else {
-                    Self::PaymentIntentAuthorizationFailure
+                    Self::PaymentIntentFailure
                 }
             }
             WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => {
@@ -4039,7 +4042,13 @@ impl From<AdyenNotificationRequestItemWH> for Response {
             psp_reference: notif.psp_reference,
             merchant_reference: notif.merchant_reference,
             result_code: match notif.success.as_str() {
-                "true" => AdyenStatus::Authorised,
+                "true" => {
+                    if notif.event_code == WebhookEventCode::Cancellation {
+                        AdyenStatus::Cancelled
+                    } else {
+                        AdyenStatus::Authorised
+                    }
+                }
                 _ => AdyenStatus::Refused,
             },
             amount: Some(Amount {
