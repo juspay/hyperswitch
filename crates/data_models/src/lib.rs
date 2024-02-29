@@ -1,6 +1,8 @@
 pub mod errors;
 pub mod mandates;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {

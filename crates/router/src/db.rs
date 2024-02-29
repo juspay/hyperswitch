@@ -27,8 +27,6 @@ pub mod merchant_key_store;
 pub mod organization;
 pub mod payment_link;
 pub mod payment_method;
-pub mod payout_attempt;
-pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
@@ -39,6 +37,8 @@ pub mod user_role;
 use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
+#[cfg(feature = "payouts")]
+use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -65,6 +65,7 @@ pub enum StorageImpl {
     Mock,
 }
 
+#[cfg(not(feature = "payouts"))]
 #[async_trait::async_trait]
 pub trait StorageInterface:
     Send
@@ -93,8 +94,60 @@ pub trait StorageInterface:
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + scheduler::SchedulerInterface
-    + payout_attempt::PayoutAttemptInterface
-    + payouts::PayoutsInterface
+    + refund::RefundInterface
+    + reverse_lookup::ReverseLookupInterface
+    + cards_info::CardsInfoInterface
+    + merchant_key_store::MerchantKeyStoreInterface
+    + MasterKeyInterface
+    + payment_link::PaymentLinkInterface
+    + RedisConnInterface
+    + RequestIdStore
+    + business_profile::BusinessProfileInterface
+    + OrganizationInterface
+    + routing_algorithm::RoutingAlgorithmInterface
+    + gsm::GsmInterface
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + authorization::AuthorizationInterface
+    + user::sample_data::BatchSampleDataInterface
+    + health_check::HealthCheckDbInterface
+    + role::RoleInterface
+    + 'static
+{
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+}
+
+#[cfg(feature = "payouts")]
+#[async_trait::async_trait]
+pub trait StorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + address::AddressInterface
+    + api_keys::ApiKeyInterface
+    + blocklist_lookup::BlocklistLookupInterface
+    + configs::ConfigInterface
+    + capture::CaptureInterface
+    + customers::CustomerInterface
+    + dashboard_metadata::DashboardMetadataInterface
+    + dispute::DisputeInterface
+    + ephemeral_key::EphemeralKeyInterface
+    + events::EventInterface
+    + file::FileMetadataInterface
+    + FraudCheckInterface
+    + locker_mock_up::LockerMockUpInterface
+    + mandate::MandateInterface
+    + merchant_account::MerchantAccountInterface
+    + merchant_connector_account::ConnectorAccessToken
+    + merchant_connector_account::MerchantConnectorAccountInterface
+    + PaymentAttemptInterface
+    + PaymentIntentInterface
+    + payment_method::PaymentMethodInterface
+    + blocklist::BlocklistInterface
+    + blocklist_fingerprint::BlocklistFingerprintInterface
+    + scheduler::SchedulerInterface
+    + PayoutAttemptInterface
+    + PayoutsInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface

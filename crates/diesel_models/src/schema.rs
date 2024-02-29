@@ -911,6 +911,9 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        status -> PayoutStatus,
     }
 }
 

@@ -17,6 +17,31 @@ impl PayoutsNew {
     }
 }
 impl Payouts {
+    #[instrument(skip(conn))]
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        payout_update: PayoutsUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::payout_id
+                .eq(self.payout_id.to_owned())
+                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            PayoutsUpdateInternal::from(payout_update),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            Ok(mut payouts) => payouts
+                .pop()
+                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
+        }
+    }
+
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,

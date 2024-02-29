@@ -1,14 +1,35 @@
+use common_enums as storage_enums;
 use common_utils::pii;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use serde::{self, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payouts};
+use crate::errors;
 
-// Payouts
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payouts)]
-#[diesel(primary_key(payout_id))]
+#[async_trait::async_trait]
+pub trait PayoutsInterface {
+    async fn insert_payout(
+        &self,
+        _payout: PayoutsNew,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Payouts, errors::StorageError>;
+
+    async fn find_payout_by_merchant_id_payout_id(
+        &self,
+        _merchant_id: &str,
+        _payout_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Payouts, errors::StorageError>;
+
+    async fn update_payout(
+        &self,
+        _this: &Payouts,
+        _payout: PayoutsUpdate,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Payouts, errors::StorageError>;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: String,
@@ -25,28 +46,14 @@ pub struct Payouts {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Insertable,
-    serde::Serialize,
-    serde::Deserialize,
-    router_derive::DebugAsDisplay,
-    router_derive::Setter,
-)]
-#[diesel(table_name = payouts)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: String,
@@ -63,16 +70,43 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
     pub attempt_count: i16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Default for PayoutsNew {
+    fn default() -> Self {
+        let now = common_utils::date_time::now();
+
+        Self {
+            payout_id: String::default(),
+            merchant_id: String::default(),
+            customer_id: String::default(),
+            address_id: String::default(),
+            payout_type: storage_enums::PayoutType::default(),
+            payout_method_id: Option::default(),
+            amount: i64::default(),
+            destination_currency: storage_enums::Currency::default(),
+            source_currency: storage_enums::Currency::default(),
+            description: Option::default(),
+            recurring: bool::default(),
+            auto_fulfill: bool::default(),
+            return_url: None,
+            entity_type: storage_enums::PayoutEntityType::default(),
+            metadata: Option::default(),
+            created_at: Some(now),
+            last_modified_at: Some(now),
+            profile_id: String::default(),
+            status: storage_enums::PayoutStatus::default(),
+            attempt_count: 1,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
         amount: i64,
@@ -98,8 +132,7 @@ pub enum PayoutsUpdate {
     },
 }
 
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payouts)]
+#[derive(Clone, Debug, Default)]
 pub struct PayoutsUpdateInternal {
     pub amount: Option<i64>,
     pub destination_currency: Option<storage_enums::Currency>,
@@ -113,29 +146,7 @@ pub struct PayoutsUpdateInternal {
     pub payout_method_id: Option<String>,
     pub profile_id: Option<String>,
     pub status: Option<storage_enums::PayoutStatus>,
-    pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: Option<i16>,
-}
-
-impl Default for PayoutsUpdateInternal {
-    fn default() -> Self {
-        Self {
-            amount: None,
-            destination_currency: None,
-            source_currency: None,
-            description: None,
-            recurring: None,
-            auto_fulfill: None,
-            return_url: None,
-            entity_type: None,
-            metadata: None,
-            payout_method_id: None,
-            profile_id: None,
-            status: None,
-            last_modified_at: common_utils::date_time::now(),
-            attempt_count: None,
-        }
-    }
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -179,44 +190,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
-        }
-    }
-}
-
-impl PayoutsUpdate {
-    pub fn apply_changeset(self, source: Payouts) -> Payouts {
-        let PayoutsUpdateInternal {
-            amount,
-            destination_currency,
-            source_currency,
-            description,
-            recurring,
-            auto_fulfill,
-            return_url,
-            entity_type,
-            metadata,
-            payout_method_id,
-            profile_id,
-            status,
-            last_modified_at,
-            attempt_count,
-        } = self.into();
-        Payouts {
-            amount: amount.unwrap_or(source.amount),
-            destination_currency: destination_currency.unwrap_or(source.destination_currency),
-            source_currency: source_currency.unwrap_or(source.source_currency),
-            description: description.or(source.description),
-            recurring: recurring.unwrap_or(source.recurring),
-            auto_fulfill: auto_fulfill.unwrap_or(source.auto_fulfill),
-            return_url: return_url.or(source.return_url),
-            entity_type: entity_type.unwrap_or(source.entity_type),
-            metadata: metadata.or(source.metadata),
-            payout_method_id: payout_method_id.or(source.payout_method_id),
-            profile_id: profile_id.unwrap_or(source.profile_id),
-            status: status.unwrap_or(source.status),
-            last_modified_at,
-            attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            ..source
         }
     }
 }

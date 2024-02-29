@@ -48,6 +48,7 @@ pub struct PaymentInfo {
     pub return_url: Option<String>,
     pub connector_customer: Option<String>,
     pub payment_method_token: Option<String>,
+    #[cfg(feature = "payouts")]
     pub payout_method_data: Option<api::PayoutMethodData>,
     pub currency: Option<enums::Currency>,
     pub country: Option<enums::CountryAlpha2>,

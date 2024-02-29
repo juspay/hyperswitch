@@ -17,10 +17,9 @@ pub mod transformers;
 
 use std::{collections::HashMap, marker::PhantomData};
 
-pub use api_models::{
-    enums::{Connector, PayoutConnectors},
-    mandates, payouts as payout_types,
-};
+pub use api_models::{enums::Connector, mandates};
+#[cfg(feature = "payouts")]
+pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};

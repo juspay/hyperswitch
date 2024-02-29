@@ -14,6 +14,8 @@ mod lookup;
 pub mod metrics;
 pub mod mock_db;
 pub mod payments;
+#[cfg(feature = "payouts")]
+pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
@@ -329,5 +331,28 @@ impl UniqueConstraints for diesel_models::ReverseLookup {
     }
     fn table_name(&self) -> &str {
         "ReverseLookup"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::Payouts {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("po_{}_{}", self.merchant_id, self.payout_id)]
+    }
+    fn table_name(&self) -> &str {
+        "Payouts"
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl UniqueConstraints for diesel_models::PayoutAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "poa_{}_{}",
+            self.merchant_id, self.payout_attempt_id
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "PayoutAttempt"
     }
 }
