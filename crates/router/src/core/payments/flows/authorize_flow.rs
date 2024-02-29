@@ -101,7 +101,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                     is_mandate,
                 ))
-                .await?;
+                .await?.0;
 
                 resp.payment_method_id = payment_method_id.clone();
 
@@ -121,9 +121,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let key_store = key_store.clone();
                 let state = state.clone();
 
-                logger::info!("Initiating async call to save_payment_method in locker");
-
-                logger::info!("Starting async call to save_payment_method in locker");
+                logger::info!("Call to save_payment_method in locker");
 
                 let payment_method_id = Box::pin(tokenization::save_payment_method(
                     &state,
@@ -135,12 +133,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     &key_store,
                     is_mandate,
                 ))
-                .await;
+                .await?.0;
 
-                resp.payment_method_id = payment_method_id.as_ref().unwrap().clone();
-                // if let Err(err) = payment_method_id {
-                //     logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                // }
+                resp.payment_method_id = payment_method_id.clone();
 
                 Ok(resp)
             }

@@ -109,7 +109,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 key_store,
                 is_mandate,
             ))
-            .await?;
+            .await?.0;
             mandate::mandate_procedure(
                 state,
                 resp,
@@ -246,7 +246,7 @@ impl types::SetupMandateRouterData {
                     key_store,
                     is_mandate,
                 ))
-                .await?;
+                .await?.0;
 
                 Ok(mandate::mandate_procedure(
                     state,
@@ -331,7 +331,7 @@ impl types::SetupMandateRouterData {
                 key_store,
                 is_mandate,
             ))
-            .await?;
+            .await?.0;
             let mandate = state
                 .store
                 .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
