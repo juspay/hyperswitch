@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS Authentication (
+CREATE TABLE IF NOT EXISTS authentication (
     authentication_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
     authentication_connector VARCHAR(64) NOT NULL,

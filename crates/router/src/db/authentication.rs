@@ -50,7 +50,7 @@ impl AuthenticationInterface for Store {
         merchant_id: String,
         authentication_id: String,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Authentication::find_by_merchant_id_authentication_id(
             &conn,
             &merchant_id,
