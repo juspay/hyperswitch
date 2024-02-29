@@ -5092,7 +5092,10 @@
           "starling",
           "tsb_bank",
           "tesco_bank",
-          "ulster_bank"
+          "ulster_bank",
+          "yoursafe",
+          "n26",
+          "nationale_nederlanden"
         ]
       },
       "BankRedirectBilling": {

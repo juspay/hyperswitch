@@ -189,7 +189,7 @@ google_pay = { country = "AE,AG,AL,AO,AR,AS,AT,AU,AZ,BE,BG,BH,BR,BY,CA,CH,CL,CO,
 ideal = { country = "NL", currency = "EUR" }
 indomaret = { country = "ID", currency = "IDR" }
 kakao_pay = { country = "KR", currency = "KRW" }
-klarna = { country = "AT,BE,CA,CH,DE,DK,ES,FI,FR,GB,IE,IT,NL,NO,PL,PT,SE,GB,US", currency = "AUD,CAD,CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
 lawson = { country = "JP", currency = "JPY" }
 mandiri_va = { country = "ID", currency = "IDR" }
 mb_way = { country = "PT", currency = "EUR" }
@@ -213,7 +213,7 @@ permata_bank_transfer = { country = "ID", currency = "IDR" }
 seicomart = { country = "JP", currency = "JPY" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
 seven_eleven = { country = "JP", currency = "JPY" }
-sofort = { country = "AT,BE,CH,DE,ES,FI,FR,GB,IT,NL,PL,SE,GB", currency = "EUR" }
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
 swish = { country = "SE", currency = "SEK" }
 touch_n_go = { country = "MY", currency = "MYR" }
 trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
