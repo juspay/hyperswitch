@@ -71,7 +71,7 @@ pub async fn payment_intents_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -96,7 +96,7 @@ pub async fn payment_intents_retrieve(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = Flow::PaymentsRetrieveForceSync;
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -131,7 +131,7 @@ pub async fn payment_intents_retrieve(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -160,7 +160,13 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::PaymentsRetrieveForceSync,
+        _ => Flow::PaymentsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", &flow.to_string());
+
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,

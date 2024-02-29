@@ -1,12 +1,10 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     enums::RoleScope, query::generics, role::*, schema::roles::dsl, PgPooledConn, StorageResult,
 };
 
 impl RoleNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
         generics::generic_insert(conn, self).await
     }
