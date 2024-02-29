@@ -42,7 +42,7 @@ impl From<Permission> for user_role_api::Permission {
     }
 }
 
-pub fn validate_role_groups(groups: &Vec<PermissionGroup>) -> UserResult<()> {
+pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
     if groups.is_empty() {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Role groups cannot be empty");
@@ -66,8 +66,7 @@ pub async fn validate_role_name(
 
     let is_present_in_predefined_roles = roles::predefined_roles::PREDEFINED_ROLES
         .iter()
-        .find(|(_, role_info)| role_info.get_role_name() == &role_name_str)
-        .is_some();
+        .any(|(_, role_info)| role_info.get_role_name() == &role_name_str);
 
     // TODO: Create and use find_by_role_name to make this efficient
     let is_present_in_custom_roles = state
@@ -76,9 +75,7 @@ pub async fn validate_role_name(
         .await
         .change_context(UserErrors::InternalServerError)?
         .iter()
-        .map(|role| &role.role_name)
-        .find(|name| name == &role_name_str.as_str())
-        .is_some();
+        .any(|role| role.role_name == role_name_str);
 
     if is_present_in_predefined_roles || is_present_in_custom_roles {
         return Err(UserErrors::RoleNameAlreadyExists.into());
