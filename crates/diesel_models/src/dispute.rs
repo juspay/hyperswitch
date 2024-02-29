@@ -29,6 +29,7 @@ pub struct DisputeNew {
     pub evidence: Option<Secret<serde_json::Value>>,
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub dispute_amount: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable)]
@@ -59,6 +60,7 @@ pub struct Dispute {
     pub evidence: Secret<serde_json::Value>,
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
+    pub dispute_amount: i64,
 }
 
 #[derive(Debug)]
