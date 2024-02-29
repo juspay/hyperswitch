@@ -124,6 +124,9 @@ key1="Adyen Account Id"
 [adyen.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[adyen.metadata]
+endpoint_prefix="Live endpoint prefix"
+
 [adyen.metadata.google_pay]
 merchant_name="Google Pay Merchant Name"
 gateway_merchant_id="Google Pay Merchant Key"
