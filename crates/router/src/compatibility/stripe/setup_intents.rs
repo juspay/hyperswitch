@@ -78,7 +78,7 @@ pub async fn setup_intents_create(
     ))
     .await
 }
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -103,7 +103,7 @@ pub async fn setup_intents_retrieve(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
-    let flow = Flow::PaymentsRetrieve;
+    let flow = Flow::PaymentsRetrieveForceSync;
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
