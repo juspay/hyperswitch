@@ -4,9 +4,9 @@ use cookie::{
 };
 use masking::{ExposeInterface, Secret};
 
-use crate::core::errors::{UserErrors, UserResponse};
 use crate::{
     consts::{JWT_TOKEN_COOKIE_NAME, JWT_TOKEN_TIME_IN_SECS},
+    core::errors::{UserErrors, UserResponse},
     services::ApplicationResponse,
 };
 
