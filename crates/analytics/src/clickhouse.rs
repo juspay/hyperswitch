@@ -23,7 +23,7 @@ use crate::{
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
     connector_events::events::ConnectorEventsResult,
-    disputes::filters::DisputeFilterRow,
+    disputes::{filters::DisputeFilterRow, metrics::DisputeMetricRow},
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
@@ -170,6 +170,7 @@ impl super::outgoing_webhook_event::events::OutgoingWebhookLogsFilterAnalytics
 {
 }
 impl super::disputes::filters::DisputeFilterAnalytics for ClickhouseClient {}
+impl super::disputes::metrics::DisputeMetricAnalytics for ClickhouseClient {}
 
 #[derive(Debug, serde::Serialize)]
 struct CkhQuery {
@@ -275,6 +276,17 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
             .into_report()
             .change_context(ParsingError::StructParseFailure(
                 "Failed to parse RefundFilterRow in clickhouse results",
+            ))
+    }
+}
+impl TryInto<DisputeMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<DisputeMetricRow, Self::Error> {
+        serde_json::from_value(self)
+            .into_report()
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse DisputeMetricRow in clickhouse results",
             ))
     }
 }
