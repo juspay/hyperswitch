@@ -227,6 +227,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         address_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        default_payment_method_id -> Nullable<Varchar>,
     }
 }
 
@@ -831,6 +833,7 @@ diesel::table! {
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
+        last_used_at -> Timestamp,
         connector_mandate_details -> Nullable<Jsonb>,
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]

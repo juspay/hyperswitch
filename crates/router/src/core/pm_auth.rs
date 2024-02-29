@@ -297,6 +297,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_method_by_customer_id_merchant_id_list(
             &customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;

@@ -1,6 +1,7 @@
 use common_enums::enums;
 use diesel_models::role as storage;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -48,6 +49,7 @@ pub trait RoleInterface {
 
 #[async_trait::async_trait]
 impl RoleInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_role(
         &self,
         role: storage::RoleNew,
@@ -56,6 +58,7 @@ impl RoleInterface for Store {
         role.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_role_by_role_id(
         &self,
         role_id: &str,
@@ -67,6 +70,7 @@ impl RoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -80,6 +84,7 @@ impl RoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_role_by_role_id(
         &self,
         role_id: &str,
@@ -92,6 +97,7 @@ impl RoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_role_by_role_id(
         &self,
         role_id: &str,
@@ -103,6 +109,7 @@ impl RoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_all_roles(
         &self,
         merchant_id: &str,

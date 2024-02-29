@@ -327,7 +327,8 @@ pub fn mk_add_bank_response_hs(
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
-        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()),
     }
 }
 
@@ -370,7 +371,8 @@ pub fn mk_add_card_response_hs(
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
-        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()), // [#256]
     }
 }
 
