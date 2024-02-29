@@ -119,8 +119,8 @@ impl ConnectorValidation for Placetopay {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::Automatic
+            enums::CaptureMethod::Automatic => Ok(()),
+            enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
             | enums::CaptureMethod::Scheduled => Err(utils::construct_not_supported_error_report(
                 capture_method,
