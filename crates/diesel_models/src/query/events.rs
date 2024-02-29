@@ -14,7 +14,7 @@ impl EventNew {
 }
 
 impl Event {
-    pub async fn update_event(
+    pub async fn update(
         conn: &PgPooledConn,
         event_id: &str,
         event: EventUpdate,

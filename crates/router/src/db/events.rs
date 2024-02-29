@@ -38,7 +38,7 @@ impl EventInterface for Store {
         event: storage::EventUpdate,
     ) -> CustomResult<storage::Event, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Event::update_event(&conn, &event_id, event)
+        storage::Event::update(&conn, &event_id, event)
             .await
             .map_err(Into::into)
             .into_report()
