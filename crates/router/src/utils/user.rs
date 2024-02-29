@@ -64,7 +64,7 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
-        roles::get_role_info_from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
             .await
             .change_context(UserErrors::InternalServerError)
     }

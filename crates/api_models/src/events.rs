@@ -101,7 +101,8 @@ impl_misc_api_event_type!(
     GetSearchResponse,
     GetSearchRequestWithIndex,
     GetDisputeFilterRequest,
-    DisputeFiltersResponse
+    DisputeFiltersResponse,
+    GetDisputeMetricRequest
 );
 
 #[cfg(feature = "stripe")]

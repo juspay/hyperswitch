@@ -57,6 +57,7 @@ pub enum AnalyticsFlow {
     GetGlobalSearchResults,
     GetSearchResults,
     GetDisputeFilters,
+    GetDisputeMetrics,
 }
 
 impl FlowMetric for AnalyticsFlow {}

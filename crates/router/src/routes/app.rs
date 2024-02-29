@@ -633,6 +633,10 @@ impl Customers {
                         .route(web::get().to(list_customer_payment_method_api)),
                 )
                 .service(
+                    web::resource("/{customer_id}/payment_methods/{payment_method_id}/default")
+                        .route(web::post().to(default_payment_method_set_api)),
+                )
+                .service(
                     web::resource("/{customer_id}")
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))
