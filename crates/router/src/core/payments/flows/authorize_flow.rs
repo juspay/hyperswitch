@@ -76,7 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -102,6 +102,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     is_mandate,
                 ))
                 .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+
                 Ok(mandate::mandate_procedure(
                     state,
                     resp,
@@ -120,25 +123,24 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 logger::info!("Initiating async call to save_payment_method in locker");
 
-                tokio::spawn(async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+                logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        &connector,
-                        response,
-                        &maybe_customer,
-                        &merchant_account,
-                        self.request.payment_method_type,
-                        &key_store,
-                        is_mandate,
-                    ))
-                    .await;
+                let payment_method_id = Box::pin(tokenization::save_payment_method(
+                    &state,
+                    &connector,
+                    response,
+                    &maybe_customer,
+                    &merchant_account,
+                    self.request.payment_method_type,
+                    &key_store,
+                    is_mandate,
+                ))
+                .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    }
-                });
+                resp.payment_method_id = payment_method_id.as_ref().unwrap().clone();
+                // if let Err(err) = payment_method_id {
+                //     logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                // }
 
                 Ok(resp)
             }
