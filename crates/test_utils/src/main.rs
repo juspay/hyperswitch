@@ -17,28 +17,23 @@ fn main() {
     let status = child.wait();
 
     // Filter out None values leaving behind Some(Path)
-    runner
-        .modified_file_paths
-        .into_iter()
-        .flatten()
-        .for_each(|path| {
-            let git_status = Command::new("git").args(["restore", &path]).output();
+    let paths: Vec<String> = runner.modified_file_paths.into_iter().flatten().collect();
+    let git_status = Command::new("git").arg("restore").args(&paths).output();
 
-            match git_status {
-                Ok(output) => {
-                    if output.status.success() {
-                        let stdout_str = String::from_utf8_lossy(&output.stdout);
-                        println!("Git command executed successfully: {stdout_str}");
-                    } else {
-                        let stderr_str = String::from_utf8_lossy(&output.stderr);
-                        eprintln!("Git command failed with error: {stderr_str}");
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error running Git: {e}");
-                }
+    match git_status {
+        Ok(output) => {
+            if output.status.success() {
+                let stdout_str = String::from_utf8_lossy(&output.stdout);
+                println!("Git command executed successfully: {stdout_str}");
+            } else {
+                let stderr_str = String::from_utf8_lossy(&output.stderr);
+                eprintln!("Git command failed with error: {stderr_str}");
             }
-        });
+        }
+        Err(e) => {
+            eprintln!("Error running Git: {e}");
+        }
+    }
 
     let exit_code = match status {
         Ok(exit_status) => {
