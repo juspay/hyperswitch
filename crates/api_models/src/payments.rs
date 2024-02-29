@@ -2699,7 +2699,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> u32 {
+pub fn default_limit() -> u32 {
     10
 }
 

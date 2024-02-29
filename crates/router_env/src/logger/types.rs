@@ -164,6 +164,9 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts fulfill flow.
     PayoutsFulfill,
+    #[cfg(feature = "payouts")]
+    /// Payouts list flow.
+    PayoutsList,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.

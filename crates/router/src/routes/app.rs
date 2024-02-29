@@ -682,16 +682,26 @@ pub struct Payouts;
 #[cfg(feature = "payouts")]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
-        let route = web::scope("/payouts").app_data(web::Data::new(state));
-        route
-            .service(web::resource("/create").route(web::post().to(payouts_create)))
-            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
-            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
+        route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
+
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(
+                web::resource("/list")
+                    .route(web::get().to(payouts_list))
+                    .route(web::post().to(payouts_list_by_filter)),
+            );
+        }
+        route = route
             .service(
                 web::resource("/{payout_id}")
                     .route(web::get().to(payouts_retrieve))
                     .route(web::put().to(payouts_update)),
             )
+            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
+        route
     }
 }
 

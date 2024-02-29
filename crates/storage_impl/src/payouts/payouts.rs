@@ -1,8 +1,14 @@
+#[cfg(feature = "olap")]
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
+#[cfg(feature = "olap")]
+use data_models::payouts::{payout_attempt::PayoutAttempt, PayoutFetchConstraints};
 use data_models::{
     errors::StorageError,
     payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
+#[cfg(feature = "olap")]
+use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
@@ -11,9 +17,19 @@ use diesel_models::{
         PayoutsUpdate as DieselPayoutsUpdate,
     },
 };
+#[cfg(feature = "olap")]
+use diesel_models::{
+    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    query::generics::db_metrics,
+    schema::{payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+};
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+#[cfg(feature = "olap")]
+use router_env::logger;
 
+#[cfg(feature = "olap")]
+use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
@@ -180,6 +196,30 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         }
         .map(Payouts::from_storage_model)
     }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, StorageError> {
+        self.router_store
+            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, StorageError> {
+        self.router_store
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -232,6 +272,249 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<Payouts>, StorageError> {
+        use common_utils::errors::ReportSwitchExt;
+
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+
+        //[#350]: Replace this with Boxable Expression and pass it into generic filter
+        // when https://github.com/rust-lang/rust/issues/52662 becomes stable
+        let mut query = <DieselPayouts as HasTable>::table()
+            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(po_dsl::created_at.desc())
+            .into_boxed();
+
+        match filters {
+            PayoutFetchConstraints::Single { payout_id } => {
+                query = query.filter(po_dsl::payout_id.eq(payout_id.to_owned()));
+            }
+            PayoutFetchConstraints::List(params) => {
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
+                }
+
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(po_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(po_dsl::created_at.ge(starting_at)),
+                    (None, Some(starting_after_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let starting_at = self
+                            .find_payout_by_merchant_id_payout_id(
+                                merchant_id,
+                                starting_after_id,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(po_dsl::created_at.ge(starting_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(po_dsl::created_at.le(ending_at)),
+                    (None, Some(ending_before_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let ending_at = self
+                            .find_payout_by_merchant_id_payout_id(
+                                merchant_id,
+                                ending_before_id,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(po_dsl::created_at.le(ending_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = query.offset(params.offset.into());
+
+                query = match &params.currency {
+                    Some(currency) => {
+                        query.filter(po_dsl::destination_currency.eq_any(currency.clone()))
+                    }
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(po_dsl::status.eq_any(status.clone())),
+                    None => query,
+                };
+
+                if let Some(currency) = &params.currency {
+                    query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
+                }
+
+                if let Some(status) = &params.status {
+                    query = query.filter(po_dsl::status.eq_any(status.clone()));
+                }
+            }
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
+            query.get_results_async::<DieselPayouts>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map(|payouts| {
+            payouts
+                .into_iter()
+                .map(Payouts::from_storage_model)
+                .collect::<Vec<Payouts>>()
+        })
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payout records"),
+            )
+        })
+        .into_report()
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt)>, StorageError> {
+        use common_utils::errors::ReportSwitchExt;
+
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let mut query = DieselPayouts::table()
+            .inner_join(
+                diesel_models::schema::payout_attempt::table
+                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+            )
+            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(po_dsl::created_at.desc())
+            .into_boxed();
+
+        query = match filters {
+            PayoutFetchConstraints::Single { payout_id } => {
+                query.filter(po_dsl::payout_id.eq(payout_id.to_owned()))
+            }
+            PayoutFetchConstraints::List(params) => {
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
+                }
+
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
+                }
+
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(po_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(po_dsl::created_at.ge(starting_at)),
+                    (None, Some(starting_after_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let starting_at = self
+                            .find_payout_by_merchant_id_payout_id(
+                                merchant_id,
+                                starting_after_id,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(po_dsl::created_at.ge(starting_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(po_dsl::created_at.le(ending_at)),
+                    (None, Some(ending_before_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
+                        let ending_at = self
+                            .find_payout_by_merchant_id_payout_id(
+                                merchant_id,
+                                ending_before_id,
+                                storage_scheme,
+                            )
+                            .await?
+                            .created_at;
+                        query.filter(po_dsl::created_at.le(ending_at))
+                    }
+                    (None, None) => query,
+                };
+
+                query = query.offset(params.offset.into());
+
+                if let Some(currency) = &params.currency {
+                    query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
+                }
+
+                let connectors = params
+                    .connector
+                    .as_ref()
+                    .map(|c| c.iter().map(|c| c.to_string()).collect::<Vec<String>>());
+
+                query = match connectors {
+                    Some(connectors) => query.filter(poa_dsl::connector.eq_any(connectors)),
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(po_dsl::status.eq_any(status.clone())),
+                    None => query,
+                };
+
+                query = match &params.payout_method {
+                    Some(payout_method) => {
+                        query.filter(po_dsl::payout_type.eq_any(payout_method.clone()))
+                    }
+                    None => query,
+                };
+
+                query
+            }
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        query
+            .get_results_async::<(DieselPayouts, DieselPayoutAttempt)>(conn)
+            .await
+            .map(|results| {
+                results
+                    .into_iter()
+                    .map(|(pi, pa)| {
+                        (
+                            Payouts::from_storage_model(pi),
+                            PayoutAttempt::from_storage_model(pa),
+                        )
+                    })
+                    .collect()
+            })
+            .map_err(|er| {
+                StorageError::DatabaseError(
+                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                        .attach_printable("Error filtering payout records"),
+                )
+            })
+            .into_report()
     }
 }
 

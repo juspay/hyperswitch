@@ -1413,6 +1413,31 @@ impl PayoutsInterface for KafkaStore {
             .insert_payout(payout, storage_scheme)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_by_constraints(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_payouts_and_attempts(
+        &self,
+        merchant_id: &str,
+        filters: &data_models::payouts::PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<(storage::Payouts, storage::PayoutAttempt)>, errors::DataStorageError>
+    {
+        self.diesel_store
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

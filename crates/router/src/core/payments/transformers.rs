@@ -1,6 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{FrmMessage, RequestSurchargeDetails};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
@@ -881,6 +883,49 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
             attempt_count: pi.attempt_count,
+            ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt)> for api::PayoutCreateResponse {
+    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt)) -> Self {
+        let po = item.0;
+        let poa = item.1;
+        let attempt = PayoutAttemptResponse {
+            attempt_id: poa.payout_attempt_id,
+            status: poa.status,
+            amount: po.amount,
+            currency: Some(po.destination_currency),
+            connector: poa.connector.clone(),
+            error_code: poa.error_code,
+            error_message: poa.error_message,
+            payment_method: Some(po.payout_type),
+            payout_method_type: None,
+            connector_transaction_id: Some(poa.connector_payout_id),
+            cancellation_reason: None,
+            payout_token: poa.payout_token,
+            unified_code: None,
+            unified_message: None,
+        };
+        let attempts = vec![attempt];
+        Self {
+            payout_id: po.payout_id,
+            merchant_id: po.merchant_id,
+            status: po.status,
+            amount: po.amount,
+            created: Some(po.created_at),
+            currency: po.destination_currency,
+            description: po.description,
+            metadata: po.metadata,
+            customer_id: po.customer_id,
+            connector: poa.connector,
+            payout_type: po.payout_type,
+            business_label: poa.business_label,
+            business_country: poa.business_country,
+            recurring: po.recurring,
+            attempts: Some(attempts),
             ..Default::default()
         }
     }
