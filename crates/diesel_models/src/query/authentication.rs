@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -12,14 +11,12 @@ use crate::{
 };
 
 impl AuthenticationNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authentication> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Authentication {
-    #[instrument(skip(conn))]
     pub async fn update_by_merchant_id_authentication_id(
         conn: &PgPooledConn,
         merchant_id: String,
@@ -59,7 +56,6 @@ impl Authentication {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_authentication_id(
         conn: &PgPooledConn,
         merchant_id: &str,

@@ -1,5 +1,6 @@
 use diesel_models::authentication::AuthenticationUpdateInternal;
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -30,6 +31,7 @@ pub trait AuthenticationInterface {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_authentication(
         &self,
         authentication: storage::AuthenticationNew,
@@ -42,6 +44,7 @@ impl AuthenticationInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: String,
@@ -58,6 +61,7 @@ impl AuthenticationInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_authentication_by_merchant_id_authentication_id(
         &self,
         previous_state: storage::Authentication,
@@ -88,7 +92,7 @@ impl AuthenticationInterface for MockDb {
         }) {
             Err(errors::StorageError::DuplicateValue {
                 entity: "authentication_id",
-                key: None,
+                key: Some(authentication.authentication_id.clone()),
             })?
         }
         let authentication = storage::Authentication {
