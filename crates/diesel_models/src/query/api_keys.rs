@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl ApiKeyNew {
-    pub async fn insert_api_key(self, conn: &PgPooledConn) -> StorageResult<ApiKey> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<ApiKey> {
         generics::generic_insert(conn, self).await
     }
 }

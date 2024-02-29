@@ -60,7 +60,7 @@ impl ApiKeyInterface for Store {
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         api_key
-            .insert_api_key(&conn)
+            .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
