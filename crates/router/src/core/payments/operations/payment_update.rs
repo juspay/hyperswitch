@@ -628,6 +628,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     updated_by: storage_scheme.to_string(),
                     fingerprint_id: None,
                     session_expiry,
+                    request_external_three_ds_authentication: payment_data
+                        .payment_intent
+                        .request_external_three_ds_authentication,
                 },
                 storage_scheme,
             )

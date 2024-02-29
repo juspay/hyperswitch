@@ -556,6 +556,7 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
+        authentication_details -> Nullable<Jsonb>,
     }
 }
 
@@ -691,6 +692,11 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
+        external_three_ds_authentication_requested -> Nullable<Bool>,
+        #[max_length = 64]
+        authentication_connector -> Nullable<Varchar>,
+        #[max_length = 64]
+        authentication_id -> Nullable<Varchar>,
         mandate_data -> Nullable<Jsonb>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
@@ -761,6 +767,7 @@ diesel::table! {
         session_expiry -> Nullable<Timestamp>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        request_external_three_ds_authentication -> Nullable<Bool>,
     }
 }
 
