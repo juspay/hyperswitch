@@ -348,8 +348,11 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
     pub client_secret: Option<String>,
 
-    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server usually and the customer_acceptance sub object is usually passed by the SDK or client
+    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
     pub mandate_data: Option<MandateData>,
+
+    /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]

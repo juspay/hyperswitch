@@ -332,6 +332,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(MandateData::from);
 
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -343,6 +345,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .map(|(payment_method_data, additional_payment_data)| {
                 payment_method_data.apply_additional_payment_data(additional_payment_data)
             });
+
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -354,6 +357,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id,
             mandate_connector,
             setup_mandate,
+            customer_acceptance,
             token,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
@@ -628,16 +632,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
+        // if request.mandate_data.is_none()
+        //     && request
+        //         .setup_future_usage
+        //         .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
+        //         .unwrap_or(false)
+        // {
+        //     Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+        //         message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
+        //     }))?
+        // }
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;

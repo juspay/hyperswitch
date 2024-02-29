@@ -337,7 +337,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -353,6 +353,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector,
             token,
             setup_mandate,
+            customer_acceptance,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -683,16 +684,16 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
+        // if request.mandate_data.is_none()
+        //     && request
+        //         .setup_future_usage
+        //         .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
+        //         .unwrap_or(false)
+        // {
+        //     Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+        //         message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
+        //     }))?
+        // }
 
         let mandate_type = helpers::validate_mandate(request, false)?;
 

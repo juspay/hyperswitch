@@ -229,6 +229,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector,
             setup_mandate,
+            customer_acceptance: None,
             token,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
