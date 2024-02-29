@@ -101,7 +101,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                     is_mandate,
                 ))
-                .await?.0;
+                .await?
+                .0;
 
                 resp.payment_method_id = payment_method_id.clone();
 
@@ -133,7 +134,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     &key_store,
                     is_mandate,
                 ))
-                .await?.0;
+                .await?
+                .0;
 
                 resp.payment_method_id = payment_method_id.clone();
 
