@@ -17,12 +17,6 @@ use crate::{
         payments::{self, PaymentRedirectFlow},
         utils as core_utils,
     },
-    // openapi::examples::{
-    //     PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-    //     PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-    //     PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-    //     PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-    // },
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
@@ -235,7 +229,7 @@ pub async fn payments_start(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve, payment_id))]
+#[instrument(skip(state, req), fields(flow, payment_id))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
@@ -243,7 +237,10 @@ pub async fn payments_retrieve(
     path: web::Path<String>,
     json_payload: web::Query<payment_types::PaymentRetrieveBody>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::PaymentsRetrieveForceSync,
+        _ => Flow::PaymentsRetrieve,
+    };
     let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
@@ -255,6 +252,7 @@ pub async fn payments_retrieve(
     };
 
     tracing::Span::current().record("payment_id", &path.to_string());
+    tracing::Span::current().record("flow", &flow.to_string());
 
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -306,7 +304,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve, payment_id))]
+#[instrument(skip(state, req), fields(flow, payment_id))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
@@ -326,9 +324,13 @@ pub async fn payments_retrieve_with_gateway_creds(
         merchant_connector_details: json_payload.merchant_connector_details.clone(),
         ..Default::default()
     };
-    let flow = Flow::PaymentsRetrieve;
+    let flow = match json_payload.force_sync {
+        Some(true) => Flow::PaymentsRetrieveForceSync,
+        _ => Flow::PaymentsRetrieve,
+    };
 
     tracing::Span::current().record("payment_id", &json_payload.payment_id);
+    tracing::Span::current().record("flow", &flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -968,7 +970,7 @@ pub async fn payments_approve(
         payload.clone(),
         |state, auth, req| {
             payments::payments_core::<
-                api_types::Authorize,
+                api_types::Capture,
                 payment_types::PaymentsResponse,
                 _,
                 _,
@@ -979,10 +981,8 @@ pub async fn payments_approve(
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentApprove,
-                payment_types::PaymentsRequest {
-                    payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
-                        req.payment_id,
-                    )),
+                payment_types::PaymentsCaptureRequest {
+                    payment_id: req.payment_id,
                     ..Default::default()
                 },
                 api::AuthFlow::Merchant,
@@ -1030,7 +1030,7 @@ pub async fn payments_reject(
         payload.clone(),
         |state, auth, req| {
             payments::payments_core::<
-                api_types::Reject,
+                api_types::Void,
                 payment_types::PaymentsResponse,
                 _,
                 _,
@@ -1041,7 +1041,11 @@ pub async fn payments_reject(
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentReject,
-                req,
+                payment_types::PaymentsCancelRequest {
+                    payment_id: req.payment_id,
+                    cancellation_reason: Some("Rejected by merchant".to_string()),
+                    ..Default::default()
+                },
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
@@ -1151,7 +1155,7 @@ where
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment authorized amount incremented"),
+        (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",

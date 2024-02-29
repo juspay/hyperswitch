@@ -25,7 +25,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
+use scheduler::utils as pt_utils;
 use time;
 
 pub use self::operations::{
@@ -40,7 +40,9 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs};
+use super::{
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+};
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
@@ -68,7 +70,7 @@ use crate::{
     workflows::payment_sync,
 };
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
@@ -129,6 +131,7 @@ where
             &merchant_account,
             &key_store,
             auth_flow,
+            header_payload.payment_confirm_source,
         )
         .await?;
 
@@ -181,6 +184,8 @@ where
         #[allow(unused_variables, unused_mut)]
         let mut should_continue_transaction: bool = true;
         #[cfg(feature = "frm")]
+        let mut should_continue_capture: bool = true;
+        #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
             frm_core::call_frm_before_connector_call(
                 db,
@@ -191,6 +196,7 @@ where
                 &mut frm_info,
                 &customer,
                 &mut should_continue_transaction,
+                &mut should_continue_capture,
                 key_store.clone(),
             )
             .await?
@@ -199,12 +205,25 @@ where
         };
         #[cfg(feature = "frm")]
         logger::debug!(
-            "should_cancel_transaction: {:?} {:?} ",
+            "frm_configs: {:?}\nshould_cancel_transaction: {:?}\nshould_continue_capture: {:?}",
             frm_configs,
-            should_continue_transaction
+            should_continue_transaction,
+            should_continue_capture,
         );
 
         if should_continue_transaction {
+            #[cfg(feature = "frm")]
+            match (
+                should_continue_capture,
+                payment_data.payment_attempt.capture_method,
+            ) {
+                (false, Some(storage_enums::CaptureMethod::Automatic))
+                | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
+                    payment_data.payment_attempt.capture_method =
+                        Some(storage_enums::CaptureMethod::Manual);
+                }
+                _ => (),
+            };
             payment_data = match connector_details {
                 api::ConnectorCallType::PreDetermined(connector) => {
                     let schedule_time = if should_add_task_to_process_tracker {
@@ -233,6 +252,10 @@ where
                         &validate_result,
                         schedule_time,
                         header_payload,
+                        #[cfg(feature = "frm")]
+                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                        #[cfg(not(feature = "frm"))]
+                        None,
                     )
                     .await?;
                     let operation = Box::new(PaymentResponse);
@@ -284,6 +307,10 @@ where
                         &validate_result,
                         schedule_time,
                         header_payload,
+                        #[cfg(feature = "frm")]
+                        frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                        #[cfg(not(feature = "frm"))]
+                        None,
                     )
                     .await?;
 
@@ -311,6 +338,10 @@ where
                                 &customer,
                                 &validate_result,
                                 schedule_time,
+                                #[cfg(feature = "frm")]
+                                frm_info.as_ref().and_then(|fi| fi.suggested_action),
+                                #[cfg(not(feature = "frm"))]
+                                None,
                             )
                             .await?;
                         };
@@ -338,7 +369,6 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
-                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -571,7 +601,6 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -615,10 +644,6 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error performing surcharge decision operation")?;
-
-        surcharge_results
-            .persist_individual_surcharge_details_in_redis(state, business_profile)
-            .await?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -996,6 +1021,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, Ctx>(
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -1044,8 +1070,10 @@ where
         customer,
     )
     .await?;
-
     *payment_data = pd;
+
+    // Validating the blocklist guard and generate the fingerprint
+    blocklist_guard(state, merchant_account, operation, payment_data).await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -1102,6 +1130,8 @@ where
             .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        logger::debug!(?apple_pay_predecrypt);
+
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
             Box::new(apple_pay_predecrypt),
         ));
@@ -1110,7 +1140,6 @@ where
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
-
     if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
             payment_method_token,
@@ -1172,7 +1201,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
-            None,
+            frm_suggestion,
             header_payload,
         )
         .await?;
@@ -1203,6 +1232,45 @@ where
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
     router_data_res
+}
+
+async fn blocklist_guard<F, ApiRequest, Ctx>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    operation: &BoxedOperation<'_, F, ApiRequest, Ctx>,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<bool, errors::ApiErrorResponse>
+where
+    F: Send + Clone + Sync,
+    Ctx: PaymentMethodRetrieve,
+{
+    let merchant_id = &payment_data.payment_attempt.merchant_id;
+    let blocklist_enabled_key = format!("guard_blocklist_for_{merchant_id}");
+    let blocklist_guard_enabled = state
+        .store
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .await;
+
+    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
+        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
+
+        // If it is not present in db we are defaulting it to false
+        Err(inner) => {
+            if !inner.current_context().is_db_not_found() {
+                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
+            }
+            false
+        }
+    };
+
+    if blocklist_guard_enabled {
+        Ok(operation
+            .to_domain()?
+            .guard_payment_against_blocklist(state, merchant_account, payment_data)
+            .await?)
+    } else {
+        Ok(false)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1776,7 +1844,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
@@ -2016,6 +2084,8 @@ pub struct IncrementalAuthorizationDetails {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -2110,6 +2180,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
+        "PaymentReject" => true,
         "PaymentSession" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,
@@ -2287,28 +2358,32 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), sch_errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         ..Default::default()
     };
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
+    let tag = ["SYNC", "PAYMENT"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
         runner,
+        tag,
         tracking_data,
         schedule_time,
-    )?;
+    )
+    .map_err(errors::StorageError::from)
+    .into_report()?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
@@ -2319,7 +2394,7 @@ pub async fn reset_process_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
@@ -2331,8 +2406,8 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process
-        .reset(db.as_scheduler(), schedule_time)
+    db.as_scheduler()
+        .reset_process(psync_process, schedule_time)
         .await?;
     Ok(())
 }
@@ -2484,10 +2559,11 @@ where
     )
     .await?;
 
-    let encoded_info =
-        Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error serializing payment routing info to serde value")?;
+    let encoded_info = routing_data
+        .routing_info
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
     #[cfg(feature = "connector_choice_mca_id")]
@@ -2590,10 +2666,12 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(&routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            &routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2601,7 +2679,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2649,10 +2727,12 @@ where
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2660,7 +2740,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2711,7 +2791,7 @@ where
         merchant_account,
         business_profile,
         key_store,
-        payment_data,
+        &TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
     )
@@ -2809,7 +2889,7 @@ where
 
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr)
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;
@@ -2847,17 +2927,36 @@ pub async fn route_connector_v1<F>(
     merchant_account: &domain::MerchantAccount,
     business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut PaymentData<F>,
+    transaction_data: &TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
+    #[allow(unused_variables)]
+    let (profile_id, routing_algorithm) = match transaction_data {
+        TransactionData::Payment(payment_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    payment_data.payment_intent.profile_id.clone(),
+                    business_profile.routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.routing_algorithm.clone())
+            }
+        }
+        #[cfg(feature = "payouts")]
+        TransactionData::Payout(payout_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    Some(payout_data.payout_attempt.profile_id.clone()),
+                    business_profile.payout_routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.payout_routing_algorithm.clone())
+            }
+        }
     };
 
     let algorithm_ref = routing_algorithm
@@ -2871,7 +2970,7 @@ where
         state,
         &merchant_account.merchant_id,
         algorithm_ref,
-        payment_data,
+        transaction_data,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -2881,10 +2980,10 @@ where
         key_store,
         merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
-        payment_data,
+        transaction_data,
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
-        payment_data.payment_intent.profile_id.clone(),
+        profile_id,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

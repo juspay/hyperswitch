@@ -323,6 +323,7 @@ impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::M
                     data_models::mandates::MandateDataType::MultiUse(None)
                 }
             }),
+            update_mandate_id: d.update_mandate_id,
         }
     }
 }
@@ -588,6 +589,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
+            email: address.email.clone().map(pii::Email::from),
         }
     }
 }
@@ -692,6 +694,8 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
@@ -858,6 +862,16 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
     }
 }
 
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
@@ -868,11 +882,20 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     }
 }
 
+impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::Wallet) -> Self {
+        match value {
+            api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
         }
     }
 }
@@ -882,6 +905,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
         match value {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
+            api_models::enums::PayoutType::Wallet => Self::Wallet,
         }
     }
 }

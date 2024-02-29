@@ -33,6 +33,7 @@ pub enum EventType {
     ApiLogs,
     ConnectorApiLogs,
     OutgoingWebhookLogs,
+    Dispute,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

@@ -15,7 +15,7 @@ use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
     types::{domain, storage},
-    utils::{self, StringExt},
+    utils::StringExt,
 };
 
 /// provides the complete merchant routing dictionary that is basically a list of all the routing
@@ -42,10 +42,8 @@ pub async fn get_merchant_routing_dictionary(
                 records: Vec::new(),
             };
 
-            let serialized =
-                utils::Encode::<routing_types::RoutingDictionary>::encode_to_string_of_json(
-                    &new_dictionary,
-                )
+            let serialized = new_dictionary
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing newly created merchant dictionary")?;
 
@@ -73,8 +71,9 @@ pub async fn get_merchant_routing_dictionary(
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let key = get_default_config_key(merchant_id);
+    let key = get_default_config_key(merchant_id, transaction_type);
     let maybe_config = db.find_config_by_key(&key).await;
 
     match maybe_config {
@@ -86,10 +85,8 @@ pub async fn get_merchant_default_config(
 
         Err(e) if e.current_context().is_db_not_found() => {
             let new_config_conns = Vec::<routing_types::RoutableConnectorChoice>::new();
-            let serialized =
-                utils::Encode::<Vec<routing_types::RoutableConnectorChoice>>::encode_to_string_of_json(
-                    &new_config_conns,
-                )
+            let serialized = new_config_conns
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Error while creating and serializing new merchant default config",
@@ -120,12 +117,11 @@ pub async fn update_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
-    let key = get_default_config_key(merchant_id);
-    let config_str =
-        Encode::<Vec<routing_types::RoutableConnectorChoice>>::encode_to_string_of_json(
-            &connectors,
-        )
+    let key = get_default_config_key(merchant_id, transaction_type);
+    let config_str = connectors
+        .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize merchant default routing config during update")?;
 
@@ -147,10 +143,10 @@ pub async fn update_merchant_routing_dictionary(
     dictionary: routing_types::RoutingDictionary,
 ) -> RouterResult<()> {
     let key = get_routing_dictionary_key(merchant_id);
-    let dictionary_str =
-        Encode::<routing_types::RoutingDictionary>::encode_to_string_of_json(&dictionary)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to serialize routing dictionary during update")?;
+    let dictionary_str = dictionary
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize routing dictionary during update")?;
 
     let config_update = configs::ConfigUpdate::Update {
         config: Some(dictionary_str),
@@ -169,10 +165,10 @@ pub async fn update_routing_algorithm(
     algorithm_id: String,
     algorithm: routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
-    let algorithm_str =
-        Encode::<routing_types::RoutingAlgorithm>::encode_to_string_of_json(&algorithm)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to serialize routing algorithm to string")?;
+    let algorithm_str = algorithm
+        .encode_to_string_of_json()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to serialize routing algorithm to string")?;
 
     let config_update = configs::ConfigUpdate::Update {
         config: Some(algorithm_str),
@@ -193,7 +189,8 @@ pub async fn update_merchant_active_algorithm_ref(
     key_store: &domain::MerchantKeyStore,
     algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
-    let ref_value = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
+    let ref_value = algorithm_id
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed converting routing algorithm ref to json value")?;
 
@@ -235,10 +232,18 @@ pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
+    transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
-    let ref_val = Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&algorithm_id)
+    let ref_val = algorithm_id
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert routing ref to value")?;
+
+    let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
+        storage::enums::TransactionType::Payment => (Some(ref_val), None),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => (None, Some(ref_val)),
+    };
 
     let business_profile_update = BusinessProfileUpdateInternal {
         profile_name: None,
@@ -248,10 +253,10 @@ pub async fn update_business_profile_active_algorithm_ref(
         redirect_to_merchant_with_http_post: None,
         webhook_details: None,
         metadata: None,
-        routing_algorithm: Some(ref_val),
+        routing_algorithm,
         intent_fulfillment_time: None,
         frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
+        payout_routing_algorithm,
         applepay_verified_domains: None,
         modified_at: None,
         is_recon_enabled: None,
@@ -282,10 +287,8 @@ pub async fn get_merchant_connector_agnostic_mandate_config(
         Err(e) if e.current_context().is_db_not_found() => {
             let new_mandate_config: Vec<routing_types::DetailedConnectorChoice> = Vec::new();
 
-            let serialized =
-                utils::Encode::<Vec<routing_types::DetailedConnectorChoice>>::encode_to_string_of_json(
-                    &new_mandate_config,
-                )
+            let serialized = new_mandate_config
+                .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error serializing newly created pg agnostic mandate config")?;
 
@@ -314,10 +317,8 @@ pub async fn update_merchant_connector_agnostic_mandate_config(
     mandate_config: Vec<routing_types::DetailedConnectorChoice>,
 ) -> RouterResult<Vec<routing_types::DetailedConnectorChoice>> {
     let key = get_pg_agnostic_mandate_config_key(merchant_id);
-    let mandate_config_str =
-        Encode::<Vec<routing_types::DetailedConnectorChoice>>::encode_to_string_of_json(
-            &mandate_config,
-        )
+    let mandate_config_str = mandate_config
+        .encode_to_string_of_json()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to serialize pg agnostic mandate config during update")?;
 
@@ -469,8 +470,15 @@ pub fn get_pg_agnostic_mandate_config_key(merchant_id: &str) -> String {
 
 /// Provides the identifier for the specific merchant's default_config
 #[inline(always)]
-pub fn get_default_config_key(merchant_id: &str) -> String {
-    format!("routing_default_{merchant_id}")
+pub fn get_default_config_key(
+    merchant_id: &str,
+    transaction_type: &storage::enums::TransactionType,
+) -> String {
+    match transaction_type {
+        storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
+    }
 }
 pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
     format!("payment_config_id_{merchant_id}")

@@ -7,6 +7,7 @@ use router_env::logger;
 use time::PrimitiveDateTime;
 
 use super::{
+    health_check::HealthCheck,
     payments::{
         distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
     },
@@ -22,6 +23,7 @@ use crate::{
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
     },
     connector_events::events::ConnectorEventsResult,
+    disputes::{filters::DisputeFilterRow, metrics::DisputeMetricRow},
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
@@ -94,6 +96,18 @@ impl ClickhouseClient {
 }
 
 #[async_trait::async_trait]
+impl HealthCheck for ClickhouseClient {
+    async fn deep_health_check(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), QueryExecutionError> {
+        self.execute_query("SELECT 1")
+            .await
+            .map(|_| ())
+            .change_context(QueryExecutionError::DatabaseError)
+    }
+}
+
+#[async_trait::async_trait]
 impl AnalyticsDataSource for ClickhouseClient {
     type Row = serde_json::Value;
 
@@ -117,7 +131,8 @@ impl AnalyticsDataSource for ClickhouseClient {
         match table {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
-            | AnalyticsCollection::PaymentIntent => {
+            | AnalyticsCollection::PaymentIntent
+            | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
             AnalyticsCollection::SdkEvents => TableEngine::BasicTree,
@@ -154,6 +169,8 @@ impl super::outgoing_webhook_event::events::OutgoingWebhookLogsFilterAnalytics
     for ClickhouseClient
 {
 }
+impl super::disputes::filters::DisputeFilterAnalytics for ClickhouseClient {}
+impl super::disputes::metrics::DisputeMetricAnalytics for ClickhouseClient {}
 
 #[derive(Debug, serde::Serialize)]
 struct CkhQuery {
@@ -262,6 +279,29 @@ impl TryInto<RefundFilterRow> for serde_json::Value {
             ))
     }
 }
+impl TryInto<DisputeMetricRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<DisputeMetricRow, Self::Error> {
+        serde_json::from_value(self)
+            .into_report()
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse DisputeMetricRow in clickhouse results",
+            ))
+    }
+}
+
+impl TryInto<DisputeFilterRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<DisputeFilterRow, Self::Error> {
+        serde_json::from_value(self)
+            .into_report()
+            .change_context(ParsingError::StructParseFailure(
+                "Failed to parse DisputeFilterRow in clickhouse results",
+            ))
+    }
+}
 
 impl TryInto<ApiEventMetricRow> for serde_json::Value {
     type Error = Report<ParsingError>;
@@ -354,13 +394,14 @@ impl ToSql<ClickhouseClient> for PrimitiveDateTime {
 impl ToSql<ClickhouseClient> for AnalyticsCollection {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         match self {
-            Self::Payment => Ok("payment_attempt_dist".to_string()),
-            Self::Refund => Ok("refund_dist".to_string()),
-            Self::SdkEvents => Ok("sdk_events_dist".to_string()),
-            Self::ApiEvents => Ok("api_audit_log".to_string()),
-            Self::PaymentIntent => Ok("payment_intents_dist".to_string()),
+            Self::Payment => Ok("payment_attempts".to_string()),
+            Self::Refund => Ok("refunds".to_string()),
+            Self::SdkEvents => Ok("sdk_events_audit".to_string()),
+            Self::ApiEvents => Ok("api_events_audit".to_string()),
+            Self::PaymentIntent => Ok("payment_intents".to_string()),
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
+            Self::Dispute => Ok("dispute".to_string()),
         }
     }
 }

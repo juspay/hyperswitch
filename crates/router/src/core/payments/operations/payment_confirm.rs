@@ -2,21 +2,15 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::{
-    crypto::{self, SignMessage},
-    ext_traits::{AsyncExt, Encode},
-};
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
 use futures::FutureExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
-    consts,
     core::{
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -31,7 +25,6 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -56,6 +49,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
+        payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, Ctx>> {
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -117,17 +111,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
-            &[
-                storage_enums::IntentStatus::Cancelled,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::Processing,
-                storage_enums::IntentStatus::RequiresCapture,
-                storage_enums::IntentStatus::RequiresMerchantAction,
-            ],
-            "confirm",
-        )?;
+        if let Some(common_enums::PaymentSource::Webhook) = payment_confirm_source {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                &payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                ],
+                "confirm",
+            )?;
+        } else {
+            helpers::validate_payment_status_against_not_allowed_statuses(
+                &payment_intent.status,
+                &[
+                    storage_enums::IntentStatus::Cancelled,
+                    storage_enums::IntentStatus::Succeeded,
+                    storage_enums::IntentStatus::Processing,
+                    storage_enums::IntentStatus::RequiresCapture,
+                    storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::RequiresCustomerAction,
+                ],
+                "confirm",
+            )?;
+        }
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
@@ -344,7 +353,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .browser_info
             .clone()
             .or(payment_attempt.browser_info)
-            .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
+            .as_ref()
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -432,6 +442,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         setup_mandate = setup_mandate.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm.update_mandate_id = payment_attempt
+                .mandate_data
+                .clone()
+                .and_then(|mandate| mandate.update_mandate_id)
+                .or(sm.update_mandate_id);
             sm
         });
 
@@ -603,6 +618,16 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await
     }
+
+    #[instrument(skip_all)]
+    async fn guard_payment_against_blocklist<'a>(
+        &'a self,
+        state: &AppState,
+        merchant_account: &domain::MerchantAccount,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        blocklist_utils::validate_data_for_blocklist(state, merchant_account, payment_data).await
+    }
 }
 
 #[async_trait]
@@ -627,34 +652,32 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
-        let db = state.store.as_ref();
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
 
-        let (mut intent_status, mut attempt_status, (error_code, error_message)) =
-            match frm_suggestion {
-                Some(FrmSuggestion::FrmCancelTransaction) => (
-                    storage_enums::IntentStatus::Failed,
-                    storage_enums::AttemptStatus::Failure,
-                    frm_message.map_or((None, None), |fraud_check| {
-                        (
-                            Some(Some(fraud_check.frm_status.to_string())),
-                            Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
-                        )
-                    }),
-                ),
-                Some(FrmSuggestion::FrmManualReview) => (
-                    storage_enums::IntentStatus::RequiresMerchantAction,
-                    storage_enums::AttemptStatus::Unresolved,
-                    (None, None),
-                ),
-                _ => (
-                    storage_enums::IntentStatus::Processing,
-                    storage_enums::AttemptStatus::Pending,
-                    (None, None),
-                ),
-            };
+        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion {
+            Some(FrmSuggestion::FrmCancelTransaction) => (
+                storage_enums::IntentStatus::Failed,
+                storage_enums::AttemptStatus::Failure,
+                frm_message.map_or((None, None), |fraud_check| {
+                    (
+                        Some(Some(fraud_check.frm_status.to_string())),
+                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                    )
+                }),
+            ),
+            Some(FrmSuggestion::FrmManualReview) => (
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::AttemptStatus::Unresolved,
+                (None, None),
+            ),
+            _ => (
+                storage_enums::IntentStatus::Processing,
+                storage_enums::AttemptStatus::Pending,
+                (None, None),
+            ),
+        };
 
         let connector = payment_data.payment_attempt.connector.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
@@ -674,7 +697,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             })
             .await
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -716,159 +739,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
+        let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
-
-        // Validate Blocklist
-        let merchant_id = payment_data.payment_attempt.merchant_id;
-        let merchant_fingerprint_secret =
-            blocklist_utils::get_merchant_fingerprint_secret(state, &merchant_id).await?;
-
-        // Hashed Fingerprint to check whether or not this payment should be blocked.
-        let card_number_fingerprint = payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                api_models::payments::PaymentMethodData::Card(card) => {
-                    crypto::HmacSha512::sign_message(
-                        &crypto::HmacSha512,
-                        merchant_fingerprint_secret.as_bytes(),
-                        card.card_number.clone().get_card_no().as_bytes(),
-                    )
-                    .attach_printable("error in pm fingerprint creation")
-                    .map_or_else(
-                        |err| {
-                            logger::error!(error=?err);
-                            None
-                        },
-                        Some,
-                    )
-                }
-                _ => None,
-            })
-            .map(hex::encode);
-
-        // Hashed Cardbin to check whether or not this payment should be blocked.
-        let card_bin_fingerprint = payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                api_models::payments::PaymentMethodData::Card(card) => {
-                    crypto::HmacSha512::sign_message(
-                        &crypto::HmacSha512,
-                        merchant_fingerprint_secret.as_bytes(),
-                        card.card_number.clone().get_card_isin().as_bytes(),
-                    )
-                    .attach_printable("error in card bin hash creation")
-                    .map_or_else(
-                        |err| {
-                            logger::error!(error=?err);
-                            None
-                        },
-                        Some,
-                    )
-                }
-                _ => None,
-            })
-            .map(hex::encode);
-
-        // Hashed Extended Cardbin to check whether or not this payment should be blocked.
-        let extended_card_bin_fingerprint = payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                api_models::payments::PaymentMethodData::Card(card) => {
-                    crypto::HmacSha512::sign_message(
-                        &crypto::HmacSha512,
-                        merchant_fingerprint_secret.as_bytes(),
-                        card.card_number.clone().get_extended_card_bin().as_bytes(),
-                    )
-                    .attach_printable("error in extended card bin hash creation")
-                    .map_or_else(
-                        |err| {
-                            logger::error!(error=?err);
-                            None
-                        },
-                        Some,
-                    )
-                }
-                _ => None,
-            })
-            .map(hex::encode);
-
-        let mut fingerprint_id = None;
-
-        //validating the payment method.
-        let mut is_pm_blocklisted = false;
-
-        let mut blocklist_futures = Vec::new();
-        if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-            blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
-                &merchant_id,
-                card_number_fingerprint,
-            ));
-        }
-
-        if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
-            blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
-                &merchant_id,
-                card_bin_fingerprint,
-            ));
-        }
-
-        if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-            blocklist_futures.push(db.find_blocklist_lookup_entry_by_merchant_id_fingerprint(
-                &merchant_id,
-                extended_card_bin_fingerprint,
-            ));
-        }
-
-        let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
-
-        if blocklist_lookups.iter().any(|x| x.is_ok()) {
-            intent_status = storage_enums::IntentStatus::Failed;
-            attempt_status = storage_enums::AttemptStatus::Failure;
-            is_pm_blocklisted = true;
-        }
-
-        if let Some(encoded_hash) = card_number_fingerprint {
-            #[cfg(feature = "kms")]
-            let encrypted_fingerprint = kms::get_kms_client(&state.conf.kms)
-                .await
-                .encrypt(encoded_hash)
-                .await
-                .map_or_else(
-                    |e| {
-                        logger::error!(error=?e, "failed kms encryption of card fingerprint");
-                        None
-                    },
-                    Some,
-                );
-
-            #[cfg(not(feature = "kms"))]
-            let encrypted_fingerprint = Some(encoded_hash);
-
-            if let Some(encrypted_fingerprint) = encrypted_fingerprint {
-                fingerprint_id = db
-                    .insert_blocklist_fingerprint_entry(
-                        diesel_models::blocklist_fingerprint::BlocklistFingerprintNew {
-                            merchant_id,
-                            fingerprint_id: utils::generate_id(consts::ID_LENGTH, "fingerprint"),
-                            encrypted_fingerprint,
-                            data_kind: common_enums::BlocklistDataKind::PaymentMethod,
-                            created_at: common_utils::date_time::now(),
-                        },
-                    )
-                    .await
-                    .map_or_else(
-                        |e| {
-                            logger::error!(error=?e, "failed storing card fingerprint in db");
-                            None
-                        },
-                        |fp| Some(fp.fingerprint_id),
-                    );
-            }
-        }
-
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -903,6 +775,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        fingerprint_id: m_fingerprint_id,
                     },
                     storage_scheme,
                 )
@@ -949,7 +822,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         metadata: m_metadata,
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        fingerprint_id,
+                        fingerprint_id: None,
                         session_expiry,
                     },
                     storage_scheme,
@@ -998,11 +871,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
-
-        // Block the payment if the entry was present in the Blocklist
-        if is_pm_blocklisted {
-            return Err(errors::ApiErrorResponse::PaymentBlocked.into());
-        }
 
         Ok((Box::new(self), payment_data))
     }

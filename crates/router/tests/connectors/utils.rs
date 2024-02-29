@@ -34,7 +34,7 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
     }
 }
@@ -524,6 +524,8 @@ pub trait ConnectorActions: Connector {
             apple_pay_flow: None,
             external_latency: None,
             frm_metadata: None,
+            refund_id: None,
+            dispute_id: None,
         }
     }
 
@@ -900,6 +902,7 @@ impl Default for PaymentAuthorizeType {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
@@ -968,6 +971,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_method_type: None,
         };
         Self(data)
     }

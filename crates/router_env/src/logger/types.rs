@@ -49,11 +49,18 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
+    /// Deep health Check
+    DeepHealthCheck,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -80,6 +87,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -114,10 +123,14 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -159,6 +172,8 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
@@ -199,6 +214,8 @@ pub enum Flow {
     DeleteFromBlocklist,
     /// List entries from blocklist
     ListBlocklist,
+    /// Toggle blocklist for merchant
+    ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Validate payment method flow
@@ -231,6 +248,8 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Delete Dispute Evidence flow
+    DeleteDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
@@ -241,6 +260,8 @@ pub enum Flow {
     PaymentLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
+    /// Payment Link Status
+    PaymentLinkStatus,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
@@ -267,6 +288,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// User Sign In without invite checks
+    UserSignInWithoutInviteChecks,
     /// User Sign In
     UserSignIn,
     /// User connect account
@@ -281,6 +304,8 @@ pub enum Flow {
     FrmFulfillment,
     /// Change password flow
     ChangePassword,
+    /// Signout flow
+    Signout,
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
@@ -297,8 +322,12 @@ pub enum Flow {
     ListRoles,
     /// Get role
     GetRole,
+    /// Get role from token
+    GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
+    /// Transfer organization ownership
+    TransferOrgOwnership,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
     /// Generate Sample Data
@@ -319,6 +348,14 @@ pub enum Flow {
     ResetPassword,
     /// Invite users
     InviteUser,
+    /// Invite multiple users
+    InviteMultipleUser,
+    /// Reinvite user
+    ReInviteUser,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
+    /// Delete user role
+    DeleteUserRole,
     /// Incremental Authorization flow
     PaymentsIncrementalAuthorization,
     /// Get action URL for connector onboarding
@@ -327,10 +364,20 @@ pub enum Flow {
     SyncOnboardingStatus,
     /// Reset tracking id
     ResetTrackingId,
+    /// Verify email token without invite checks
+    VerifyEmailWithoutInviteChecks,
     /// Verify email Token
     VerifyEmail,
     /// Send verify email
     VerifyEmailRequest,
+    /// Update user account details
+    UpdateUserAccountDetails,
+    /// Accept user invitation
+    AcceptInvitation,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
 }
 
 ///

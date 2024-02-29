@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    str::FromStr,
 };
 
 #[cfg(feature = "olap")]
@@ -11,13 +10,22 @@ use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-#[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::{
+    file_storage::FileStorageConfig,
+    managers::{
+        encryption_management::EncryptionManagementConfig,
+        secrets_management::SecretsManagementConfig,
+    },
+};
+use hyperswitch_interfaces::secrets_interface::secret_state::{
+    SecretState, SecretStateContainer, SecuredSecret,
+};
+use masking::Secret;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::{de::Error, Deserialize, Deserializer};
+use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -27,10 +35,6 @@ use crate::{
     env::{self, logger, Env},
     events::EventsConfig,
 };
-#[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
-#[cfg(not(feature = "kms"))]
-pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -51,62 +55,52 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
-/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
-/// allocations.
-/// note: we can consider adding such behaviour in the future with custom implementation
-#[derive(Clone)]
-pub struct ActiveKmsSecrets {
-    pub jwekey: masking::Secret<Jwekey>,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct Settings {
+pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub master_database: Database,
+    pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
-    pub replica_database: Database,
+    pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
     pub log: Log,
-    pub secrets: Secrets,
+    pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
     pub connectors: Connectors,
-    pub forex_api: ForexApi,
+    pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
-    pub jwekey: Jwekey,
+    pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
-    pub api_keys: ApiKeys,
-    #[cfg(feature = "kms")]
-    pub kms: kms::KmsConfig,
-    #[cfg(feature = "s3")]
-    pub file_upload_config: FileUploadConfig,
+    pub api_keys: SecretStateContainer<ApiKeys, S>,
+    pub file_storage: FileStorageConfig,
+    pub encryption_management: EncryptionManagementConfig,
+    pub secrets_management: SecretsManagementConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub cors: CorsSettings,
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    pub payment_method_auth: PaymentMethodAuth,
+    pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
-    pub applepay_decrypt_keys: ApplePayDecryptConifg,
+    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
-    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
@@ -120,7 +114,7 @@ pub struct Settings {
     pub report_download_config: ReportConfig,
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
-    pub connector_onboarding: ConnectorOnboarding,
+    pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
 }
 
 #[cfg(feature = "frm")]
@@ -143,8 +137,8 @@ pub struct PaymentLink {
 #[serde(default)]
 pub struct ForexApi {
     pub local_fetch_retry_count: u64,
-    pub api_key: masking::Secret<String>,
-    pub fallback_api_key: masking::Secret<String>,
+    pub api_key: Secret<String>,
+    pub fallback_api_key: Secret<String>,
     /// in ms
     pub call_delay: i64,
     /// in ms
@@ -158,7 +152,7 @@ pub struct ForexApi {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodAuth {
     pub redis_expiry: i64,
-    pub pm_auth_key: String,
+    pub pm_auth_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -179,15 +173,15 @@ pub struct Conversion {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ApplepayMerchantConfigs {
-    pub merchant_cert: String,
-    pub merchant_cert_key: String,
-    pub common_merchant_identifier: String,
+    pub merchant_cert: Secret<String>,
+    pub merchant_cert_key: Secret<String>,
+    pub common_merchant_identifier: Secret<String>,
     pub applepay_endpoint: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct MultipleApiVersionSupportedConnectors {
-    #[serde(deserialize_with = "connector_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
@@ -201,40 +195,11 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "connector_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<api_models::enums::Connector>,
     #[cfg(feature = "payouts")]
-    #[serde(deserialize_with = "payout_connector_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
-}
-
-fn connector_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::Connector>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::Connector::from_str)
-        .collect())
-}
-
-#[cfg(feature = "payouts")]
-fn payout_connector_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::PayoutConnectors>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::PayoutConnectors::from_str)
-        .collect())
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -261,8 +226,20 @@ pub struct DummyConnector {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct CorsSettings {
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub origins: HashSet<String>,
+    #[serde(default)]
+    pub wildcard_origin: bool,
+    pub max_age: usize,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub allowed_methods: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -277,13 +254,13 @@ pub struct SupportedPaymentMethodTypesForMandate(
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedConnectorsForMandate {
-    #[serde(deserialize_with = "connector_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
-    #[serde(deserialize_with = "pm_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
@@ -300,7 +277,7 @@ pub enum ApplePayPreDecryptFlow {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct TempLockerEnablePaymentMethodFilter {
-    #[serde(deserialize_with = "pm_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
 
@@ -312,42 +289,12 @@ pub struct TempLockerEnablePaymentMethodFilter {
     rename_all = "snake_case"
 )]
 pub enum PaymentMethodTypeTokenFilter {
-    #[serde(deserialize_with = "pm_type_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     EnableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
-    #[serde(deserialize_with = "pm_type_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     DisableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
-}
-
-fn pm_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<diesel_models::enums::PaymentMethod>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    value
-        .trim()
-        .split(',')
-        .map(diesel_models::enums::PaymentMethod::from_str)
-        .collect::<Result<_, _>>()
-        .map_err(D::Error::custom)
-}
-
-fn pm_type_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<diesel_models::enums::PaymentMethodType>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    value
-        .trim()
-        .split(',')
-        .map(diesel_models::enums::PaymentMethodType::from_str)
-        .collect::<Result<_, _>>()
-        .map_err(D::Error::custom)
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -359,7 +306,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
-    #[serde(deserialize_with = "bank_vec_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub banks: HashSet<api_models::enums::BankNames>,
 }
 
@@ -381,9 +328,9 @@ pub enum PaymentMethodFilterKey {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
-    #[serde(deserialize_with = "currency_set_deser")]
+    #[serde(deserialize_with = "deserialize_optional_hashset")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
-    #[serde(deserialize_with = "string_set_deser")]
+    #[serde(deserialize_with = "deserialize_optional_hashset")]
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
@@ -412,74 +359,13 @@ pub struct RequiredFieldFinal {
     pub common: HashMap<String, RequiredFieldInfo>,
 }
 
-fn string_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::CountryAlpha2::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
-
-fn currency_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::Currency::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
-
-fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::BankNames::from_str)
-        .collect())
-}
-
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
-    #[cfg(not(feature = "kms"))]
-    pub jwt_secret: String,
-    #[cfg(not(feature = "kms"))]
-    pub admin_api_key: String,
-    #[cfg(not(feature = "kms"))]
-    pub recon_admin_api_key: String,
-    pub master_enc_key: Password,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: kms::KmsValue,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
+    pub jwt_secret: Secret<String>,
+    pub admin_api_key: Secret<String>,
+    pub recon_admin_api_key: Secret<String>,
+    pub master_enc_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -490,6 +376,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_signing_key_id: String,
+    pub locker_enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -508,10 +395,10 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    pub vault_encryption_key: String,
-    pub rust_locker_encryption_key: String,
-    pub vault_private_key: String,
-    pub tunnel_private_key: String,
+    pub vault_encryption_key: Secret<String>,
+    pub rust_locker_encryption_key: Secret<String>,
+    pub vault_private_key: Secret<String>,
+    pub tunnel_private_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -537,7 +424,7 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    pub password: Password,
+    pub password: Secret<String>,
     pub host: String,
     pub port: u16,
     pub dbname: String,
@@ -548,7 +435,6 @@ pub struct Database {
     pub max_lifetime: Option<u64>,
 }
 
-#[cfg(not(feature = "kms"))]
 impl From<Database> for storage_impl::config::Database {
     fn from(val: Database) -> Self {
         Self {
@@ -701,49 +587,33 @@ pub struct WebhookIgnoreErrorSettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
-    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
-    /// keys
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: kms::KmsValue,
-
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
-    #[cfg(not(feature = "kms"))]
-    pub hash_key: String,
+    pub hash_key: Secret<String>,
 
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
     pub expiry_reminder_days: Vec<u8>,
 }
 
-#[cfg(feature = "s3")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct FileUploadConfig {
-    /// The AWS region to send file uploads
-    pub region: String,
-    /// The AWS s3 bucket to send file uploads
-    pub bucket_name: String,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "deser_to_get_connectors")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct WebhookSourceVerificationCall {
-    #[serde(deserialize_with = "connector_deser")]
+    #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConifg {
-    pub apple_pay_ppc: String,
-    pub apple_pay_ppc_key: String,
-    pub apple_pay_merchant_cert: String,
-    pub apple_pay_merchant_cert_key: String,
+    pub apple_pay_ppc: Secret<String>,
+    pub apple_pay_ppc_key: Secret<String>,
+    pub apple_pay_merchant_cert: Secret<String>,
+    pub apple_pay_merchant_cert_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -751,22 +621,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn deser_to_get_connectors<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::Connector>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    value
-        .trim()
-        .split(',')
-        .map(api_models::enums::Connector::from_str)
-        .collect::<Result<_, _>>()
-        .map_err(D::Error::custom)
-}
-
-impl Settings {
+impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
     }
@@ -813,9 +668,9 @@ impl Settings {
 
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
-        self.master_database.validate()?;
+        self.master_database.get_inner().validate()?;
         #[cfg(feature = "olap")]
-        self.replica_database.validate()?;
+        self.replica_database.get_inner().validate()?;
         self.redis.validate().map_err(|error| {
             println!("{error}");
             ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
@@ -833,9 +688,11 @@ impl Settings {
                 ));
             }
         }
-        self.secrets.validate()?;
+        self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
+
+        self.cors.validate()?;
 
         self.scheduler
             .as_ref()
@@ -843,34 +700,23 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.api_keys.validate()?;
-        #[cfg(feature = "kms")]
-        self.kms
+        self.api_keys.get_inner().validate()?;
+
+        self.file_storage
             .validate()
-            .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
-        #[cfg(feature = "s3")]
-        self.file_upload_config.validate()?;
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        self.encryption_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.secrets_management
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod payment_method_deserialization_test {
-    #![allow(clippy::unwrap_used)]
-    use serde::de::{
-        value::{Error as ValueError, StrDeserializer},
-        IntoDeserializer,
-    };
-
-    use super::*;
-
-    #[test]
-    fn test_pm_deserializer() {
-        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
-        let test_pm = pm_deser(deserializer);
-        assert!(test_pm.is_ok())
     }
 }
 
@@ -888,7 +734,7 @@ pub struct LockSettings {
 }
 
 impl<'de> Deserialize<'de> for LockSettings {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Inner {
@@ -918,8 +764,129 @@ pub struct ConnectorOnboarding {
 #[cfg(feature = "olap")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PayPalOnboarding {
-    pub client_id: masking::Secret<String>,
-    pub client_secret: masking::Secret<String>,
-    pub partner_id: masking::Secret<String>,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub partner_id: Secret<String>,
     pub enabled: bool,
+}
+
+fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
+where
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|s| {
+            T::from_str(s.trim()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `{}`: {error}",
+                    s.trim(),
+                    std::any::type_name::<T>()
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_hashset<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+
+    deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
+}
+
+fn deserialize_optional_hashset<'a, D, T>(deserializer: D) -> Result<Option<HashSet<T>>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+
+    <Option<String>>::deserialize(deserializer).map(|value| {
+        value.map_or(Ok(None), |inner: String| {
+            let list = deserialize_hashset_inner(inner).map_err(D::Error::custom)?;
+            match list.len() {
+                0 => Ok(None),
+                _ => Ok(Some(list)),
+            }
+        })
+    })?
+}
+
+#[cfg(test)]
+mod hashset_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use std::collections::HashSet;
+
+    use serde::de::{
+        value::{Error as ValueError, StrDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::deserialize_hashset;
+
+    #[test]
+    fn test_payment_method_hashset_deserializer() {
+        use diesel_models::enums::PaymentMethod;
+
+        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
+        let payment_methods = deserialize_hashset::<'_, _, PaymentMethod>(deserializer);
+        let expected_payment_methods = HashSet::from([PaymentMethod::Wallet, PaymentMethod::Card]);
+
+        assert!(payment_methods.is_ok());
+        assert_eq!(payment_methods.unwrap(), expected_payment_methods);
+    }
+
+    #[test]
+    fn test_payment_method_hashset_deserializer_with_spaces() {
+        use diesel_models::enums::PaymentMethod;
+
+        let deserializer: StrDeserializer<'_, ValueError> =
+            "wallet, card, bank_debit".into_deserializer();
+        let payment_methods = deserialize_hashset::<'_, _, PaymentMethod>(deserializer);
+        let expected_payment_methods = HashSet::from([
+            PaymentMethod::Wallet,
+            PaymentMethod::Card,
+            PaymentMethod::BankDebit,
+        ]);
+
+        assert!(payment_methods.is_ok());
+        assert_eq!(payment_methods.unwrap(), expected_payment_methods);
+    }
+
+    #[test]
+    fn test_payment_method_hashset_deserializer_error() {
+        use diesel_models::enums::PaymentMethod;
+
+        let deserializer: StrDeserializer<'_, ValueError> =
+            "wallet, card, unknown".into_deserializer();
+        let payment_methods = deserialize_hashset::<'_, _, PaymentMethod>(deserializer);
+
+        assert!(payment_methods.is_err());
+    }
 }

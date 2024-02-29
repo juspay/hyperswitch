@@ -1,6 +1,7 @@
 mod connection;
 pub mod errors;
 mod handler;
+mod health_check;
 pub mod logger;
 pub(crate) mod metrics;
 mod query;
@@ -10,12 +11,17 @@ mod stream;
 mod types;
 mod utils;
 use std::sync::Arc;
+mod secrets_transformers;
 
+use actix_web::dev::Server;
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
+use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use router_env::{instrument, tracing};
 use tokio::sync::mpsc;
+
+pub(crate) type Settings = crate::settings::Settings<RawSecret>;
 
 use crate::{
     connection::pg_connection, services::Store, settings::DrainerSettings, types::StreamData,
@@ -48,4 +54,19 @@ pub async fn start_drainer(store: Arc<Store>, conf: DrainerSettings) -> errors::
         .map_err(|err| logger::error!("Failed while joining signal handler: {:?}", err));
 
     Ok(())
+}
+
+pub async fn start_web_server(
+    conf: Settings,
+    store: Arc<Store>,
+) -> Result<Server, errors::DrainerError> {
+    let server = conf.server.clone();
+    let web_server = actix_web::HttpServer::new(move || {
+        actix_web::App::new().service(health_check::Health::server(conf.clone(), store.clone()))
+    })
+    .bind((server.host.as_str(), server.port))?
+    .run();
+    let _ = web_server.handle();
+
+    Ok(web_server)
 }

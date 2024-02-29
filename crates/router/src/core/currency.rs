@@ -11,14 +11,13 @@ use crate::{
 pub async fn retrieve_forex(
     state: AppState,
 ) -> CustomResult<ApplicationResponse<currency::FxExchangeRatesCacheEntry>, ApiErrorResponse> {
+    let forex_api = state.conf.forex_api.get_inner();
     Ok(ApplicationResponse::Json(
         get_forex_rates(
             &state,
-            state.conf.forex_api.call_delay,
-            state.conf.forex_api.local_fetch_retry_delay,
-            state.conf.forex_api.local_fetch_retry_count,
-            #[cfg(feature = "kms")]
-            &state.conf.kms,
+            forex_api.call_delay,
+            forex_api.local_fetch_retry_delay,
+            forex_api.local_fetch_retry_count,
         )
         .await
         .change_context(ApiErrorResponse::GenericNotFoundError {
@@ -42,8 +41,6 @@ pub async fn convert_forex(
             amount,
             to_currency,
             from_currency,
-            #[cfg(feature = "kms")]
-            &state.conf.kms,
         ))
         .await
         .change_context(ApiErrorResponse::InternalServerError)?,

@@ -17,6 +17,7 @@ use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "frm")]
 use crate::types::{fraud_check, storage::enums as storage_enums};
@@ -24,7 +25,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ApiErrorResponse, CustomResult},
-        payments::PaymentData,
+        payments::{PaymentData, RecurringMandatePaymentData},
     },
     pii::PeekInterface,
     types::{
@@ -80,6 +81,7 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
@@ -249,6 +251,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
+    fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error> {
+        self.recurring_mandate_payment_data
+            .to_owned()
+            .ok_or_else(missing_field_err("recurring_mandate_payment_data"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
         self.payout_method_data
@@ -941,7 +949,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         Ok(Secret::new(format!(
             "20{}",
             self.application_expiration_date
-                .peek()
                 .get(0..2)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         )))
@@ -950,7 +957,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(
             self.application_expiration_date
-                .peek()
                 .get(2..4)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_owned(),
@@ -1132,6 +1138,22 @@ impl MandateData for payments::MandateAmountData {
     }
 }
 
+pub trait RecurringMandateData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error>;
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
+}
+
+impl RecurringMandateData for RecurringMandatePaymentData {
+    fn get_original_payment_amount(&self) -> Result<i64, Error> {
+        self.original_payment_authorized_amount
+            .ok_or_else(missing_field_err("original_payment_authorized_amount"))
+    }
+    fn get_original_payment_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
+        self.original_payment_authorized_currency
+            .ok_or_else(missing_field_err("original_payment_authorized_currency"))
+    }
+}
+
 pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
@@ -1196,23 +1218,6 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
-}
-
-pub fn to_connector_meta_from_secret_with_required_field<T>(
-    connector_meta: Option<Secret<serde_json::Value>>,
-    error_message: &'static str,
-) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    let connector_error = errors::ConnectorError::MissingRequiredField {
-        field_name: error_message,
-    };
-    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
-    match parsed_meta {
-        Some(meta) => Ok(meta),
-        _ => Err(connector_error.into()),
-    }
 }
 
 pub fn to_connector_meta_from_secret<T>(
@@ -1607,6 +1612,11 @@ pub fn validate_currency(
     Ok(())
 }
 
+pub fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
+    let utc_datetime = datetime.assume_utc();
+    utc_datetime.unix_timestamp() * 1000
+}
+
 #[cfg(feature = "frm")]
 pub trait FraudCheckSaleRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -1774,6 +1784,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         | common_enums::RefundStatus::Success => false,
     }
 }
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]

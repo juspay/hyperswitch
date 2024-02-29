@@ -172,12 +172,12 @@ fn get_region(
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessCustomerResponse {
     customers: Customers,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Customers {
     id: Secret<String>,
 }
@@ -391,12 +391,12 @@ impl From<BankType> for AccountType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessBankAccountResponse {
     customer_bank_accounts: CustomerBankAccountResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CustomerBankAccountResponse {
     pub id: Secret<String>,
 }
@@ -540,14 +540,14 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GocardlessMandateResponse {
     mandates: MandateResponse,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MandateResponse {
-    id: String,
+    id: Secret<String>,
 }
 
 impl<F>
@@ -570,7 +570,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let mandate_reference = Some(MandateReference {
-            connector_mandate_id: Some(item.response.mandates.id.clone()),
+            connector_mandate_id: Some(item.response.mandates.id.clone().expose()),
             payment_method_id: None,
         });
         Ok(Self {
@@ -817,7 +817,7 @@ impl<F> TryFrom<&GocardlessRouterData<&types::RefundsRouterData<F>>> for Gocardl
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct RefundResponse {
     id: String,
 }
@@ -839,12 +839,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessErrorResponse {
     pub error: GocardlessError,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GocardlessError {
     pub message: String,
     pub code: u16,
@@ -853,7 +853,7 @@ pub struct GocardlessError {
     pub error_type: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Error {
     pub field: Option<String>,
     pub message: String,

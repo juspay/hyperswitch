@@ -160,9 +160,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .apply_changeset(origin_diesel_intent.clone());
                 // Check for database presence as well Maybe use a read replica here ?
 
-                let redis_value =
-                    Encode::<DieselPaymentIntent>::encode_to_string_of_json(&diesel_intent)
-                        .change_context(StorageError::SerializationFailed)?;
+                let redis_value = diesel_intent
+                    .encode_to_string_of_json()
+                    .change_context(StorageError::SerializationFailed)?;
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
@@ -925,12 +925,14 @@ impl DataModelExt for PaymentIntentUpdate {
             Self::ResponseUpdate {
                 status,
                 amount_captured,
+                fingerprint_id,
                 return_url,
                 updated_by,
                 incremental_authorization_allowed,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
+                fingerprint_id,
                 return_url,
                 updated_by,
                 incremental_authorization_allowed,
