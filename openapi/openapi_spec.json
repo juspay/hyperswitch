@@ -13881,6 +13881,11 @@
             "type": "string",
             "description": "Payment Fingerprint",
             "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Payment Method Id",
+            "nullable": true
           }
         }
       },
