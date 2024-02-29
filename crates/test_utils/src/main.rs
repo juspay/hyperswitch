@@ -16,10 +16,10 @@ fn main() {
     };
     let status = child.wait();
 
-    for flag in runner.file_modified_flag {
-        if flag.modified_status {
+    for modified_file_path in runner.modified_file_paths {
+        if modified_file_path.is_some() {
             let git_status = Command::new("git")
-                .args(["restore", &flag.file_to_restore.unwrap_or_default()])
+                .args(["restore", &modified_file_path.unwrap_or_default()])
                 .output();
 
             match git_status {
