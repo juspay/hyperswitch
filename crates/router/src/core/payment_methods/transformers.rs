@@ -334,7 +334,6 @@ pub fn mk_add_bank_response_hs(
 
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
-    card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
@@ -362,7 +361,7 @@ pub fn mk_add_card_response_hs(
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
-        payment_method_id: card_reference,
+        payment_method_id: String::default(),
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         bank_transfer: None,

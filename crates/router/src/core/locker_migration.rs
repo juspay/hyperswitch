@@ -1,7 +1,7 @@
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::errors::CustomResult;
 use diesel_models::{enums as storage_enums, PaymentMethod};
-use error_stack::{FutureExt, ResultExt};
+use error_stack::{report, FutureExt, ResultExt};
 use futures::TryFutureExt;
 
 use super::{errors::StorageErrorExt, payment_methods::cards};
@@ -87,13 +87,12 @@ pub async fn call_to_locker(
         .into_iter()
         .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
     {
-        let card = cards::get_card_from_locker(
-            state,
-            customer_id,
-            merchant_id,
-            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-        )
-        .await;
+        let locker_id = pm
+            .locker_id
+            .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable("locker_id not found in db")?;
+
+        let card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id).await;
 
         let card = match card {
             Ok(card) => card,
@@ -135,7 +134,7 @@ pub async fn call_to_locker(
                 customer_id.to_string(),
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
-                Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+                Some(&locker_id),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

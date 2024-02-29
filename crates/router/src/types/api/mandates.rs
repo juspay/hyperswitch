@@ -1,6 +1,6 @@
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
@@ -47,14 +47,17 @@ impl MandateResponseExt for MandateResponse {
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data
             let card_details = if state.conf.locker.locker_enabled {
+                let locker_id = payment_method
+                    .locker_id
+                    .as_ref()
+                    .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                    .attach_printable("locker_id not found in db")?;
+
                 let card = payment_methods::cards::get_card_from_locker(
                     state,
                     &payment_method.customer_id,
                     &payment_method.merchant_id,
-                    payment_method
-                        .locker_id
-                        .as_ref()
-                        .unwrap_or(&payment_method.payment_method_id),
+                    locker_id,
                 )
                 .await?;
 

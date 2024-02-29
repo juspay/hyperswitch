@@ -87,9 +87,8 @@ pub async fn make_payout_method_data<'a>(
             let payment_token = match payment_token_data {
                 storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
                     locker_id,
-                    token,
                     ..
-                }) => locker_id.or(Some(token)),
+                }) => locker_id,
                 storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
                     token,
                 }) => Some(token),

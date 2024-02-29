@@ -11,12 +11,13 @@ pub use api_models::{
 pub use common_utils::request::RequestBody;
 use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use diesel_models::enums;
+use error_stack::{report, ResultExt};
 
 use crate::{
     core::{
-        errors::RouterResult,
+        errors::{self, RouterResult},
         payments::helpers,
-        pm_auth::{self as core_pm_auth},
+        pm_auth as core_pm_auth,
     },
     routes::AppState,
     types::{
@@ -153,13 +154,16 @@ impl PaymentMethodRetrieve for Oss {
             }
 
             storage::PaymentTokenData::Permanent(card_token) => {
+                let locker_id = card_token
+                    .locker_id
+                    .as_ref()
+                    .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                    .attach_printable("locker_id not found in redis")?;
+
                 helpers::retrieve_card_with_permanent_token(
                     state,
-                    card_token.locker_id.as_ref().unwrap_or(&card_token.token),
-                    card_token
-                        .payment_method_id
-                        .as_ref()
-                        .unwrap_or(&card_token.token),
+                    locker_id,
+                    &card_token.payment_method_id,
                     payment_intent,
                     card_token_data,
                 )
@@ -168,13 +172,16 @@ impl PaymentMethodRetrieve for Oss {
             }
 
             storage::PaymentTokenData::PermanentCard(card_token) => {
+                let locker_id = card_token
+                    .locker_id
+                    .as_ref()
+                    .ok_or(report!(errors::ApiErrorResponse::InternalServerError))
+                    .attach_printable("locker_id not found in redis")?;
+
                 helpers::retrieve_card_with_permanent_token(
                     state,
-                    card_token.locker_id.as_ref().unwrap_or(&card_token.token),
-                    card_token
-                        .payment_method_id
-                        .as_ref()
-                        .unwrap_or(&card_token.token),
+                    locker_id,
+                    &card_token.payment_method_id,
                     payment_intent,
                     card_token_data,
                 )
