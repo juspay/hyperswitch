@@ -428,6 +428,7 @@ async fn skip_saving_card_in_locker(
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
                 bank_transfer: None,
+                last_used_at: Some(common_utils::date_time::now()),
             };
 
             Ok((pm_resp, None))
@@ -447,6 +448,7 @@ async fn skip_saving_card_in_locker(
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 bank_transfer: None,
+                last_used_at: Some(common_utils::date_time::now()),
             };
             Ok((payment_method_response, None))
         }
@@ -493,6 +495,7 @@ pub async fn save_in_locker(
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+                last_used_at: Some(common_utils::date_time::now()),
             };
             Ok((payment_method_response, None))
         }

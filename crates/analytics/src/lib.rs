@@ -15,6 +15,7 @@ pub mod sdk_events;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
+use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
@@ -25,6 +26,7 @@ use api_models::analytics::{
     api_event::{
         ApiEventDimensions, ApiEventFilters, ApiEventMetrics, ApiEventMetricsBucketIdentifier,
     },
+    disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     refunds::{RefundDimensions, RefundFilters, RefundMetrics, RefundMetricsBucketIdentifier},
     sdk_events::{
@@ -379,6 +381,106 @@ impl AnalyticsProvider {
                                 match (&sqlx_result, &ckh_result) {
                                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
                                         logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres refunds analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                sqlx_result
+                            }
+                        }
+                    },
+                   &metrics::METRIC_FETCH_TIME,
+       metric,
+            self,
+        )
+        .await
+    }
+
+    pub async fn get_dispute_metrics(
+        &self,
+        metric: &DisputeMetrics,
+        dimensions: &[DisputeDimensions],
+        merchant_id: &str,
+        filters: &DisputeFilters,
+        granularity: &Option<Granularity>,
+        time_range: &TimeRange,
+    ) -> types::MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+        // Metrics to get the fetch time for each refund metric
+        metrics::request::record_operation_time(
+            async {
+                        match self {
+                            Self::Sqlx(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::Clickhouse(pool) => {
+                                metric
+                                    .load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        pool,
+                                    )
+                                    .await
+                            }
+                            Self::CombinedCkh(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics metrics")
+                                    }
+                                    _ => {}
+                                };
+                                ckh_result
+                            }
+                            Self::CombinedSqlx(sqlx_pool, ckh_pool) => {
+                                let (ckh_result, sqlx_result) = tokio::join!(
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        ckh_pool,
+                                    ),
+                                    metric.load_metrics(
+                                        dimensions,
+                                        merchant_id,
+                                        filters,
+                                        granularity,
+                                        time_range,
+                                        sqlx_pool,
+                                    )
+                                );
+                                match (&sqlx_result, &ckh_result) {
+                                    (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
+                                        logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres disputes analytics metrics")
                                     }
                                     _ => {}
                                 };

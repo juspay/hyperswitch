@@ -6,6 +6,7 @@ use common_utils::{
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
 use super::PayoutData;
 use crate::{
@@ -24,7 +25,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         api::{self, enums as api_enums},
@@ -432,6 +433,7 @@ pub async fn get_or_create_customer_details(
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
+                default_payment_method_id: None,
             };
 
             Ok(Some(
@@ -640,6 +642,49 @@ pub fn should_call_payout_connector_create_customer<'a>(
         }
         _ => (false, None),
     }
+}
+
+pub async fn get_gsm_record(
+    state: &AppState,
+    error_code: Option<String>,
+    error_message: Option<String>,
+    connector_name: Option<String>,
+    flow: String,
+) -> Option<storage::gsm::GatewayStatusMap> {
+    let get_gsm = || async {
+        state.store.find_gsm_rule(
+                connector_name.clone().unwrap_or_default(),
+                flow.clone(),
+                "sub_flow".to_string(),
+                error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
+                error_message.clone().unwrap_or_default(),
+            )
+            .await
+            .map_err(|err| {
+                if err.current_context().is_db_not_found() {
+                    logger::warn!(
+                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        connector_name.unwrap_or_default(),
+                        flow,
+                        error_code,
+                        error_message
+                    );
+                    metrics::AUTO_PAYOUT_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                } else {
+                    metrics::AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                };
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to fetch decision from gsm")
+            })
+    };
+    get_gsm()
+        .await
+        .map_err(|err| {
+            // warn log should suffice here because we are not propagating this error
+            logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
+            err
+        })
+        .ok()
 }
 
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {

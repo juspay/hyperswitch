@@ -547,7 +547,7 @@ pub struct GocardlessMandateResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MandateResponse {
-    id: String,
+    id: Secret<String>,
 }
 
 impl<F>
@@ -570,7 +570,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let mandate_reference = Some(MandateReference {
-            connector_mandate_id: Some(item.response.mandates.id.clone()),
+            connector_mandate_id: Some(item.response.mandates.id.clone().expose()),
             payment_method_id: None,
         });
         Ok(Self {
