@@ -229,13 +229,13 @@ pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Opt
             if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert =
                     format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
-                if insert_content(path, &content_to_insert).is_ok() {
-                    return Some(format!("{}/event.prerequest.js", path));
-                }
+                let _ = insert_content(path, &content_to_insert).is_ok();
             } else {
                 eprintln!("Invalid header format: {}", header);
             }
         }
+
+        return Some(format!("{}/event.prerequest.js", path));
     }
     None
 }
