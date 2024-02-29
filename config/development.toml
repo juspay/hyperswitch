@@ -44,7 +44,8 @@ stream_read_count = 1
 auto_pipeline = true
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
-default_command_timeout = 0
+default_command_timeout = 30
+unresponsive_timeout = 10
 max_feed_count = 200
 
 
