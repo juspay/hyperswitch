@@ -1,6 +1,5 @@
 use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -95,6 +94,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+        #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -114,6 +114,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -162,6 +163,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -188,6 +190,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
@@ -213,6 +216,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -236,6 +240,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -295,6 +300,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+        #[instrument(skip_all)]
         async fn find_address_by_address_id(
             &self,
             address_id: &str,
@@ -314,6 +320,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -381,6 +388,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
@@ -449,6 +457,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_payments(
             &self,
             payment_id: &str,
@@ -501,6 +510,7 @@ mod storage {
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
                         updated_by: storage_scheme.to_string(),
+                        email: address_new.email.clone(),
                     };
 
                     let redis_entry = kv::TypedSql {
@@ -537,6 +547,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn insert_address_for_customers(
             &self,
             address: domain::Address,
@@ -560,6 +571,7 @@ mod storage {
                 .await
         }
 
+        #[instrument(skip_all)]
         async fn update_address_by_merchant_id_customer_id(
             &self,
             customer_id: &str,
@@ -649,7 +661,6 @@ impl AddressInterface for MockDb {
         }
     }
 
-    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,

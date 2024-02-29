@@ -148,6 +148,7 @@ impl PaymentAttemptInterface for MockDb {
             unified_code: payment_attempt.unified_code,
             unified_message: payment_attempt.unified_message,
             mandate_data: payment_attempt.mandate_data,
+            fingerprint_id: payment_attempt.fingerprint_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

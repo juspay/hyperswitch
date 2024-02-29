@@ -31,6 +31,7 @@ diesel::table! {
         payment_id -> Nullable<Varchar>,
         #[max_length = 32]
         updated_by -> Varchar,
+        email -> Nullable<Bytea>,
     }
 }
 
@@ -226,6 +227,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         address_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        default_payment_method_id -> Nullable<Varchar>,
     }
 }
 
@@ -292,6 +295,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        dispute_amount -> Int8,
     }
 }
 
@@ -689,6 +693,8 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         net_amount -> Nullable<Int8>,
         mandate_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        fingerprint_id -> Nullable<Varchar>,
     }
 }
 
@@ -826,6 +832,13 @@ diesel::table! {
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        locker_id -> Nullable<Varchar>,
+        last_used_at -> Timestamp,
+        connector_mandate_details -> Nullable<Jsonb>,
+        customer_acceptance -> Nullable<Jsonb>,
+        #[max_length = 64]
+        status -> Varchar,
     }
 }
 
@@ -845,7 +858,7 @@ diesel::table! {
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 64]
-        connector -> Varchar,
+        connector -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payout_id -> Varchar,
         #[max_length = 64]
@@ -864,6 +877,7 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        routing_info -> Nullable<Jsonb>,
     }
 }
 
@@ -897,6 +911,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        attempt_count -> Int2,
     }
 }
 
@@ -998,6 +1013,31 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    roles (id) {
+        id -> Int4,
+        #[max_length = 64]
+        role_name -> Varchar,
+        #[max_length = 64]
+        role_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        org_id -> Varchar,
+        groups -> Array<Nullable<Text>>,
+        scope -> RoleScope,
+        created_at -> Timestamp,
+        #[max_length = 64]
+        created_by -> Varchar,
+        last_modified_at -> Timestamp,
+        #[max_length = 64]
+        last_modified_by -> Varchar,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     routing_algorithm (algorithm_id) {
         #[max_length = 64]
         algorithm_id -> Varchar,
@@ -1013,6 +1053,7 @@ diesel::table! {
         algorithm_data -> Jsonb,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        algorithm_for -> TransactionType,
     }
 }
 
@@ -1095,6 +1136,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
+    roles,
     routing_algorithm,
     user_roles,
     users,

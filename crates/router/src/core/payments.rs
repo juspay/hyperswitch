@@ -25,7 +25,7 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
+use scheduler::utils as pt_utils;
 use time;
 
 pub use self::operations::{
@@ -40,7 +40,9 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
-use super::{errors::StorageErrorExt, payment_methods::surcharge_decision_configs};
+use super::{
+    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+};
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
@@ -1068,7 +1070,6 @@ where
         customer,
     )
     .await?;
-
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
@@ -1129,6 +1130,8 @@ where
             .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        logger::debug!(?apple_pay_predecrypt);
+
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
             Box::new(apple_pay_predecrypt),
         ));
@@ -1137,7 +1140,6 @@ where
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
-
     if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
             payment_method_token,
@@ -1842,7 +1844,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
@@ -2356,28 +2358,32 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), sch_errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::StorageError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
         ..Default::default()
     };
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
+    let tag = ["SYNC", "PAYMENT"];
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
         runner,
+        tag,
         tracking_data,
         schedule_time,
-    )?;
+    )
+    .map_err(errors::StorageError::from)
+    .into_report()?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
@@ -2388,7 +2394,7 @@ pub async fn reset_process_sync_task(
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
     let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
@@ -2400,8 +2406,8 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process
-        .reset(db.as_scheduler(), schedule_time)
+    db.as_scheduler()
+        .reset_process(psync_process, schedule_time)
         .await?;
     Ok(())
 }
@@ -2553,10 +2559,11 @@ where
     )
     .await?;
 
-    let encoded_info =
-        Encode::<storage::PaymentRoutingInfo>::encode_to_value(&routing_data.routing_info)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error serializing payment routing info to serde value")?;
+    let encoded_info = routing_data
+        .routing_info
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error serializing payment routing info to serde value")?;
 
     payment_data.payment_attempt.connector = routing_data.routed_through;
     #[cfg(feature = "connector_choice_mca_id")]
@@ -2659,10 +2666,12 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(&routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            &routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2670,7 +2679,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2718,10 +2727,12 @@ where
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (mut connectors, check_eligibility) =
-            routing::perform_straight_through_routing(routing_algorithm, payment_data)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed execution of straight through routing")?;
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
+            routing_algorithm,
+            payment_data.creds_identifier.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
@@ -2729,7 +2740,7 @@ where
                 key_store,
                 merchant_account.modified_at.assume_utc().unix_timestamp(),
                 connectors,
-                payment_data,
+                &TransactionData::Payment(payment_data),
                 eligible_connectors,
                 #[cfg(feature = "business_profile_routing")]
                 payment_data.payment_intent.profile_id.clone(),
@@ -2780,7 +2791,7 @@ where
         merchant_account,
         business_profile,
         key_store,
-        payment_data,
+        &TransactionData::Payment(payment_data),
         routing_data,
         eligible_connectors,
     )
@@ -2878,7 +2889,7 @@ where
 
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(sfr)
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;
@@ -2916,17 +2927,36 @@ pub async fn route_connector_v1<F>(
     merchant_account: &domain::MerchantAccount,
     business_profile: &storage::business_profile::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: &mut PaymentData<F>,
+    transaction_data: &TransactionData<'_, F>,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
 {
-    let routing_algorithm = if cfg!(feature = "business_profile_routing") {
-        business_profile.routing_algorithm.clone()
-    } else {
-        merchant_account.routing_algorithm.clone()
+    #[allow(unused_variables)]
+    let (profile_id, routing_algorithm) = match transaction_data {
+        TransactionData::Payment(payment_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    payment_data.payment_intent.profile_id.clone(),
+                    business_profile.routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.routing_algorithm.clone())
+            }
+        }
+        #[cfg(feature = "payouts")]
+        TransactionData::Payout(payout_data) => {
+            if cfg!(feature = "business_profile_routing") {
+                (
+                    Some(payout_data.payout_attempt.profile_id.clone()),
+                    business_profile.payout_routing_algorithm.clone(),
+                )
+            } else {
+                (None, merchant_account.payout_routing_algorithm.clone())
+            }
+        }
     };
 
     let algorithm_ref = routing_algorithm
@@ -2940,7 +2970,7 @@ where
         state,
         &merchant_account.merchant_id,
         algorithm_ref,
-        payment_data,
+        transaction_data,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -2950,10 +2980,10 @@ where
         key_store,
         merchant_account.modified_at.assume_utc().unix_timestamp(),
         connectors,
-        payment_data,
+        transaction_data,
         eligible_connectors,
         #[cfg(feature = "business_profile_routing")]
-        payment_data.payment_intent.profile_id.clone(),
+        profile_id,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

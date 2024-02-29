@@ -4080,6 +4080,50 @@
           }
         ]
       }
+    },
+    "/{customer_id}/payment_methods/{payment_method_id}/default": {
+      "get": {
+        "tags": [
+          "Customer Set Default Payment Method"
+        ],
+        "summary": "Customers - Set Default Payment Method",
+        "description": "Customers - Set Default Payment Method\n\nSet the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "Set the Payment Method as Default for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment Method has already been set as default for that customer"
+          },
+          "404": {
+            "description": "Payment Method not found for the customer"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4314,6 +4358,10 @@
                 "$ref": "#/components/schemas/PhoneDetails"
               }
             ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -6607,6 +6655,13 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -7297,6 +7352,37 @@
           }
         }
       },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
@@ -7373,17 +7459,24 @@
         "type": "object",
         "required": [
           "payment_token",
+          "payment_method_id",
           "customer_id",
           "payment_method",
           "recurring_enabled",
           "installment_payment_enabled",
-          "requires_cvv"
+          "requires_cvv",
+          "default_payment_method_set"
         ],
         "properties": {
           "payment_token": {
             "type": "string",
             "description": "Token for payment method in temporary card locker which gets refreshed often",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "pm_iouuy468iyuowqs"
           },
           "customer_id": {
             "type": "string",
@@ -7484,6 +7577,18 @@
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
             "example": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "default_payment_method_set": {
+            "type": "boolean",
+            "description": "Indicates if the payment method has been set to default or not",
+            "example": true
           }
         }
       },
@@ -7499,6 +7604,11 @@
               "$ref": "#/components/schemas/CustomerPaymentMethod"
             },
             "description": "List of payment methods for customer"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)",
+            "nullable": true
           }
         }
       },
@@ -7628,6 +7738,28 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The identifier for the default payment method.",
+            "example": "pm_djh2837dwduh890123",
+            "nullable": true,
+            "maxLength": 64
+          }
+        }
+      },
+      "DefaultPaymentMethod": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "string"
           }
         }
       },
@@ -9385,7 +9517,7 @@
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled.",
             "default": false,
             "example": true,
             "nullable": true
@@ -9397,7 +9529,7 @@
           },
           "publishable_key": {
             "type": "string",
-            "description": "API key that will be used for server side API access",
+            "description": "API key that will be used for client side API access. A publishable key has to be always paired with a `client_secret`.\nA `client_secret` can be obtained by creating a payment with `confirm` set to false",
             "example": "AH3423bkjbkjdsfbkj",
             "nullable": true
           },
@@ -9473,7 +9605,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
+            "description": "The URL to redirect after completion of the payment",
             "example": "https://www.example.com/success",
             "nullable": true,
             "maxLength": 255
@@ -10300,14 +10432,19 @@
         "description": "Routing Algorithm specific to merchants",
         "required": [
           "id",
+          "profile_id",
           "name",
           "description",
           "algorithm",
           "created_at",
-          "modified_at"
+          "modified_at",
+          "algorithm_for"
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -10326,6 +10463,9 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
@@ -11863,6 +12003,12 @@
                 "$ref": "#/components/schemas/Bank"
               }
             ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           }
         }
@@ -15446,7 +15592,7 @@
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
-          "sub_label": {
+          "merchant_connector_id": {
             "type": "string",
             "nullable": true
           }
@@ -15456,6 +15602,13 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "phonypay",
+          "fauxpay",
+          "pretendpay",
+          "stripe_test",
+          "adyen_test",
+          "checkout_test",
+          "paypal_test",
           "aci",
           "adyen",
           "airwallex",
@@ -15655,6 +15808,7 @@
         "type": "object",
         "required": [
           "id",
+          "profile_id",
           "name",
           "kind",
           "description",
@@ -15663,6 +15817,9 @@
         ],
         "properties": {
           "id": {
+            "type": "string"
+          },
+          "profile_id": {
             "type": "string"
           },
           "name": {
@@ -15681,6 +15838,14 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16208,6 +16373,12 @@
       },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "payment"
+        ]
       },
       "UpdateApiKeyRequest": {
         "type": "object",

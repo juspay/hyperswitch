@@ -4,7 +4,7 @@ use router_env::Flow;
 use crate::{
     core::{api_locking, currency},
     routes::AppState,
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    services::{api, authentication as auth},
 };
 
 pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
@@ -17,7 +17,7 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
         |state, _auth: auth::AuthenticationData, _| currency::retrieve_forex(state),
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::ForexRead),
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -49,7 +49,7 @@ pub async fn convert_forex(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::ForexRead),
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

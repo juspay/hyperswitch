@@ -4,13 +4,15 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
+        disputes::DisputeDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod, PaymentMethodType,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, PaymentMethod,
+        PaymentMethodType,
     },
     refunds::RefundStatus,
 };
@@ -382,6 +384,8 @@ impl_to_sql_for_to_string!(
 impl_to_sql_for_to_string!(&SdkEventDimensions, SdkEventDimensions, SdkEventNames);
 
 impl_to_sql_for_to_string!(&ApiEventDimensions, ApiEventDimensions);
+
+impl_to_sql_for_to_string!(&DisputeDimensions, DisputeDimensions, DisputeStage);
 
 #[derive(Debug)]
 pub enum FilterTypes {

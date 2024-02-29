@@ -949,7 +949,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
         Ok(Secret::new(format!(
             "20{}",
             self.application_expiration_date
-                .peek()
                 .get(0..2)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         )))
@@ -958,7 +957,6 @@ impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
     fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
         Ok(Secret::new(
             self.application_expiration_date
-                .peek()
                 .get(2..4)
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
                 .to_owned(),
@@ -1786,6 +1784,7 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         | common_enums::RefundStatus::Success => false,
     }
 }
+
 #[cfg(test)]
 mod error_code_error_message_tests {
     #![allow(clippy::unwrap_used)]

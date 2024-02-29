@@ -352,7 +352,7 @@ pub async fn get_or_update_dispute_object(
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
-                amount: dispute_details.amount,
+                amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency,
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
@@ -374,6 +374,7 @@ pub async fn get_or_update_dispute_object(
                 profile_id: Some(business_profile.profile_id.clone()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
             };
             state
                 .store
@@ -984,16 +985,15 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
     // Fetch the merchant connector account to get the webhooks source secret
     // `webhooks source secret` is a secret shared between the merchant and connector
     // This is used for source verification and webhooks integrity
-    let (merchant_connector_account, connector) = fetch_mca_and_connector(
+    let (merchant_connector_account, connector) = fetch_optional_mca_and_connector(
         &state,
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
-        &request_details,
     )
     .await?;
 
-    let connector_name = merchant_connector_account.clone().connector_name;
+    let connector_name = connector.connector_name.to_string();
 
     let connector = connector.connector;
 
@@ -1089,6 +1089,20 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 format!("unable to parse connector name {connector_name:?}")
             })?;
         let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+
+        let merchant_connector_account = match merchant_connector_account {
+            Some(merchant_connector_account) => merchant_connector_account,
+            None => {
+                helper_utils::get_mca_from_object_reference_id(
+                    &*state.clone().store,
+                    object_ref_id.clone(),
+                    &merchant_account,
+                    &connector_name,
+                    &key_store,
+                )
+                .await?
+            }
+        };
 
         let source_verified = if connectors_with_source_verification_call
             .connectors_with_webhook_source_verification_call
@@ -1311,14 +1325,17 @@ pub async fn get_payment_id(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
-async fn fetch_mca_and_connector(
+/// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
+/// if merchant connector id is not passed in the request, then this will return None for mca
+async fn fetch_optional_mca_and_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,
-    request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<(domain::MerchantConnectorAccount, api::ConnectorData), errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    (Option<domain::MerchantConnectorAccount>, api::ConnectorData),
+    errors::ApiErrorResponse,
+> {
     let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
         let mca = db
@@ -1346,7 +1363,7 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("Failed construction of ConnectorData")?;
 
-        Ok((mca, connector))
+        Ok((Some(mca), connector))
     } else {
         // Merchant connector account is already being queried, it is safe to set connector id as None
         let connector = api::ConnectorData::get_connector_by_name(
@@ -1360,38 +1377,6 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("Failed construction of ConnectorData")?;
 
-        let object_ref_id = connector
-            .connector
-            .get_webhook_object_reference_id(request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
-
-        let profile_id = helper_utils::get_profile_id_using_object_reference_id(
-            &*state.store,
-            object_ref_id,
-            merchant_account,
-            connector_name_or_mca_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "object reference id",
-        })
-        .attach_printable("Could not find profile id from object reference id")?;
-
-        let mca = db
-            .find_merchant_connector_account_by_profile_id_connector_name(
-                &profile_id,
-                connector_name_or_mca_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: format!(
-                    "profile_id {profile_id} and connector name {connector_name_or_mca_id}"
-                ),
-            })
-            .attach_printable("error while fetching merchant_connector_account from profile_id")?;
-
-        Ok((mca, connector))
+        Ok((None, connector))
     }
 }

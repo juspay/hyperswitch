@@ -1,5 +1,6 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache;
 use storage_impl::redis::kv_store::RedisConnInterface;
@@ -36,6 +37,7 @@ pub trait ConnectorAccessToken {
 
 #[async_trait::async_trait]
 impl ConnectorAccessToken for Store {
+    #[instrument(skip_all)]
     async fn get_access_token(
         &self,
         merchant_id: &str,
@@ -62,6 +64,7 @@ impl ConnectorAccessToken for Store {
         Ok(access_token)
     }
 
+    #[instrument(skip_all)]
     async fn set_access_token(
         &self,
         merchant_id: &str,
@@ -69,9 +72,9 @@ impl ConnectorAccessToken for Store {
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         let key = format!("access_token_{merchant_id}_{connector_name}");
-        let serialized_access_token =
-            Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
-                .change_context(errors::StorageError::SerializationFailed)?;
+        let serialized_access_token = access_token
+            .encode_to_string_of_json()
+            .change_context(errors::StorageError::SerializationFailed)?;
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
@@ -165,6 +168,7 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
+    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
@@ -210,6 +214,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         profile_id: &str,
@@ -255,6 +260,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
@@ -284,6 +290,7 @@ impl MerchantConnectorAccountInterface for Store {
         .await
     }
 
+    #[instrument(skip_all)]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
@@ -326,6 +333,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -347,6 +355,7 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
@@ -372,6 +381,7 @@ impl MerchantConnectorAccountInterface for Store {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
@@ -430,6 +440,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,

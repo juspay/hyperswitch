@@ -271,6 +271,11 @@
               "payment_method_type": "bacs",
               "recurring_enabled": true,
               "installment_payment_enabled": true
+            },
+            {
+              "payment_method_type": "sepa",
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
             }
           ]
         }

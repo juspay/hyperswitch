@@ -35,7 +35,7 @@ impl VerifyConnector for connector::Paypal {
             Ok(res) => Some(
                 connector_data
                     .connector
-                    .handle_response(&router_data, res)
+                    .handle_response(&router_data, None, res)
                     .change_context(errors::ApiErrorResponse::InternalServerError)?
                     .response
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError.into()),

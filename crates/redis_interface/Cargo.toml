@@ -9,11 +9,11 @@ license.workspace = true
 
 [dependencies]
 error-stack = "0.3.1"
-fred = { version = "7.0.0", features = ["metrics", "partial-tracing", "subscriber-client"] }
+fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscriber-client", "check-unresponsive"] }
 futures = "0.3"
 serde = { version = "1.0.193", features = ["derive"] }
 thiserror = "1.0.40"
-tokio = "1.35.1"
+tokio = "1.36.0"
 tokio-stream = {version = "0.1.14", features = ["sync"]}
 
 # First party crates
@@ -21,4 +21,4 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["async
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [dev-dependencies]
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
