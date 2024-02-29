@@ -1267,9 +1267,10 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id)
+            .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id, limit)
             .await
     }
 
@@ -1278,9 +1279,15 @@ impl PaymentMethodInterface for KafkaStore {
         customer_id: &str,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_customer_id_merchant_id_status(customer_id, merchant_id, status)
+            .find_payment_method_by_customer_id_merchant_id_status(
+                customer_id,
+                merchant_id,
+                status,
+                limit,
+            )
             .await
     }
 
@@ -1333,6 +1340,16 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(merchant_id, payout_attempt_id)
+            .await
+    }
+
     async fn update_payout_attempt_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -1341,6 +1358,21 @@ impl PayoutAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
         self.diesel_store
             .update_payout_attempt_by_merchant_id_payout_id(merchant_id, payout_id, payout)
+            .await
+    }
+
+    async fn update_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+        payout: storage::PayoutAttemptUpdate,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .update_payout_attempt_by_merchant_id_payout_attempt_id(
+                merchant_id,
+                payout_attempt_id,
+                payout,
+            )
             .await
     }
 
