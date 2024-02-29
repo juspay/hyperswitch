@@ -66,7 +66,7 @@ pub async fn validate_role_name(
 
     let is_present_in_predefined_roles = roles::predefined_roles::PREDEFINED_ROLES
         .iter()
-        .any(|(_, role_info)| role_info.get_role_name() == &role_name_str);
+        .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
 
     // TODO: Create and use find_by_role_name to make this efficient
     let is_present_in_custom_roles = state
