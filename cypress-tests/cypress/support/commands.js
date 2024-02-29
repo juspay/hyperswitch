@@ -30,11 +30,6 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { baseUrl } from "../utils/Constants";
 import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
 
-it('ConnectorAuthDetails', () => {
-cy.task('cli_log', "ConnectorAuthDetails -> " + JSON.stringify(ConnectorAuthDetails));
-console.log(JSON.stringify(ConnectorAuthDetails));
-});
-
 const adminApiKey = ConnectorAuthDetails.integ.ADMIN_API_KEYS ;
 
 Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState) => {
