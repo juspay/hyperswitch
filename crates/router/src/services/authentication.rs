@@ -33,6 +33,7 @@ use crate::{
     utils::OptionExt,
 };
 pub mod blacklist;
+#[cfg(feature = "olap")]
 pub mod cookies;
 
 #[derive(Clone, Debug)]
