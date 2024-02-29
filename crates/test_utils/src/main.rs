@@ -28,14 +28,14 @@ fn main() {
                 Ok(output) => {
                     if output.status.success() {
                         let stdout_str = String::from_utf8_lossy(&output.stdout);
-                        println!("Git command executed successfully: {}", stdout_str);
+                        println!("Git command executed successfully: {stdout_str}");
                     } else {
                         let stderr_str = String::from_utf8_lossy(&output.stderr);
-                        eprintln!("Git command failed with error: {}", stderr_str);
+                        eprintln!("Git command failed with error: {stderr_str}");
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error running Git: {}", e);
+                    eprintln!("Error running Git: {e}");
                 }
             }
         });
