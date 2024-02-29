@@ -533,6 +533,46 @@ merchant_id_classic="MerchantId Classic"
 password_evoucher="Password Evoucher"
 username_evoucher="Username Evoucher"
 merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.AUD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.INR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.JPY.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.NZD.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.classic]
+password_classic="Password Classic"
+username_classic="Username Classic"
+merchant_id_classic="MerchantId Classic"
+[cashtocode.connector_auth.CurrencyAuthKey.auth_key_map.ZAR.evoucher]
+password_evoucher="Password Evoucher"
+username_evoucher="Username Evoucher"
+merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
