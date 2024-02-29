@@ -14445,7 +14445,7 @@
           "connector": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Connector"
+              "$ref": "#/components/schemas/PayoutConnectors"
             },
             "description": "This allows the merchant to manually select a connector with which the payout can go through",
             "example": [
