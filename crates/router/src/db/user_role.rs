@@ -3,6 +3,7 @@ use std::{collections::HashSet, ops::Not};
 use async_bb8_diesel::AsyncConnection;
 use diesel_models::{enums, user_role as storage};
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -64,6 +65,7 @@ pub trait UserRoleInterface {
 
 #[async_trait::async_trait]
 impl UserRoleInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_user_role(
         &self,
         user_role: storage::UserRoleNew,
@@ -76,6 +78,7 @@ impl UserRoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_user_role_by_user_id(
         &self,
         user_id: &str,
@@ -87,6 +90,7 @@ impl UserRoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -103,6 +107,7 @@ impl UserRoleInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -121,6 +126,7 @@ impl UserRoleInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_user_roles_by_user_id_org_id(
         &self,
         user_id: &str,
@@ -139,6 +145,7 @@ impl UserRoleInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_user_role_by_user_id_merchant_id(
         &self,
         user_id: &str,
@@ -155,6 +162,7 @@ impl UserRoleInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -166,6 +174,7 @@ impl UserRoleInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn transfer_org_ownership_between_users(
         &self,
         from_user_id: &str,

@@ -1,7 +1,4 @@
-use api_models::user_role::{
-    role::{self as role_api},
-    Permission,
-};
+use api_models::user_role::role::{self as role_api};
 use common_enums::RoleScope;
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
@@ -20,10 +17,10 @@ use crate::{
     utils,
 };
 
-pub async fn get_role_from_token(
+pub async fn get_role_from_token_with_permissions(
     state: AppState,
     user_from_token: UserFromToken,
-) -> UserResponse<Vec<Permission>> {
+) -> UserResponse<role_api::GetRoleFromTokenResponse> {
     let role_info = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -35,7 +32,25 @@ pub async fn get_role_from_token(
         .map(Into::into)
         .collect();
 
-    Ok(ApplicationResponse::Json(permissions))
+    Ok(ApplicationResponse::Json(
+        role_api::GetRoleFromTokenResponse::Permissions(permissions),
+    ))
+}
+
+pub async fn get_role_from_token_with_groups(
+    state: AppState,
+    user_from_token: UserFromToken,
+) -> UserResponse<role_api::GetRoleFromTokenResponse> {
+    let role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+
+    let permissions = role_info.get_permission_groups().to_vec();
+
+    Ok(ApplicationResponse::Json(
+        role_api::GetRoleFromTokenResponse::Groups(permissions),
+    ))
 }
 
 pub async fn create_role(
