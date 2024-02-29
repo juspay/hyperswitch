@@ -81,6 +81,11 @@ max_in_flight_commands = 5000
 default_command_timeout = 0
 max_feed_count = 200
 
+[cors]
+max_age = 30
+origins = "http://localhost:8080,http://localhost:9000"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
 
 [refund]
 max_attempts = 10
@@ -299,9 +304,10 @@ mini_stop = {country = "JP", currency = "JPY"}
 family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -351,6 +357,11 @@ bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -375,6 +386,7 @@ refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
+dispute_analytics_topic = "hyperswitch-dispute-events"
 
 [analytics]
 source = "sqlx"

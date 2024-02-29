@@ -334,9 +334,9 @@ pub enum PaymentMethodToken {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptData {
     pub application_primary_account_number: Secret<String>,
-    pub application_expiration_date: Secret<String>,
-    pub currency_code: Secret<String>,
-    pub transaction_amount: Secret<i64>,
+    pub application_expiration_date: String,
+    pub currency_code: String,
+    pub transaction_amount: i64,
     pub device_manufacturer_identifier: Secret<String>,
     pub payment_data_type: Secret<String>,
     pub payment_data: ApplePayCryptogramData,
@@ -346,7 +346,7 @@ pub struct ApplePayPredecryptData {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: Option<Secret<String>>,
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -534,6 +534,7 @@ pub struct PaymentsSyncData {
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Default, Clone)]

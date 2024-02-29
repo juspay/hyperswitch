@@ -24,12 +24,13 @@ impl utils::Connector for AdyenTest {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Adyen;
-        Some(types::api::PayoutConnectorData {
+        Some(types::api::ConnectorData {
             connector: Box::new(&Adyen),
-            connector_name: types::PayoutConnectors::Adyen,
+            connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         })
     }
 
@@ -62,6 +63,7 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),
@@ -71,6 +73,8 @@ impl AdyenTest {
 
     #[cfg(feature = "payouts")]
     fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
+        use common_utils::pii::Email;
+
         Some(PaymentInfo {
             country: Some(api_models::enums::CountryAlpha2::NL),
             currency: Some(enums::Currency::EUR),
@@ -86,6 +90,7 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),
@@ -105,6 +110,11 @@ impl AdyenTest {
                         bank_name: Some("Deutsche Bank".to_string()),
                         bank_country_code: Some(enums::CountryAlpha2::NL),
                         bank_city: Some("Amsterdam".to_string()),
+                    }),
+                )),
+                enums::PayoutType::Wallet => Some(api::PayoutMethodData::Wallet(
+                    api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {
+                        email: Email::from_str("EmailUsedForPayPalAccount@example.com").ok(),
                     }),
                 )),
             },

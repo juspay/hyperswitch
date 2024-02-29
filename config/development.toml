@@ -71,7 +71,6 @@ mock_locker = true
 basilisk_host = ""
 locker_enabled = true
 
-
 [forex_api]
 call_delay = 21600
 local_fetch_retry_count = 5
@@ -233,6 +232,12 @@ port = 3000
 host = "127.0.0.1"
 workers = 1
 
+[cors]
+max_age = 30
+origins = "http://localhost:8080,http://localhost:9000"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
+
 [email]
 sender_email = "example@example.com"
 aws_region = ""
@@ -298,7 +303,7 @@ ideal = { country = "NL", currency = "EUR" }
 cashapp = { country = "US", currency = "USD" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.adyen]
 google_pay = { country = "AU,NZ,JP,HK,SG,MY,TH,VN,BH,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,RO,HR,LI,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,TR,IS,CA,US", currency = "AED,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HTG,HUF,IDR,ILS,INR,IQD,JMD,JOD,JPY,KES,KGS,KHR,KMF,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LYD,MAD,MDL,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLE,SOS,SRD,STN,SVC,SZL,THB,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW" }
@@ -357,6 +362,7 @@ family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
 pix = { country = "BR", currency = "BRL" }
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -486,6 +492,11 @@ bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
@@ -530,6 +541,7 @@ refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
+dispute_analytics_topic = "hyperswitch-dispute-events"
 
 [analytics]
 source = "sqlx"

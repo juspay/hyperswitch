@@ -139,6 +139,7 @@ impl StorageError {
     pub fn is_db_not_found(&self) -> bool {
         match self {
             Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -164,10 +165,12 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
             RedisError::NotFound => self.change_context(DataStorageError::ValueNotFound(format!(
                 "Data does not exist for key {key}",
             ))),
-            RedisError::SetNxFailed => self.change_context(DataStorageError::DuplicateValue {
-                entity: "redis",
-                key: Some(key.to_string()),
-            }),
+            RedisError::SetNxFailed | RedisError::SetAddMembersFailed => {
+                self.change_context(DataStorageError::DuplicateValue {
+                    entity: "redis",
+                    key: Some(key.to_string()),
+                })
+            }
             _ => self.change_context(DataStorageError::KVError),
         }
     }
@@ -267,7 +270,7 @@ pub enum ApiClientError {
     RequestTimeoutReceived,
 
     #[error("connection closed before a message could complete")]
-    ConnectionClosed,
+    ConnectionClosedIncompleteMessage,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
@@ -285,8 +288,8 @@ impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
-    pub fn is_connection_closed(&self) -> bool {
-        self == &Self::ConnectionClosed
+    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
+        self == &Self::ConnectionClosedIncompleteMessage
     }
 }
 

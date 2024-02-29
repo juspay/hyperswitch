@@ -34,7 +34,7 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
     }
 }
@@ -971,6 +971,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_method_type: None,
         };
         Self(data)
     }

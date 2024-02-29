@@ -108,6 +108,7 @@ pub async fn create_customer(
             address_id: address.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            default_payment_method_id: None,
         })
     }
     .await
@@ -208,6 +209,7 @@ pub async fn delete_customer(
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
     {
@@ -218,7 +220,7 @@ pub async fn delete_customer(
                         &state,
                         &req.customer_id,
                         &merchant_account.merchant_id,
-                        &pm.payment_method_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
@@ -249,6 +251,12 @@ pub async fn delete_customer(
             .await
             .switch()?;
 
+    let redacted_encrypted_email: Encryptable<
+        masking::Secret<_, common_utils::pii::EmailStrategy>,
+    > = Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
+        .await
+        .switch()?;
+
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
         country: None,
@@ -262,6 +270,7 @@ pub async fn delete_customer(
         phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
         updated_by: merchant_account.storage_scheme.to_string(),
+        email: Some(redacted_encrypted_email),
     };
 
     match db

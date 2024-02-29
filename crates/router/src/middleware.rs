@@ -143,7 +143,7 @@ where
         Box::pin(
             async move {
                 let response = response_fut.await;
-                logger::info!(golden_log_line = true);
+                router_env::tracing::Span::current().record("golden_log_line", true);
                 response
             }
             .instrument(
@@ -152,7 +152,10 @@ where
                     payment_id = Empty,
                     merchant_id = Empty,
                     connector_name = Empty,
-                    flow = "UNKNOWN"
+                    payment_method = Empty,
+                    status_code = Empty,
+                    flow = "UNKNOWN",
+                    golden_log_line = Empty
                 )
                 .or_current(),
             ),

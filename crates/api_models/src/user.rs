@@ -118,6 +118,11 @@ pub struct ReInviteUserRequest {
     pub email: pii::Email,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct AcceptInviteFromEmailRequest {
+    pub token: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
@@ -142,7 +147,6 @@ pub struct GetUsersResponse(pub Vec<UserDetails>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserDetails {
-    pub user_id: String,
     pub email: pii::Email,
     pub name: Secret<String>,
     pub role_id: String,

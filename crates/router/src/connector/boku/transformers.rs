@@ -225,14 +225,14 @@ pub struct BokuMetaData {
     pub(super) country: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuResponse {
     BeginSingleChargeResponse(BokuPaymentsResponse),
     QueryChargeResponse(BokuPsyncResponse),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
     charge_status: String, // xml parse only string to fields
@@ -240,26 +240,26 @@ pub struct BokuPaymentsResponse {
     hosted: Option<HostedUrlResponse>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct HostedUrlResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPsyncResponse {
     charges: ChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ChargeResponseData {
     charge: SingleChargeResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
     charge_status: String,
@@ -368,7 +368,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
     charge_id: String,
@@ -424,20 +424,20 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename = "query-refund-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuRsyncResponse {
     refunds: RefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RefundResponseData {
     refund: SingleRefundResponseData,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleRefundResponseData {
     refund_status: String, // quick-xml only parse string as a field

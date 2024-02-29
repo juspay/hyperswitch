@@ -67,6 +67,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
             ..Default::default()
         }),
@@ -154,6 +155,7 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
+                payment_method_type: None,
             }),
             get_default_payment_info(),
         )
