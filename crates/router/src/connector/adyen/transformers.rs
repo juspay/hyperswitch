@@ -63,7 +63,7 @@ impl<T>
 }
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AdyenConnectorMetadataObject {
-    pub endpoint_prefix: String,
+    pub endpoint_prefix: Option<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for AdyenConnectorMetadataObject {
@@ -106,7 +106,8 @@ pub enum AuthType {
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
     authorisation_type: Option<AuthType>,
-    manual_capture: Option<bool>,
+    manual_capture: Option<String>,
+    execute_three_d: Option<String>,
     pub recurring_processing_model: Option<AdyenRecurringModel>,
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
@@ -1641,19 +1642,28 @@ fn get_browser_info(
 }
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
-    match item.request.capture_method {
+    let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(diesel_models::enums::CaptureMethod::Manual)
-        | Some(diesel_models::enums::CaptureMethod::ManualMultiple) => Some(AdditionalData {
-            authorisation_type: Some(AuthType::PreAuth),
-            manual_capture: Some(true),
-            network_tx_reference: None,
-            recurring_detail_reference: None,
-            recurring_shopper_reference: None,
-            recurring_processing_model: Some(AdyenRecurringModel::UnscheduledCardOnFile),
-            ..AdditionalData::default()
-        }),
-        _ => None,
-    }
+        | Some(diesel_models::enums::CaptureMethod::ManualMultiple) => {
+            (Some(AuthType::PreAuth), Some("true".to_string()))
+        }
+        _ => (None, None),
+    };
+    let execute_three_d = if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+        Some("true".to_string())
+    } else {
+        None
+    };
+    Some(AdditionalData {
+        authorisation_type,
+        manual_capture,
+        execute_three_d,
+        network_tx_reference: None,
+        recurring_detail_reference: None,
+        recurring_shopper_reference: None,
+        recurring_processing_model: None,
+        ..AdditionalData::default()
+    })
 }
 
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
@@ -3809,7 +3819,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.reference,
+                connector_refund_id: item.response.psp_reference,
                 // From the docs, the only value returned is "received", outcome of refund is available
                 // through refund notification webhook
                 // For more info: https://docs.adyen.com/online-payments/refund

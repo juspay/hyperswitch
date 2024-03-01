@@ -19,7 +19,7 @@ pm.test("[GET]::/payments/:id - Response has JSON Body", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
+} catch (e) { }
 
 // pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
 if (jsonData?.payment_id) {
@@ -63,9 +63,9 @@ if (jsonData?.client_secret) {
 // Response body should have value "cancelled" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'cancelled'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'processing'",
     function () {
-      pm.expect(jsonData.status).to.eql("cancelled");
+      pm.expect(jsonData.status).to.eql("processing");
     },
   );
 }

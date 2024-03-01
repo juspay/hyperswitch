@@ -280,10 +280,12 @@ fn build_env_specific_endpoint(
     } else {
         let adyen_connector_metadata_object =
             transformers::AdyenConnectorMetadataObject::try_from(connector_metadata)?;
-        Ok(base_url.replace(
-            "{{merchant_endpoint_prefix}}",
-            &adyen_connector_metadata_object.endpoint_prefix,
-        ))
+        let endpoint_prefix = adyen_connector_metadata_object.endpoint_prefix.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.endpoint_prefix",
+            },
+        )?;
+        Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
     }
 }
 
@@ -1556,17 +1558,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Adyen
 {
-    fn build_request(
-        &self,
-        _req: &types::RefundsRouterData<api::RSync>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Rsync".to_owned(),
-            connector: "Adyen".to_owned(),
-        }
-        .into())
-    }
 }
 
 fn get_webhook_object_from_body(
