@@ -229,7 +229,7 @@ pub fn check_for_custom_headers(headers: Option<Vec<String>>, path: &str) -> Opt
             if let Some((key, value)) = header.split_once(':') {
                 let content_to_insert =
                     format!(r#"pm.request.headers.add({{key: "{key}", value: "{value}"}});"#);
-                    
+
                 if let Err(err) = insert_content(path, &content_to_insert) {
                     eprintln!("An error occurred while inserting the custom header: {err}");
                 }
