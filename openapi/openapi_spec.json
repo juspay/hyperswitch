@@ -9440,6 +9440,11 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Whether to enable KV or not",
+            "nullable": true
           }
         }
       },
@@ -10321,7 +10326,8 @@
           "description",
           "algorithm",
           "created_at",
-          "modified_at"
+          "modified_at",
+          "algorithm_for"
         ],
         "properties": {
           "id": {
@@ -10346,6 +10352,9 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
@@ -15712,6 +15721,14 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -16239,6 +16256,12 @@
       },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "payment"
+        ]
       },
       "UpdateApiKeyRequest": {
         "type": "object",
