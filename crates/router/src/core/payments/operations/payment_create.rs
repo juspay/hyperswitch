@@ -8,7 +8,7 @@ use data_models::{
     payments::payment_attempt::PaymentAttempt,
 };
 use diesel_models::ephemeral_key;
-use error_stack::{self, report, ResultExt};
+use error_stack::{self, ResultExt};
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -627,17 +627,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
