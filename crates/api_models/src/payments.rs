@@ -2529,6 +2529,7 @@ pub struct PaymentsResponse {
     pub payment_method_id: Option<String>,
 
     /// Payment Method Status
+    #[schema(value_type = Option<PaymentMethodStatus>)]
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 

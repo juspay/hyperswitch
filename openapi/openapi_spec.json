@@ -13898,7 +13898,7 @@
           "payment_method_status": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_enums.PaymentMethodStatus"
+                "$ref": "#/components/schemas/PaymentMethodStatus"
               }
             ],
             "nullable": true
