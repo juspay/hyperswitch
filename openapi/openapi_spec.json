@@ -12013,6 +12013,14 @@
           }
         }
       },
+      "PaymentMethodStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "processing"
+        ]
+      },
       "PaymentMethodType": {
         "type": "string",
         "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",

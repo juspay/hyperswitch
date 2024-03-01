@@ -1206,9 +1206,9 @@ pub enum PaymentMethodStatus {
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
-            AttemptStatus::Charged => PaymentMethodStatus::Active,
-            AttemptStatus::Failure => PaymentMethodStatus::Inactive,
-            _ => PaymentMethodStatus::Processing,
+            AttemptStatus::Charged => Self::Active,
+            AttemptStatus::Failure => Self::Inactive,
+            _ => Self::Processing,
         }
     }
 }
