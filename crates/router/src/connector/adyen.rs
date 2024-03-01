@@ -33,6 +33,8 @@ use crate::{
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
+const ADYEN_API_VERSION: &str = "v68";
+
 #[derive(Debug, Clone)]
 pub struct Adyen;
 
@@ -268,6 +270,25 @@ impl
     // Not Implemented (R)
 }
 
+fn build_env_specific_endpoint(
+    base_url: &str,
+    test_mode: Option<bool>,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    if test_mode.unwrap_or(true) {
+        Ok(base_url.to_string())
+    } else {
+        let adyen_connector_metadata_object =
+            transformers::AdyenConnectorMetadataObject::try_from(connector_metadata)?;
+        let endpoint_prefix = adyen_connector_metadata_object.endpoint_prefix.ok_or(
+            errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata.endpoint_prefix",
+            },
+        )?;
+        Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
+    }
+}
+
 impl
     services::ConnectorIntegration<
         api::SetupMandate,
@@ -293,10 +314,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::SetupMandateRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
     fn get_request_body(
         &self,
@@ -418,11 +444,15 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
-        Ok(format!(
-            "{}{}/{}/captures",
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            "v68/payments",
-            id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/captures",
+            endpoint, ADYEN_API_VERSION, id
         ))
     }
     fn get_request_body(
@@ -560,13 +590,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            "v68/payments/details"
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/details",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -681,10 +715,15 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
 
     fn get_request_body(
@@ -785,12 +824,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsPreProcessingRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}v69/paymentMethods/balance",
-            self.base_url(connectors)
+            "{}{}/paymentMethods/balance",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -911,11 +955,16 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.as_str();
-        Ok(format!(
-            "{}v68/payments/{}/cancels",
+        let id = req.request.connector_transaction_id.clone();
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/cancels",
+            endpoint, ADYEN_API_VERSION, id
         ))
     }
 
@@ -991,12 +1040,17 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCancel>,
+        req: &types::PayoutsRouterData<api::PoCancel>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/declineThirdParty",
-            connectors.adyen.secondary_base_url
+            "{}pal/servlet/Payout/{}/declineThirdParty",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -1083,12 +1137,17 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoCreate>,
+        req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/storeDetailAndSubmitThirdParty",
-            connectors.adyen.secondary_base_url
+            "{}pal/servlet/Payout/{}/storeDetailAndSubmitThirdParty",
+            endpoint, ADYEN_API_VERSION
         ))
     }
 
@@ -1180,10 +1239,15 @@ impl
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PoEligibility>,
+        req: &types::PayoutsRouterData<api::PoEligibility>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v68/payments", self.base_url(connectors),))
+        let endpoint = build_env_specific_endpoint(
+            self.base_url(connectors),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!("{}{}/payments", endpoint, ADYEN_API_VERSION))
     }
 
     fn get_headers(
@@ -1277,9 +1341,15 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = build_env_specific_endpoint(
+            connectors.adyen.secondary_base_url.as_str(),
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
         Ok(format!(
-            "{}pal/servlet/Payout/v68/{}",
-            connectors.adyen.secondary_base_url,
+            "{}pal/servlet/Payout/{}/{}",
+            endpoint,
+            ADYEN_API_VERSION,
             match req.request.payout_type {
                 storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet =>
                     "confirmThirdParty".to_string(),
@@ -1407,10 +1477,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}v68/payments/{}/refunds",
+
+        let endpoint = build_env_specific_endpoint(
             self.base_url(connectors),
-            connector_payment_id
+            req.test_mode,
+            &req.connector_meta_data,
+        )?;
+        Ok(format!(
+            "{}{}/payments/{}/refunds",
+            endpoint, ADYEN_API_VERSION, connector_payment_id
         ))
     }
 
@@ -1591,7 +1666,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         // for capture_event, original_reference field will have the authorized payment's PSP reference
-        if adyen::is_capture_event(&notif.event_code) {
+        if adyen::is_capture_or_cancel_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     notif
@@ -1630,6 +1705,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(IncomingWebhookEvent::foreign_from((
             notif.event_code,
+            notif.success,
             notif.additional_data.dispute_status,
         )))
     }

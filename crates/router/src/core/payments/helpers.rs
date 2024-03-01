@@ -387,16 +387,16 @@ pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: String,
-    merchant_id: String,
+    payment_id: &str,
+    merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
             .find_address_by_merchant_id_payment_id_address_id(
-                &merchant_id,
-                &payment_id,
+                merchant_id,
+                payment_id,
                 &address_id,
                 merchant_key_store,
                 storage_scheme,
@@ -994,7 +994,7 @@ pub fn verify_mandate_details(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -1007,7 +1007,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -1951,7 +1951,7 @@ pub(crate) fn validate_payment_method_fields_present(
                 .map_or(Ok(()), |req_payment_method_data| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         validate_payment_method_and_payment_method_data(
-                            req_payment_method_data,
+                            req_payment_method_data.payment_method_data,
                             req_payment_method,
                         )
                     })
@@ -3144,7 +3144,7 @@ impl AttemptType {
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
     fn make_new_payment_attempt(
-        payment_method_data: &Option<api_models::payments::PaymentMethodData>,
+        payment_method_data: &Option<api_models::payments::PaymentMethodDataRequest>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
@@ -3216,6 +3216,8 @@ impl AttemptType {
             unified_message: None,
             net_amount: old_payment_attempt.amount,
             mandate_data: old_payment_attempt.mandate_data,
+            // New payment method billing address can be passed for a retry
+            payment_method_billing_address_id: None,
             fingerprint_id: None,
         }
     }

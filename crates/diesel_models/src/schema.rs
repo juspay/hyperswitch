@@ -295,6 +295,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        dispute_amount -> Int8,
     }
 }
 
@@ -694,6 +695,8 @@ diesel::table! {
         mandate_data -> Nullable<Jsonb>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_billing_address_id -> Nullable<Varchar>,
     }
 }
 

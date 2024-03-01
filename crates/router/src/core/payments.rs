@@ -2031,6 +2031,7 @@ pub enum CallConnectorAction {
 pub struct PaymentAddress {
     pub shipping: Option<api::Address>,
     pub billing: Option<api::Address>,
+    pub payment_method_billing: Option<api::Address>,
 }
 
 #[derive(Clone)]
