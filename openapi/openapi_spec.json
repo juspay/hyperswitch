@@ -13888,8 +13888,11 @@
             "nullable": true
           },
           "payment_method_status": {
-            "type": "string",
-            "description": "Payment Method Status",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_enums.PaymentMethodStatus"
+              }
+            ],
             "nullable": true
           }
         }
