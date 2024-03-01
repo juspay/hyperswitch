@@ -1821,18 +1821,16 @@ pub fn build_redirection_form(
                         amount: '{amount}'
                     }};
 
-                    var responseForm = document.createElement('form');
-                    responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
-                    responseForm.method='POST';
-
                     const threeDSsecureInterface = threeDS.createUI(options);
 
                     threeDSsecureInterface.on('challenge', function(e) {{
-                        console.log('Challenged');
                         document.getElementById('loader-wrapper').style.display = 'none';
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
 
                         var item1=document.createElement('input');
                         item1.type='hidden';
@@ -1887,6 +1885,23 @@ pub fn build_redirection_form(
                     }});
 
                     threeDSsecureInterface.on('failure', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
+
+                        var error_code=document.createElement('input');
+                        error_code.type='hidden';
+                        error_code.name='code';
+                        error_code.value= e.code;
+                        responseForm.appendChild(error_code);
+
+                        var error_message=document.createElement('input');
+                        error_message.type='hidden';
+                        error_message.name='message';
+                        error_message.value= e.message;
+                        responseForm.appendChild(error_message);
+
+                        document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
 
