@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.26.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [BOA/CYB] Pass ucaf for apple pay mastercard users ([#3909](https://github.com/juspay/hyperswitch/pull/3909)) ([`98dc9c5`](https://github.com/juspay/hyperswitch/commit/98dc9c5af24343d43ca42c36ba101ada8ab49e3e))
+
+### Refactors
+
+- **core:** Status mapping for Capture for 429 http code ([#3901](https://github.com/juspay/hyperswitch/pull/3901)) ([`0ddf1bf`](https://github.com/juspay/hyperswitch/commit/0ddf1bf3cc741b587d31939c0913d80bee5a1295))
+
+- - -
+
 ## 2024.02.26.0-hotfix1
 
 ### Features
