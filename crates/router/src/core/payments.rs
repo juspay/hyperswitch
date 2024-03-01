@@ -224,7 +224,7 @@ where
                 &mut payment_data,
                 &mut should_continue_transaction,
                 &connector_details,
-                &merchant_account,
+                &business_profile,
                 &key_store,
             )
             .await?;
@@ -3187,7 +3187,7 @@ pub async fn payment_external_authentication(
         payment_intent.customer_id.as_ref(),
         &key_store,
         &payment_intent.payment_id,
-        merchant_account.storage_scheme,
+        storage_scheme,
     )
     .await?;
     let billing_address = helpers::create_or_find_address_for_payment_by_request(
@@ -3198,7 +3198,7 @@ pub async fn payment_external_authentication(
         payment_intent.customer_id.as_ref(),
         &key_store,
         &payment_intent.payment_id,
-        merchant_account.storage_scheme,
+        storage_scheme,
     )
     .await?;
     let authentication_connector = payment_attempt
@@ -3265,6 +3265,15 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
     let authentication_response = authentication_core::perform_authentication(
         &state,
         authentication_connector,
@@ -3278,7 +3287,7 @@ pub async fn payment_external_authentication(
             })?,
         shipping_address.as_ref().map(|address| address.into()),
         browser_info,
-        merchant_account,
+        business_profile,
         helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
         amount,
         Some(currency),

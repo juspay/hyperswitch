@@ -10,7 +10,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers as payments_helpers,
     },
-    types::{self, domain, storage, transformers::ForeignFrom},
+    types::{self, storage, transformers::ForeignFrom},
     utils::ext_traits::OptionExt,
 };
 
@@ -33,7 +33,7 @@ pub fn construct_authentication_router_data(
     currency: Option<common_enums::Currency>,
     message_category: types::api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
-    merchant_account: domain::MerchantAccount,
+    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: (super::types::AuthenticationData, storage::Authentication),
     return_url: Option<String>,
@@ -41,8 +41,8 @@ pub fn construct_authentication_router_data(
     threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
-    let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
-        .authentication_details
+    let authentication_details: api_models::admin::AuthenticationDetails = business_profile
+        .authentication_connector_details
         .clone()
         .get_required_value("authentication_details")
         .attach_printable("authentication_details not configured by the merchant")?
@@ -70,7 +70,7 @@ pub fn construct_authentication_router_data(
     construct_router_data(
         authentication_connector,
         payment_method,
-        merchant_account.merchant_id.clone(),
+        business_profile.merchant_id.clone(),
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
@@ -79,7 +79,7 @@ pub fn construct_authentication_router_data(
 
 pub fn construct_post_authentication_router_data(
     authentication_connector: String,
-    merchant_account: domain::MerchantAccount,
+    business_profile: storage::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: super::types::AuthenticationData,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
@@ -89,7 +89,7 @@ pub fn construct_post_authentication_router_data(
     construct_router_data(
         authentication_connector,
         PaymentMethod::default(),
-        merchant_account.merchant_id.clone(),
+        business_profile.merchant_id.clone(),
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,

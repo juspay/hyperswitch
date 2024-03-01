@@ -26,7 +26,7 @@ pub async fn perform_authentication(
     billing_address: api_models::payments::Address,
     shipping_address: Option<api_models::payments::Address>,
     browser_details: Option<core_types::BrowserInformation>,
-    merchant_account: core_types::domain::MerchantAccount,
+    business_profile: core_types::storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     amount: Option<i64>,
     currency: Option<Currency>,
@@ -49,7 +49,7 @@ pub async fn perform_authentication(
         currency,
         message_category,
         device_channel,
-        merchant_account,
+        business_profile,
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
@@ -108,7 +108,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector: String,
-    merchant_account: core_types::domain::MerchantAccount,
+    business_profile: core_types::storage::BusinessProfile,
     merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     authentication_flow_input: types::PostAuthenthenticationFlowInput<'_, F>,
 ) -> CustomResult<(), ApiErrorResponse> {
@@ -125,7 +125,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             {
                 let router_data = transformers::construct_post_authentication_router_data(
                     authentication_connector.clone(),
-                    merchant_account,
+                    business_profile,
                     merchant_connector_account,
                     authentication_data.1,
                 )?;
@@ -163,13 +163,13 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
     state: &AppState,
     authentication_connector_name: String,
     authentication_flow_input: types::PreAuthenthenticationFlowInput<'_, F>,
-    merchant_account: &core_types::domain::MerchantAccount,
+    business_profile: &core_types::storage::BusinessProfile,
     three_ds_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     payment_connector_account: payments_core::helpers::MerchantConnectorAccountType,
 ) -> CustomResult<(), ApiErrorResponse> {
     let authentication = utils::create_new_authentication(
         state,
-        merchant_account.merchant_id.clone(),
+        business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
     )
     .await?;
@@ -183,7 +183,7 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 authentication_connector_name.clone(),
                 card_number,
                 &three_ds_connector_account,
-                merchant_account.merchant_id.clone(),
+                business_profile.merchant_id.clone(),
             )?;
             let router_data =
                 utils::do_auth_connector_call(state, authentication_connector_name, router_data)

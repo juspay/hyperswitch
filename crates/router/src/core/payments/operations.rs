@@ -174,7 +174,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         _payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_account: &storage::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())

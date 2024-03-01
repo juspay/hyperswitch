@@ -46,7 +46,6 @@ pub struct MerchantAccount {
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub authentication_details: Option<serde_json::Value>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -72,7 +71,6 @@ pub enum MerchantAccountUpdate {
         payout_routing_algorithm: Option<serde_json::Value>,
         default_profile: Option<Option<String>>,
         payment_link_config: Option<serde_json::Value>,
-        authentication_details: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -107,7 +105,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payout_routing_algorithm,
                 default_profile,
                 payment_link_config,
-                authentication_details,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -129,7 +126,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payout_routing_algorithm,
                 default_profile,
                 payment_link_config,
-                authentication_details,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -188,7 +184,6 @@ impl super::behaviour::Conversion for MerchantAccount {
             default_profile: self.default_profile,
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
-            authentication_details: self.authentication_details,
         })
     }
 
@@ -234,7 +229,6 @@ impl super::behaviour::Conversion for MerchantAccount {
                 default_profile: item.default_profile,
                 recon_status: item.recon_status,
                 payment_link_config: item.payment_link_config,
-                authentication_details: item.authentication_details,
             })
         }
         .await
@@ -271,7 +265,6 @@ impl super::behaviour::Conversion for MerchantAccount {
             default_profile: self.default_profile,
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
-            authentication_details: self.authentication_details,
         })
     }
 }

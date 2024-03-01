@@ -94,9 +94,6 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
-
-    /// External 3DS authentication details
-    pub authentication_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -187,9 +184,6 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
-
-    // External 3DS authentication details
-    pub authentication_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -281,9 +275,6 @@ pub struct MerchantAccountResponse {
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
-
-    // External 3DS authentication details
-    pub authentication_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -914,6 +905,9 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -980,6 +974,9 @@ pub struct BusinessProfileResponse {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1038,6 +1035,9 @@ pub struct BusinessProfileUpdate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

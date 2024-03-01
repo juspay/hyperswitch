@@ -45,7 +45,6 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
-            authentication_details: item.authentication_details,
         })
     }
 }
@@ -73,6 +72,12 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(|authentication_connector_details| {
+                    authentication_connector_details.parse_value("AuthenticationDetails")
+                })
+                .transpose()?,
         })
     }
 }
@@ -158,6 +163,14 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "authentication_connector_details",
+                })?,
         })
     }
 }

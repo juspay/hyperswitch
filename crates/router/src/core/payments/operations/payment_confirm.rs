@@ -656,7 +656,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
-        merchant_account: &domain::MerchantAccount,
+        business_profile: &storage::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         // if authentication has already happened, then payment_data.authentication will be Some.
@@ -685,8 +685,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
             _ => None,
         } {
-            let authentication_details: api_models::admin::AuthenticationDetails = merchant_account
-                .authentication_details
+            let authentication_details: api_models::admin::AuthenticationDetails = business_profile
+                .authentication_connector_details
                 .clone()
                 .get_required_value("authentication_details")
                 .attach_printable("authentication_details not configured by the merchant")?
@@ -700,7 +700,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             let authentication_connector = authentication_details
                 .authentication_connectors
                 .first()
-                .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for merchant_id {}", merchant_account.merchant_id) })
+                .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
                 .into_report()
                 .attach_printable("No authentication_connector found from merchant_account.authentication_details")?;
             let profile_id = payment_data
@@ -729,7 +729,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 authentication::perform_post_authentication(
                     state,
                     merchant_connector_account.connector_name.clone(),
-                    merchant_account.clone(),
+                    business_profile.clone(),
                     helpers::MerchantConnectorAccountType::DbVal(
                         merchant_connector_account.clone(),
                     ),
@@ -743,7 +743,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             } else {
                 let payment_connector_mca = helpers::get_merchant_connector_account(
                     state,
-                    &merchant_account.merchant_id,
+                    &business_profile.merchant_id,
                     None,
                     key_store,
                     profile_id,
@@ -769,7 +769,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                             should_continue_confirm_transaction,
                             card_number,
                         },
-                        merchant_account,
+                        business_profile,
                         helpers::MerchantConnectorAccountType::DbVal(
                             merchant_connector_account.clone(),
                         ),

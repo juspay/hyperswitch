@@ -41,7 +41,6 @@ pub struct MerchantAccount {
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub authentication_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -72,7 +71,6 @@ pub struct MerchantAccountNew {
     pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub authentication_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -102,5 +100,4 @@ pub struct MerchantAccountUpdateInternal {
     pub default_profile: Option<Option<String>>,
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
-    pub authentication_details: Option<serde_json::Value>,
 }

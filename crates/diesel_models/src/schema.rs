@@ -162,6 +162,7 @@ diesel::table! {
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
         session_expiry -> Nullable<Int8>,
+        authentication_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -586,7 +587,6 @@ diesel::table! {
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
-        authentication_details -> Nullable<Jsonb>,
     }
 }
 
