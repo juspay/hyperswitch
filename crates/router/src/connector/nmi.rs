@@ -8,10 +8,13 @@ use error_stack::{IntoReport, ResultExt};
 use regex::Regex;
 use transformers as nmi;
 
-use super::utils as connector_utils;
+use super::utils::{self as connector_utils};
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     events::connector_api_logs::ConnectorEvent,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -977,6 +980,44 @@ impl api::IncomingWebhook for Nmi {
                 Ok(Box::new(nmi::SyncResponse::try_from(&webhook_body)?))
             }
             nmi::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+        }
+    }
+}
+
+impl services::ConnectorRedirectResponse for Nmi {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            services::PaymentAction::CompleteAuthorize => {
+                let payload_data =
+                    json_payload.ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_metadata",
+                    })?;
+
+                let redirect_res: nmi::NmiRedirectResponse = serde_json::from_value(payload_data)
+                    .into_report()
+                    .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "redirect_res",
+                    })?;
+
+                match redirect_res {
+                    transformers::NmiRedirectResponse::NmiRedirectResponseData(_) => {
+                        Ok(payments::CallConnectorAction::Trigger)
+                    }
+                    transformers::NmiRedirectResponse::NmiErrorResponseData(error_res) => {
+                        Ok(payments::CallConnectorAction::StatusUpdate {
+                            status: enums::AttemptStatus::Failure,
+                            error_code: Some(error_res.code),
+                            error_message: Some(error_res.message),
+                        })
+                    }
+                }
+            }
+            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
         }
     }
 }
