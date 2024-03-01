@@ -203,14 +203,14 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 use crate::core::payouts::retry::{self, GsmValidation};
-                let config_mulitple_connector_bool = retry::config_should_call_gsm_payout(
+                let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
                     &merchant_account.merchant_id,
                     retry::PayoutRetryType::MultiConnector,
                 )
                 .await;
 
-                if config_mulitple_connector_bool && payout_data.should_call_gsm() {
+                if config_multiple_connector_bool && payout_data.should_call_gsm() {
                     payout_data = retry::do_gsm_multiple_connector_actions(
                         state,
                         connectors,
