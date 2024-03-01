@@ -1,5 +1,8 @@
 use api_models::payment_methods::PaymentMethodsData;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{
+    ext_traits::{Encode, ValueExt},
+    pii,
+};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -39,7 +42,7 @@ where
     FData: mandate::MandateBehaviour,
 {
     match resp.response {
-        Ok(_) => {
+        Ok(responses) => {
             let db = &*state.store;
             let token_store = state
                 .conf
@@ -74,6 +77,15 @@ where
                         || (future_usage == storage_enums::FutureUsage::OnSession && !is_mandate)
                 })
                 .unwrap_or(false);
+
+            let connector_mandate_details = if resp.request.get_setup_mandate_details().is_none() {
+                add_connector_mandate_details_in_payment_method(responses, connector)
+            } else {
+                None
+            }
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to serialize customer acceptance to value")?;
 
             let pm_id = if future_usage_validation {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
@@ -182,6 +194,7 @@ where
                                             pm_metadata,
                                             pm_data_encrypted,
                                             key_store,
+                                            Some(connector_mandate_details),
                                         )
                                         .await
                                     } else {
@@ -243,6 +256,7 @@ where
                                                     &customer.customer_id,
                                                     resp.metadata.clone().map(|val| val.expose()),
                                                     locker_id,
+                                                    Some(connector_mandate_details),
                                                 )
                                                 .await
                                             } else {
@@ -354,6 +368,7 @@ where
                             pm_metadata,
                             pm_data_encrypted,
                             key_store,
+                            Some(connector_mandate_details),
                         )
                         .await?;
                     }
@@ -604,4 +619,26 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
         }
         _ => Ok(None),
     }
+}
+
+fn add_connector_mandate_details_in_payment_method(
+    resp: types::PaymentsResponseData,
+    connector: &api::ConnectorData,
+) -> Option<storage::PaymentsMandateReference> {
+    let connector_mandate_id = match resp {
+        types::PaymentsResponseData::TransactionResponse {
+            mandate_reference, ..
+        } => {
+            if let Some(mandate_ref) = mandate_reference {
+                mandate_ref.connector_mandate_id
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+    Some(storage::PaymentsMandateReference {
+        connector_mandate_id,
+        merchant_connector_account_id: connector.merchant_connector_id.clone(),
+    })
 }

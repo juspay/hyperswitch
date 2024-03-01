@@ -52,3 +52,9 @@ impl PaymentTokenData {
         Self::TemporaryGeneric(GenericTokenData { token })
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReference {
+    pub connector_mandate_id: Option<String>,
+    pub merchant_connector_account_id: Option<String>,
+}
