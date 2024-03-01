@@ -97,7 +97,7 @@ pub async fn msearch_results(
         .zip(SearchIndex::iter())
         .map(|(index_hit, index)| GetSearchResponse {
             count: index_hit.hits.total.value,
-            index: index,
+            index,
             hits: index_hit
                 .hits
                 .hits
