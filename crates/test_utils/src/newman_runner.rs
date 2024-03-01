@@ -251,7 +251,7 @@ pub fn check_connector_for_dynamic_amount(connector_name: &str) -> (&str, Option
         return remove_quotes_for_integer_values(connector_name).unwrap_or((connector_name, None));
     }
     /*
-    If connector name does not exist in dynamic_amount_connectors but we run it on custom_pod,
+    If connector name does not exist in dynamic_amount_connectors but we want to run it with cusstom headers,
     since we're running from collections directly, we'll have to export the collection again and it is much simpler.
     We could directly inject the custom-headers using regex, but it is not encouraged as it is hard
     to determine the place of edit.
