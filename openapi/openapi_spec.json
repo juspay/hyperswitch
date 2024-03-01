@@ -13886,6 +13886,11 @@
             "type": "string",
             "description": "Payment Method Id",
             "nullable": true
+          },
+          "payment_method_status": {
+            "type": "string",
+            "description": "Payment Method Status",
+            "nullable": true
           }
         }
       },
