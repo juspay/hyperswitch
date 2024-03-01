@@ -293,6 +293,10 @@ impl ConnectorApiIntegrationPayload {
             Some(meta_data) => meta_data.terminal_id,
             _ => None,
         };
+        let endpoint_prefix = match response.metadata.clone() {
+            Some(meta_data) => meta_data.endpoint_prefix,
+            _ => None,
+        };
         let apple_pay = match response.metadata.clone() {
             Some(meta_data) => meta_data.apple_pay,
             _ => None,
@@ -315,6 +319,7 @@ impl ConnectorApiIntegrationPayload {
             account_name,
             terminal_id,
             merchant_id,
+            endpoint_prefix,
         };
 
         DashboardRequestPayload {
