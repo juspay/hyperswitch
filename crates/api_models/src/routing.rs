@@ -2,19 +2,19 @@ use std::fmt::Debug;
 
 use common_utils::errors::ParsingError;
 use error_stack::IntoReport;
-use euclid::{
+pub use euclid::{
     dssa::types::EuclidAnalysable,
-    enums as euclid_enums,
     frontend::{
         ast,
         dir::{DirKeyKind, EuclidDirFilter},
     },
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-use crate::enums::{self, RoutableConnectors};
+use crate::enums::{self, RoutableConnectors, TransactionType};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ConnectorSelection {
     Priority(Vec<RoutableConnectorChoice>),
@@ -32,7 +32,7 @@ impl ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -40,7 +40,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     pub profile_id: String,
     pub connectors: Vec<RoutableConnectorChoice>,
@@ -61,19 +61,21 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
     pub algorithm: Option<MerchantRoutingAlgorithm>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum LinkedRoutingConfigRetrieveResponse {
     MerchantAccountBased(RoutingRetrieveResponse),
     ProfileBased(Vec<RoutingDictionaryRecord>),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+/// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
     #[cfg(feature = "business_profile_routing")]
@@ -83,6 +85,7 @@ pub struct MerchantRoutingAlgorithm {
     pub algorithm: RoutingAlgorithm,
     pub created_at: i64,
     pub modified_at: i64,
+    pub algorithm_for: TransactionType,
 }
 
 impl EuclidDirFilter for ConnectorSelection {
@@ -154,14 +157,14 @@ impl EuclidAnalysable for ConnectorSelection {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorVolumeSplit {
     pub connector: RoutableConnectorChoice,
     pub split: u8,
 }
 
 #[cfg(feature = "connector_choice_bcompat")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
     FullStruct,
@@ -181,15 +184,18 @@ pub enum RoutableChoiceSerde {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg_attr(
     feature = "connector_choice_bcompat",
     serde(from = "RoutableChoiceSerde"),
     serde(into = "RoutableChoiceSerde")
 )]
 #[cfg_attr(not(feature = "connector_choice_bcompat"), derive(PartialEq, Eq))]
+
+/// Routable Connector chosen for a payment
 pub struct RoutableConnectorChoice {
     #[cfg(feature = "connector_choice_bcompat")]
+    #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
     #[cfg(feature = "connector_choice_mca_id")]
@@ -287,71 +293,7 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
 impl From<RoutableConnectorChoice> for ast::ConnectorChoice {
     fn from(value: RoutableConnectorChoice) -> Self {
         Self {
-            connector: match value.connector {
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector1 => euclid_enums::Connector::DummyConnector1,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector2 => euclid_enums::Connector::DummyConnector2,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector3 => euclid_enums::Connector::DummyConnector3,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector4 => euclid_enums::Connector::DummyConnector4,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector5 => euclid_enums::Connector::DummyConnector5,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector6 => euclid_enums::Connector::DummyConnector6,
-                #[cfg(feature = "dummy_connector")]
-                RoutableConnectors::DummyConnector7 => euclid_enums::Connector::DummyConnector7,
-                RoutableConnectors::Aci => euclid_enums::Connector::Aci,
-                RoutableConnectors::Adyen => euclid_enums::Connector::Adyen,
-                RoutableConnectors::Airwallex => euclid_enums::Connector::Airwallex,
-                RoutableConnectors::Authorizedotnet => euclid_enums::Connector::Authorizedotnet,
-                RoutableConnectors::Bambora => euclid_enums::Connector::Bambora,
-                RoutableConnectors::Bankofamerica => euclid_enums::Connector::Bankofamerica,
-                RoutableConnectors::Bitpay => euclid_enums::Connector::Bitpay,
-                RoutableConnectors::Bluesnap => euclid_enums::Connector::Bluesnap,
-                RoutableConnectors::Boku => euclid_enums::Connector::Boku,
-                RoutableConnectors::Braintree => euclid_enums::Connector::Braintree,
-                RoutableConnectors::Cashtocode => euclid_enums::Connector::Cashtocode,
-                RoutableConnectors::Checkout => euclid_enums::Connector::Checkout,
-                RoutableConnectors::Coinbase => euclid_enums::Connector::Coinbase,
-                RoutableConnectors::Cryptopay => euclid_enums::Connector::Cryptopay,
-                RoutableConnectors::Cybersource => euclid_enums::Connector::Cybersource,
-                RoutableConnectors::Dlocal => euclid_enums::Connector::Dlocal,
-                RoutableConnectors::Fiserv => euclid_enums::Connector::Fiserv,
-                RoutableConnectors::Forte => euclid_enums::Connector::Forte,
-                RoutableConnectors::Globalpay => euclid_enums::Connector::Globalpay,
-                RoutableConnectors::Globepay => euclid_enums::Connector::Globepay,
-                RoutableConnectors::Gocardless => euclid_enums::Connector::Gocardless,
-                RoutableConnectors::Helcim => euclid_enums::Connector::Helcim,
-                RoutableConnectors::Iatapay => euclid_enums::Connector::Iatapay,
-                RoutableConnectors::Klarna => euclid_enums::Connector::Klarna,
-                RoutableConnectors::Mollie => euclid_enums::Connector::Mollie,
-                RoutableConnectors::Multisafepay => euclid_enums::Connector::Multisafepay,
-                RoutableConnectors::Nexinets => euclid_enums::Connector::Nexinets,
-                RoutableConnectors::Nmi => euclid_enums::Connector::Nmi,
-                RoutableConnectors::Noon => euclid_enums::Connector::Noon,
-                RoutableConnectors::Nuvei => euclid_enums::Connector::Nuvei,
-                RoutableConnectors::Opennode => euclid_enums::Connector::Opennode,
-                RoutableConnectors::Payme => euclid_enums::Connector::Payme,
-                RoutableConnectors::Paypal => euclid_enums::Connector::Paypal,
-                RoutableConnectors::Payu => euclid_enums::Connector::Payu,
-                RoutableConnectors::Powertranz => euclid_enums::Connector::Powertranz,
-                RoutableConnectors::Prophetpay => euclid_enums::Connector::Prophetpay,
-                RoutableConnectors::Rapyd => euclid_enums::Connector::Rapyd,
-                RoutableConnectors::Shift4 => euclid_enums::Connector::Shift4,
-                RoutableConnectors::Square => euclid_enums::Connector::Square,
-                RoutableConnectors::Stax => euclid_enums::Connector::Stax,
-                RoutableConnectors::Stripe => euclid_enums::Connector::Stripe,
-                RoutableConnectors::Trustpay => euclid_enums::Connector::Trustpay,
-                RoutableConnectors::Tsys => euclid_enums::Connector::Tsys,
-                RoutableConnectors::Volt => euclid_enums::Connector::Volt,
-                RoutableConnectors::Wise => euclid_enums::Connector::Wise,
-                RoutableConnectors::Worldline => euclid_enums::Connector::Worldline,
-                RoutableConnectors::Worldpay => euclid_enums::Connector::Worldpay,
-                RoutableConnectors::Zen => euclid_enums::Connector::Zen,
-            },
-
+            connector: value.connector,
             #[cfg(not(feature = "connector_choice_mca_id"))]
             sub_label: value.sub_label,
         }
@@ -387,7 +329,7 @@ impl DetailedConnectorChoice {
     }
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingAlgorithmKind {
@@ -404,17 +346,19 @@ pub struct RoutingPayloadWrapper {
     pub profile_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
     rename_all = "snake_case",
     try_from = "RoutingAlgorithmSerde"
 )]
+/// Routing Algorithm kind
 pub enum RoutingAlgorithm {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
+    #[schema(value_type=ProgramConnectorSelection)]
     Advanced(euclid::frontend::ast::Program<ConnectorSelection>),
 }
 
@@ -455,7 +399,7 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
@@ -464,8 +408,11 @@ impl TryFrom<RoutingAlgorithmSerde> for RoutingAlgorithm {
     into = "StraightThroughAlgorithmSerde"
 )]
 pub enum StraightThroughAlgorithm {
+    #[schema(title = "Single")]
     Single(Box<RoutableConnectorChoice>),
+    #[schema(title = "Priority")]
     Priority(Vec<RoutableConnectorChoice>),
+    #[schema(title = "VolumeSplit")]
     VolumeSplit(Vec<ConnectorVolumeSplit>),
 }
 
@@ -581,7 +528,7 @@ impl RoutingAlgorithmRef {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct RoutingDictionaryRecord {
     pub id: String,
@@ -592,16 +539,17 @@ pub struct RoutingDictionaryRecord {
     pub description: String,
     pub created_at: i64,
     pub modified_at: i64,
+    pub algorithm_for: Option<TransactionType>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
     pub merchant_id: String,
     pub active_id: Option<String>,
     pub records: Vec<RoutingDictionaryRecord>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, ToSchema)]
 #[serde(untagged)]
 pub enum RoutingKind {
     Config(RoutingDictionary),

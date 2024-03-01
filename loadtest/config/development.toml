@@ -33,6 +33,16 @@ host = ""
 host_rs = ""
 mock_locker = true
 basilisk_host = ""
+locker_enabled = true
+
+[forex_api]
+call_delay = 21600
+local_fetch_retry_count = 5
+local_fetch_retry_delay = 1000
+api_timeout = 20000
+api_key = "YOUR API KEY HERE"
+fallback_api_key = "YOUR API KEY HERE"
+redis_lock_timeout = 26000
 
 [eph_key]
 validity = 1
@@ -42,12 +52,6 @@ max_attempts = 10
 max_age = 365
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
 vault_encryption_key = ""
 rust_locker_encryption_key = ""
 vault_private_key = ""
@@ -102,10 +106,13 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
+riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
+signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
@@ -163,6 +170,7 @@ cards = [
     "payme",
     "paypal",
     "payu",
+    "placetopay",
     "powertranz",
     "prophetpay",
     "shift4",
@@ -177,6 +185,12 @@ cards = [
     "worldpay",
     "zen",
 ]
+
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
+
+[pm_filters.adyen]
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -193,7 +207,7 @@ red_pagos = { country = "UY", currency = "UYU" }
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
@@ -233,11 +247,25 @@ pay_later.klarna = {connector_list = "adyen"}
 wallet.google_pay = {connector_list = "stripe,adyen"}
 wallet.apple_pay = {connector_list = "stripe,adyen"}
 wallet.paypal = {connector_list = "adyen"}
-card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
-card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.credit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 bank_debit.ach = { connector_list = "gocardless"}
 bank_debit.becs = { connector_list = "gocardless"}
 bank_debit.sepa = { connector_list = "gocardless"}
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
+
+[cors]
+max_age = 30
+origins = "http://localhost:8080"
+allowed_methods = "GET,POST,PUT,DELETE"
+wildcard_origin = false
+
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
 
 [analytics]
 source = "sqlx"
@@ -253,3 +281,11 @@ connection_timeout = 10
 
 [kv_config]
 ttl = 300 # 5 * 60 seconds
+
+[frm]
+enabled = true
+
+[connector_onboarding.paypal]
+client_id = ""
+client_secret = ""
+partner_id = ""

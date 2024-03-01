@@ -1,12 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use error_stack::IntoReport;
 use redis_interface::errors::RedisError;
 use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{metrics, store::kv::TypedSql, KVRouterStore};
+use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -60,7 +61,7 @@ pub enum KvOperation<'a, S: serde::Serialize + Debug> {
 }
 
 #[derive(TryGetEnumVariant)]
-#[error(RedisError(UnknownResult))]
+#[error(RedisError::UnknownResult)]
 pub enum KvResult<T: de::DeserializeOwned> {
     HGet(T),
     Get(T),
@@ -94,7 +95,7 @@ pub async fn kv_wrapper<'a, T, D, S>(
 where
     T: de::DeserializeOwned,
     D: crate::database::store::DatabaseStore,
-    S: serde::Serialize + Debug + KvStorePartition,
+    S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {
     let redis_conn = store.get_redis_conn()?;
 
@@ -130,12 +131,23 @@ where
             }
 
             KvOperation::Scan(pattern) => {
-                let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
+                let result: Vec<T> = redis_conn
+                    .hscan_and_deserialize(key, pattern, None)
+                    .await
+                    .and_then(|result| {
+                        if result.is_empty() {
+                            Err(RedisError::NotFound).into_report()
+                        } else {
+                            Ok(result)
+                        }
+                    })?;
                 Ok(KvResult::Scan(result))
             }
 
             KvOperation::HSetNx(field, value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
+
+                value.check_for_constraints(&redis_conn).await?;
 
                 let result = redis_conn
                     .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(ttl))
@@ -145,8 +157,10 @@ where
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::HSetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-                Ok(KvResult::HSetNx(result))
             }
 
             KvOperation::SetNx(value, sql) => {
@@ -156,13 +170,16 @@ where
                     .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
                     .await?;
 
+                value.check_for_constraints(&redis_conn).await?;
+
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
                     store
                         .push_to_drainer_stream::<S>(sql, partition_key)
                         .await?;
+                    Ok(KvResult::SetNx(result))
+                } else {
+                    Err(RedisError::SetNxFailed).into_report()
                 }
-
-                Ok(KvResult::SetNx(result))
             }
 
             KvOperation::Get => {

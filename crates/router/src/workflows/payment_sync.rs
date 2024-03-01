@@ -3,7 +3,6 @@ use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
-    db::process_tracker::ProcessTrackerExt,
     errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
 };
 
@@ -91,12 +90,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         ];
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
-                let id = process.id.clone();
-                process
-                    .finish_with_status(
-                        state.get_db().as_scheduler(),
-                        format!("COMPLETED_BY_PT_{id}"),
-                    )
+                state
+                    .get_db()
+                    .as_scheduler()
+                    .finish_process_with_business_status(process, "COMPLETED_BY_PT".to_string())
                     .await?
             }
             _ => {
@@ -124,7 +121,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false) };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -136,6 +133,9 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             )),
                             amount_capturable: Some(0),
                             updated_by: merchant_account.storage_scheme.to_string(),
+                            unified_code: None,
+                            unified_message: None,
+                            connector_transaction_id: None,
                         };
 
                     payment_data.payment_attempt = db
@@ -271,11 +271,12 @@ pub async fn retry_sync_task(
 
     match schedule_time {
         Some(s_time) => {
-            pt.retry(db.as_scheduler(), s_time).await?;
+            db.as_scheduler().retry_process(pt, s_time).await?;
             Ok(false)
         }
         None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
                 .await?;
             Ok(true)
         }
@@ -298,7 +299,10 @@ mod tests {
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
-            vec![cpt_default.start_after, cpt_default.frequency[0]]
+            vec![
+                cpt_default.start_after,
+                *cpt_default.frequency.first().unwrap()
+            ]
         );
     }
 }

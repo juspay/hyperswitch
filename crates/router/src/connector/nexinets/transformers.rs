@@ -211,7 +211,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexinetsPaymentStatus {
     Success,
@@ -275,7 +275,7 @@ impl TryFrom<&api_models::enums::BankNames> for NexinetsBIC {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
@@ -285,7 +285,7 @@ pub struct NexinetsPreAuthOrDebitResponse {
     redirect_url: Option<Url>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsTransaction {
     pub transaction_id: String,
@@ -372,6 +372,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -385,7 +386,7 @@ pub struct NexinetsCaptureOrVoidRequest {
     pub currency: enums::Currency,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsOrder {
     pub order_id: String,
@@ -411,7 +412,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentResponse {
     pub transaction_id: String,
@@ -455,6 +456,7 @@ impl<F, T>
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -481,7 +483,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundResponse {
     pub transaction_id: String,
@@ -492,7 +494,7 @@ pub struct NexinetsRefundResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Success,
@@ -502,7 +504,7 @@ pub enum RefundStatus {
     InProgress,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundType {
     Refund,
@@ -552,7 +554,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NexinetsErrorResponse {
     pub status: u16,
     pub code: u16,
@@ -560,7 +562,7 @@ pub struct NexinetsErrorResponse {
     pub errors: Vec<OrderErrorDetails>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct OrderErrorDetails {
     pub code: u16,
     pub message: String,
@@ -624,7 +626,8 @@ fn get_payment_details_and_product(
         | PaymentMethodData::Reward
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
-        | PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }
@@ -640,7 +643,7 @@ fn get_card_data(
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
                     payment_instrument_id: item.request.connector_mandate_id(),
                 })),
-                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };
             let cof_contract = Some(CofContract {
                 recurring_type: RecurringType::Unscheduled,
@@ -648,7 +651,7 @@ fn get_card_data(
             (card_data, cof_contract)
         }
         false => (
-            CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             None,
         ),
     };
@@ -674,13 +677,15 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> CardDetails {
-    CardDetails {
+fn get_card_details(
+    req_card: &api_models::payments::Card,
+) -> Result<CardDetails, errors::ConnectorError> {
+    Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.get_card_expiry_year_2_digit(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
-    }
+    })
 }
 
 fn get_wallet_details(

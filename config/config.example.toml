@@ -45,13 +45,28 @@ queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 clie
 [redis]
 host = "127.0.0.1"
 port = 6379
-pool_size = 5              # Number of connections to keep open
-reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
-reconnect_delay = 5        # Delay between reconnection attempts, in milliseconds
-default_ttl = 300          # Default TTL for entries, in seconds
-default_hash_ttl = 900     # Default TTL for hashes entries, in seconds
-use_legacy_version = false # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
-stream_read_count = 1      # Default number of entries to read from stream if not provided in stream read options
+pool_size = 5                     # Number of connections to keep open
+reconnect_max_attempts = 5        # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
+reconnect_delay = 5               # Delay between reconnection attempts, in milliseconds
+default_ttl = 300                 # Default TTL for entries, in seconds
+default_hash_ttl = 900            # Default TTL for hashes entries, in seconds
+use_legacy_version = false        # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
+stream_read_count = 1             # Default number of entries to read from stream if not provided in stream read options
+auto_pipeline = true              # Whether or not the client should automatically pipeline commands across tasks when possible.
+disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
+max_in_flight_commands = 5000     # The maximum number of in-flight commands (per connection) before backpressure will be applied.
+default_command_timeout = 0       # An optional timeout to apply to all commands.
+max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
+
+# This section provides configs for currency conversion api
+[forex_api]
+call_delay = 21600                # Api calls are made after every 6 hrs
+local_fetch_retry_count = 5       # Fetch from Local cache has retry count as 5
+local_fetch_retry_delay = 1000    # Retry delay for checking write condition
+api_timeout = 20000               # Api timeouts once it crosses 20000 ms
+api_key = "YOUR API KEY HERE"     # Api key for making request to foreign exchange Api
+fallback_api_key = "YOUR API KEY" # Api key for the fallback service
+redis_lock_timeout = 26000        # Redis remains write locked for 26000 ms once the acquire_redis_lock is called
 
 # Logging configuration. Logging can be either to file or console or both.
 
@@ -100,22 +115,19 @@ route_to_trace = ["*/confirm"]
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
-admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when KMS is disabled.
-kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
-jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when KMS is disabled.
-kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
-kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
+admin_api_key = "test_admin"             # admin API key for admin authentication.
+jwt_secret = "secret"                    # JWT secret used for user authentication.
+recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""                      # Locker host
-host_rs = ""                   # Rust Locker host 
-mock_locker = true             # Emulate a locker locally using Postgres
-basilisk_host = ""             # Basilisk host
-locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
+host = ""                   # Locker host
+host_rs = ""                # Rust Locker host
+mock_locker = true          # Emulate a locker locally using Postgres
+locker_signing_key_id = "1" # Key_id to sign basilisk hs locker
+locker_enabled = true       # Boolean to enable or disable saving cards in locker
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
@@ -124,16 +136,9 @@ connectors_with_delayed_session_response = "trustpay,payme" # List of connectors
 connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
 
 [jwekey] # 4 priv/pub key pair
-locker_key_identifier1 = ""     # key identifier for key rotation , should be same as basilisk
-locker_key_identifier2 = ""     # key identifier for key rotation , should be same as basilisk
-locker_encryption_key1 = ""     # public key 1 in pem format, corresponding private key in basilisk
-locker_encryption_key2 = ""     # public key 2 in pem format, corresponding private key in basilisk
-locker_decryption_key1 = ""     # private key 1 in pem format, corresponding public key in basilisk
-locker_decryption_key2 = ""     # private key 2 in pem format, corresponding public key in basilisk
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
 rust_locker_encryption_key = "" # public key in pem format, corresponding private key in rust locker
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
-
 
 # Refund configuration
 [refund]
@@ -148,8 +153,6 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
-kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -201,10 +204,13 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
+riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
+signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
@@ -287,6 +293,12 @@ lower_fetch_limit = 1800          # Lower limit for fetching entries from redis 
 lock_key = "PRODUCER_LOCKING_KEY" # The following keys defines the producer lock that is created in redis with
 lock_ttl = 160                    # the ttl being the expiry (in seconds)
 
+# Scheduler server configuration
+[scheduler.server]
+port = 3000                       # Port on which the server will listen for incoming requests
+host = "127.0.0.1"                # Host IP address to bind the server to
+workers = 1                       # Number of actix workers to handle incoming requests concurrently
+
 batch_size = 200 # Specifies the batch size the producer will push under a single entry in the redis queue
 
 # Drainer configuration, which handles draining raw SQL queries from Redis streams to the SQL database
@@ -305,21 +317,29 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
 
-# KMS configuration. Only applicable when the `kms` feature flag is enabled.
-[kms]
-key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
-region = "" # The AWS region used by the KMS SDK for decrypting data.
+[cors]
+max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
+origins = "http://localhost:8080" # List of origins that are allowed to make requests.
+allowed_methods = "GET,POST,PUT,DELETE" # List of methods that are allowed
+wildcard_origin = false # If true, allows any origin to make requests
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
-from_email = "notify@example.com" # Sender email
-aws_region = ""                   # AWS region used by AWS SES
-base_url = ""                     # Base url used when adding links that should redirect to self
+sender_email = "example@example.com" # Sender email
+aws_region = ""                      # AWS region used by AWS SES
+base_url = ""                        # Base url used when adding links that should redirect to self
+allowed_unverified_days = 1          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"          # The currently active email client
+
+# Configuration for aws ses, applicable when the active email client is SES
+[email.aws_ses]
+email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
+sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 mollie = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = { long_lived_token = false, payment_method = "card" }
@@ -331,6 +351,10 @@ stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
+bankofamerica = { payment_method = "card" }
+cybersource = { payment_method = "card" }
+nmi = { payment_method = "card" }
+payme = {payment_method = "card" }
 
 [dummy_connector]
 enabled = true                                  # Whether dummy connector is enabled or not
@@ -353,12 +377,21 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
-card.credit = { connector_list = "stripe,adyen" }   # Mandate supported payment method type and connector for card
+card.credit = { connector_list = "stripe,adyen,cybersource" }   # Mandate supported payment method type and connector for card
 wallet.paypal = { connector_list = "adyen" }        # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }     # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless" }  # Mandate supported payment method type and connector for bank_debit
 bank_debit.becs = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
 bank_debit.sepa = { connector_list = "gocardless" } # Mandate supported payment method type and connector for bank_debit
+bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"} # Mandate supported payment method type and connector for bank_redirect
+bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon" }
+bank_redirect.giropay = {connector_list = "adyen,globalpay"}
+
+
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
+card.debit = {connector_list ="cybersource"}  # Update Mandate supported payment method type and connector for card 
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
@@ -392,13 +425,17 @@ alfamart = { country = "ID", currency = "IDR" }
 indomaret = { country = "ID", currency = "IDR" }
 open_banking_uk = { country = "GB", currency = "GBP" }
 oxxo = { country = "MX", currency = "MXN" }
-pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
+pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
 seven_eleven = { country = "JP", currency = "JPY" }
 lawson = { country = "JP", currency = "JPY" }
 mini_stop = { country = "JP", currency = "JPY" }
 family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
+boleto = { country = "BR", currency = "BRL" }
+
+[pm_filters.volt]
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -417,18 +454,19 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
 
-[pm_filters.stripe]
-cashapp = { country = "US", currency = "USD" }
-
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }
+
+[pm_filters.helcim]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]
-adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
@@ -437,17 +475,44 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 supported_connectors = "braintree"
 
 [applepay_decrypt_keys]
-apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
-apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY" #Private key generate by Elliptic-curve prime256v1 curve
-apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
-apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" #Private key generate by RSA:2048 algorithm
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"         # Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY" # Private key generated by Elliptic-curve prime256v1 curve. You can use `openssl ecparam -out private.key -name prime256v1 -genkey` to generate the private key
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"         # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY" # Private key generated by RSA:2048 algorithm. Refer Hyperswitch Docs (https://docs.hyperswitch.io/hyperswitch-cloud/payment-methods-setup/wallets/apple-pay/ios-application/) to generate the private key
+
+[applepay_merchant_configs]
+# Run below command to get common merchant identifier for applepay in shell
+#
+# CERT_PATH="path/to/certificate.pem"
+# MERCHANT_ID=$(openssl x509 -in "$CERT_PATH" -noout -text |
+#               awk -v oid="1.2.840.113635.100.6.32" '
+#               BEGIN { RS = "\n\n" }
+#               /X509v3 extensions/ { in_extension=1 }
+#               in_extension && /'"$oid"'/ { print $0; exit }' |
+#               grep -oE '\.@[A-F0-9]+' | sed 's/^\.@//'
+# )
+# echo "Merchant ID: $MERCHANT_ID"
+common_merchant_identifier = "APPLE_PAY_COMMON_MERCHANT_IDENTIFIER"                        # This can be obtained by decrypting the apple_pay_ppc_key as shown above in comments
+merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"                                           # Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"                                   # Private key generate by RSA:2048 algorithm. Refer Hyperswitch Docs (https://docs.hyperswitch.io/hyperswitch-cloud/payment-methods-setup/wallets/apple-pay/ios-application/) to generate the private key
+applepay_endpoint = "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant" # Apple pay gateway merchant endpoint
 
 [payment_link]
-sdk_url = "http://localhost:9090/dist/HyperLoader.js"
+sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
+
+[payment_method_auth]
+redis_expiry = 900
+pm_auth_key = "Some_pm_auth_key"
 
 # Analytics configuration.
 [analytics]
 source = "sqlx" # The Analytics source/strategy to be used
+
+[analytics.clickhouse]
+username = ""      # Clickhouse username
+password = ""      # Clickhouse password (optional)
+host = ""          # Clickhouse host in http(s)://<URL>:<PORT> format
+database_name = "" # Clickhouse database name
 
 [analytics.sqlx]
 username = "db_user"      # Analytics DB Username
@@ -457,8 +522,53 @@ port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
 connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 
 # Config for KV setup
 [kv_config]
 # TTL for KV in seconds
 ttl = 900
+
+[frm]
+enabled = true
+
+[paypal_onboarding]
+client_id = "paypal_client_id"      # Client ID for PayPal onboarding
+client_secret = "paypal_secret_key" # Secret key for PayPal onboarding
+partner_id = "paypal_partner_id"    # Partner ID for PayPal onboarding
+enabled = true                      # Switch to enable or disable PayPal onboarding
+
+[events]
+source = "logs" # The event sink to push events supports kafka or logs (stdout)
+
+[events.kafka]
+brokers = []                          # Kafka broker urls for bootstrapping the client
+intent_analytics_topic = "topic"      # Kafka topic to be used for PaymentIntent events
+attempt_analytics_topic = "topic"     # Kafka topic to be used for PaymentAttempt events
+refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
+api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
+connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
+outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
+
+# File storage configuration
+[file_storage]
+file_storage_backend = "aws_s3"            # File storage backend to be used
+
+[file_storage.aws_s3]
+region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
+bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage
+
+[secrets_management]
+secrets_manager = "aws_kms"               # Secrets manager client to be used
+
+[secrets_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+
+[encryption_management]
+encryption_manager = "aws_kms"            # Encryption manager client to be used
+
+[encryption_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.

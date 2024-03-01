@@ -83,15 +83,18 @@ pub struct DummyConnectorCard {
     cvc: Secret<String>,
 }
 
-impl From<api_models::payments::Card> for DummyConnectorCard {
-    fn from(value: api_models::payments::Card) -> Self {
-        Self {
-            name: value.card_holder_name,
+impl TryFrom<api_models::payments::Card> for DummyConnectorCard {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::Card) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: value
+                .card_holder_name
+                .unwrap_or(Secret::new("".to_string())),
             number: value.card_number,
             expiry_month: value.card_exp_month,
             expiry_year: value.card_exp_year,
             cvc: value.card_cvc,
-        }
+        })
     }
 }
 
@@ -151,7 +154,7 @@ impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
             .payment_method_data
         {
             api::PaymentMethodData::Card(ref req_card) => {
-                Ok(PaymentMethodData::Card(req_card.clone().into()))
+                Ok(PaymentMethodData::Card(req_card.clone().try_into()?))
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))
@@ -250,6 +253,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

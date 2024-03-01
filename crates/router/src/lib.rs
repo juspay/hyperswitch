@@ -1,8 +1,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
-#[cfg(feature = "olap")]
-pub mod analytics;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
@@ -14,12 +12,14 @@ pub mod cors;
 pub mod db;
 pub mod env;
 pub(crate) mod macros;
+
 pub mod routes;
 pub mod workflows;
 
+#[cfg(feature = "olap")]
+pub mod analytics;
 pub mod events;
 pub mod middleware;
-pub mod openapi;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -30,15 +30,14 @@ use actix_web::{
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
+use hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret;
 use routes::AppState;
 use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
-use crate::{
-    configs::settings,
-    core::errors::{self},
-};
+pub(crate) use self::macros::*;
+use crate::{configs::settings, core::errors};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -93,16 +92,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit);
-
-    #[cfg(feature = "openapi")]
-    {
-        use utoipa::OpenApi;
-        server_app = server_app.service(
-            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
-                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
-        );
-    }
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -122,6 +112,7 @@ pub fn mk_app(
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
+            .service(routes::Forex::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
@@ -130,10 +121,9 @@ pub fn mk_app(
     #[cfg(feature = "oltp")]
     {
         server_app = server_app
-            .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
-            .service(routes::PaymentLink::server(state.clone()));
+            .service(routes::PaymentMethods::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -145,12 +135,14 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
             .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
-            .service(routes::LockerMigrate::server(state.clone()))
+            .service(routes::Blocklist::server(state.clone()))
             .service(routes::Gsm::server(state.clone()))
+            .service(routes::PaymentLink::server(state.clone()))
             .service(routes::User::server(state.clone()))
+            .service(routes::ConnectorOnboarding::server(state.clone()))
     }
 
-    #[cfg(all(feature = "olap", feature = "kms"))]
+    #[cfg(feature = "olap")]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
@@ -164,6 +156,12 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
+
+    #[cfg(feature = "recon")]
+    {
+        server_app = server_app.service(routes::Recon::server(state.clone()));
+    }
+
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
@@ -177,7 +175,7 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
+pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
@@ -233,6 +231,7 @@ impl Stop for mpsc::Sender<()> {
 
 pub fn get_application_builder(
     request_body_limit: usize,
+    cors: settings::CorsSettings,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -259,6 +258,9 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(middleware::RequestId)
-        .wrap(cors::cors())
+        .wrap(cors::cors(cors))
+        // this middleware works only for Http1.1 requests
+        .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

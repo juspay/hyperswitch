@@ -1,9 +1,12 @@
 pub mod helpers;
 pub mod transformers;
 
-use api_models::routing::{self as routing_types, RoutingAlgorithmId};
 #[cfg(feature = "business_profile_routing")]
 use api_models::routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingAlgorithmId},
+};
 #[cfg(not(feature = "business_profile_routing"))]
 use common_utils::ext_traits::{Encode, StringExt};
 #[cfg(not(feature = "business_profile_routing"))]
@@ -13,13 +16,16 @@ use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::{IntoReport, ResultExt};
 use rustc_hash::FxHashSet;
 
+use super::payments;
+#[cfg(feature = "payouts")]
+use super::payouts;
 #[cfg(feature = "business_profile_routing")]
 use crate::types::transformers::{ForeignInto, ForeignTryInto};
 use crate::{
     consts,
     core::{
         errors::{RouterResponse, StorageErrorExt},
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
     routes::AppState,
     types::domain,
@@ -30,17 +36,30 @@ use crate::{core::errors, services::api as service_api, types::storage};
 #[cfg(feature = "business_profile_routing")]
 use crate::{errors, services::api as service_api};
 
+#[derive(Clone)]
+pub enum TransactionData<'a, F>
+where
+    F: Clone,
+{
+    Payment(&'a payments::PaymentData<F>),
+    #[cfg(feature = "payouts")]
+    Payout(&'a payouts::PayoutData),
+}
+
 pub async fn retrieve_merchant_routing_dictionary(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveQuery,
+    #[cfg(feature = "business_profile_routing")] transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(feature = "business_profile_routing")]
     {
         let routing_metadata = state
             .store
-            .list_routing_algorithm_metadata_by_merchant_id(
+            .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
                 &merchant_account.merchant_id,
+                transaction_type,
                 i64::from(query_params.limit.unwrap_or_default()),
                 i64::from(query_params.offset.unwrap_or_default()),
             )
@@ -51,10 +70,17 @@ pub async fn retrieve_merchant_routing_dictionary(
             .map(ForeignInto::foreign_into)
             .collect::<Vec<_>>();
 
+        metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(
+            &metrics::CONTEXT,
+            1,
+            &[],
+        );
         Ok(service_api::ApplicationResponse::Json(
             routing_types::RoutingKind::RoutingAlgorithm(result),
         ))
     }
+    #[cfg(not(feature = "business_profile_routing"))]
+    metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     #[cfg(not(feature = "business_profile_routing"))]
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::Config(
@@ -72,7 +98,9 @@ pub async fn create_routing_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let name = request
@@ -139,6 +167,7 @@ pub async fn create_routing_config(
             algorithm_data: serde_json::json!(algorithm),
             created_at: timestamp,
             modified_at: timestamp,
+            algorithm_for: transaction_type.to_owned(),
         };
         let record = db
             .insert_routing_algorithm(algo)
@@ -147,15 +176,16 @@ pub async fn create_routing_config(
 
         let new_record = record.foreign_into();
 
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let algorithm_str =
-            utils::Encode::<routing_types::RoutingAlgorithm>::encode_to_string_of_json(&algorithm)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to serialize routing algorithm to string")?;
+        let algorithm_str = algorithm
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to serialize routing algorithm to string")?;
 
         let mut algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
             .routing_algorithm
@@ -187,6 +217,7 @@ pub async fn create_routing_config(
             description: description.clone(),
             created_at: timestamp,
             modified_at: timestamp,
+            algorithm_for: Some(*transaction_type),
         };
         merchant_dictionary.records.push(new_record.clone());
 
@@ -213,6 +244,7 @@ pub async fn create_routing_config(
         )
         .await?;
 
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(new_record))
     }
 }
@@ -222,7 +254,9 @@ pub async fn link_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     algorithm_id: String,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -245,14 +279,25 @@ pub async fn link_routing_config(
             id: routing_algorithm.profile_id.clone(),
         })?;
 
-        let mut routing_ref: routing_types::RoutingAlgorithmRef = business_profile
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let mut routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+        }
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
+
+        utils::when(routing_algorithm.algorithm_for != *transaction_type, || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "Cannot use {}'s routing algorithm for {} operation",
+                    routing_algorithm.algorithm_for, transaction_type
+                ),
+            })
+        })?;
 
         utils::when(
             routing_ref.algorithm_id == Some(algorithm_id.clone()),
@@ -265,9 +310,15 @@ pub async fn link_routing_config(
         )?;
 
         routing_ref.update_algorithm_id(algorithm_id);
-        helpers::update_business_profile_active_algorithm_ref(db, business_profile, routing_ref)
-            .await?;
+        helpers::update_business_profile_active_algorithm_ref(
+            db,
+            business_profile,
+            routing_ref,
+            transaction_type,
+        )
+        .await?;
 
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_algorithm.foreign_into(),
         ))
@@ -275,14 +326,16 @@ pub async fn link_routing_config(
 
     #[cfg(not(feature = "business_profile_routing"))]
     {
-        let mut routing_ref: routing_types::RoutingAlgorithmRef = merchant_account
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let mut routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            enums::TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+        }
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
 
         utils::when(
             routing_ref.algorithm_id == Some(algorithm_id.clone()),
@@ -317,6 +370,7 @@ pub async fn link_routing_config(
         .await?;
         helpers::update_merchant_active_algorithm_ref(db, &key_store, routing_ref).await?;
 
+        metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -326,6 +380,7 @@ pub async fn retrieve_routing_config(
     merchant_account: domain::MerchantAccount,
     algorithm_id: RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
+    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -350,6 +405,8 @@ pub async fn retrieve_routing_config(
             .foreign_try_into()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse routing algorithm")?;
+
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 
@@ -385,8 +442,12 @@ pub async fn retrieve_routing_config(
             algorithm,
             created_at: record.created_at,
             modified_at: record.modified_at,
+            algorithm_for: record
+                .algorithm_for
+                .unwrap_or(enums::TransactionType::Payment),
         };
 
+        metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -395,7 +456,9 @@ pub async fn unlink_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(not(feature = "business_profile_routing"))] key_store: domain::MerchantKeyStore,
     #[cfg(feature = "business_profile_routing")] request: routing_types::RoutingConfigRequest,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     #[cfg(feature = "business_profile_routing")]
     {
@@ -414,16 +477,20 @@ pub async fn unlink_routing_config(
         .await?;
         match business_profile {
             Some(business_profile) => {
-                let routing_algo_ref: routing_types::RoutingAlgorithmRef = business_profile
-                    .routing_algorithm
-                    .clone()
-                    .map(|val| val.parse_value("RoutingAlgorithmRef"))
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "unable to deserialize routing algorithm ref from merchant account",
-                    )?
-                    .unwrap_or_default();
+                let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+                    enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
+                    #[cfg(feature = "payouts")]
+                    enums::TransactionType::Payout => {
+                        business_profile.payout_routing_algorithm.clone()
+                    }
+                }
+                .map(|val| val.parse_value("RoutingAlgorithmRef"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "unable to deserialize routing algorithm ref from merchant account",
+                )?
+                .unwrap_or_default();
 
                 let timestamp = common_utils::date_time::now_unix_timestamp();
 
@@ -449,8 +516,15 @@ pub async fn unlink_routing_config(
                             db,
                             business_profile,
                             routing_algorithm,
+                            transaction_type,
                         )
                         .await?;
+
+                        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[],
+                        );
                         Ok(service_api::ApplicationResponse::Json(response))
                     }
                     None => Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -471,14 +545,16 @@ pub async fn unlink_routing_config(
         let mut merchant_dictionary =
             helpers::get_merchant_routing_dictionary(db, &merchant_account.merchant_id).await?;
 
-        let routing_algo_ref: routing_types::RoutingAlgorithmRef = merchant_account
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-            .unwrap_or_default();
+        let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            enums::TransactionType::Payment => merchant_account.routing_algorithm.clone(),
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => merchant_account.payout_routing_algorithm.clone(),
+        }
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
         let timestamp = common_utils::date_time::now_unix_timestamp();
 
         utils::when(routing_algo_ref.algorithm_id.is_none(), || {
@@ -523,10 +599,10 @@ pub async fn unlink_routing_config(
         )
         .await?;
 
-        let ref_value =
-            Encode::<routing_types::RoutingAlgorithmRef>::encode_to_value(&routing_algorithm)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed converting routing algorithm ref to json value")?;
+        let ref_value = routing_algorithm
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed converting routing algorithm ref to json value")?;
 
         let merchant_account_update = storage::MerchantAccountUpdate::Update {
             merchant_name: None,
@@ -559,6 +635,7 @@ pub async fn unlink_routing_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
+        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -567,10 +644,13 @@ pub async fn update_default_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let default_config =
-        helpers::get_merchant_default_config(db, &merchant_account.merchant_id).await?;
+        helpers::get_merchant_default_config(db, &merchant_account.merchant_id, transaction_type)
+            .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -603,21 +683,32 @@ pub async fn update_default_routing_config(
         db,
         &merchant_account.merchant_id,
         updated_config.clone(),
+        transaction_type,
     )
     .await?;
 
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
 pub async fn retrieve_default_routing_config(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
-    helpers::get_merchant_default_config(db, &merchant_account.merchant_id)
+    helpers::get_merchant_default_config(db, &merchant_account.merchant_id, transaction_type)
         .await
-        .map(service_api::ApplicationResponse::Json)
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
 
 pub async fn retrieve_linked_routing_config(
@@ -625,6 +716,7 @@ pub async fn retrieve_linked_routing_config(
     merchant_account: domain::MerchantAccount,
     #[cfg(feature = "business_profile_routing")] query_params: RoutingRetrieveLinkQuery,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     #[cfg(feature = "business_profile_routing")]
@@ -672,6 +764,7 @@ pub async fn retrieve_linked_routing_config(
             }
         }
 
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(
             routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
         ))
@@ -709,6 +802,9 @@ pub async fn retrieve_linked_routing_config(
                 algorithm: the_algorithm,
                 created_at: record.created_at,
                 modified_at: record.modified_at,
+                algorithm_for: record
+                    .algorithm_for
+                    .unwrap_or(enums::TransactionType::Payment),
             })
         } else {
             None
@@ -718,6 +814,7 @@ pub async fn retrieve_linked_routing_config(
             routing_types::RoutingRetrieveResponse { algorithm },
         );
 
+        metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     }
 }
@@ -725,7 +822,9 @@ pub async fn retrieve_linked_routing_config(
 pub async fn retrieve_default_routing_config_for_profiles(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let all_profiles = db
@@ -736,7 +835,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
 
     let retrieve_config_futures = all_profiles
         .iter()
-        .map(|prof| helpers::get_merchant_default_config(db, &prof.profile_id))
+        .map(|prof| helpers::get_merchant_default_config(db, &prof.profile_id, transaction_type))
         .collect::<Vec<_>>();
 
     let configs = futures::future::join_all(retrieve_config_futures)
@@ -755,6 +854,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         )
         .collect::<Vec<_>>();
 
+    metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(default_configs))
 }
 
@@ -763,7 +863,9 @@ pub async fn update_default_routing_config_for_profile(
     merchant_account: domain::MerchantAccount,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
+    transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
     let business_profile = core_utils::validate_and_get_business_profile(
@@ -775,7 +877,8 @@ pub async fn update_default_routing_config_for_profile(
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?;
     let default_config =
-        helpers::get_merchant_default_config(db, &business_profile.profile_id).await?;
+        helpers::get_merchant_default_config(db, &business_profile.profile_id, transaction_type)
+            .await?;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -826,9 +929,11 @@ pub async fn update_default_routing_config_for_profile(
         db,
         &business_profile.profile_id,
         updated_config.clone(),
+        transaction_type,
     )
     .await?;
 
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::ProfileDefaultRoutingConfig {
             profile_id: business_profile.profile_id,

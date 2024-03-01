@@ -53,6 +53,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
                 state: Some(Secret::new("Amsterdam".to_string())),
             }),
             phone: None,
+            email: None,
         }),
     });
     Some(PaymentInfo {

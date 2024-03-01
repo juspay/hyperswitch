@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::admin,
 };
 
@@ -77,7 +77,10 @@ pub async fn retrieve_merchant_account(
         |state, _, req| get_merchant_account(state, req),
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -141,6 +144,7 @@ pub async fn update_merchant_account(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),
         ),
@@ -186,7 +190,7 @@ pub async fn delete_merchant_account(
     )
     .await
 }
-/// PaymentsConnectors - Create
+/// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(
@@ -220,6 +224,7 @@ pub async fn payment_connector_create(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
             },
             req.headers(),
         ),
@@ -270,7 +275,10 @@ pub async fn payment_connector_retrieve(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantConnectorAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -312,7 +320,10 @@ pub async fn payment_connector_list(
         |state, _, merchant_id| list_payment_connectors(state, merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantConnectorAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -349,7 +360,7 @@ pub async fn payment_connector_update(
     let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -359,11 +370,12 @@ pub async fn payment_connector_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 /// Merchant Connector - Delete
@@ -407,7 +419,10 @@ pub async fn payment_connector_delete(
         |state, _, req| delete_payment_connector(state, req.merchant_id, req.merchant_connector_id),
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -460,6 +475,7 @@ pub async fn business_profile_create(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),
         ),
@@ -484,7 +500,10 @@ pub async fn business_profile_retrieve(
         |state, _, profile_id| retrieve_business_profile(state, profile_id),
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -501,7 +520,7 @@ pub async fn business_profile_update(
     let flow = Flow::BusinessProfileUpdate;
     let (merchant_id, profile_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -511,11 +530,12 @@ pub async fn business_profile_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
@@ -555,7 +575,10 @@ pub async fn business_profiles_list(
         |state, _, merchant_id| list_business_profile(state, merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute { merchant_id },
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

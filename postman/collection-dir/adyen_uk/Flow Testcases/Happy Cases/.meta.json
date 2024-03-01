@@ -8,14 +8,17 @@
     "Scenario6-Create 3DS payment",
     "Scenario7-Create 3DS payment with confrm false",
     "Scenario9-Refund full payment",
-    "Scenario10-Partial refund",
-    "Scenario11-Create a mandate and recurring payment",
-    "Scenario11-Refund recurring payment",
-    "Scenario16-Bank Redirect-sofort",
-    "Scenario17-Bank Redirect-eps",
-    "Scenario18-Bank Redirect-giropay",
-    "Scenario19-Bank Redirect-Trustly",
-    "Scenario19-Bank debit-ach",
-    "Scenario19-Bank debit-Bacs"
+    "Scenario10-Create a mandate and recurring payment",
+    "Scenario11-Partial refund",
+    "Scenario12-Bank Redirect-sofort",
+    "Scenario13-Bank Redirect-eps",
+    "Scenario14-Refund recurring payment",
+    "Scenario15-Bank Redirect-giropay",
+    "Scenario16-Bank debit-ach",
+    "Scenario17-Bank debit-Bacs",
+    "Scenario18-Bank Redirect-Trustly",
+    "Scenario19-Add card flow",
+    "Scenario20-Pass Invalid CVV for save card flow and verify failed payment",
+    "Scenario21-Don't Pass CVV for save card flow and verify failed payment Copy"
   ]
 }

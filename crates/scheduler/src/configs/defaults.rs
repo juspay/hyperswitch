@@ -6,6 +6,7 @@ impl Default for super::settings::SchedulerSettings {
             consumer: super::settings::ConsumerSettings::default(),
             graceful_shutdown_interval: 60000,
             loop_interval: 5000,
+            server: super::settings::Server::default(),
         }
     }
 }
@@ -27,6 +28,16 @@ impl Default for super::settings::ConsumerSettings {
         Self {
             disabled: false,
             consumer_group: "SCHEDULER_GROUP".into(),
+        }
+    }
+}
+
+impl Default for super::settings::Server {
+    fn default() -> Self {
+        Self {
+            port: 8080,
+            workers: num_cpus::get_physical(),
+            host: "localhost".into(),
         }
     }
 }

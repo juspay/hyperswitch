@@ -69,9 +69,9 @@ impl ConnectorAccessToken for Store {
         access_token: types::AccessToken,
     ) -> CustomResult<(), errors::StorageError> {
         let key = format!("access_token_{merchant_id}_{connector_name}");
-        let serialized_access_token =
-            Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
-                .change_context(errors::StorageError::SerializationFailed)?;
+        let serialized_access_token = access_token
+            .encode_to_string_of_json()
+            .change_context(errors::StorageError::SerializationFailed)?;
         self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
@@ -643,6 +643,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             profile_id: t.profile_id,
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
+            status: t.status,
         };
         accounts.push(account.clone());
         account
@@ -690,7 +691,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        match self
+        let mca_update_res = self
             .merchant_connector_accounts
             .lock()
             .await
@@ -708,8 +709,9 @@ impl MerchantConnectorAccountInterface for MockDb {
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
-            .await
-        {
+            .await;
+
+        match mca_update_res {
             Some(result) => result,
             None => {
                 return Err(errors::StorageError::ValueNotFound(
@@ -839,6 +841,7 @@ mod merchant_connector_account_cache_tests {
             profile_id: Some(profile_id.to_string()),
             applepay_verified_domains: None,
             pm_auth_config: None,
+            status: common_enums::ConnectorStatus::Inactive,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)
@@ -888,6 +891,7 @@ mod merchant_connector_account_cache_tests {
                 "{}_{}",
                 merchant_id, connector_label
             ),)
+            .await
             .is_none())
     }
 }

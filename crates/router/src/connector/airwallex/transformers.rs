@@ -1,5 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -196,7 +196,8 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("airwallex"),
             )),
         }?;
@@ -258,7 +259,7 @@ fn get_wallet_details(
     Ok(wallet_details)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
@@ -367,7 +368,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     Succeeded,
@@ -412,18 +413,18 @@ pub enum AirwallexNextActionStage {
     WaitingUserInfoInput,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
-    jwt: Option<String>,
+    jwt: Option<Secret<String>>,
     #[serde(rename = "threeDSMethodData")]
-    three_ds_method_data: Option<String>,
-    token: Option<String>,
+    three_ds_method_data: Option<Secret<String>>,
+    token: Option<Secret<String>>,
     provider: Option<String>,
     version: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
@@ -431,25 +432,25 @@ pub struct AirwallexPaymentsNextAction {
     stage: AirwallexNextActionStage,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
     amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
-    payment_consent_id: Option<String>,
+    payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
@@ -463,18 +464,27 @@ fn get_redirection_form(
             //Some form fields might be empty based on the authentication type by the connector
             (
                 "JWT".to_string(),
-                response_url_data.data.jwt.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .jwt
+                    .map(|jwt| jwt.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "threeDSMethodData".to_string(),
                 response_url_data
                     .data
                     .three_ds_method_data
+                    .map(|three_ds_method_data| three_ds_method_data.expose())
                     .unwrap_or_default(),
             ),
             (
                 "token".to_string(),
-                response_url_data.data.token.unwrap_or_default(),
+                response_url_data
+                    .data
+                    .token
+                    .map(|token: Secret<String>| token.expose())
+                    .unwrap_or_default(),
             ),
             (
                 "provider".to_string(),
@@ -554,6 +564,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -595,6 +606,7 @@ impl
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })

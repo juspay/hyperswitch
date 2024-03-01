@@ -72,11 +72,9 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Maestro
             | utils::CardIssuer::DinersClub
             | utils::CardIssuer::JCB
-            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotSupported {
-                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                connector: "Payeezy",
-            }
-            .into()),
+            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Payeezy"),
+            ))?,
         }
     }
 }
@@ -243,9 +241,12 @@ fn get_payment_method_data(
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
-                cardholder_name: card.card_holder_name.clone(),
+                cardholder_name: card
+                    .card_holder_name
+                    .clone()
+                    .unwrap_or(Secret::new("".to_string())),
                 card_number: card.card_number.clone(),
-                exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
                 cvv: card.card_cvc.clone(),
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
@@ -262,11 +263,10 @@ fn get_payment_method_data(
         | api::PaymentMethodData::Reward
         | api::PaymentMethodData::Upi(_)
         | api::PaymentMethodData::Voucher(_)
-        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
-            message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-            connector: "Payeezy",
-        }
-        .into()),
+        | api::PaymentMethodData::GiftCard(_)
+        | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Payeezy"),
+        ))?,
     }
 }
 
@@ -298,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
 }
 // PaymentsResponse
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyPaymentStatus {
     Approved,
@@ -308,7 +308,7 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyPaymentsResponse {
     pub correlation_id: String,
     pub transaction_status: PayeezyPaymentStatus,
@@ -327,7 +327,7 @@ pub struct PayeezyPaymentsResponse {
     pub reference: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentsStoredCredentials {
     cardbrand_original_transaction_id: String,
 }
@@ -407,11 +407,7 @@ impl<F, T>
         let metadata = item
             .response
             .transaction_tag
-            .map(|txn_tag| {
-                Encode::<'_, PayeezyPaymentsMetadata>::encode_to_value(
-                    &construct_payeezy_payments_metadata(txn_tag),
-                )
-            })
+            .map(|txn_tag| construct_payeezy_payments_metadata(txn_tag).encode_to_value())
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
@@ -443,6 +439,7 @@ impl<F, T>
                         .reference
                         .unwrap_or(item.response.transaction_id),
                 ),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -501,7 +498,7 @@ impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRef
 
 // Type definition for Refund Response
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Approved,
@@ -521,7 +518,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct RefundResponse {
     pub correlation_id: String,
     pub transaction_status: RefundStatus,
@@ -555,18 +552,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
     pub code: String,
     pub description: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyError {
     pub messages: Vec<Message>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PayeezyErrorResponse {
     pub transaction_status: String,
     #[serde(rename = "Error")]

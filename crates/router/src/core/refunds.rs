@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, refunds},
         domain,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
@@ -50,21 +50,26 @@ pub async fn refund_create_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     utils::when(
-        payment_intent.status != enums::IntentStatus::Succeeded,
+        !(payment_intent.status == enums::IntentStatus::Succeeded
+            || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
         || {
-            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                .attach_printable("unable to refund for a unsuccessful payment intent"))
+            Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "refund".into(),
+                field_name: "status".into(),
+                current_value: payment_intent.status.to_string(),
+                states: "succeeded, partially_captured".to_string()
+            })
+            .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
 
     // Amount is not passed in request refer from payment intent.
-    amount = req.amount.unwrap_or(
-        payment_intent
-            .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("amount captured is none in a successful payment")?,
-    );
+    amount = req
+        .amount
+        .or(payment_intent.amount_captured)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
@@ -76,7 +81,7 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
             &req.payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -190,15 +195,51 @@ pub async fn trigger_refund_to_gateway(
             types::RefundsData,
             types::RefundsResponseData,
         > = connector.connector.get_connector_integration();
-        services::execute_connector_processing_step(
+        let router_data_res = services::execute_connector_processing_step(
             state,
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
             None,
         )
-        .await
-        .to_refund_failed_response()?
+        .await;
+        let option_refund_error_update =
+            router_data_res
+                .as_ref()
+                .err()
+                .and_then(|error| match error.current_context() {
+                    errors::ConnectorError::NotImplemented(message) => {
+                        Some(storage::RefundUpdate::ErrorUpdate {
+                            refund_status: Some(enums::RefundStatus::Failure),
+                            refund_error_message: Some(
+                                errors::ConnectorError::NotImplemented(message.to_owned())
+                                    .to_string(),
+                            ),
+                            refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                            updated_by: storage_scheme.to_string(),
+                        })
+                    }
+                    _ => None,
+                });
+        // Update the refund status as failure if connector_error is NotImplemented
+        if let Some(refund_error_update) = option_refund_error_update {
+            state
+                .store
+                .update_refund(
+                    refund.to_owned(),
+                    refund_error_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed while updating refund: refund_id: {}",
+                        refund.refund_id
+                    )
+                })?;
+        }
+        router_data_res.to_refund_failed_response()?
     } else {
         router_data
     };
@@ -569,7 +610,11 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.amount);
+
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
@@ -605,6 +650,7 @@ pub async fn validate_and_create_refund(
         .set_attempt_id(payment_attempt.attempt_id.clone())
         .set_refund_reason(req.reason)
         .set_profile_id(payment_intent.profile_id.clone())
+        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
         .to_owned();
 
     let refund = match db
@@ -731,6 +777,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
             connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
         }
     }
 }
@@ -751,9 +798,9 @@ pub async fn schedule_refund_execution(
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
-    let runner = "REFUND_WORKFLOW_ROUTER";
+    let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
-    let task_id = format!("{}_{}_{}", runner, task, refund.internal_reference_id);
+    let task_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
 
     let refund_process = db
         .find_process_by_id(&task_id)
@@ -862,10 +909,13 @@ pub async fn sync_refund_with_gateway_workflow(
     ];
     match response.refund_status {
         status if terminal_status.contains(&status) => {
-            let id = refund_tracker.id.clone();
-            refund_tracker
-                .clone()
-                .finish_with_status(state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(
+                    refund_tracker.clone(),
+                    "COMPLETED_BY_PT".to_string(),
+                )
                 .await?
         }
         _ => {
@@ -888,8 +938,12 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
-        Some("EXECUTE_REFUND") => trigger_refund_execute_workflow(state, refund_tracker).await,
-        Some("SYNC_REFUND") => sync_refund_with_gateway_workflow(state, refund_tracker).await,
+        Some("EXECUTE_REFUND") => {
+            Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
+        }
+        Some("SYNC_REFUND") => {
+            Box::pin(sync_refund_with_gateway_workflow(state, refund_tracker)).await
+        }
         _ => Err(errors::ProcessTrackerError::JobNotFound),
     }
 }
@@ -969,18 +1023,29 @@ pub async fn trigger_refund_execute_workflow(
                 None,
             )
             .await?;
-            add_refund_sync_task(db, &updated_refund, "REFUND_WORKFLOW_ROUTER").await?;
+            add_refund_sync_task(
+                db,
+                &updated_refund,
+                storage::ProcessTrackerRunner::RefundWorkflowRouter,
+            )
+            .await?;
         }
         (true, enums::RefundStatus::Pending) => {
             // create sync task
-            add_refund_sync_task(db, &refund, "REFUND_WORKFLOW_ROUTER").await?;
+            add_refund_sync_task(
+                db,
+                &refund,
+                storage::ProcessTrackerRunner::RefundWorkflowRouter,
+            )
+            .await?;
         }
         (_, _) => {
             //mark task as finished
-            let id = refund_tracker.id.clone();
-            refund_tracker
-                .clone()
-                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+            db.as_scheduler()
+                .finish_process_with_business_status(
+                    refund_tracker.clone(),
+                    "COMPLETED_BY_PT".to_string(),
+                )
                 .await?;
         }
     };
@@ -1003,29 +1068,23 @@ pub fn refund_to_refund_core_workflow_model(
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: &str,
+    runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
-    let current_time = common_utils::date_time::now();
-    let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let task = "SYNC_REFUND";
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
-        name: Some(String::from(task)),
-        tag: vec![String::from("REFUND")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: refund_workflow_model,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
+    let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
+    let schedule_time = common_utils::date_time::now();
+    let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
+    let tag = ["REFUND"];
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        refund_workflow_tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct refund sync process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
@@ -1037,6 +1096,12 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
+    metrics::TASKS_ADDED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("flow", "Refund")],
+    );
+
     Ok(response)
 }
 
@@ -1044,29 +1109,23 @@ pub async fn add_refund_sync_task(
 pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &storage::Refund,
-    runner: &str,
+    runner: storage::ProcessTrackerRunner,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
-    let current_time = common_utils::date_time::now();
-    let refund_workflow_model = serde_json::to_value(refund_to_refund_core_workflow_model(refund))
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
-    let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
-        name: Some(String::from(task)),
-        tag: vec![String::from("REFUND")],
-        runner: Some(String::from(runner)),
-        retry_count: 0,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: refund_workflow_model,
-        business_status: String::from("Pending"),
-        status: enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: current_time,
-        updated_at: current_time,
-    };
+    let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
+    let tag = ["REFUND"];
+    let schedule_time = common_utils::date_time::now();
+    let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        refund_workflow_tracking_data,
+        schedule_time,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct refund execute process tracker task")?;
 
     let response = db
         .insert_process(process_tracker_entry)
@@ -1119,10 +1178,23 @@ pub async fn retry_refund_sync_task(
         get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
-        None => {
-            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
+        Some(s_time) => {
+            let retry_schedule = db
+                .as_scheduler()
+                .retry_process(pt, s_time)
                 .await
+                .map_err(Into::into);
+            metrics::TASKS_RESET_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes("flow", "Refund")],
+            );
+            retry_schedule
         }
+        None => db
+            .as_scheduler()
+            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
+            .await
+            .map_err(Into::into),
     }
 }

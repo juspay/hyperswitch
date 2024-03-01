@@ -3,15 +3,13 @@ use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
 use masking::Secret;
-use serde::Deserialize;
-#[cfg(feature = "payouts")]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, RouterData},
     types::{
         api::payouts,
         storage::enums::{self as storage_enums, PayoutEntityType},
@@ -40,7 +38,7 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
 }
 
 // Wise error response
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
@@ -51,13 +49,12 @@ pub struct ErrorResponse {
     pub path: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SubError {
     pub code: String,
     pub message: String,
     pub path: Option<String>,
     pub field: Option<String>,
-    pub arguments: Option<Vec<String>>,
 }
 
 // Payouts
@@ -140,7 +137,7 @@ pub struct WiseAddressDetails {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseRecipientCreateResponse {
     id: i64,
@@ -179,7 +176,7 @@ pub enum WisePayOutOption {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutQuoteResponse {
     source_amount: f64,
@@ -196,7 +193,7 @@ pub struct WisePayoutQuoteResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WiseRateType {
     #[default]
@@ -225,7 +222,7 @@ pub struct WiseTransferDetails {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutResponse {
     id: i64,
@@ -265,7 +262,7 @@ pub enum FundType {
 
 #[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseFulfillResponse {
     status: WiseStatus,
@@ -344,10 +341,9 @@ fn get_payout_bank_details(
             bic: b.bic,
             ..WiseBankDetails::default()
         }),
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: "Card payout creation is not supported".to_string(),
-            connector: "Wise",
-        }),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Wise"),
+        ))?,
     }
 }
 
@@ -371,10 +367,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             }),
         }?;
         match request.payout_type.to_owned() {
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout creation is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -432,10 +429,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
                 target_currency: request.destination_currency.to_string(),
                 pay_out: WisePayOutOption::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -489,10 +487,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
                     details: wise_transfer_details,
                 })
             }
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -533,10 +532,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             storage_enums::PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
-            storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
-                message: "Card payout fulfillment is not supported".to_string(),
-                connector: "Wise",
-            })?,
+            storage_enums::PayoutType::Card | storage_enums::PayoutType::Wallet => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -583,7 +583,8 @@ impl ForeignFrom<PayoutEntityType> for LegalType {
         match entity_type {
             PayoutEntityType::Individual
             | PayoutEntityType::Personal
-            | PayoutEntityType::NonProfit => Self::Private,
+            | PayoutEntityType::NonProfit
+            | PayoutEntityType::NaturalPerson => Self::Private,
             PayoutEntityType::Company
             | PayoutEntityType::PublicSector
             | PayoutEntityType::Business => Self::Business,
@@ -599,10 +600,9 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             PayoutMethodData::Bank(api_models::payouts::Bank::Ach(_)) => Ok(Self::Aba),
             PayoutMethodData::Bank(api_models::payouts::Bank::Bacs(_)) => Ok(Self::SortCode),
             PayoutMethodData::Bank(api_models::payouts::Bank::Sepa(_)) => Ok(Self::Iban),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "Requested payout_method_type is not supported".to_string(),
-                connector: "Wise",
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Wise"),
+            )
             .into()),
         }
     }

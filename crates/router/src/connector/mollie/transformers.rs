@@ -286,10 +286,13 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
         match item.request.payment_method_data.clone() {
             api_models::payments::PaymentMethodData::Card(ccard) => {
                 let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
-                let card_holder = ccard.card_holder_name.clone();
+                let card_holder = ccard
+                    .card_holder_name
+                    .clone()
+                    .unwrap_or(Secret::new("".to_string()));
                 let card_number = ccard.card_number.clone();
                 let card_expiry_date =
-                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
+                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?;
                 let card_cvv = ccard.card_cvc;
                 let locale = item.request.get_browser_info()?.get_language()?;
                 let testmode =
@@ -385,7 +388,7 @@ fn get_address_details(
     Ok(address_details)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsResponse {
     pub resource: String,
@@ -531,6 +534,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
             }),
             ..item.data
         })
@@ -621,7 +625,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub title: Option<String>,

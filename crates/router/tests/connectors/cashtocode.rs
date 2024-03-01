@@ -57,6 +57,7 @@ impl CashtocodeTest {
             order_details: None,
             order_category: None,
             email: None,
+            customer_name: None,
             payment_experience: None,
             payment_method_type,
             session_token: None,
@@ -67,6 +68,8 @@ impl CashtocodeTest {
             complete_authorize_url: None,
             customer_id: Some("John Doe".to_owned()),
             surcharge_details: None,
+            request_incremental_authorization: false,
+            metadata: None,
         })
     }
 
@@ -79,6 +82,7 @@ impl CashtocodeTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),

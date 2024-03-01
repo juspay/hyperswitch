@@ -1,6 +1,6 @@
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::errors::CustomResult;
-use diesel_models::PaymentMethod;
+use diesel_models::{enums as storage_enums, PaymentMethod};
 use error_stack::{FutureExt, ResultExt};
 use futures::TryFutureExt;
 
@@ -79,10 +79,25 @@ pub async fn call_to_locker(
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
-    for pm in payment_methods {
-        let card =
-            cards::get_card_from_locker(state, customer_id, merchant_id, &pm.payment_method_id)
-                .await?;
+    for pm in payment_methods
+        .into_iter()
+        .filter(|pm| matches!(pm.payment_method, storage_enums::PaymentMethod::Card))
+    {
+        let card = cards::get_card_from_locker(
+            state,
+            customer_id,
+            merchant_id,
+            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+        )
+        .await;
+
+        let card = match card {
+            Ok(card) => card,
+            Err(err) => {
+                logger::error!("Failed to fetch card from Basilisk HS locker : {:?}", err);
+                continue;
+            }
+        };
 
         let card_details = api::CardDetail {
             card_number: card.card_number,
@@ -90,6 +105,10 @@ pub async fn call_to_locker(
             card_exp_year: card.card_exp_year,
             card_holder_name: card.name_on_card,
             nick_name: card.nick_name.map(masking::Secret::new),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
         };
 
         let pm_create = api::PaymentMethodCreate {
@@ -98,33 +117,43 @@ pub async fn call_to_locker(
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             card: Some(card_details.clone()),
+            wallet: None,
+            bank_transfer: None,
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
         };
 
-        let (_add_card_rs_resp, _is_duplicate) = cards::add_card_hs(
-            state,
-            pm_create,
-            &card_details,
-            customer_id.to_string(),
-            merchant_account,
-            api_enums::LockerChoice::Tartarus,
-            Some(&pm.payment_method_id),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
-            pm.payment_method_id
-        ))?;
+        let add_card_result = cards::add_card_hs(
+                state,
+                pm_create,
+                &card_details,
+                customer_id.to_string(),
+                merchant_account,
+                api_enums::LockerChoice::HyperswitchCardVault,
+                Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                pm.payment_method_id
+            ));
+
+        let (_add_card_rs_resp, _is_duplicate) = match add_card_result {
+            Ok(output) => output,
+            Err(err) => {
+                logger::error!("Failed to add card to Rust locker : {:?}", err);
+                continue;
+            }
+        };
 
         cards_moved += 1;
 
         logger::info!(
-            "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
-            pm.payment_method_id
-        );
+                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id}, payment_method_id: {} ",
+                pm.payment_method_id
+            );
     }
 
     Ok(cards_moved)

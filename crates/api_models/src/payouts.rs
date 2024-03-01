@@ -7,7 +7,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payments};
+use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -48,10 +48,6 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
-    #[serde(
-        default,
-        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
-    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
@@ -157,6 +153,7 @@ pub struct PayoutCreateRequest {
 pub enum PayoutMethodData {
     Card(Card),
     Bank(Bank),
+    Wallet(Wallet),
 }
 
 impl Default for PayoutMethodData {
@@ -181,7 +178,7 @@ pub struct Card {
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -195,16 +192,16 @@ pub enum Bank {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AchBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -218,16 +215,16 @@ pub struct AchBankTransfer {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BacsBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
@@ -242,16 +239,16 @@ pub struct BacsBankTransfer {
 // The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
 pub struct SepaBankTransfer {
     /// Bank name
-    #[schema(value_type = String, example = "Deutsche Bank")]
-    pub bank_name: String,
+    #[schema(value_type = Option<String>, example = "Deutsche Bank")]
+    pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub bank_country_code: Option<api_enums::CountryAlpha2>,
 
     /// Bank city
-    #[schema(value_type = String, example = "California")]
-    pub bank_city: String,
+    #[schema(value_type = Option<String>, example = "California")]
+    pub bank_city: Option<String>,
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
@@ -260,6 +257,19 @@ pub struct SepaBankTransfer {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
     pub bic: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Wallet {
+    Paypal(Paypal),
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct Paypal {
+    /// Email linked with paypal account
+    #[schema(value_type = String, example = "john.doe@example.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize)]
@@ -382,7 +392,7 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 
     /// The business profile that is associated with this payment
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]

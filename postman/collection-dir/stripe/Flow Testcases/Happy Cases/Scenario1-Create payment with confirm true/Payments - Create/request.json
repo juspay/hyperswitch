@@ -25,7 +25,7 @@
       "business_label": "default",
       "capture_method": "automatic",
       "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 1,
+      "amount_to_capture": 6540,
       "customer_id": "bernard123",
       "email": "guest@example.com",
       "name": "John Doe",
@@ -41,7 +41,7 @@
         "card": {
           "card_number": "4242424242424242",
           "card_exp_month": "01",
-          "card_exp_year": "24",
+          "card_exp_year": "26",
           "card_holder_name": "joseph Doe",
           "card_cvc": "123"
         }

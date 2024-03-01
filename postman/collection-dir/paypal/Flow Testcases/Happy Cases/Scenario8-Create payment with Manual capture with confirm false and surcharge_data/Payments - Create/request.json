@@ -31,6 +31,10 @@
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
       "return_url": "https://duck.com",
+      "surcharge_details": {
+        "surcharge_amount": 5,
+        "tax_amount": 5
+      },
       "billing": {
         "address": {
           "line1": "1467",

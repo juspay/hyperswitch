@@ -3,14 +3,14 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret, StrongSecret};
+use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -119,7 +119,7 @@ pub struct PayPalDetails {
 #[serde(rename_all = "camelCase")]
 pub struct WalletDetails {
     pub data_descriptor: WalletMethod,
-    pub data_value: String,
+    pub data_value: Secret<String>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -147,14 +147,12 @@ fn get_pm_and_subsequent_auth_detail(
         .to_owned()
         .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
     {
-        Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-            original_network_trans_id,
-        )) => {
+        Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
             let processing_options = Some(ProcessingOptions {
                 is_subsequent_auth: true,
             });
             let subseuent_auth_info = Some(SubsequentAuthInformation {
-                original_network_trans_id,
+                original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             });
             match item.router_data.request.payment_method_data {
@@ -225,7 +223,7 @@ pub struct ProcessingOptions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubsequentAuthInformation {
-    original_network_trans_id: String,
+    original_network_trans_id: Secret<String>,
     // original_auth_amount: String, Required for Discover, Diners Club, JCB, and China Union Pay transactions.
     reason: Reason,
 }
@@ -260,8 +258,8 @@ struct TransactionVoidOrCaptureRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
+    ref_id: Option<String>,
     transaction_request: TransactionRequest,
-    ref_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -328,12 +326,16 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
 
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
-
+        let ref_id = if item.router_data.connector_request_reference_id.len() <= 20 {
+            Some(item.router_data.connector_request_reference_id.clone())
+        } else {
+            None
+        };
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
                 merchant_authentication,
+                ref_id,
                 transaction_request,
-                ref_id: item.router_data.connector_request_reference_id.clone(),
             },
         })
     }
@@ -388,7 +390,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub enum AuthorizedotnetPaymentStatus {
     #[serde(rename = "1")]
     Approved,
@@ -403,7 +405,7 @@ pub enum AuthorizedotnetPaymentStatus {
     RequiresAction,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 pub enum AuthorizedotnetRefundStatus {
     #[serde(rename = "1")]
     Approved,
@@ -415,10 +417,16 @@ pub enum AuthorizedotnetRefundStatus {
     HeldForReview,
 }
 
-impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AuthorizedotnetPaymentStatus) -> Self {
+impl ForeignFrom<(AuthorizedotnetPaymentStatus, bool)> for enums::AttemptStatus {
+    fn foreign_from((item, auto_capture): (AuthorizedotnetPaymentStatus, bool)) -> Self {
         match item {
-            AuthorizedotnetPaymentStatus::Approved => Self::Pending,
+            AuthorizedotnetPaymentStatus::Approved => {
+                if auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
             AuthorizedotnetPaymentStatus::Declined | AuthorizedotnetPaymentStatus::Error => {
                 Self::Failure
             }
@@ -448,82 +456,82 @@ pub struct ResponseMessages {
     pub message: Vec<ResponseMessage>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorMessage {
     pub error_code: String,
     pub error_text: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TransactionResponse {
     AuthorizedotnetTransactionResponse(Box<AuthorizedotnetTransactionResponse>),
     AuthorizedotnetTransactionResponseError(Box<AuthorizedotnetTransactionResponseError>),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthorizedotnetTransactionResponseError {
     _supplemental_data_qualification_indicator: i64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetTransactionResponse {
     response_code: AuthorizedotnetPaymentStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
-    network_trans_id: Option<String>,
-    pub(super) account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub(super) account_number: Option<Secret<String>>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     response_code: AuthorizedotnetRefundStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
     #[allow(dead_code)]
-    network_trans_id: Option<String>,
-    pub account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SecureAcceptance {
     secure_acceptance_url: Option<url::Url>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetVoidResponse {
     pub transaction_response: Option<VoidResponse>,
     pub messages: ResponseMessages,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoidResponse {
     response_code: AuthorizedotnetVoidStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
-    network_trans_id: Option<String>,
-    pub account_number: Option<String>,
+    network_trans_id: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     pub errors: Option<Vec<ErrorMessage>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum AuthorizedotnetVoidStatus {
     #[serde(rename = "1")]
     Approved,
@@ -538,35 +546,44 @@ pub enum AuthorizedotnetVoidStatus {
 impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
     fn from(item: AuthorizedotnetVoidStatus) -> Self {
         match item {
-            AuthorizedotnetVoidStatus::Approved => Self::VoidInitiated,
-            AuthorizedotnetVoidStatus::Declined | AuthorizedotnetVoidStatus::Error => Self::Failure,
-            AuthorizedotnetVoidStatus::HeldForReview => Self::Pending,
+            AuthorizedotnetVoidStatus::Approved => Self::Voided,
+            AuthorizedotnetVoidStatus::Declined | AuthorizedotnetVoidStatus::Error => {
+                Self::VoidFailed
+            }
+            AuthorizedotnetVoidStatus::HeldForReview => Self::VoidInitiated,
         }
     }
 }
 
 impl<F, T>
-    TryFrom<
+    TryFrom<(
         types::ResponseRouterData<
             F,
             AuthorizedotnetPaymentsResponse,
             T,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        bool,
+    )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AuthorizedotnetPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        (item, is_auto_capture): (
+            types::ResponseRouterData<
+                F,
+                AuthorizedotnetPaymentsResponse,
+                T,
+                types::PaymentsResponseData,
+            >,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
         match &item.response.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(transaction_response)) => {
-                let status = enums::AttemptStatus::from(transaction_response.response_code.clone());
+                let status = enums::AttemptStatus::foreign_from((
+                    transaction_response.response_code.clone(),
+                    is_auto_capture,
+                ));
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
@@ -574,15 +591,14 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
-                        )
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -605,10 +621,14 @@ impl<F, T>
                             redirection_data,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -617,7 +637,7 @@ impl<F, T>
             Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) | None => {
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(get_err_response(item.http_code, item.response.messages)),
+                    response: Err(get_err_response(item.http_code, item.response.messages)?),
                     ..item.data
                 })
             }
@@ -649,15 +669,14 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
+                        connector_transaction_id: None,
                     })
                 });
                 let metadata = transaction_response
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        Encode::<'_, PaymentDetails>::encode_to_value(
-                            &construct_refund_payment_details(acc_no.clone()),
-                        )
+                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -674,10 +693,14 @@ impl<F, T>
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: transaction_response.network_trans_id.clone(),
+                            network_txn_id: transaction_response
+                                .network_trans_id
+                                .clone()
+                                .map(|network_trans_id| network_trans_id.expose()),
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+                            incremental_authorization_allowed: None,
                         }),
                     },
                     ..item.data
@@ -685,7 +708,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -769,7 +792,7 @@ impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetRefundResponse {
     pub transaction_response: RefundResponse,
@@ -792,6 +815,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
+                connector_transaction_id: None,
             })
         });
 
@@ -939,7 +963,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -974,13 +998,14 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        incremental_authorization_allowed: None,
                     }),
                     status: payment_status,
                     ..item.data
                 })
             }
             None => Ok(Self {
-                response: Err(get_err_response(item.http_code, item.response.messages)),
+                response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
         }
@@ -1018,14 +1043,22 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
     }
 }
 
-fn get_err_response(status_code: u16, message: ResponseMessages) -> types::ErrorResponse {
-    types::ErrorResponse {
-        code: message.message[0].code.clone(),
-        message: message.message[0].text.clone(),
+fn get_err_response(
+    status_code: u16,
+    message: ResponseMessages,
+) -> Result<types::ErrorResponse, errors::ConnectorError> {
+    let response_message = message
+        .message
+        .first()
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(types::ErrorResponse {
+        code: response_message.code.clone(),
+        message: response_message.text.clone(),
         reason: None,
         status_code,
         attempt_status: None,
-    }
+        connector_transaction_id: None,
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -1142,13 +1175,13 @@ fn get_wallet_data(
         api_models::payments::WalletData::GooglePay(_) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Googlepay,
-                data_value: wallet_data.get_encoded_wallet_token()?,
+                data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
             }))
         }
         api_models::payments::WalletData::ApplePay(applepay_token) => {
             Ok(PaymentDetails::OpaqueData(WalletDetails {
                 data_descriptor: WalletMethod::Applepay,
-                data_value: applepay_token.payment_data.clone(),
+                data_value: Secret::new(applepay_token.payment_data.clone()),
             }))
         }
         api_models::payments::WalletData::PaypalRedirect(_) => {
@@ -1205,7 +1238,7 @@ pub struct Paypal {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalQueryParams {
     #[serde(rename = "PayerID")]
-    payer_id: String,
+    payer_id: Secret<String>,
 }
 
 impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
@@ -1222,12 +1255,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id: Secret<String> = Secret::new(
+        let payer_id: Secret<String> =
             serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-                .payer_id,
-        );
+                .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::ContinueAuthorization,
             _ => TransactionType::ContinueCapture,

@@ -1,9 +1,10 @@
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -31,12 +32,47 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
                 api::WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
+                api::WalletData::AliPayRedirect(_)
+                | api::WalletData::AliPayHkRedirect(_)
+                | api::WalletData::MomoRedirect(_)
+                | api::WalletData::KakaoPayRedirect(_)
+                | api::WalletData::GoPayRedirect(_)
+                | api::WalletData::GcashRedirect(_)
+                | api::WalletData::ApplePay(_)
+                | api::WalletData::ApplePayRedirect(_)
+                | api::WalletData::ApplePayThirdPartySdk(_)
+                | api::WalletData::DanaRedirect {}
+                | api::WalletData::GooglePay(_)
+                | api::WalletData::GooglePayRedirect(_)
+                | api::WalletData::GooglePayThirdPartySdk(_)
+                | api::WalletData::MbWayRedirect(_)
+                | api::WalletData::MobilePayRedirect(_)
+                | api::WalletData::PaypalRedirect(_)
+                | api::WalletData::PaypalSdk(_)
+                | api::WalletData::SamsungPay(_)
+                | api::WalletData::TwintRedirect {}
+                | api::WalletData::VippsRedirect {}
+                | api::WalletData::TouchNGoRedirect(_)
+                | api::WalletData::WeChatPayRedirect(_)
+                | api::WalletData::CashappQr(_)
+                | api::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("globepay"),
                 ))?,
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("globepay"),
             ))?,
         };
         let description = item.get_description()?;
@@ -67,7 +103,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayPaymentStatus {
     Success,
@@ -88,7 +124,7 @@ pub struct GlobepayConnectorMetadata {
     image_data_url: url::Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayPaymentsResponse {
     result_code: Option<GlobepayPaymentStatus>,
     order_id: Option<String>,
@@ -97,7 +133,7 @@ pub struct GlobepayPaymentsResponse {
     return_msg: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, strum::Display)]
+#[derive(Debug, Deserialize, PartialEq, strum::Display, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayReturnCode {
     Success,
@@ -134,11 +170,9 @@ impl<F, T>
                     .qrcode_img
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
             };
-            let connector_metadata = Some(common_utils::ext_traits::Encode::<
-                GlobepayConnectorMetadata,
-            >::encode_to_value(&globepay_metadata))
-            .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            let connector_metadata = Some(globepay_metadata.encode_to_value())
+                .transpose()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
             let globepay_status = item
                 .response
                 .result_code
@@ -157,6 +191,7 @@ impl<F, T>
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -174,7 +209,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepaySyncResponse {
     pub result_code: Option<GlobepayPaymentPsyncStatus>,
     pub order_id: Option<String>,
@@ -182,7 +217,7 @@ pub struct GlobepaySyncResponse {
     pub return_msg: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobepayPaymentPsyncStatus {
     Paying,
@@ -230,6 +265,7 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
                 }),
                 ..item.data
             })
@@ -258,6 +294,7 @@ fn get_error_response(
         reason: return_msg,
         status_code,
         attempt_status: None,
+        connector_transaction_id: None,
     }
 }
 
@@ -275,7 +312,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for GlobepayRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum GlobepayRefundStatus {
     Waiting,
     CreateFailed,
@@ -297,7 +334,7 @@ impl From<GlobepayRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayRefundResponse {
     pub result_code: Option<GlobepayRefundStatus>,
     pub refund_id: Option<String>,
@@ -341,7 +378,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, GlobepayRefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayErrorResponse {
     pub return_msg: String,
     pub return_code: GlobepayReturnCode,

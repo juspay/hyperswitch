@@ -39,10 +39,22 @@ use crate::types::FlowMetric;
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum AnalyticsFlow {
     GetInfo,
+    GetPaymentMetrics,
+    GetRefundsMetrics,
+    GetSdkMetrics,
     GetPaymentFilters,
     GetRefundFilters,
-    GetRefundsMetrics,
-    GetPaymentMetrics,
+    GetSdkEventFilters,
+    GetApiEvents,
+    GetSdkEvents,
+    GeneratePaymentReport,
+    GenerateDisputeReport,
+    GenerateRefundReport,
+    GetApiEventMetrics,
+    GetApiEventFilters,
+    GetConnectorEvents,
+    GetOutgoingWebhookEvents,
+    GetDisputeFilters,
 }
 
 impl FlowMetric for AnalyticsFlow {}

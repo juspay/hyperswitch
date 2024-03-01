@@ -1,68 +1,37 @@
 pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
-#[cfg(feature = "kms")]
-use external_services::kms;
+use masking::ExposeInterface;
 
-use crate::{
-    core::errors::{self, api_error_response},
-    headers, logger,
-    routes::AppState,
-    services, types,
-};
+use crate::{core::errors::api_error_response, headers, logger, routes::AppState, services};
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
     state: AppState,
-    _req: &actix_web::HttpRequest,
     body: verifications::ApplepayMerchantVerificationRequest,
-    kms_config: &kms::KmsConfig,
     merchant_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<ApplepayMerchantResponse>,
     api_error_response::ApiErrorResponse,
 > {
-    let encrypted_merchant_identifier = &state
-        .conf
-        .applepay_merchant_configs
-        .common_merchant_identifier;
-    let encrypted_cert = &state.conf.applepay_merchant_configs.merchant_cert;
-    let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
-    let applepay_endpoint = &state.conf.applepay_merchant_configs.applepay_endpoint;
+    let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
 
-    let applepay_internal_merchant_identifier = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_merchant_identifier)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
-
-    let cert_data = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_cert)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
-
-    let key_data = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_key)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+    let applepay_internal_merchant_identifier = applepay_merchant_configs
+        .common_merchant_identifier
+        .clone()
+        .expose();
+    let cert_data = applepay_merchant_configs.merchant_cert.clone().expose();
+    let key_data = applepay_merchant_configs.merchant_cert_key.clone().expose();
+    let applepay_endpoint = &applepay_merchant_configs.applepay_endpoint;
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
         domain_names: body.domain_names.clone(),
-        encrypt_to: applepay_internal_merchant_identifier.to_string(),
-        partner_internal_merchant_identifier: applepay_internal_merchant_identifier.to_string(),
+        encrypt_to: applepay_internal_merchant_identifier.clone(),
+        partner_internal_merchant_identifier: applepay_internal_merchant_identifier,
         partner_merchant_name: APPLEPAY_INTERNAL_MERCHANT_NAME.to_string(),
     };
-
-    let applepay_req = types::RequestBody::log_and_get_request_body(
-        &request_body,
-        Encode::<verifications::ApplepayMerchantVerificationRequest>::encode_to_string_of_json,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encode ApplePay session request to a string of json")?;
 
     let apple_pay_merch_verification_req = services::RequestBuilder::new()
         .method(services::Method::Post)
@@ -72,7 +41,7 @@ pub async fn verify_merchant_creds_for_applepay(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string().into(),
         )])
-        .body(Some(applepay_req))
+        .set_body(RequestContent::Json(Box::new(request_body)))
         .add_certificate(Some(cert_data))
         .add_certificate_key(Some(key_data))
         .build();

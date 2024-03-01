@@ -1583,7 +1583,7 @@
                                     "responseBodyTests": [
                                         {
                                             "key": "message",
-                                            "value": "Refund amount exceeds the payment amount"
+                                            "value": "The refund amount exceeds the amount captured"
                                         }
                                     ]
                                 }

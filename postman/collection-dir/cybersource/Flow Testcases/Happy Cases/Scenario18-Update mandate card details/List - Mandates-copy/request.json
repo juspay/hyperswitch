@@ -1,0 +1,27 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/mandates/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "mandates",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{mandate_id}}",
+        "description": "(Required) Unique mandate id"
+      }
+    ]
+  },
+  "description": "To list the details of a mandate"
+}

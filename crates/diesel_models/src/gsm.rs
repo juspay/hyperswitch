@@ -34,6 +34,8 @@ pub struct GatewayStatusMap {
     #[serde(with = "custom_serde::iso8601")]
     pub last_modified: PrimitiveDateTime,
     pub step_up_possible: bool,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -48,6 +50,8 @@ pub struct GatewayStatusMappingNew {
     pub router_error: Option<String>,
     pub decision: String,
     pub step_up_possible: bool,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -71,6 +75,8 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub router_error: Option<Option<String>>,
     pub decision: Option<String>,
     pub step_up_possible: Option<bool>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug)]
@@ -79,6 +85,8 @@ pub struct GatewayStatusMappingUpdate {
     pub router_error: Option<Option<String>>,
     pub decision: Option<String>,
     pub step_up_possible: Option<bool>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -88,12 +96,16 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             status,
             router_error,
             step_up_possible,
+            unified_code,
+            unified_message,
         } = value;
         Self {
             status,
             router_error,
             decision,
             step_up_possible,
+            unified_code,
+            unified_message,
             ..Default::default()
         }
     }
