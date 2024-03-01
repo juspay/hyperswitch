@@ -4,6 +4,15 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [BOA/CYB] Pass ucaf for apple pay mastercard users ([#3912](https://github.com/juspay/hyperswitch/pull/3912)) ([`ffbdc30`](https://github.com/juspay/hyperswitch/commit/ffbdc30c5cd6c22693cbcad220ef30a31d80aadd))
+- **wasm:** [Adyen] update connector account configs and integration bugs ([#3916](https://github.com/juspay/hyperswitch/pull/3916)) ([`9edc750`](https://github.com/juspay/hyperswitch/commit/9edc7500bf2ed1116077227221256764508b3d2a))
+
+- - -
+
 ## 2024.03.01.0
 
 ### Features
