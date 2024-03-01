@@ -148,6 +148,7 @@ pub async fn construct_payout_router_data<'a, F>(
         auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        payment_method_status: None,
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
@@ -298,6 +299,7 @@ pub async fn construct_refund_router_data<'a, F>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
             connector_transaction_id: refund.connector_transaction_id.clone(),
@@ -541,6 +543,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
@@ -645,6 +648,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
         payment_method_balance: None,
+        payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -725,6 +729,7 @@ pub async fn construct_upload_file_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::UploadFileRequestData {
             file_key,
             file: create_file_request.file.clone(),
@@ -820,6 +825,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
+        payment_method_status: None,
         request: types::DefendDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
@@ -907,6 +913,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
+        payment_method_status: None,
         request: types::RetrieveFileRequestData {
             provider_file_id: file_metadata
                 .provider_file_id

@@ -1383,6 +1383,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
+                payment_method_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1405,6 +1406,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
+                payment_method_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1655,6 +1657,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
+                payment_method_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1677,6 +1680,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 fingerprint_id,
                 updated_by,
                 merchant_connector_id: connector_id,
+                payment_method_id
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

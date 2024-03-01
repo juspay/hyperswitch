@@ -2529,8 +2529,7 @@ pub struct PaymentsResponse {
     pub payment_method_id: Option<String>,
 
     /// Payment Method Status
-    pub payment_method_status: Option<String>,
-    // pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

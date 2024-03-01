@@ -311,6 +311,7 @@ pub enum PaymentAttemptUpdate {
         tax_amount: Option<i64>,
         merchant_connector_id: Option<String>,
         fingerprint_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,

@@ -176,6 +176,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,
+            payment_method_status: None,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
@@ -317,9 +318,10 @@ where
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         //No payment method data for this operation
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), None, None))
     }
 
     /// Returns `Vec<SessionConnectorData>`

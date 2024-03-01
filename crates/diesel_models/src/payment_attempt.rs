@@ -218,6 +218,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -537,6 +538,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -560,6 +562,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 fingerprint_id,
+                payment_method_id: payment_method_id.map(Some),
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
