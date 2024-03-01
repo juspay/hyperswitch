@@ -733,7 +733,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .unwrap_or(payment_data.payment_attempt.amount);
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
-        let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone(); 
+        let m_payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
         let m_payment_token = payment_token.clone();
