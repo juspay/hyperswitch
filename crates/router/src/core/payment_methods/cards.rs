@@ -351,7 +351,13 @@ pub async fn add_payment_method(
         None => {
             let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
 
-            let locker_id = Some(resp.payment_method_id);
+            let locker_id = if resp.payment_method == api_enums::PaymentMethod::Card
+                || resp.payment_method == api_enums::PaymentMethod::BankTransfer
+            {
+                Some(resp.payment_method_id)
+            } else {
+                None
+            };
             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             insert_payment_method(
                 db,
