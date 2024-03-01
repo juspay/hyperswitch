@@ -1,4 +1,4 @@
-use std::{str::FromStr, vec::IntoIter};
+use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
 use api_models::payouts::PayoutCreateRequest;
 use error_stack::{IntoReport, ResultExt};
@@ -110,8 +110,16 @@ pub async fn do_gsm_single_connector_actions(
 
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
 
+    let mut previous_gsm = None; // to compare previous status
+
     loop {
         let gsm = get_gsm(state, &original_connector_data, &payout_data).await?;
+
+        // if the error config is same as previous, we break out of the loop
+        if let Ordering::Equal = gsm.cmp(&previous_gsm) {
+            break;
+        }
+        previous_gsm = gsm.clone();
 
         match get_gsm_decision(gsm) {
             api_models::gsm::GsmDecision::Retry => {
