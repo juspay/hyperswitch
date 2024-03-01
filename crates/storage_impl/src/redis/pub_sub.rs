@@ -2,7 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::logger;
 
-use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE};
+use crate::redis::cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE, KGRAPH_CACHE, ROUTING_CACHE};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -70,9 +70,19 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
                     key
                 }
+                CacheKind::KGraph(key) => {
+                    KGRAPH_CACHE.invalidate(key.as_ref()).await;
+                    key
+                }
+                CacheKind::Routing(key) => {
+                    ROUTING_CACHE.invalidate(key.as_ref()).await;
+                    key
+                }
                 CacheKind::All(key) => {
                     CONFIG_CACHE.invalidate(key.as_ref()).await;
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    KGRAPH_CACHE.invalidate(key.as_ref()).await;
+                    ROUTING_CACHE.invalidate(key.as_ref()).await;
                     key
                 }
             };
