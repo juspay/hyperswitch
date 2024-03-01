@@ -695,6 +695,8 @@ diesel::table! {
         mandate_data -> Nullable<Jsonb>,
         #[max_length = 64]
         fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_billing_address_id -> Nullable<Varchar>,
     }
 }
 
