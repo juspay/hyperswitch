@@ -45,7 +45,6 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
-            authentication_details: None,
         })
     }
 }
@@ -73,6 +72,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: None,
         })
     }
 }
