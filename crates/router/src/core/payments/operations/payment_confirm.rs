@@ -685,18 +685,19 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             }
             _ => None,
         } {
-            let authentication_details: api_models::admin::AuthenticationDetails = business_profile
-                .authentication_connector_details
-                .clone()
-                .get_required_value("authentication_details")
-                .attach_printable("authentication_details not configured by the merchant")?
-                .parse_value("AuthenticationDetails")
-                .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "Invalid data format found for authentication_details".into(),
-                })
-                .attach_printable(
-                    "Error while parsing authentication_details from merchant_account",
-                )?;
+            let authentication_details: api_models::admin::AuthenticationConnectorDetails =
+                business_profile
+                    .authentication_connector_details
+                    .clone()
+                    .get_required_value("authentication_details")
+                    .attach_printable("authentication_details not configured by the merchant")?
+                    .parse_value("AuthenticationDetails")
+                    .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "Invalid data format found for authentication_details".into(),
+                    })
+                    .attach_printable(
+                        "Error while parsing authentication_details from merchant_account",
+                    )?;
             let authentication_connector = authentication_details
                 .authentication_connectors
                 .first()

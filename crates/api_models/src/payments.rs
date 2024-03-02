@@ -3431,7 +3431,7 @@ pub struct PaymentsExternalAuthenticationRequest {
     pub threeds_method_comp_ind: ThreeDsCompletionIndicator,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, Default)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed
     #[serde(rename = "Y")]
@@ -3440,7 +3440,6 @@ pub enum ThreeDsCompletionIndicator {
     #[serde(rename = "N")]
     Failure,
     /// 3DS method URL was unavailable
-    #[default]
     #[serde(rename = "U")]
     NotAvailable,
 }
