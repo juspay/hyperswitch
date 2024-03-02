@@ -18,7 +18,7 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbUserStatus as UserStatus,
+        DbTransactionType as TransactionType, DbUserStatus as UserStatus,
     };
 }
 pub use common_enums::*;
@@ -372,6 +372,9 @@ pub enum BankNames {
     TsbBank,
     TescoBank,
     UlsterBank,
+    Yoursafe,
+    N26,
+    NationaleNederlanden,
 }
 
 #[derive(

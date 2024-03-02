@@ -65,22 +65,22 @@ impl RoleInfo {
             .iter()
             .any(|group| get_permissions_vec(group).contains(required_permission))
     }
-}
 
-pub async fn get_role_info_from_role_id(
-    state: &AppState,
-    role_id: &str,
-    merchant_id: &str,
-    org_id: &str,
-) -> CustomResult<RoleInfo, errors::StorageError> {
-    if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
-        Ok(role.clone())
-    } else {
-        state
-            .store
-            .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
-            .await
-            .map(RoleInfo::from)
+    pub async fn from_role_id(
+        state: &AppState,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> CustomResult<Self, errors::StorageError> {
+        if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
+            Ok(role.clone())
+        } else {
+            state
+                .store
+                .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+                .await
+                .map(Self::from)
+        }
     }
 }
 

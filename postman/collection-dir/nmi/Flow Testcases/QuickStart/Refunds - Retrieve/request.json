@@ -8,8 +8,13 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/refunds/:id?force_sync=true",
-    "host": ["{{baseUrl}}"],
-    "path": ["refunds", ":id"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "refunds",
+      ":id"
+    ],
     "query": [
       {
         "key": "force_sync",

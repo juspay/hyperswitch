@@ -73,6 +73,9 @@ pub struct CustomerResponse {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The identifier for the default payment method.
+    #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
+    pub default_payment_method_id: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]

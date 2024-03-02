@@ -6,7 +6,6 @@ use diesel::{
     QueryDsl, Table,
 };
 use error_stack::{IntoReport, ResultExt};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -21,14 +20,12 @@ use crate::{
 };
 
 impl PaymentAttemptNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self.populate_derived_fields()).await
     }
 }
 
 impl PaymentAttempt {
-    #[instrument(skip(conn))]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -56,7 +53,6 @@ impl PaymentAttempt {
         }
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -71,7 +67,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
@@ -156,7 +151,6 @@ impl PaymentAttempt {
         )
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -171,7 +165,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -186,7 +179,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -201,7 +193,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -219,7 +210,6 @@ impl PaymentAttempt {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &str,
