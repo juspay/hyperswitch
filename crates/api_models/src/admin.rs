@@ -97,10 +97,10 @@ pub struct MerchantAccountCreate {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct AuthenticationDetails {
+pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     pub authentication_connectors: Vec<String>,
-    /// ThreeDS requestor url
+    /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
 
@@ -907,7 +907,7 @@ pub struct BusinessProfileCreate {
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
-    pub authentication_connector_details: Option<AuthenticationDetails>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -976,7 +976,7 @@ pub struct BusinessProfileResponse {
     pub payment_link_config: Option<serde_json::Value>,
 
     /// External 3DS authentication details
-    pub authentication_connector_details: Option<AuthenticationDetails>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1037,7 +1037,7 @@ pub struct BusinessProfileUpdate {
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
-    pub authentication_connector_details: Option<AuthenticationDetails>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
