@@ -84,7 +84,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
-    meta_data_jwt: String,
+    meta_data_jwt: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,7 +122,7 @@ pub struct CaptureBuyerRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CaptureBuyerResponse {
-    buyer_key: String,
+    buyer_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
