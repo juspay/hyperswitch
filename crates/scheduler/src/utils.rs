@@ -368,6 +368,11 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 
 /// Get the delay based on the retry count
 fn get_delay<'a>(retry_count: i32, array: impl Iterator<Item = (&'a i32, &'a i32)>) -> Option<i32> {
+    // Preferably, fix this by using unsigned ints
+    if retry_count <= 0 {
+        return None;
+    }
+
     let mut cumulative_count = 0;
     for (&count, &frequency) in array {
         cumulative_count += count;
@@ -409,5 +414,40 @@ where
         result
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_delay() {
+        let count = [10, 5, 3, 2];
+        let frequency = [300, 600, 1800, 3600];
+
+        let retry_counts_and_expected_delays = [
+            (-4, None),
+            (-2, None),
+            (0, None),
+            (4, Some(300)),
+            (7, Some(300)),
+            (10, Some(300)),
+            (12, Some(600)),
+            (16, Some(1800)),
+            (18, Some(1800)),
+            (20, Some(3600)),
+            (24, None),
+            (30, None),
+        ];
+
+        for (retry_count, expected_delay) in retry_counts_and_expected_delays {
+            let delay = get_delay(retry_count, count.iter().zip(frequency.iter()));
+
+            assert_eq!(
+                delay, expected_delay,
+                "Delay and expected delay differ for `retry_count` = {retry_count}"
+            );
+        }
     }
 }
