@@ -2,7 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::{
     payment_methods::{
-        CustomerPaymentMethodsListResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
+        CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
+        DefaultPaymentMethod, PaymentMethodDeleteResponse, PaymentMethodListRequest,
         PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
@@ -96,6 +97,16 @@ impl ApiEventMetric for PaymentMethodResponse {
 
 impl ApiEventMetric for PaymentMethodUpdate {}
 
+impl ApiEventMetric for DefaultPaymentMethod {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method: None,
+            payment_method_type: None,
+        })
+    }
+}
+
 impl ApiEventMetric for PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
@@ -121,6 +132,16 @@ impl ApiEventMetric for PaymentMethodListRequest {
 }
 
 impl ApiEventMetric for PaymentMethodListResponse {}
+
+impl ApiEventMetric for CustomerDefaultPaymentMethodResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.default_payment_method_id.clone().unwrap_or_default(),
+            payment_method: Some(self.payment_method),
+            payment_method_type: self.payment_method_type,
+        })
+    }
+}
 
 impl ApiEventMetric for PaymentListFilterConstraints {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
