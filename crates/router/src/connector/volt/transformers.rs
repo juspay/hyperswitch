@@ -190,7 +190,7 @@ pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
-    pub refresh_token: String,
+    pub refresh_token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
