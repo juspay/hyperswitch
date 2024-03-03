@@ -117,7 +117,7 @@ pub struct Card {
 #[serde(untagged)]
 pub enum CardPayment {
     RawCard(Box<Card>),
-    CardToken(String),
+    CardToken(Secret<String>),
 }
 
 impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
@@ -577,12 +577,12 @@ pub struct Shift4ThreeDsResponse {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
-    pub id: String,
+    pub id: Secret<String>,
     pub created: i64,
     #[serde(rename = "objectType")]
     pub object_type: String,
     pub first6: String,
-    pub last4: String,
+    pub last4: Secret<String>,
     pub fingerprint: Secret<String>,
     pub brand: String,
     #[serde(rename = "type")]
@@ -629,7 +629,7 @@ pub enum NextAction {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Shift4CardToken {
-    pub id: String,
+    pub id: Secret<String>,
 }
 
 impl<F>
