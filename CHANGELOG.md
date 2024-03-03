@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix2
+
+### Bug Fixes
+
+- **payment_methods:** Insert locker_id as null in case of payment method not getting stored in locker ([#3921](https://github.com/juspay/hyperswitch/pull/3921)) ([`c9b64cf`](https://github.com/juspay/hyperswitch/commit/c9b64cfa326d16eda2f9df6f93d3105e382dafda))
+
+- - -
+
 ## 2024.03.01.0-hotfix1
 
 ### Bug Fixes
