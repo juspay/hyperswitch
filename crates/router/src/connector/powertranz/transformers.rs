@@ -1,5 +1,5 @@
 use api_models::payments::Card;
-use common_utils::pii::Email;
+use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
 use error_stack::IntoReport;
 use masking::Secret;
@@ -51,7 +51,7 @@ pub struct BrowserInfo {
     screen_width: Option<String>,
     time_zone: Option<String>,
     user_agent: Option<String>,
-    i_p: Option<std::net::IpAddr>,
+    i_p: Option<Secret<String, IpAddress>>,
     color_depth: Option<String>,
 }
 
@@ -94,7 +94,7 @@ pub struct PowertranzAddressDetails {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RedirectResponsePayload {
-    pub spi_token: String,
+    pub spi_token: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
@@ -173,7 +173,9 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
             screen_width: item.screen_width.map(|width| width.to_string()),
             time_zone: item.time_zone.map(|zone| zone.to_string()),
             user_agent: item.user_agent.clone(),
-            i_p: item.ip_address,
+            i_p: item
+                .ip_address
+                .map(|ip_address| Secret::new(ip_address.to_string())),
             color_depth: item.color_depth.map(|depth| depth.to_string()),
         })
     }
