@@ -351,7 +351,7 @@ pub async fn get_or_update_dispute_object(
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
-                amount: dispute_details.amount,
+                amount: dispute_details.amount.clone(),
                 currency: dispute_details.currency,
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
@@ -373,6 +373,7 @@ pub async fn get_or_update_dispute_object(
                 profile_id: Some(business_profile.profile_id.clone()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
             };
             state
                 .store
