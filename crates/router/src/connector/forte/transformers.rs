@@ -191,8 +191,8 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardResponse {
     pub name_on_card: Secret<String>,
-    pub last_4_account_number: String,
-    pub masked_account_number: String,
+    pub last_4_account_number: Secret<String>,
+    pub masked_account_number: Secret<String>,
     pub card_type: String,
 }
 
