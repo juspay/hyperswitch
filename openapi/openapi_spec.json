@@ -5165,7 +5165,10 @@
           "starling",
           "tsb_bank",
           "tesco_bank",
-          "ulster_bank"
+          "ulster_bank",
+          "yoursafe",
+          "n26",
+          "nationale_nederlanden"
         ]
       },
       "BankRedirectBilling": {
@@ -11935,6 +11938,26 @@
           }
         ]
       },
+      "PaymentMethodDataRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -12564,7 +12587,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -12927,7 +12950,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -13402,7 +13425,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -14418,7 +14441,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true

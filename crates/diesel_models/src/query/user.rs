@@ -4,10 +4,7 @@ use diesel::{
     JoinOnDsl, QueryDsl,
 };
 use error_stack::IntoReport;
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::logger;
 pub mod sample_data;
 
 use crate::{
@@ -23,7 +20,6 @@ use crate::{
 };
 
 impl UserNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<User> {
         generics::generic_insert(conn, self).await
     }

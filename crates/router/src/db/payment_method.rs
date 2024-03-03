@@ -1,5 +1,6 @@
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -55,6 +56,7 @@ pub trait PaymentMethodInterface {
 
 #[async_trait::async_trait]
 impl PaymentMethodInterface for Store {
+    #[instrument(skip_all)]
     async fn find_payment_method(
         &self,
         payment_method_id: &str,
@@ -66,6 +68,7 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
@@ -77,6 +80,7 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn insert_payment_method(
         &self,
         payment_method_new: storage::PaymentMethodNew,
@@ -89,6 +93,7 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_method(
         &self,
         payment_method: storage::PaymentMethod,
@@ -102,6 +107,7 @@ impl PaymentMethodInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &str,
@@ -120,6 +126,7 @@ impl PaymentMethodInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         customer_id: &str,

@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -9,14 +8,12 @@ use crate::{
 };
 
 impl MerchantKeyStoreNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantKeyStore> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl MerchantKeyStore {
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -28,7 +25,6 @@ impl MerchantKeyStore {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -40,7 +36,6 @@ impl MerchantKeyStore {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn list_multiple_key_stores(
         conn: &PgPooledConn,
         merchant_ids: Vec<String>,
