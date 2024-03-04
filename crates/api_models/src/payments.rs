@@ -2588,7 +2588,7 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// Electronic Commerce Indicator (eci)
     pub electronic_commerce_indicator: Option<String>,
     /// Authentication Status
-    #[schema(value_type = Option<AuthenticationStatus>)]
+    #[schema(value_type = AuthenticationStatus)]
     pub status: enums::AuthenticationStatus,
     /// DS Transaction ID
     pub ds_transaction_id: Option<String>,
@@ -3487,7 +3487,7 @@ pub struct SdkInformation {
     /// Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App
     pub sdk_reference_number: String,
     /// Indicates maximum amount of time in minutes
-    pub sdk_max_timeout: i8,
+    pub sdk_max_timeout: u8,
 }
 
 #[derive(Clone, Default, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]
