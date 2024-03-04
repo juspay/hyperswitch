@@ -58,7 +58,7 @@ CREATE TABLE api_events_dist (
     `hs_latency` Nullable(UInt128),
     `http_method` LowCardinality(String),
     `url_path` String,
-    `dispute_id` Nullable(String)
+    `dispute_id` Nullable(String),
     INDEX flowIndex flow_type TYPE bloom_filter GRANULARITY 1,
     INDEX apiIndex api_flow TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1

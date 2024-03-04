@@ -434,6 +434,9 @@ pub enum BankNames {
     TsbBank,
     TescoBank,
     UlsterBank,
+    Yoursafe,
+    N26,
+    NationaleNederlanden,
 }
 
 #[derive(

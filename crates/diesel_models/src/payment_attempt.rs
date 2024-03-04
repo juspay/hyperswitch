@@ -66,6 +66,7 @@ pub struct PaymentAttempt {
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -142,6 +143,7 @@ pub struct PaymentAttemptNew {
     pub net_amount: Option<i64>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -218,6 +220,7 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -356,6 +359,7 @@ pub struct PaymentAttemptUpdateInternal {
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
     fingerprint_id: Option<String>,
+    payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -416,6 +420,7 @@ impl PaymentAttemptUpdate {
             encoded_data,
             unified_code,
             unified_message,
+            payment_method_billing_address_id,
             fingerprint_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -458,6 +463,8 @@ impl PaymentAttemptUpdate {
             encoded_data: encoded_data.or(source.encoded_data),
             unified_code: unified_code.unwrap_or(source.unified_code),
             unified_message: unified_message.unwrap_or(source.unified_message),
+            payment_method_billing_address_id: payment_method_billing_address_id
+                .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
@@ -536,6 +543,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                payment_method_billing_address_id,
                 fingerprint_id,
             } => Self {
                 amount: Some(amount),
@@ -559,6 +567,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id: merchant_connector_id.map(Some),
                 surcharge_amount,
                 tax_amount,
+                payment_method_billing_address_id,
                 fingerprint_id,
                 ..Default::default()
             },
