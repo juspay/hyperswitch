@@ -1848,12 +1848,13 @@ pub fn build_redirection_form(
                     const threeDSsecureInterface = threeDS.createUI(options);
 
                     threeDSsecureInterface.on('challenge', function(e) {{
-                        var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
-                        responseForm.method='POST';
+                        document.getElementById('loader-wrapper').style.display = 'none';
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
 
                         var item1=document.createElement('input');
                         item1.type='hidden';
