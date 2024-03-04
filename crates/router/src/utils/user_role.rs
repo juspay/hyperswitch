@@ -1,10 +1,13 @@
 use api_models::user_role as user_role_api;
-use error_stack::ResultExt;
+use diesel_models::user_role::UserRole;
+use error_stack::{IntoReport, ResultExt};
+use router_env::logger;
 
 use crate::{
+    consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    services::authorization::permissions::Permission,
+    services::authorization::{permissions::Permission, roles},
 };
 
 impl From<Permission> for user_role_api::Permission {
@@ -59,4 +62,47 @@ pub async fn is_role_name_already_present_for_merchant(
         return Err(UserErrors::RoleNameAlreadyExists.into());
     }
     Ok(())
+}
+
+pub async fn set_role_permissions_in_cache_by_user_role(
+    state: &AppState,
+    user_role: &UserRole,
+) -> bool {
+    set_role_permissions_in_cache(
+        state,
+        user_role.role_id.as_str(),
+        user_role.merchant_id.as_str(),
+        user_role.org_id.as_str(),
+    )
+    .await
+    .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+    .is_ok()
+}
+
+pub async fn set_role_permissions_in_cache(
+    state: &AppState,
+    role_id: &str,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    let role_info = roles::RoleInfo::from_role_id(state, role_id, merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(UserErrors::InternalServerError)?;
+
+    redis_conn
+        .serialize_and_set_key_with_expiry(
+            role_id,
+            role_info.get_permissions_set(),
+            consts::JWT_TOKEN_TIME_IN_SECS
+                .try_into()
+                .into_report()
+                .change_context(UserErrors::InternalServerError)?,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
 }

@@ -87,7 +87,7 @@ pub async fn generate_jwt_auth_token(
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
