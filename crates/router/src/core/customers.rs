@@ -108,6 +108,7 @@ pub async fn create_customer(
             address_id: address.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            default_payment_method_id: None,
         })
     }
     .await
@@ -208,6 +209,7 @@ pub async fn delete_customer(
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
             &merchant_account.merchant_id,
+            None,
         )
         .await
     {
@@ -218,7 +220,7 @@ pub async fn delete_customer(
                         &state,
                         &req.customer_id,
                         &merchant_account.merchant_id,
-                        &pm.payment_method_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;

@@ -1177,6 +1177,32 @@ pub enum PaymentMethodIssuerCode {
     JpBacs,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodStatus {
+    /// Indicates that the payment method is active and can be used for payments.
+    Active,
+    /// Indicates that the payment method is not active and hence cannot be used for payments.
+    Inactive,
+    /// Indicates that the payment method is awaiting some data or action before it can be marked
+    /// as 'active'.
+    Processing,
+}
+
 /// To indicate the type of payment experience that the customer would go through
 #[derive(
     Eq,
@@ -2148,6 +2174,91 @@ pub enum ApplePayFlow {
 
 #[derive(
     Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationStatus {
+    #[default]
+    Started,
+    Pending,
+    Success,
+    Failed,
+}
+
+impl AuthenticationStatus {
+    pub fn is_terminal_status(&self) -> bool {
+        match self {
+            Self::Started | Self::Pending => false,
+            Self::Success | Self::Failed => true,
+        }
+    }
+
+    pub fn is_failed(&self) -> bool {
+        self == &Self::Failed
+    }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DecoupledAuthenticationType {
+    #[default]
+    Challenge,
+    Frictionless,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationLifecycleStatus {
+    Used,
+    #[default]
+    Unused,
+    Expired,
+}
+
+#[derive(
+    Clone,
     Copy,
     Debug,
     Eq,
@@ -2166,6 +2277,29 @@ pub enum ConnectorStatus {
     #[default]
     Inactive,
     Active,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    Default,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionType {
+    #[default]
+    Payment,
+    #[cfg(feature = "payouts")]
+    Payout,
 }
 
 #[derive(
@@ -2197,6 +2331,7 @@ pub enum RoleScope {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]

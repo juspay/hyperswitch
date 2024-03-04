@@ -1,5 +1,6 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -36,6 +37,7 @@ pub trait FraudCheckInterface {
 
 #[async_trait::async_trait]
 impl FraudCheckInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_fraud_check_response(
         &self,
         new: storage::FraudCheckNew,
@@ -43,6 +45,8 @@ impl FraudCheckInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         new.insert(&conn).await.map_err(Into::into).into_report()
     }
+
+    #[instrument(skip_all)]
     async fn update_fraud_check_response_with_attempt_id(
         &self,
         this: FraudCheck,
@@ -54,6 +58,8 @@ impl FraudCheckInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    #[instrument(skip_all)]
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
@@ -66,6 +72,7 @@ impl FraudCheckInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
         payment_id: String,
@@ -114,12 +121,15 @@ impl FraudCheckInterface for MockDb {
 #[cfg(feature = "kafka_events")]
 #[async_trait::async_trait]
 impl FraudCheckInterface for super::KafkaStore {
+    #[instrument(skip_all)]
     async fn insert_fraud_check_response(
         &self,
         _new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
+
+    #[instrument(skip_all)]
     async fn update_fraud_check_response_with_attempt_id(
         &self,
         _this: FraudCheck,
@@ -128,6 +138,7 @@ impl FraudCheckInterface for super::KafkaStore {
         Err(errors::StorageError::MockDbError)?
     }
 
+    #[instrument(skip_all)]
     async fn find_fraud_check_by_payment_id(
         &self,
         _payment_id: String,
