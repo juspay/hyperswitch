@@ -4718,7 +4718,7 @@
           "authentication_connectors": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AuthenticationConnectors"
             },
             "description": "List of authentication connectors"
           },
@@ -4727,6 +4727,12 @@
             "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
           }
         }
+      },
+      "AuthenticationConnectors": {
+        "type": "string",
+        "enum": [
+          "threedsecureio"
+        ]
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -16666,25 +16672,39 @@
         }
       },
       "ThreeDsMethodData": {
-        "type": "object",
-        "required": [
-          "three_ds_method_data_submission",
-          "three_ds_method_data"
-        ],
-        "properties": {
-          "three_ds_method_data_submission": {
-            "type": "boolean",
-            "description": "Whether ThreeDS method data submission is required"
-          },
-          "three_ds_method_data": {
-            "type": "string",
-            "description": "ThreeDS method data"
-          },
-          "three_ds_method_url": {
-            "type": "string",
-            "description": "ThreeDS method url",
-            "nullable": true
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_data_submission",
+              "three_ds_method_data",
+              "three_ds_method_key"
+            ],
+            "properties": {
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data"
+              },
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url",
+                "nullable": true
+              },
+              "three_ds_method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
           }
+        ],
+        "discriminator": {
+          "propertyName": "three_ds_method_key"
         }
       },
       "TimeRange": {
