@@ -4708,7 +4708,7 @@
           "device_data_collection_pending"
         ]
       },
-      "AuthenticationDetails": {
+      "AuthenticationConnectorDetails": {
         "type": "object",
         "required": [
           "authentication_connectors",
@@ -4724,7 +4724,7 @@
           },
           "three_ds_requestor_url": {
             "type": "string",
-            "description": "ThreeDS requestor url"
+            "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
           }
         }
       },
@@ -6200,6 +6200,14 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6309,6 +6317,14 @@
           },
           "payment_link_config": {
             "description": "Default Payment Link config for all payment links created under this business profile",
+            "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -7781,6 +7797,13 @@
           }
         }
       },
+      "DecoupledAuthenticationType": {
+        "type": "string",
+        "enum": [
+          "challenge",
+          "frictionless"
+        ]
+      },
       "DefaultPaymentMethod": {
         "type": "object",
         "required": [
@@ -7795,13 +7818,6 @@
             "type": "string"
           }
         }
-      },
-      "DecoupledAuthenticationType": {
-        "type": "string",
-        "enum": [
-          "challenge",
-          "frictionless"
-        ]
       },
       "DeviceChannel": {
         "type": "string",
@@ -9649,14 +9665,6 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
-          },
-          "authentication_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationDetails"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -9822,9 +9830,6 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
-          },
-          "authentication_details": {
-            "nullable": true
           }
         }
       },
@@ -9945,14 +9950,6 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
-          },
-          "authentication_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationDetails"
-              }
-            ],
-            "nullable": true
           }
         }
       },
