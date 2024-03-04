@@ -158,7 +158,7 @@ impl BlackList for AuthToken {
     where
         A: AppStateInfo + Sync,
     {
-        Ok(check_user_and_role_in_blacklist(state, &self.user_id, &self.role_id, self.exp).await?)
+        check_user_and_role_in_blacklist(state, &self.user_id, &self.role_id, self.exp).await
     }
 }
 
