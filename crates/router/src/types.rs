@@ -1145,6 +1145,88 @@ pub struct MandateRevokeResponseData {
     pub mandate_status: MandateStatus,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantAccountData {
+    Iban {
+        iban: Secret<String>,
+        name: String,
+    },
+    Bacs {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+    },
+}
+
+impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
+    fn foreign_from(from: MerchantAccountData) -> Self {
+        match from {
+            MerchantAccountData::Iban { iban, name } => Self::Iban { iban, name },
+            MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+            } => Self::Bacs {
+                account_number,
+                sort_code,
+                name,
+            },
+        }
+    }
+}
+
+impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
+    fn from(from: api_models::admin::MerchantAccountData) -> Self {
+        match from {
+            api_models::admin::MerchantAccountData::Iban { iban, name } => {
+                Self::Iban { iban, name }
+            }
+            api_models::admin::MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+            } => Self::Bacs {
+                account_number,
+                sort_code,
+                name,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantRecipientData {
+    RecipientId(Secret<String>),
+    WalletId(Secret<String>),
+    AccountData(MerchantAccountData),
+}
+
+impl ForeignFrom<MerchantRecipientData> for api_models::admin::MerchantRecipientData {
+    fn foreign_from(value: MerchantRecipientData) -> Self {
+        match value {
+            MerchantRecipientData::RecipientId(id) => Self::RecipientId(id),
+            MerchantRecipientData::WalletId(id) => Self::WalletId(id),
+            MerchantRecipientData::AccountData(data) => {
+                Self::AccountData(api_models::admin::MerchantAccountData::foreign_from(data))
+            }
+        }
+    }
+}
+
+impl From<api_models::admin::MerchantRecipientData> for MerchantRecipientData {
+    fn from(value: api_models::admin::MerchantRecipientData) -> Self {
+        match value {
+            api_models::admin::MerchantRecipientData::RecipientId(id) => Self::RecipientId(id),
+            api_models::admin::MerchantRecipientData::WalletId(id) => Self::WalletId(id),
+            api_models::admin::MerchantRecipientData::AccountData(data) => {
+                Self::AccountData(data.into())
+            }
+        }
+    }
+}
+
 // Different patterns of authentication.
 #[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "auth_type")]
@@ -1170,6 +1252,11 @@ pub enum ConnectorAuthType {
     },
     CurrencyAuthKey {
         auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
+    OpenBankingAuth {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
@@ -1209,6 +1296,15 @@ impl From<api_models::admin::ConnectorAuthType> for ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             api_models::admin::ConnectorAuthType::NoKey => Self::NoKey,
+            api_models::admin::ConnectorAuthType::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data,
+            } => Self::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data: merchant_data.into(),
+            },
         }
     }
 }
@@ -1243,6 +1339,17 @@ impl ForeignFrom<ConnectorAuthType> for api_models::admin::ConnectorAuthType {
                 Self::CurrencyAuthKey { auth_key_map }
             }
             ConnectorAuthType::NoKey => Self::NoKey,
+            ConnectorAuthType::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data,
+            } => Self::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data: api_models::admin::MerchantRecipientData::foreign_from(
+                    merchant_data,
+                ),
+            },
         }
     }
 }

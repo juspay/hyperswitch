@@ -113,6 +113,105 @@ impl TryFrom<&types::ExchangeTokenRouterData> for PlaidExchangeTokenRequest {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateRequest {
+    pub name: String,
+    #[serde(flatten)]
+    pub account_data: PlaidRecipientAccountData,
+    pub address: Option<PlaidRecipientCreateAddress>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateResponse {
+    pub recipient_id: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PlaidRecipientAccountData {
+    Iban(Secret<String>),
+    Bacs {
+        sort_code: Secret<String>,
+        account: Secret<String>,
+    },
+}
+
+impl From<&types::RecipientAccountData> for PlaidRecipientAccountData {
+    fn from(item: &types::RecipientAccountData) -> Self {
+        match item {
+            types::RecipientAccountData::Iban(iban) => Self::Iban(iban.clone()),
+            types::RecipientAccountData::Bacs {
+                sort_code,
+                account_number,
+            } => Self::Bacs {
+                sort_code: sort_code.clone(),
+                account: account_number.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateAddress {
+    pub street: String,
+    pub city: String,
+    pub postal_code: String,
+    pub country: String,
+}
+
+impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
+    fn from(item: &types::RecipientCreateAddress) -> Self {
+        Self {
+            street: item.street.clone(),
+            city: item.city.clone(),
+            postal_code: item.postal_code.clone(),
+            country: common_enums::CountryAlpha2::to_string(&item.country),
+        }
+    }
+}
+
+impl TryFrom<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RecipientCreateRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: item.request.name.clone(),
+            account_data: PlaidRecipientAccountData::from(&item.request.account_data),
+            address: item
+                .request
+                .address
+                .as_ref()
+                .map(PlaidRecipientCreateAddress::from),
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    > for types::PaymentAuthRouterData<F, T, types::RecipientCreateResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::RecipientCreateResponse {
+                recipient_id: item.response.recipient_id,
+            }),
+            ..item.data
+        })
+    }
+}
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct PlaidBankAccountCredentialsRequest {
     access_token: String,
@@ -269,6 +368,7 @@ impl<F, T>
 pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
+    pub merchant_data: Option<types::MerchantRecipientData>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
@@ -278,6 +378,16 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
             types::ConnectorAuthType::BodyKey { client_id, secret } => Ok(Self {
                 client_id: client_id.to_owned(),
                 secret: secret.to_owned(),
+                merchant_data: None,
+            }),
+            types::ConnectorAuthType::OpenBankingAuth {
+                api_key,
+                key1,
+                merchant_data,
+            } => Ok(Self {
+                client_id: api_key.to_owned(),
+                secret: key1.to_owned(),
+                merchant_data: Some(merchant_data.clone()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
