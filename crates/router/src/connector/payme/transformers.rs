@@ -719,7 +719,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     buyer_key,
                     buyer_name,
                     payme_sale_id,
-                    meta_data_jwt: jwt_data.meta_data,
+                    meta_data_jwt: Secret::new(jwt_data.meta_data),
                 })
             }
             Some(api::PaymentMethodData::CardRedirect(_))
@@ -902,10 +902,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_token: Some(types::PaymentMethodToken::Token(
-                item.response.buyer_key.clone(),
+                item.response.buyer_key.clone().expose(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.buyer_key,
+                token: item.response.buyer_key.expose(),
             }),
             ..item.data
         })
