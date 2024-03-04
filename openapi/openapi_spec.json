@@ -8115,6 +8115,9 @@
       },
       "ExternalAuthenticationDetailsResponse": {
         "type": "object",
+        "required": [
+          "status"
+        ],
         "properties": {
           "authentication_flow": {
             "allOf": [
@@ -8130,12 +8133,7 @@
             "nullable": true
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/AuthenticationStatus"
           },
           "ds_transaction_id": {
             "type": "string",
@@ -16208,7 +16206,8 @@
           "sdk_max_timeout": {
             "type": "integer",
             "format": "int32",
-            "description": "Indicates maximum amount of time in minutes"
+            "description": "Indicates maximum amount of time in minutes",
+            "minimum": 0
           }
         }
       },
