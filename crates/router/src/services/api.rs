@@ -1122,20 +1122,25 @@ where
     let request_method = request.method().as_str();
     let url_path = request.path();
 
-    let white_listed_incoming_header_keys = state.conf().white_list_incoming_header.keys;
-
-    let mut incoming_header_to_log = http::header::HeaderMap::new();
+    let white_listed_incoming_header_keys = state.conf().unmasked_headers.keys;
 
     let incoming_request_header = request.headers();
 
-    for (key, value) in incoming_request_header.iter() {
-        if white_listed_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
-            incoming_header_to_log.insert(key, value.clone());
-        } else {
-            incoming_header_to_log
-                .insert(key, http::header::HeaderValue::from_static("**MASKED**"));
-        }
-    }
+    let incoming_header_to_log: HashMap<String, http::header::HeaderValue> =
+        incoming_request_header
+            .iter()
+            .fold(HashMap::new(), |mut acc, (key, value)| {
+                let key = key.to_string();
+                if white_listed_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                    acc.insert(key.clone(), value.clone());
+                } else {
+                    acc.insert(
+                        key.clone(),
+                        http::header::HeaderValue::from_static("**MASKED**"),
+                    );
+                }
+                acc
+            });
 
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);

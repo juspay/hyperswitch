@@ -291,5 +291,5 @@ outgoing_enabled = true
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"
 
-[white_list_incoming_header]
+[unmasked_headers]
 keys = "user-agent"
