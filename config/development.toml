@@ -571,3 +571,6 @@ enabled = true
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[white_list_incoming_header]
+keys = "user-agent"

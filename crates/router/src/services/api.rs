@@ -1121,11 +1121,30 @@ where
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
+
+    let white_listed_incoming_header_keys = state.conf().white_list_incoming_header.keys;
+
+    let mut incoming_header_to_log = http::header::HeaderMap::new();
+
+    let incoming_request_header = request.headers();
+
+    for (key, value) in incoming_request_header.iter() {
+        if white_listed_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+            incoming_header_to_log.insert(key, value.clone());
+        } else {
+            incoming_header_to_log
+                .insert(key, http::header::HeaderValue::from_static("**MASKED**"));
+        }
+    }
+
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
+    logger::info!(
+        tag = ?Tag::BeginRequest, payload = ?payload,
+    headers = ?incoming_header_to_log);
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
@@ -1821,16 +1840,18 @@ pub fn build_redirection_form(
                         amount: '{amount}'
                     }};
 
+                    var responseForm = document.createElement('form');
+                    responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                    responseForm.method='POST';
+
                     const threeDSsecureInterface = threeDS.createUI(options);
 
                     threeDSsecureInterface.on('challenge', function(e) {{
+                        console.log('Challenged');
                         document.getElementById('loader-wrapper').style.display = 'none';
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
-                        var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
-                        responseForm.method='POST';
 
                         var item1=document.createElement('input');
                         item1.type='hidden';
@@ -1885,23 +1906,6 @@ pub fn build_redirection_form(
                     }});
 
                     threeDSsecureInterface.on('failure', function(e) {{
-                        var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
-                        responseForm.method='POST';
-
-                        var error_code=document.createElement('input');
-                        error_code.type='hidden';
-                        error_code.name='code';
-                        error_code.value= e.code;
-                        responseForm.appendChild(error_code);
-
-                        var error_message=document.createElement('input');
-                        error_message.type='hidden';
-                        error_message.name='message';
-                        error_message.value= e.message;
-                        responseForm.appendChild(error_message);
-
-                        document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
 

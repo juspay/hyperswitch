@@ -353,5 +353,6 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         connector_onboarding,
         cors: conf.cors,
+        white_list_incoming_header: conf.white_list_incoming_header,
     }
 }
