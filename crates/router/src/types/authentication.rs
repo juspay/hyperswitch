@@ -54,9 +54,31 @@ pub struct PreAuthNRequestData {
     pub(crate) card_holder_account_number: CardNumber,
 }
 
-pub struct AuthNRequestData {}
+#[derive(Clone, Debug)]
+pub struct ConnectorAuthenticationRequestData {
+    pub payment_method_data: payments::PaymentMethodData,
+    pub billing_address: api_models::payments::Address,
+    pub shipping_address: Option<api_models::payments::Address>,
+    pub browser_details: Option<BrowserInformation>,
+    pub amount: Option<i64>,
+    pub currency: Option<common_enums::Currency>,
+    pub message_category: authentication::MessageCategory,
+    pub device_channel: api_models::payments::DeviceChannel,
+    pub authentication_data: (
+        crate::core::authentication::types::AuthenticationData,
+        storage::Authentication,
+    ),
+    pub return_url: Option<String>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub email: Option<Email>,
+    pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    pub three_ds_requestor_url: String,
+}
 
-pub struct PostAuthNRequestData {}
+#[derive(Clone, Debug)]
+pub struct ConnectorPostAuthenticationRequestData {
+    pub authentication_data: crate::core::authentication::types::AuthenticationData,
+}
 
 pub type PreAuthNRouterData =
     RouterData<api::PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>;
@@ -87,29 +109,3 @@ pub type ConnectorPreAuthenticationType = dyn services::ConnectorIntegration<
     PreAuthNRequestData,
     AuthenticationResponseData,
 >;
-
-#[derive(Clone, Debug)]
-pub struct ConnectorAuthenticationRequestData {
-    pub payment_method_data: payments::PaymentMethodData,
-    pub billing_address: api_models::payments::Address,
-    pub shipping_address: Option<api_models::payments::Address>,
-    pub browser_details: Option<BrowserInformation>,
-    pub amount: Option<i64>,
-    pub currency: Option<common_enums::Currency>,
-    pub message_category: authentication::MessageCategory,
-    pub device_channel: api_models::payments::DeviceChannel,
-    pub authentication_data: (
-        crate::core::authentication::types::AuthenticationData,
-        storage::Authentication,
-    ),
-    pub return_url: Option<String>,
-    pub sdk_information: Option<api_models::payments::SdkInformation>,
-    pub email: Option<Email>,
-    pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
-    pub three_ds_requestor_url: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct ConnectorPostAuthenticationRequestData {
-    pub authentication_data: crate::core::authentication::types::AuthenticationData,
-}
