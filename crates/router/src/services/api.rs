@@ -1122,7 +1122,7 @@ where
     let request_method = request.method().as_str();
     let url_path = request.path();
 
-    let white_listed_incoming_header_keys = state.conf().unmasked_headers.keys;
+    let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
 
     let incoming_request_header = request.headers();
 
@@ -1131,7 +1131,7 @@ where
             .iter()
             .fold(HashMap::new(), |mut acc, (key, value)| {
                 let key = key.to_string();
-                if white_listed_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
                     acc.insert(key.clone(), value.clone());
                 } else {
                     acc.insert(
