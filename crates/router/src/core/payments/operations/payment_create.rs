@@ -282,10 +282,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 payment_id: payment_id.clone(),
             })?;
 
-        if FutureUsage::OnSession
-            == request
-                .setup_future_usage
-                .get_required_value("setup_future_usage")?
+        if Some(FutureUsage::OnSession) == request.setup_future_usage
             && payment_attempt.mandate_details.is_some()
         {
             Err(error_stack::report!(

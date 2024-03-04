@@ -461,10 +461,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .or(sm.update_mandate_id);
             sm
         });
-        if FutureUsage::OnSession
-            == payment_intent
-                .setup_future_usage
-                .get_required_value("setup_future_usage")?
+        if Some(FutureUsage::OnSession) == payment_intent.setup_future_usage
             && (payment_attempt.mandate_details.is_some() || request.mandate_data.is_some())
         {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {

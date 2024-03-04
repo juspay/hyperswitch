@@ -214,7 +214,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
-        if FutureUsage::OnSession
+        if (FutureUsage::OnSession)
             == payment_intent
                 .setup_future_usage
                 .get_required_value("setup_future_usage")?
