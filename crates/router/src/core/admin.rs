@@ -213,7 +213,6 @@ pub async fn create_merchant_account(
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
             payment_link_config: None,
-            authentication_details: None,
         })
     }
     .await
@@ -592,7 +591,6 @@ pub async fn merchant_account_update(
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
         payment_link_config: None,
-        authentication_details: None,
     };
 
     let response = db
@@ -1657,6 +1655,7 @@ pub async fn update_business_profile(
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
         session_expiry: request.session_expiry.map(i64::from),
+        authentication_connector_details: None,
     };
 
     let updated_business_profile = db
