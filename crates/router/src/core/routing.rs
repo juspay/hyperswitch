@@ -624,7 +624,6 @@ pub async fn unlink_routing_config(
             payout_routing_algorithm: None,
             default_profile: None,
             payment_link_config: None,
-            authentication_details: None,
         };
 
         db.update_specific_fields_in_merchant(
