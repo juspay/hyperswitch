@@ -55,6 +55,7 @@ pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserRe
         .change_context(UserErrors::InternalServerError)
 }
 
+#[cfg(feature = "olap")]
 async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<()> {
     let redis_conn = get_redis_connection(state)?;
     redis_conn
