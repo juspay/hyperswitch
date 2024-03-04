@@ -3954,17 +3954,31 @@ pub async fn get_payment_method_details_from_payment_token(
             .await
         }
 
-        storage::PaymentTokenData::Permanent(card_token) => {
-            retrieve_card_with_permanent_token(state, &card_token.token, payment_intent, None)
-                .await
-                .map(|card| Some((card, enums::PaymentMethod::Card)))
-        }
+        storage::PaymentTokenData::Permanent(card_token) => retrieve_card_with_permanent_token(
+            state,
+            &card_token.token,
+            card_token
+                .payment_method_id
+                .as_ref()
+                .unwrap_or(&card_token.token),
+            payment_intent,
+            None,
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
 
-        storage::PaymentTokenData::PermanentCard(card_token) => {
-            retrieve_card_with_permanent_token(state, &card_token.token, payment_intent, None)
-                .await
-                .map(|card| Some((card, enums::PaymentMethod::Card)))
-        }
+        storage::PaymentTokenData::PermanentCard(card_token) => retrieve_card_with_permanent_token(
+            state,
+            &card_token.token,
+            card_token
+                .payment_method_id
+                .as_ref()
+                .unwrap_or(&card_token.token),
+            payment_intent,
+            None,
+        )
+        .await
+        .map(|card| Some((card, enums::PaymentMethod::Card))),
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
             retrieve_payment_method_from_auth_service(

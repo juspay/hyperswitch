@@ -4,14 +4,14 @@ pub use api_models::payments::{
     MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
     PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
     PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
-    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentMethodDataRequest, PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
-    WalletData,
+    PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
+    PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 
