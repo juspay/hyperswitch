@@ -57,7 +57,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 
     if groups.iter().collect::<HashSet<_>>().len() != groups.len() {
         return Err(UserErrors::InvalidRoleOperation.into())
-            .attach_printable("Duplicate role group found");
+            .attach_printable("Duplicate permission group found");
     }
 
     Ok(())
