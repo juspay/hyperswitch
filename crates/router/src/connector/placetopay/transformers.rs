@@ -210,18 +210,19 @@ pub enum PlacetopayTransactionStatus {
     Ok,
     Failed,
     Approved,
-    ApprovedPartial,
-    PartialExpired,
+    // ApprovedPartial,
+    // PartialExpired,
     Rejected,
     Pending,
     PendingValidation,
     PendingProcess,
-    Refunded,
-    Reversed,
+    // Refunded,
+    // Reversed,
     Error,
-    Unknown,
-    Manual,
-    Dispute,
+    // Unknown,
+    // Manual,
+    // Dispute,
+    //The statuses that are commented out are awaiting clarification on the connector.
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -241,14 +242,7 @@ impl From<PlacetopayTransactionStatus> for enums::AttemptStatus {
             | PlacetopayTransactionStatus::Error => Self::Failure,
             PlacetopayTransactionStatus::Pending
             | PlacetopayTransactionStatus::PendingValidation
-            | PlacetopayTransactionStatus::PendingProcess
-            | PlacetopayTransactionStatus::ApprovedPartial
-            | PlacetopayTransactionStatus::PartialExpired
-            | PlacetopayTransactionStatus::Refunded
-            | PlacetopayTransactionStatus::Reversed
-            | PlacetopayTransactionStatus::Unknown
-            | PlacetopayTransactionStatus::Manual
-            | PlacetopayTransactionStatus::Dispute => Self::Pending,
+            | PlacetopayTransactionStatus::PendingProcess => Self::Pending,
         }
     }
 }
@@ -341,32 +335,54 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     }
 }
 
-impl From<PlacetopayTransactionStatus> for enums::RefundStatus {
-    fn from(item: PlacetopayTransactionStatus) -> Self {
+impl From<PlacetopayRefundStatus> for enums::RefundStatus {
+    fn from(item: PlacetopayRefundStatus) -> Self {
         match item {
-            PlacetopayTransactionStatus::Ok
-            | PlacetopayTransactionStatus::Approved
-            | PlacetopayTransactionStatus::Refunded
-            | PlacetopayTransactionStatus::Reversed => Self::Success,
-            PlacetopayTransactionStatus::Failed
-            | PlacetopayTransactionStatus::Rejected
-            | PlacetopayTransactionStatus::Error => Self::Failure,
-            PlacetopayTransactionStatus::Pending
-            | PlacetopayTransactionStatus::PendingProcess
-            | PlacetopayTransactionStatus::ApprovedPartial
-            | PlacetopayTransactionStatus::PartialExpired
-            | PlacetopayTransactionStatus::PendingValidation
-            | PlacetopayTransactionStatus::Unknown
-            | PlacetopayTransactionStatus::Manual
-            | PlacetopayTransactionStatus::Dispute => Self::Pending,
+            PlacetopayRefundStatus::Ok
+            | PlacetopayRefundStatus::Approved
+            | PlacetopayRefundStatus::Refunded
+            | PlacetopayRefundStatus::Reversed => Self::Success,
+            PlacetopayRefundStatus::Failed
+            | PlacetopayRefundStatus::Rejected
+            | PlacetopayRefundStatus::Error => Self::Failure,
+            PlacetopayRefundStatus::Pending
+            | PlacetopayRefundStatus::PendingProcess
+            | PlacetopayRefundStatus::PendingValidation => Self::Pending,
         }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PlacetopayRefundStatus {
+    Ok,
+    Failed,
+    Approved,
+    // ApprovedPartial,
+    // PartialExpired,
+    Rejected,
+    Pending,
+    PendingValidation,
+    PendingProcess,
+    Refunded,
+    Reversed,
+    Error,
+    // Unknown,
+    // Manual,
+    // Dispute,
+    //The statuses that are commented out are awaiting clarification on the connector.
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacetopayRefundStatusResponse {
+    status: PlacetopayRefundStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayRefundResponse {
-    status: PlacetopayStatusResponse,
+    status: PlacetopayRefundStatusResponse,
     internal_reference: u64,
 }
 
