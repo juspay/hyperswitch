@@ -69,6 +69,7 @@ pub struct PaymentAttempt {
     pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -148,6 +149,7 @@ pub struct PaymentAttemptNew {
     pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
+    pub payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptNew {
@@ -227,6 +229,7 @@ pub enum PaymentAttemptUpdate {
         external_three_ds_authentication_requested: Option<bool>,
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -375,6 +378,7 @@ pub struct PaymentAttemptUpdateInternal {
     authentication_connector: Option<String>,
     authentication_id: Option<String>,
     fingerprint_id: Option<String>,
+    payment_method_billing_address_id: Option<String>,
 }
 
 impl PaymentAttemptUpdateInternal {
@@ -438,6 +442,7 @@ impl PaymentAttemptUpdate {
             external_three_ds_authentication_requested,
             authentication_connector,
             authentication_id,
+            payment_method_billing_address_id,
             fingerprint_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -484,6 +489,8 @@ impl PaymentAttemptUpdate {
                 .or(source.external_three_ds_authentication_requested),
             authentication_connector: authentication_connector.or(source.authentication_connector),
             authentication_id: authentication_id.or(source.authentication_id),
+            payment_method_billing_address_id: payment_method_billing_address_id
+                .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
             ..source
         }
@@ -565,6 +572,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
                 fingerprint_id,
             } => Self {
                 amount: Some(amount),
@@ -591,6 +599,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
                 fingerprint_id,
                 ..Default::default()
             },

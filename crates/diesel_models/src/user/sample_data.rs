@@ -71,6 +71,7 @@ pub struct PaymentAttemptBatchNew {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
 }
 
@@ -130,6 +131,7 @@ impl PaymentAttemptBatchNew {
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
         }
     }

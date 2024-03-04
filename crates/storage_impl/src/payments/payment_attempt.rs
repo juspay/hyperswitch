@@ -74,6 +74,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -96,6 +97,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -137,6 +139,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -181,6 +184,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
@@ -218,6 +222,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             )
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -239,6 +244,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -259,6 +265,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             })
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -276,6 +283,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
@@ -395,6 +403,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     authentication_connector: payment_attempt.authentication_connector.clone(),
                     authentication_id: payment_attempt.authentication_id.clone(),
                     mandate_data: payment_attempt.mandate_data.clone(),
+                    payment_method_billing_address_id: payment_attempt
+                        .payment_method_billing_address_id
+                        .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
                 };
 
@@ -561,6 +572,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
@@ -608,6 +620,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -656,6 +669,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -707,6 +721,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
@@ -807,6 +822,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
@@ -863,6 +879,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -919,6 +936,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
@@ -958,6 +976,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
@@ -969,6 +988,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
@@ -1114,6 +1134,7 @@ impl DataModelExt for PaymentAttempt {
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
         }
     }
@@ -1177,6 +1198,7 @@ impl DataModelExt for PaymentAttempt {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
         }
     }
@@ -1238,6 +1260,7 @@ impl DataModelExt for PaymentAttemptNew {
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
         }
     }
@@ -1299,6 +1322,7 @@ impl DataModelExt for PaymentAttemptNew {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
         }
     }
@@ -1406,6 +1430,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1431,6 +1456,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1697,6 +1723,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1722,6 +1749,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 external_three_ds_authentication_requested,
                 authentication_connector,
                 authentication_id,
+                payment_method_billing_address_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -1913,6 +1941,7 @@ impl DataModelExt for PaymentAttemptUpdate {
 }
 
 #[inline]
+#[instrument(skip_all)]
 async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,
@@ -1935,6 +1964,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
 }
 
 #[inline]
+#[instrument(skip_all)]
 async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,

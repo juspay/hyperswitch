@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl PaymentMethodNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl PaymentMethod {
-    #[instrument(skip(conn))]
     pub async fn delete_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: String,
@@ -29,7 +26,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_merchant_id_payment_method_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -44,7 +40,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -53,7 +48,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,
@@ -65,7 +59,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -85,7 +78,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,
@@ -104,7 +96,6 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &str,

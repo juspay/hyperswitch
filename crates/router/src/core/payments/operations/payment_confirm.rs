@@ -96,6 +96,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .in_current_span(),
         );
 
+        // Parallel calls - level 0
         let (mut payment_intent, mandate_details) = tokio::try_join!(
             utils::flatten_join_error(payment_intent_fut),
             utils::flatten_join_error(mandate_details_fut)
@@ -271,6 +272,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 | api_models::enums::IntentStatus::RequiresPaymentMethod
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     // Normal payment
+                    // Parallel calls - level 1
                     let (payment_attempt, shipping_address, billing_address, business_profile, _) =
                         tokio::try_join!(
                             utils::flatten_join_error(payment_attempt_fut),
@@ -360,13 +362,21 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 field_name: "browser_info",
             })?;
 
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
             &request.payment_method,
-            &request.payment_method_data,
+            &request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
             &request.payment_method_type,
             &mandate_type,
             &token,
@@ -399,8 +409,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .map(|mcd| mcd.creds_identifier.to_owned());
 
-        payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
-        payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
+        payment_intent.shipping_address_id =
+            shipping_address.as_ref().map(|i| i.address_id.clone());
+        payment_intent.billing_address_id = billing_address.as_ref().map(|i| i.address_id.clone());
         payment_intent.return_url = request
             .return_url
             .as_ref()
@@ -450,20 +461,73 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm
         });
 
-        let additional_pm_data = request
+        let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
-            .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
-            })
-            .await;
+            .map(|pmd| pmd.payment_method_data.clone());
+
+        let store = state.clone().store;
+
+        let additional_pm_data_fut = tokio::spawn(async move {
+            Ok(n_request_payment_method_data
+                .async_map(|payment_method_data| async move {
+                    helpers::get_additional_payment_data(&payment_method_data, store.as_ref()).await
+                })
+                .await)
+        });
+
+        let store = state.clone().store;
+
+        let n_payment_method_billing_address_id =
+            payment_attempt.payment_method_billing_address_id.clone();
+        let n_request_payment_method_billing_address = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone());
+        let m_payment_intent_customer_id = payment_intent.customer_id.clone();
+        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
+        let m_key_store = key_store.clone();
+        let m_customer_details_customer_id = customer_details.customer_id.clone();
+        let m_merchant_id = merchant_id.clone();
+
+        let payment_method_billing_future = tokio::spawn(
+            async move {
+                helpers::create_or_update_address_for_payment_by_request(
+                    store.as_ref(),
+                    n_request_payment_method_billing_address.as_ref(),
+                    n_payment_method_billing_address_id.as_deref(),
+                    m_merchant_id.as_str(),
+                    m_payment_intent_customer_id
+                        .as_ref()
+                        .or(m_customer_details_customer_id.as_ref()),
+                    &m_key_store,
+                    m_payment_intent_payment_id.as_ref(),
+                    storage_scheme,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
+        // Parallel calls - level 2
+        let (additional_pm_data, payment_method_billing) = tokio::try_join!(
+            utils::flatten_join_error(additional_pm_data_fut),
+            utils::flatten_join_error(payment_method_billing_future),
+        )?;
+
         let payment_method_data_after_card_bin_call = request
             .payment_method_data
             .as_ref()
             .zip(additional_pm_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+                payment_method_data
+                    .payment_method_data
+                    .apply_additional_payment_data(additional_payment_data)
             });
+
+        payment_attempt.payment_method_billing_address_id = payment_method_billing
+            .as_ref()
+            .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -479,6 +543,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing
+                    .as_ref()
+                    .map(|address| address.into()),
             },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
@@ -705,9 +772,13 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
-        let (shipping_address, billing_address) = (
+        let (shipping_address_id, billing_address_id, payment_method_billing_address_id) = (
             payment_data.payment_intent.shipping_address_id.clone(),
             payment_data.payment_intent.billing_address_id.clone(),
+            payment_data
+                .payment_attempt
+                .payment_method_billing_address_id
+                .clone(),
         );
 
         let customer_id = customer.clone().map(|c| c.customer_id);
@@ -778,6 +849,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         external_three_ds_authentication_requested: None,
                         authentication_connector: None,
                         authentication_id: None,
+                        payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
                     },
                     storage_scheme,
@@ -790,8 +862,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_customer_id = customer_id.clone();
-        let m_shipping_address_id = shipping_address.clone();
-        let m_billing_address_id = billing_address.clone();
+        let m_shipping_address_id = shipping_address_id.clone();
+        let m_billing_address_id = billing_address_id.clone();
         let m_return_url = return_url.clone();
         let m_business_label = business_label.clone();
         let m_description = description.clone();
