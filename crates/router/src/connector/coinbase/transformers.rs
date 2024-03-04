@@ -21,7 +21,7 @@ pub struct LocalPrice {
 #[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
     pub customer_id: Option<String>,
-    pub customer_name: Option<String>,
+    pub customer_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -335,7 +335,7 @@ pub enum WebhookEventType {
 pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub utxo: bool,
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
     pub fee_rate: f64,
@@ -355,7 +355,7 @@ pub struct CoinbasePaymentResponseData {
     pub fees_settled: bool,
     pub pricing_type: String,
     pub redirect_url: String,
-    pub support_email: String,
+    pub support_email: Secret<String>,
     pub brand_logo_url: String,
     pub offchain_eligible: bool,
     pub organization_name: String,
@@ -383,7 +383,7 @@ pub struct PaymentElement {
     pub block: Block,
     pub value: CoinbaseProcessingFee,
     pub status: String,
-    pub network: String,
+    pub network: Secret<String>,
     pub deposited: Deposited,
     pub payment_id: String,
     pub detected_at: String,
@@ -425,6 +425,6 @@ pub struct Amount {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TimelinePayment {
     pub value: OverpaymentAbsoluteThreshold,
-    pub network: String,
+    pub network: Secret<String>,
     pub transaction_id: String,
 }
