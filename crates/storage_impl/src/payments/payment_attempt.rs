@@ -399,6 +399,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     unified_code: payment_attempt.unified_code.clone(),
                     unified_message: payment_attempt.unified_message.clone(),
                     mandate_data: payment_attempt.mandate_data.clone(),
+                    payment_method_billing_address_id: payment_attempt
+                        .payment_method_billing_address_id
+                        .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
                 };
 
@@ -1123,6 +1126,7 @@ impl DataModelExt for PaymentAttempt {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
         }
     }
@@ -1182,6 +1186,7 @@ impl DataModelExt for PaymentAttempt {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
         }
     }
@@ -1239,6 +1244,7 @@ impl DataModelExt for PaymentAttemptNew {
             unified_code: self.unified_code,
             unified_message: self.unified_message,
             mandate_data: self.mandate_data.map(|d| d.to_storage_model()),
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
         }
     }
@@ -1296,6 +1302,7 @@ impl DataModelExt for PaymentAttemptNew {
             mandate_data: storage_model
                 .mandate_data
                 .map(MandateDetails::from_storage_model),
+            payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
             fingerprint_id: storage_model.fingerprint_id,
         }
     }
@@ -1401,6 +1408,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
+                payment_method_billing_address_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1424,6 +1432,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
+                payment_method_billing_address_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1675,6 +1684,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
+                payment_method_billing_address_id,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1698,6 +1708,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
+                payment_method_billing_address_id,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
