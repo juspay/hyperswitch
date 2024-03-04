@@ -1084,8 +1084,8 @@ pub async fn get_delete_tokenize_schedule_time(
     .await;
     let mapping = match redis_mapping {
         Ok(x) => x,
-        Err(err) => {
-            logger::info!("Redis Mapping Error: {}", err);
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
             process_data::PaymentMethodsPTMapping::default()
         }
     };

@@ -253,7 +253,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// The billing details of the customer
+    /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -309,7 +309,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
@@ -1050,6 +1050,16 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct PaymentMethodDataRequest {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
@@ -1924,20 +1934,28 @@ pub enum VoucherData {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer,
-    Wallet,
-    PayLater,
-    Paypal,
-    BankRedirect,
-    Crypto,
-    BankDebit,
-    MandatePayment,
-    Reward,
-    Upi,
-    Voucher,
-    GiftCard,
-    CardRedirect,
-    CardToken,
+    BankTransfer {},
+    Wallet {},
+    PayLater {},
+    Paypal {},
+    BankRedirect {},
+    Crypto {},
+    BankDebit {},
+    MandatePayment {},
+    Reward {},
+    Upi {},
+    Voucher {},
+    GiftCard {},
+    CardRedirect {},
+    CardToken {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodDataResponseWithBilling {
+    // The struct is flattened in order to provide backwards compatibility
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodDataResponse,
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2372,7 +2390,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
-    pub payment_method_data: Option<PaymentMethodDataResponse>,
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
@@ -2793,19 +2811,19 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {} => Self::PayLater,
-            AdditionalPaymentData::Wallet {} => Self::Wallet,
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
-            AdditionalPaymentData::Crypto {} => Self::Crypto,
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit,
-            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
-            AdditionalPaymentData::Reward {} => Self::Reward,
-            AdditionalPaymentData::Upi {} => Self::Upi,
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
-            AdditionalPaymentData::Voucher {} => Self::Voucher,
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
-            AdditionalPaymentData::CardToken {} => Self::CardToken,
+            AdditionalPaymentData::PayLater {} => Self::PayLater {},
+            AdditionalPaymentData::Wallet {} => Self::Wallet {},
+            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
+            AdditionalPaymentData::Crypto {} => Self::Crypto {},
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
+            AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::Upi {} => Self::Upi {},
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
+            AdditionalPaymentData::Voucher {} => Self::Voucher {},
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
+            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
+            AdditionalPaymentData::CardToken {} => Self::CardToken {},
         }
     }
 }

@@ -81,6 +81,7 @@ pub struct ApiModelMetaData {
     pub google_pay: Option<GoogleApiModelData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
+    pub endpoint_prefix: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -173,4 +174,5 @@ pub struct DashboardMetaData {
     pub google_pay: Option<GooglePayData>,
     pub apple_pay: Option<ApplePayData>,
     pub apple_pay_combined: Option<ApplePayData>,
+    pub endpoint_prefix: Option<String>,
 }
