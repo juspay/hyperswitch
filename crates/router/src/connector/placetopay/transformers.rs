@@ -340,8 +340,7 @@ impl From<PlacetopayRefundStatus> for enums::RefundStatus {
         match item {
             PlacetopayRefundStatus::Ok
             | PlacetopayRefundStatus::Approved
-            | PlacetopayRefundStatus::Refunded
-            | PlacetopayRefundStatus::Reversed => Self::Success,
+            | PlacetopayRefundStatus::Refunded => Self::Success,
             PlacetopayRefundStatus::Failed
             | PlacetopayRefundStatus::Rejected
             | PlacetopayRefundStatus::Error => Self::Failure,
@@ -365,7 +364,7 @@ pub enum PlacetopayRefundStatus {
     PendingValidation,
     PendingProcess,
     Refunded,
-    Reversed,
+    // Reversed,
     Error,
     // Unknown,
     // Manual,
