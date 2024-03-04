@@ -99,7 +99,7 @@ pub struct MerchantAccountCreate {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
-    pub authentication_connectors: Vec<String>,
+    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
