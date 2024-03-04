@@ -50,12 +50,14 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
             .attach_printable("Role groups cannot be empty");
     }
 
-    if groups.contains(&PermissionGroup::OrganizationManage) {
+    let unique_groups: HashSet<_> = groups.iter().cloned().collect();
+
+    if unique_groups.contains(&PermissionGroup::OrganizationManage) {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Organization manage group cannot be added to role");
     }
 
-    if groups.iter().collect::<HashSet<_>>().len() != groups.len() {
+    if unique_groups.len() != groups.len() {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Duplicate permission group found");
     }
