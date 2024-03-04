@@ -1716,7 +1716,7 @@ where
             }
         }
         Some(api_models::payments::PaymentMethodData::BankRedirect(data)) => match data {
-            api_models::payments::BankRedirectData::OpenBanking => {
+            api_models::payments::BankRedirectData::OpenBanking { .. } => {
                 if connector.connector_name == router_types::Connector::Plaid {
                     router_data = router_data.preprocessing_steps(state, connector).await?;
                     (router_data, true)

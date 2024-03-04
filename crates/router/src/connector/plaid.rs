@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
 use transformers as plaid;
 
 use crate::{
@@ -21,7 +20,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, RequestContent, Response,
     },
-    utils::{self, BytesExt},
+    utils::BytesExt,
 };
 
 #[derive(Debug, Clone)]
@@ -39,6 +38,7 @@ impl api::Refund for Plaid {}
 impl api::RefundExecute for Plaid {}
 impl api::RefundSync for Plaid {}
 impl api::PaymentToken for Plaid {}
+impl api::PaymentsPostProcessing for Plaid {}
 
 impl
     ConnectorIntegration<
@@ -75,10 +75,7 @@ impl ConnectorCommon for Plaid {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -91,8 +88,8 @@ impl ConnectorCommon for Plaid {
 
     fn get_auth_header(
         &self,
-        auth_type: &auth_types::ConnectorAuthType,
-    ) -> errors::CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = plaid::PlaidAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let client_id = auth.client_id.into_masked();
@@ -119,9 +116,9 @@ impl ConnectorCommon for Plaid {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: crate::consts::NO_ERROR_CODE.to_string(),
+            message: response.error_message,
+            reason: response.display_message,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -172,7 +169,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/payment_initiation/payment/create", self.base_url(connectors)))
+        Ok(format!(
+            "{}/payment_initiation/payment/create",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -180,12 +180,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = plaid::PlaidRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        let connector_router_data =
+            plaid::PlaidRouterData::try_from((Some(req.request.amount as f64), req))?;
         let connector_req = plaid::PlaidPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -220,7 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: plaid::PlaidPaymentsResponse = res
             .response
-            .parse_struct("Plaid PaymentsAuthorizeResponse")
+            .parse_struct("PlaidPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -255,18 +251,28 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.common_get_content_type()
     }
 
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = plaid::PlaidRouterData::try_from((None, req))?;
+        let connector_req = plaid::PlaidSyncRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn get_url(
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
+        let _connector_payment_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}payment_initiation/payment/get",
+            "{}/payment_initiation/payment/get",
             self.base_url(connectors)
         ))
     }
@@ -278,10 +284,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Get)
+                .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -294,7 +303,94 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: plaid::PlaidSyncResponse = res
             .response
-            .parse_struct("plaid PaymentsSyncResponse")
+            .parse_struct("PlaidSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::PostProcessing,
+        types::PaymentsPostProcessingData,
+        types::PaymentsResponseData,
+    > for Plaid
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPostProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsPostProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/link/token/create", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPostProcessingRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = plaid::PlaidRouterData::try_from((None, req))?;
+        let connector_req = plaid::PlaidLinkTokenRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsPostProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsPostProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPostProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPostProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPostProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::PaymentsPostProcessingRouterData, errors::ConnectorError> {
+        let response: plaid::PlaidLinkTokenResponse = res
+            .response
+            .parse_struct("PlaidLinkTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -424,12 +520,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = plaid::PlaidRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        let connector_router_data =
+            plaid::PlaidRouterData::try_from((Some(req.request.refund_amount as f64), req))?;
         let connector_req = plaid::PlaidRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
