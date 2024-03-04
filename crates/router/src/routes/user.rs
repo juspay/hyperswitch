@@ -179,7 +179,7 @@ pub async fn get_multiple_dashboard_metadata(
     req: HttpRequest,
     query: web::Query<user_api::dashboard_metadata::GetMultipleMetaDataRequest>,
 ) -> HttpResponse {
-    let flow = Flow::GetMutltipleDashboardMetadata;
+    let flow = Flow::GetMultipleDashboardMetadata;
     let payload = match ReportSwitchExt::<_, ApiErrorResponse>::switch(parse_string_to_enums(
         query.into_inner().keys,
     )) {
