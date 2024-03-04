@@ -79,13 +79,13 @@ where
                 .request
                 .get_customer_acceptance()
                 .or(mandate_data_customer_acceptance.clone().map(From::from))
-                .encode_to_value()
+                .map(|ca| ca.encode_to_value())
+                .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
             let pm_id = if resp.request.get_setup_future_usage().is_some()
-                && (resp.request.get_customer_acceptance().is_some()
-                    || mandate_data_customer_acceptance.is_some())
+                && customer_acceptance.is_some()
             {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
@@ -191,7 +191,7 @@ where
                                             locker_id,
                                             merchant_id,
                                             pm_metadata,
-                                            Some(customer_acceptance),
+                                            customer_acceptance,
                                             pm_data_encrypted,
                                             key_store,
                                         )
@@ -254,7 +254,7 @@ where
                                                     &merchant_account.merchant_id,
                                                     &customer.customer_id,
                                                     resp.metadata.clone().map(|val| val.expose()),
-                                                    Some(customer_acceptance),
+                                                    customer_acceptance,
                                                     locker_id,
                                                 )
                                                 .await
@@ -369,7 +369,7 @@ where
                             locker_id,
                             merchant_id,
                             pm_metadata,
-                            Some(customer_acceptance),
+                            customer_acceptance,
                             pm_data_encrypted,
                             key_store,
                         )
