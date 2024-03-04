@@ -1,6 +1,7 @@
+use crate::services::authorization::{self as authz, roles::predefined_roles};
 use api_models::user_role as user_role_api;
 use diesel_models::user_role::UserRole;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::logger;
 
 use crate::{
@@ -89,6 +90,10 @@ pub async fn set_role_permissions_in_cache(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    if predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
+        return Ok(());
+    }
+
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -96,12 +101,9 @@ pub async fn set_role_permissions_in_cache(
 
     redis_conn
         .serialize_and_set_key_with_expiry(
-            role_id,
+            &authz::get_cache_key_from_role_id(role_id),
             role_info.get_permissions_set(),
-            consts::JWT_TOKEN_TIME_IN_SECS
-                .try_into()
-                .into_report()
-                .change_context(UserErrors::InternalServerError)?,
+            consts::JWT_TOKEN_TIME_IN_SECS as i64,
         )
         .await
         .change_context(UserErrors::InternalServerError)

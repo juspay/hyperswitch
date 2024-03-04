@@ -22,16 +22,15 @@ pub async fn get_permissions<A>(
 where
     A: AppStateInfo + Sync,
 {
-    if let Some(permissions) = get_permissions_from_cache(state, &token.role_id).await {
+    if let Some(permissions) = get_permissions_from_predefined_roles(&token.role_id) {
         Ok(permissions)
-    } else if let Some(permissions) = get_permissions_from_predefined_roles(&token.role_id) {
-        set_permissions_in_cache(state, &token.role_id, &permissions).await?;
+    } else if let Some(permissions) = get_permissions_from_cache(state, &token.role_id).await {
         Ok(permissions)
     } else {
         let permissions =
             get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id)
                 .await?;
-        set_permissions_in_cache(state, &token.role_id, &permissions).await?;
+        set_permissions_in_cache(state, &token.role_id, &permissions, token.exp).await?;
         Ok(permissions)
     }
 }
@@ -87,6 +86,7 @@ async fn set_permissions_in_cache<A>(
     state: &A,
     role_id: &str,
     permissions: &Vec<permissions::Permission>,
+    jwt_expiry: u64,
 ) -> RouterResult<()>
 where
     A: AppStateInfo + Sync,
@@ -97,8 +97,14 @@ where
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
+    let cache_expiry = jwt_expiry as i64 - common_utils::date_time::now_unix_timestamp();
+
     redis_conn
-        .serialize_and_set_key(&get_cache_key_from_role_id(role_id), permissions)
+        .serialize_and_set_key_with_expiry(
+            &get_cache_key_from_role_id(role_id),
+            permissions,
+            cache_expiry,
+        )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
