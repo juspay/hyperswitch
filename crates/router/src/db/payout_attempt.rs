@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -43,6 +44,7 @@ pub trait PayoutAttemptInterface {
 
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for Store {
+    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -55,6 +57,7 @@ impl PayoutAttemptInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
@@ -71,6 +74,7 @@ impl PayoutAttemptInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_payout_attempt_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -89,6 +93,7 @@ impl PayoutAttemptInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         merchant_id: &str,
@@ -107,6 +112,7 @@ impl PayoutAttemptInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn insert_payout_attempt(
         &self,
         payout: storage::PayoutAttemptNew,

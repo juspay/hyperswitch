@@ -483,6 +483,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     200..=299 => storage::enums::AttemptStatus::Failure,
                                     _ => router_data.status,
                                 }
+                            } else if flow_name == "Capture" {
+                                match err.status_code {
+                                    500..=511 => storage::enums::AttemptStatus::Pending,
+                                    // don't update the status for 429 error status
+                                    429 => router_data.status,
+                                    _ => storage::enums::AttemptStatus::Failure,
+                                }
                             } else {
                                 match err.status_code {
                                     500..=511 => storage::enums::AttemptStatus::Pending,

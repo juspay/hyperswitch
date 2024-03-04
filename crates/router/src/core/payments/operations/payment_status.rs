@@ -239,7 +239,7 @@ async fn get_tracker_for_sync<
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
-    let (payment_intent, payment_attempt, currency, amount);
+    let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -274,6 +274,8 @@ async fn get_tracker_for_sync<
         merchant_account.storage_scheme,
     )
     .await?;
+
+    payment_attempt.encoded_data = request.param.clone();
 
     let attempts = match request.expand_attempts {
         Some(true) => {

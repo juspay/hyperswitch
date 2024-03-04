@@ -68,6 +68,7 @@ where
 
 #[async_trait::async_trait]
 impl CustomerInterface for Store {
+    #[instrument(skip_all)]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
@@ -129,6 +130,7 @@ impl CustomerInterface for Store {
         .await
     }
 
+    #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
@@ -155,6 +157,7 @@ impl CustomerInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn list_customers_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -180,6 +183,7 @@ impl CustomerInterface for Store {
         Ok(customers)
     }
 
+    #[instrument(skip_all)]
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
@@ -202,6 +206,7 @@ impl CustomerInterface for Store {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
