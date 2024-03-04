@@ -3453,9 +3453,11 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
             api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
-                api_models::payments::AdditionalPaymentData::Wallet(Some(api_models::payments::Wallets::ApplePay(
-                    apple_pay_wallet_data.payment_method.to_owned(),
-                )))
+                api_models::payments::AdditionalPaymentData::Wallet(Some(
+                    api_models::payments::Wallets::ApplePay(
+                        apple_pay_wallet_data.payment_method.to_owned(),
+                    ),
+                ))
             }
             _ => api_models::payments::AdditionalPaymentData::Wallet(None),
         },
