@@ -2327,6 +2327,7 @@ pub enum RoleScope {
     Debug,
     Eq,
     PartialEq,
+    Hash,
     serde::Serialize,
     serde::Deserialize,
     strum::Display,

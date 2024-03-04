@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
 use error_stack::ResultExt;
@@ -51,6 +53,11 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
     if groups.contains(&PermissionGroup::OrganizationManage) {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Organization manage group cannot be added to role");
+    }
+
+    if groups.iter().collect::<HashSet<_>>().len() != groups.len() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Duplicate role group found");
     }
 
     Ok(())
