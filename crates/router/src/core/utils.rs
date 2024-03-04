@@ -15,7 +15,7 @@ use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
-    configs::settings,
+    configs::Settings,
     consts,
     core::errors::{self, RouterResult, StorageErrorExt},
     db::StorageInterface,
@@ -108,15 +108,24 @@ pub async fn construct_payout_router_data<'a, F>(
             api_models::payments::Address {
                 phone: Some(phone_details),
                 address: Some(address_details),
+                email: a.email.to_owned().map(Email::from),
             }
         }),
+        payment_method_billing: None,
     };
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}", payout_data.profile_id, payout_attempt.connector);
+    let connector_name = payout_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Could not decide to route the connector".to_string(),
+        })?;
+    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
@@ -934,7 +943,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 }
 
 pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
 ) -> bool {
     let config_map = &conf
@@ -944,7 +953,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 }
 
 pub fn get_connector_request_reference_id(
-    conf: &settings::Settings,
+    conf: &Settings,
     merchant_id: &str,
     payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
 ) -> String {

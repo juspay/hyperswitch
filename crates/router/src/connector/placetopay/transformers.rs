@@ -204,7 +204,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlacetopayAuthType {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayStatus {
     Ok,
@@ -216,7 +216,7 @@ pub enum PlacetopayStatus {
     PendingProcess,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayStatusResponse {
     status: PlacetopayStatus,
@@ -234,7 +234,7 @@ impl From<PlacetopayStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayPaymentsResponse {
     status: PlacetopayStatusResponse,
@@ -315,14 +315,14 @@ impl From<PlacetopayRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayRefundResponse {
     status: PlacetopayRefundStatus,
     internal_reference: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayRefundStatus {
     Refunded,
@@ -390,13 +390,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PlacetopayRefundRespon
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayErrorResponse {
     pub status: PlacetopayError,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayError {
     pub status: PlacetopayErrorStatus,
@@ -404,7 +404,7 @@ pub struct PlacetopayError {
     pub reason: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PlacetopayErrorStatus {
     Failed,

@@ -8,7 +8,7 @@ use data_models::{
     payments::payment_attempt::PaymentAttempt,
 };
 use diesel_models::ephemeral_key;
-use error_stack::{self, report, ResultExt};
+use error_stack::{self, ResultExt};
 use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -146,12 +146,27 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let payment_method_billing_address =
+            helpers::create_or_find_address_for_payment_by_request(
+                db,
+                request
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.billing.as_ref()),
+                None,
+                merchant_id,
+                customer_details.customer_id.as_ref(),
+                merchant_key_store,
+                &payment_id,
+                merchant_account.storage_scheme,
+            )
+            .await?;
+
         let browser_info = request
             .browser_info
             .clone()
-            .map(|x| {
-                common_utils::ext_traits::Encode::<types::BrowserInformation>::encode_to_value(&x)
-            })
+            .as_ref()
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
@@ -217,9 +232,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             merchant_account,
             money,
             request,
-            shipping_address.clone().map(|x| x.address_id),
+            shipping_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             payment_link_data.clone(),
-            billing_address.clone().map(|x| x.address_id),
+            billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
             attempt_id,
             profile_id,
             session_expiry,
@@ -235,6 +254,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             request,
             browser_info,
             state,
+            payment_method_billing_address
+                .as_ref()
+                .map(|address| address.address_id.clone()),
         )
         .await?;
 
@@ -342,7 +364,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .as_ref()
             .zip(additional_payment_data)
             .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+                payment_method_data
+                    .payment_method_data
+                    .apply_additional_payment_data(additional_payment_data)
             });
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
@@ -359,6 +383,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing_address
+                    .as_ref()
+                    .map(|address| address.into()),
             },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
@@ -625,20 +652,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_amount_to_capture_and_capture_method(None, request)?;
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
@@ -646,7 +667,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
-                &request.payment_method_data,
+                &request
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
@@ -690,6 +714,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
         state: &AppState,
+        payment_method_billing_address_id: Option<String>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -703,12 +728,16 @@ impl PaymentCreate {
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+                helpers::get_additional_payment_data(
+                    &payment_method_data.payment_method_data,
+                    &*state.store,
+                )
+                .await
             })
             .await;
         let additional_pm_data_value = additional_pm_data
             .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
@@ -777,6 +806,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 mandate_data,
+                payment_method_billing_address_id,
                 ..storage::PaymentAttemptNew::default()
             },
             additional_pm_data,
@@ -933,12 +963,11 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let payment_link_config_encoded_value = common_utils::ext_traits::Encode::<
-        api_models::admin::PaymentLinkConfig,
-    >::encode_to_value(&payment_link_config)
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "payment_link_config",
-    })?;
+    let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_link_config",
+        },
+    )?;
 
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),

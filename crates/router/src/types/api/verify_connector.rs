@@ -90,6 +90,7 @@ impl VerifyConnectorData {
             address: types::PaymentAddress {
                 shipping: None,
                 billing: None,
+                payment_method_billing: None,
             },
             payment_id: common_utils::generate_id_with_default_len(
                 consts::VERIFY_CONNECTOR_ID_PREFIX,
@@ -161,7 +162,7 @@ pub trait VerifyConnector {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),
@@ -177,7 +178,7 @@ pub trait VerifyConnector {
         dyn types::api::Connector + Sync: ConnectorIntegration<F, R1, R2>,
     {
         let error = connector
-            .get_error_response(error_response)
+            .get_error_response(error_response, None)
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: error.reason.unwrap_or(error.message),

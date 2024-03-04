@@ -1,29 +1,13 @@
 use api_models::user_role as user_role_api;
+use common_enums::PermissionGroup;
+use error_stack::ResultExt;
 
 use crate::{
-    consts,
-    services::authorization::{permissions::Permission, predefined_permissions::RoleInfo},
+    core::errors::{UserErrors, UserResult},
+    routes::AppState,
+    services::authorization::{permissions::Permission, roles},
+    types::domain,
 };
-
-pub fn is_internal_role(role_id: &str) -> bool {
-    role_id == consts::user_role::ROLE_ID_INTERNAL_ADMIN
-        || role_id == consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER
-}
-
-pub fn get_role_name_and_permission_response(
-    role_info: &RoleInfo,
-) -> Option<(Vec<user_role_api::Permission>, &'static str)> {
-    role_info.get_name().map(|name| {
-        (
-            role_info
-                .get_permissions()
-                .iter()
-                .map(|&per| per.into())
-                .collect::<Vec<user_role_api::Permission>>(),
-            name,
-        )
-    })
-}
 
 impl From<Permission> for user_role_api::Permission {
     fn from(value: Permission) -> Self {
@@ -38,7 +22,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountWrite => Self::MerchantAccountWrite,
             Permission::MerchantConnectorAccountRead => Self::MerchantConnectorAccountRead,
             Permission::MerchantConnectorAccountWrite => Self::MerchantConnectorAccountWrite,
-            Permission::ForexRead => Self::ForexRead,
             Permission::RoutingRead => Self::RoutingRead,
             Permission::RoutingWrite => Self::RoutingWrite,
             Permission::DisputeRead => Self::DisputeRead,
@@ -47,8 +30,6 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MandateWrite => Self::MandateWrite,
             Permission::CustomerRead => Self::CustomerRead,
             Permission::CustomerWrite => Self::CustomerWrite,
-            Permission::FileRead => Self::FileRead,
-            Permission::FileWrite => Self::FileWrite,
             Permission::Analytics => Self::Analytics,
             Permission::ThreeDsDecisionManagerWrite => Self::ThreeDsDecisionManagerWrite,
             Permission::ThreeDsDecisionManagerRead => Self::ThreeDsDecisionManagerRead,
@@ -59,4 +40,46 @@ impl From<Permission> for user_role_api::Permission {
             Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
         }
     }
+}
+
+pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
+    if groups.is_empty() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Role groups cannot be empty");
+    }
+
+    if groups.contains(&PermissionGroup::OrganizationManage) {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Organization manage group cannot be added to role");
+    }
+
+    Ok(())
+}
+
+pub async fn validate_role_name(
+    state: &AppState,
+    role_name: &domain::RoleName,
+    merchant_id: &str,
+    org_id: &str,
+) -> UserResult<()> {
+    let role_name_str = role_name.clone().get_role_name();
+
+    let is_present_in_predefined_roles = roles::predefined_roles::PREDEFINED_ROLES
+        .iter()
+        .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
+
+    // TODO: Create and use find_by_role_name to make this efficient
+    let is_present_in_custom_roles = state
+        .store
+        .list_all_roles(merchant_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .iter()
+        .any(|role| role.role_name == role_name_str);
+
+    if is_present_in_predefined_roles || is_present_in_custom_roles {
+        return Err(UserErrors::RoleNameAlreadyExists.into());
+    }
+
+    Ok(())
 }

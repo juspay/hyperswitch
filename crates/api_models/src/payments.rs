@@ -1,4 +1,4 @@
-use std::num::NonZeroI64;
+use std::{fmt, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
@@ -8,6 +8,10 @@ use common_utils::{
 };
 use masking::Secret;
 use router_derive::Setter;
+use serde::{
+    de::{self, Unexpected, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
@@ -49,6 +53,120 @@ pub struct ConnectorCode {
 pub struct BankCodeResponse {
     pub bank_name: Vec<api_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ClientSecret {
+    pub payment_id: String,
+    pub secret: String,
+}
+
+impl<'de> Deserialize<'de> for ClientSecret {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ClientSecretVisitor;
+
+        impl<'de> Visitor<'de> for ClientSecretVisitor {
+            type Value = ClientSecret;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
+            where
+                E: de::Error,
+            {
+                let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
+                    E::invalid_value(Unexpected::Str(value), &"a string with '_secret_'")
+                })?;
+
+                Ok(ClientSecret {
+                    payment_id: payment_id.to_owned(),
+                    secret: secret.to_owned(),
+                })
+            }
+        }
+
+        deserializer.deserialize_str(ClientSecretVisitor)
+    }
+}
+
+impl Serialize for ClientSecret {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let combined = format!("{}_secret_{}", self.payment_id, self.secret);
+        serializer.serialize_str(&combined)
+    }
+}
+
+#[cfg(test)]
+mod client_secret_tests {
+    #![allow(clippy::expect_used)]
+
+    use serde_json;
+
+    use super::*;
+
+    #[test]
+    fn test_serialize_client_secret() {
+        let client_secret1 = ClientSecret {
+            payment_id: "pay_3TgelAms4RQec8xSStjF".to_string(),
+            secret: "fc34taHLw1ekPgNh92qr".to_string(),
+        };
+        let client_secret2 = ClientSecret {
+            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF".to_string(),
+            secret: "fc34taHLw1ekPgNh92qr".to_string(),
+        };
+
+        let expected_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+        let expected_str2 = r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+
+        let actual_str1 =
+            serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
+        let actual_str2 =
+            serde_json::to_string(&client_secret2).expect("Failed to serialize client_secret2");
+
+        assert_eq!(expected_str1, actual_str1);
+        assert_eq!(expected_str2, actual_str2);
+    }
+
+    #[test]
+    fn test_deserialize_client_secret() {
+        let client_secret_str1 = r#""pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+        let client_secret_str2 =
+            r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr""#;
+        let client_secret_str3 =
+            r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr""#;
+
+        let expected1 = ClientSecret {
+            payment_id: "pay_3TgelAms4RQec8xSStjF".to_string(),
+            secret: "fc34taHLw1ekPgNh92qr".to_string(),
+        };
+        let expected2 = ClientSecret {
+            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF".to_string(),
+            secret: "fc34taHLw1ekPgNh92qr".to_string(),
+        };
+        let expected3 = ClientSecret {
+            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_".to_string(),
+            secret: "fc34taHLw1ekPgNh92qr".to_string(),
+        };
+
+        let actual1: ClientSecret = serde_json::from_str(client_secret_str1)
+            .expect("Failed to deserialize client_secret_str1");
+        let actual2: ClientSecret = serde_json::from_str(client_secret_str2)
+            .expect("Failed to deserialize client_secret_str2");
+        let actual3: ClientSecret = serde_json::from_str(client_secret_str3)
+            .expect("Failed to deserialize client_secret_str3");
+
+        assert_eq!(expected1, actual1);
+        assert_eq!(expected2, actual2);
+        assert_eq!(expected3, actual3);
+    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -135,7 +253,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// The billing details of the customer
+    /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -191,7 +309,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
@@ -507,7 +625,7 @@ impl PaymentsRequest {
     > {
         self.feature_metadata
             .as_ref()
-            .map(Encode::<FeatureMetadata>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -519,7 +637,7 @@ impl PaymentsRequest {
     > {
         self.connector_metadata
             .as_ref()
-            .map(Encode::<ConnectorMetadata>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -531,7 +649,7 @@ impl PaymentsRequest {
     > {
         self.allowed_payment_method_types
             .as_ref()
-            .map(Encode::<Vec<api_enums::PaymentMethodType>>::encode_to_value)
+            .map(Encode::encode_to_value)
             .transpose()
     }
 
@@ -545,10 +663,7 @@ impl PaymentsRequest {
             .as_ref()
             .map(|od| {
                 od.iter()
-                    .map(|order| {
-                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
-                            .map(masking::Secret::new)
-                    })
+                    .map(|order| order.encode_to_value().map(masking::Secret::new))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -932,6 +1047,16 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct PaymentMethodDataRequest {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
@@ -1806,20 +1931,28 @@ pub enum VoucherData {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer,
-    Wallet,
-    PayLater,
-    Paypal,
-    BankRedirect,
-    Crypto,
-    BankDebit,
-    MandatePayment,
-    Reward,
-    Upi,
-    Voucher,
-    GiftCard,
-    CardRedirect,
-    CardToken,
+    BankTransfer {},
+    Wallet {},
+    PayLater {},
+    Paypal {},
+    BankRedirect {},
+    Crypto {},
+    BankDebit {},
+    MandatePayment {},
+    Reward {},
+    Upi {},
+    Voucher {},
+    GiftCard {},
+    CardRedirect {},
+    CardToken {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodDataResponseWithBilling {
+    // The struct is flattened in order to provide backwards compatibility
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodDataResponse,
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1881,6 +2014,9 @@ pub struct Address {
     pub address: Option<AddressDetails>,
 
     pub phone: Option<PhoneDetails>,
+
+    #[schema(value_type = Option<String>)]
+    pub email: Option<Email>,
 }
 
 // used by customers also, could be moved outside
@@ -2251,7 +2387,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
-    pub payment_method_data: Option<PaymentMethodDataResponse>,
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
@@ -2672,19 +2808,19 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {} => Self::PayLater,
-            AdditionalPaymentData::Wallet {} => Self::Wallet,
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
-            AdditionalPaymentData::Crypto {} => Self::Crypto,
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit,
-            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
-            AdditionalPaymentData::Reward {} => Self::Reward,
-            AdditionalPaymentData::Upi {} => Self::Upi,
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
-            AdditionalPaymentData::Voucher {} => Self::Voucher,
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
-            AdditionalPaymentData::CardToken {} => Self::CardToken,
+            AdditionalPaymentData::PayLater {} => Self::PayLater {},
+            AdditionalPaymentData::Wallet {} => Self::Wallet {},
+            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
+            AdditionalPaymentData::Crypto {} => Self::Crypto {},
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
+            AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::Upi {} => Self::Upi {},
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
+            AdditionalPaymentData::Voucher {} => Self::Voucher {},
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
+            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
+            AdditionalPaymentData::CardToken {} => Self::CardToken {},
         }
     }
 }

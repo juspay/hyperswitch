@@ -1,7 +1,9 @@
 use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time, fp_utils, pii,
+    date_time,
+    ext_traits::Encode,
+    fp_utils, pii,
     pii::Email,
 };
 use data_models::mandates::MandateDataType;
@@ -433,23 +435,14 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token:
-                        Some(
-                            ExternalToken {
-                                external_token_provider: ExternalTokenProvider::GooglePay,
-                                mobile_token:
-                                    Secret::new(
-                                        common_utils::ext_traits::Encode::<
-                                            payments::GooglePayWalletData,
-                                        >::encode_to_string_of_json(
-                                            &utils::GooglePayWalletData::from(gpay_data),
-                                        )
-                                        .change_context(
-                                            errors::ConnectorError::RequestEncodingFailed,
-                                        )?,
-                                    ),
-                            },
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::GooglePay,
+                        mobile_token: Secret::new(
+                            utils::GooglePayWalletData::from(gpay_data)
+                                .encode_to_string_of_json()
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                         ),
+                    }),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -622,6 +615,9 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             | api_models::enums::BankNames::Starling
             | api_models::enums::BankNames::TsbBank
             | api_models::enums::BankNames::TescoBank
+            | api_models::enums::BankNames::Yoursafe
+            | api_models::enums::BankNames::N26
+            | api_models::enums::BankNames::NationaleNederlanden
             | api_models::enums::BankNames::UlsterBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Nuvei"),

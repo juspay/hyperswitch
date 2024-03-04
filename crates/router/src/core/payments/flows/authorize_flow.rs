@@ -72,10 +72,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        connector
-            .connector
-            .validate_capture_method(self.request.capture_method)
-            .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -207,13 +203,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
+                connector
+                    .connector
+                    .validate_capture_method(
+                        self.request.capture_method,
+                        self.request.payment_method_type,
+                    )
+                    .to_payment_failed_response()?;
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-
                 connector_integration
                     .execute_pretasks(self, state)
                     .await

@@ -95,7 +95,10 @@ impl_misc_api_event_type!(
     SdkEventsRequest,
     ReportRequest,
     ConnectorEventsRequest,
-    OutgoingWebhookLogsRequest
+    OutgoingWebhookLogsRequest,
+    GetDisputeFilterRequest,
+    DisputeFiltersResponse,
+    GetDisputeMetricRequest
 );
 
 #[cfg(feature = "stripe")]

@@ -195,7 +195,7 @@ pub async fn intiate_payment_link_flow(
             js_script,
             css_script,
         };
-        return Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+        return Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
             services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_error_data),
         )));
     };
@@ -225,7 +225,7 @@ pub async fn intiate_payment_link_flow(
         sdk_url: state.conf.payment_link.sdk_url.clone(),
         css_script,
     };
-    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+    Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkFormData(payment_link_data),
     )))
 }
@@ -574,7 +574,7 @@ pub async fn get_payment_link_status(
         js_script,
         css_script,
     };
-    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+    Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_status_data),
     )))
 }

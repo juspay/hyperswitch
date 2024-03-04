@@ -94,6 +94,7 @@ pub trait RefundInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
 
     use super::RefundInterface;
     use crate::{
@@ -105,6 +106,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+        #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -122,6 +124,7 @@ mod storage {
             .into_report()
         }
 
+        #[instrument(skip_all)]
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -131,6 +134,7 @@ mod storage {
             new.insert(&conn).await.map_err(Into::into).into_report()
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -148,6 +152,7 @@ mod storage {
             .into_report()
         }
 
+        #[instrument(skip_all)]
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -161,6 +166,7 @@ mod storage {
                 .into_report()
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -174,6 +180,7 @@ mod storage {
                 .into_report()
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -193,6 +200,7 @@ mod storage {
             .into_report()
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -207,6 +215,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &str,
@@ -229,6 +238,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -246,6 +256,7 @@ mod storage {
             .into_report()
         }
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &str,
@@ -267,9 +278,10 @@ mod storage {
 
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::{date_time, fallback_reverse_lookup_not_found};
+    use common_utils::{date_time, ext_traits::Encode, fallback_reverse_lookup_not_found};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
+    use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::RefundInterface;
@@ -279,10 +291,11 @@ mod storage {
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
         types::storage::{self as storage_types, enums, kv},
-        utils::{self, db_utils},
+        utils::db_utils,
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+        #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
             internal_reference_id: &str,
@@ -328,6 +341,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn insert_refund(
             &self,
             new: storage_types::RefundNew,
@@ -452,6 +466,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_transaction_id(
             &self,
             merchant_id: &str,
@@ -501,6 +516,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn update_refund(
             &self,
             this: storage_types::Refund,
@@ -520,10 +536,8 @@ mod storage {
                     let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
-                    let redis_value =
-                        utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
-                            &updated_refund,
-                        )
+                    let redis_value = updated_refund
+                        .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
                     let redis_entry = kv::TypedSql {
@@ -553,6 +567,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
             merchant_id: &str,
@@ -594,6 +609,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
             merchant_id: &str,
@@ -642,6 +658,7 @@ mod storage {
             }
         }
 
+        #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
             payment_id: &str,
@@ -681,6 +698,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
             merchant_id: &str,
@@ -703,6 +721,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
@@ -717,6 +736,7 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
+        #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &str,

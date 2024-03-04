@@ -9,7 +9,10 @@ use masking::{ExposeInterface, Secret};
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
-    services::authentication::{AuthToken, UserFromToken},
+    services::{
+        authentication::{AuthToken, UserFromToken},
+        authorization::roles::{self, RoleInfo},
+    },
     types::domain::{self, MerchantAccount, UserFromStorage},
 };
 
@@ -19,7 +22,10 @@ pub mod password;
 pub mod sample_data;
 
 impl UserFromToken {
-    pub async fn get_merchant_account(&self, state: AppState) -> UserResult<MerchantAccount> {
+    pub async fn get_merchant_account_from_db(
+        &self,
+        state: AppState,
+    ) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -48,13 +54,19 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
-        Ok(user)
+        Ok(user.into())
+    }
+
+    pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
+        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
     }
 }
 
