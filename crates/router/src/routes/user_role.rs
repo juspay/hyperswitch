@@ -41,14 +41,27 @@ pub async fn get_authorization_info(
     .await
 }
 
-pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn get_role_from_token(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::GetGroupsQueryParam>,
+) -> HttpResponse {
     let flow = Flow::GetRoleFromToken;
+    let respond_with_groups = query.into_inner().groups.unwrap_or(false);
+
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
         (),
-        |state, user, _| role_core::get_role_from_token(state, user),
+        |state, user, _| async move {
+            // TODO: Permissions to be deprecated once groups are stable
+            if respond_with_groups {
+                role_core::get_role_from_token_with_groups(state, user).await
+            } else {
+                role_core::get_role_from_token_with_permissions(state, user).await
+            }
+        },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))

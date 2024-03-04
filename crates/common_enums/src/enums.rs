@@ -2174,6 +2174,91 @@ pub enum ApplePayFlow {
 
 #[derive(
     Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationStatus {
+    #[default]
+    Started,
+    Pending,
+    Success,
+    Failed,
+}
+
+impl AuthenticationStatus {
+    pub fn is_terminal_status(&self) -> bool {
+        match self {
+            Self::Started | Self::Pending => false,
+            Self::Success | Self::Failed => true,
+        }
+    }
+
+    pub fn is_failed(&self) -> bool {
+        self == &Self::Failed
+    }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DecoupledAuthenticationType {
+    #[default]
+    Challenge,
+    Frictionless,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationLifecycleStatus {
+    Used,
+    #[default]
+    Unused,
+    Expired,
+}
+
+#[derive(
+    Clone,
     Copy,
     Debug,
     Eq,

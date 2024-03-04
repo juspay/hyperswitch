@@ -96,12 +96,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
-            | Flow::ValidatePaymentMethod => Self::PaymentMethods,
+            | Flow::ValidatePaymentMethod
+            | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
+            | Flow::PaymentsRetrieveForceSync
             | Flow::PaymentsUpdate
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
@@ -123,6 +125,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
+            | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 

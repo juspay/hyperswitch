@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::Store;
 use crate::{
@@ -46,6 +47,7 @@ pub trait BusinessProfileInterface {
 
 #[async_trait::async_trait]
 impl BusinessProfileInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
         business_profile: business_profile::BusinessProfileNew,
@@ -58,6 +60,7 @@ impl BusinessProfileInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_id(
         &self,
         profile_id: &str,
@@ -69,6 +72,7 @@ impl BusinessProfileInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         profile_name: &str,
@@ -85,6 +89,7 @@ impl BusinessProfileInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_business_profile_by_profile_id(
         &self,
         current_state: business_profile::BusinessProfile,
@@ -101,6 +106,7 @@ impl BusinessProfileInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &str,
@@ -117,6 +123,7 @@ impl BusinessProfileInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn list_business_profile_by_merchant_id(
         &self,
         merchant_id: &str,
