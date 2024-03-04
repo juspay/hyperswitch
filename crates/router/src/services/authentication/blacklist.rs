@@ -76,16 +76,15 @@ pub async fn check_user_and_role_in_blacklist<A: AppStateInfo>(
     let role_token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection(state)?;
-    let timestamp = redis_conn
+
+    Ok(redis_conn
         .get_multiple_keys::<Vec<&str>, i64>(vec![user_token.as_str(), role_token.as_str()])
         .await
         .change_context(ApiErrorResponse::InternalServerError)?
         .into_iter()
         .max()
         .flatten()
-        .map_or(false, |timestamp| timestamp > token_issued_at);
-
-    Ok(timestamp)
+        .map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
 #[cfg(feature = "email")]
