@@ -3451,9 +3451,14 @@ pub async fn get_additional_payment_data(
                 _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
             }
         }
-        api_models::payments::PaymentMethodData::Wallet(_) => {
-            api_models::payments::AdditionalPaymentData::Wallet {}
-        }
+        api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
+                api_models::payments::AdditionalPaymentData::Wallet(Some(api_models::payments::Wallets::ApplePay(
+                    apple_pay_wallet_data.payment_method.to_owned(),
+                )))
+            }
+            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+        },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
         }
