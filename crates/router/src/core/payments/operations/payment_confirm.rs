@@ -770,7 +770,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .first()
                 .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
                 .into_report()
-                .attach_printable("No authentication_connector found from merchant_account.authentication_details")?;
+                .attach_printable("No authentication_connector found from merchant_account.authentication_details")?
+                .to_string();
             let profile_id = payment_data
                 .payment_intent
                 .profile_id
@@ -781,7 +782,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .store
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     profile_id,
-                    authentication_connector,
+                    &authentication_connector,
                     key_store,
                 )
                 .await

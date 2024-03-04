@@ -2161,13 +2161,17 @@ pub struct ThreeDsData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct ThreeDsMethodData {
-    /// Whether ThreeDS method data submission is required
-    pub three_ds_method_data_submission: bool,
-    /// ThreeDS method data
-    pub three_ds_method_data: String,
-    /// ThreeDS method url
-    pub three_ds_method_url: Option<String>,
+#[serde(tag = "three_ds_method_key")]
+pub enum ThreeDsMethodData {
+    #[serde(rename = "threeDSMethodData")]
+    AcsThreeDsMethodData {
+        /// Whether ThreeDS method data submission is required
+        three_ds_method_data_submission: bool,
+        /// ThreeDS method data
+        three_ds_method_data: String,
+        /// ThreeDS method url
+        three_ds_method_url: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

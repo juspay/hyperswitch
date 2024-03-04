@@ -574,7 +574,7 @@ where
                                                 payment_connector_name,
                                             ),
                                             three_ds_method_details: authentication_data.three_ds_method_data.three_ds_method_url.as_ref().map(|three_ds_method_url|{
-                                                api_models::payments::ThreeDsMethodData {
+                                                api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: true,
                                                     three_ds_method_data: authentication_data
                                                         .three_ds_method_data
@@ -582,7 +582,7 @@ where
                                                         .clone(),
                                                     three_ds_method_url: Some(three_ds_method_url.to_owned()),
                                                 }
-                                            }).unwrap_or(api_models::payments::ThreeDsMethodData {
+                                            }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                     three_ds_method_data_submission: false,
                                                     three_ds_method_data: "".into(),
                                                     three_ds_method_url: None,
