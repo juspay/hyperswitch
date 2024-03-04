@@ -802,21 +802,19 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        Box::pin(
-                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                                m_state,
-                                merchant_account,
-                                business_profile,
-                                event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                None,
-                                payment_id,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
-                                webhooks::OutgoingWebhookContent::PaymentDetails(
-                                    payments_response_json,
-                                ),
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                            m_state,
+                            merchant_account,
+                            business_profile,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            None,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
                             ),
-                        )
+                        ))
                         .await
                     }
                     .in_current_span(),
