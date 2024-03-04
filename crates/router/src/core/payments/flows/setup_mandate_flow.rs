@@ -34,6 +34,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -46,6 +47,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
     }
@@ -69,7 +71,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .as_ref()
             .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
         {
-            self.update_mandate_flow(
+            Box::pin(self.update_mandate_flow(
                 state,
                 merchant_account,
                 mandate_id,
@@ -79,7 +81,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 &state.conf.mandates.update_mandate_supported,
                 connector_request,
                 maybe_customer,
-            )
+            ))
             .await
         } else {
             let connector_integration: services::BoxedConnectorIntegration<

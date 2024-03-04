@@ -62,6 +62,7 @@ impl PayeezyTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),

@@ -26,6 +26,7 @@ pub use common_utils::{
 use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
+use masking::ExposeInterface;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
@@ -564,6 +565,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .await?,
                 country_code: self.phone_country_code.clone(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -623,6 +630,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 updated_by: storage_scheme.to_string(),
+                email: self
+                    .email
+                    .as_ref()
+                    .cloned()
+                    .async_lift(|inner| encrypt_optional(inner.map(|inner| inner.expose()), key))
+                    .await?,
             })
         }
         .await
@@ -789,21 +802,19 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        Box::pin(
-                            webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
-                                m_state,
-                                merchant_account,
-                                business_profile,
-                                event_type,
-                                diesel_models::enums::EventClass::Payments,
-                                None,
-                                payment_id,
-                                diesel_models::enums::EventObjectType::PaymentDetails,
-                                webhooks::OutgoingWebhookContent::PaymentDetails(
-                                    payments_response_json,
-                                ),
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                            m_state,
+                            merchant_account,
+                            business_profile,
+                            event_type,
+                            diesel_models::enums::EventClass::Payments,
+                            None,
+                            payment_id,
+                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                                payments_response_json,
                             ),
-                        )
+                        ))
                         .await
                     }
                     .in_current_span(),

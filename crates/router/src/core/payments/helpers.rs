@@ -13,12 +13,6 @@ use data_models::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "aws_kms")]
-use external_services::aws_kms;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault;
-#[cfg(feature = "hashicorp-vault")]
-use external_services::hashicorp_vault::decrypt::VaultFetch;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use openssl::{
@@ -54,7 +48,7 @@ use crate::{
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference, RouterData,
+        ConnectorAuthType, ErrorResponse, MandateReference, MerchantRecipientData, RouterData,
     },
     utils::{
         self,
@@ -181,6 +175,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
                         updated_by: storage_scheme.to_string(),
+                        email: address
+                            .email
+                            .as_ref()
+                            .cloned()
+                            .async_lift(|inner| {
+                                types::encrypt_optional(inner.map(|inner| inner.expose()), key)
+                            })
+                            .await?,
                     })
                 }
                 .await
@@ -370,6 +372,12 @@ pub async fn get_domain_address_for_payments(
                 .await?,
             payment_id: Some(payment_id.to_owned()),
             updated_by: storage_scheme.to_string(),
+            email: address
+                .email
+                .as_ref()
+                .cloned()
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
+                .await?,
         })
     }
     .await
@@ -379,16 +387,16 @@ pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: String,
-    merchant_id: String,
+    payment_id: &str,
+    merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
             .find_address_by_merchant_id_payment_id_address_id(
-                &merchant_id,
-                &payment_id,
+                merchant_id,
+                payment_id,
                 &address_id,
                 merchant_key_store,
                 storage_scheme,
@@ -669,8 +677,11 @@ pub fn validate_amount_to_capture_and_capture_method(
             .unwrap_or(0);
         let total_capturable_amount =
             original_amount.map(|original_amount| original_amount + surcharge_amount);
+        let amount_to_capture = request
+            .amount_to_capture
+            .or(payment_attempt.and_then(|pa| pa.amount_to_capture));
         if let Some((total_capturable_amount, amount_to_capture)) =
-            total_capturable_amount.zip(request.amount_to_capture)
+            total_capturable_amount.zip(amount_to_capture)
         {
             utils::when(amount_to_capture != total_capturable_amount, || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -983,7 +994,7 @@ pub fn verify_mandate_details(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::payments::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -996,7 +1007,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_data: &Option<api::PaymentMethodDataRequest>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -1120,6 +1131,7 @@ pub(crate) async fn get_payment_method_create_request(
                         customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
                     };
+
                     Ok(payment_method_request)
                 }
             },
@@ -1391,6 +1403,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
                             modified_at: common_utils::date_time::now(),
                             connector_customer: None,
                             address_id: None,
+                            default_payment_method_id: None,
                         })
                     }
                     .await
@@ -1534,7 +1547,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
 pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
-    token: &str,
+    locker_id: &str,
+    payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
 ) -> RouterResult<api::PaymentMethodData> {
@@ -1545,11 +1559,11 @@ pub async fn retrieve_card_with_permanent_token(
         .change_context(errors::ApiErrorResponse::UnprocessableEntity {
             message: "no customer id provided for the payment".to_string(),
         })?;
-
-    let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, token)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to fetch card information from the permanent locker")?;
+    let card =
+        cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to fetch card information from the permanent locker")?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
@@ -1582,7 +1596,7 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuing_country: None,
         bank_code: None,
     };
-
+    cards::update_last_used_at(payment_method_id, state).await?;
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
@@ -1934,7 +1948,7 @@ pub(crate) fn validate_payment_method_fields_present(
                 .map_or(Ok(()), |req_payment_method_data| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         validate_payment_method_and_payment_method_data(
-                            req_payment_method_data,
+                            req_payment_method_data.payment_method_data,
                             req_payment_method,
                         )
                     })
@@ -2005,6 +2019,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
                 | api_enums::PaymentMethodType::OpenBankingUk
+                | api_enums::PaymentMethodType::OpenBanking
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -2889,16 +2904,13 @@ pub async fn get_merchant_connector_account(
                     },
                 )?;
 
-            #[cfg(feature = "aws_kms")]
             let private_key = state
-                .kms_secrets
+                .conf
                 .jwekey
-                .peek()
+                .get_inner()
                 .tunnel_private_key
+                .peek()
                 .as_bytes();
-
-            #[cfg(not(feature = "aws_kms"))]
-            let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
@@ -3129,7 +3141,7 @@ impl AttemptType {
     // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
     #[inline(always)]
     fn make_new_payment_attempt(
-        payment_method_data: &Option<api_models::payments::PaymentMethodData>,
+        payment_method_data: &Option<api_models::payments::PaymentMethodDataRequest>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
@@ -3201,6 +3213,8 @@ impl AttemptType {
             unified_message: None,
             net_amount: old_payment_attempt.amount,
             mandate_data: old_payment_attempt.mandate_data,
+            // New payment method billing address can be passed for a retry
+            payment_method_billing_address_id: None,
             fingerprint_id: None,
         }
     }
@@ -3536,39 +3550,13 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
-        let apple_pay_ppc = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
-                &state.conf.hc_vault,
-            )
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-            .attach_printable("Failed while creating client")?;
-
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc.clone())
-                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "aws_kms")]
-        let cert_data = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "aws_kms"))]
-        let cert_data = &apple_pay_ppc;
+        let cert_data = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc
+            .clone()
+            .expose();
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3620,40 +3608,14 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
-        let apple_pay_ppc_key = async {
-            #[cfg(feature = "hashicorp-vault")]
-            let client = external_services::hashicorp_vault::core::get_hashicorp_client(
-                &state.conf.hc_vault,
-            )
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-            .attach_printable("Failed while creating client")?;
+        let decrypted_apple_pay_ppc_key = state
+            .conf
+            .applepay_decrypt_keys
+            .get_inner()
+            .apple_pay_ppc_key
+            .clone()
+            .expose();
 
-            #[cfg(feature = "hashicorp-vault")]
-            let output =
-                masking::Secret::new(state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone())
-                    .fetch_inner::<hashicorp_vault::core::Kv2>(client)
-                    .await
-                    .change_context(errors::ApplePayDecryptionError::DecryptionFailed)
-                    .attach_printable("Failed while creating client")?
-                    .expose();
-
-            #[cfg(not(feature = "hashicorp-vault"))]
-            let output = state.conf.applepay_decrypt_keys.apple_pay_ppc_key.clone();
-
-            Ok::<_, error_stack::Report<errors::ApplePayDecryptionError>>(output)
-        }
-        .await?;
-
-        #[cfg(feature = "aws_kms")]
-        let decrypted_apple_pay_ppc_key = aws_kms::core::get_aws_kms_client(&state.conf.kms)
-            .await
-            .decrypt(&apple_pay_ppc_key)
-            .await
-            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
-
-        #[cfg(not(feature = "aws_kms"))]
-        let decrypted_apple_pay_ppc_key = &apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()
@@ -3892,5 +3854,21 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
         })
     } else {
         Ok(())
+    }
+}
+
+pub fn get_recipient_id_from_open_banking_auth(
+    auth: &ConnectorAuthType,
+) -> Result<Option<String>, errors::ApiErrorResponse> {
+    match auth {
+        ConnectorAuthType::OpenBankingAuth {
+            api_key: _,
+            key1: _,
+            merchant_data,
+        } => match merchant_data {
+            MerchantRecipientData::RecipientId(id) => Ok(Some(id.peek().to_string())),
+            _ => Err(errors::ApiErrorResponse::InternalServerError),
+        },
+        _ => Ok(None),
     }
 }

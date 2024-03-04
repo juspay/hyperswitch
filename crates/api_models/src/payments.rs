@@ -253,7 +253,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// The billing details of the customer
+    /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -309,7 +309,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
-    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
     #[schema(value_type = Option<PaymentMethod>, example = "card")]
@@ -1050,6 +1050,16 @@ pub enum BankDebitData {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct PaymentMethodDataRequest {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
@@ -1233,7 +1243,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
-            Self::OpenBanking => api_enums::PaymentMethodType::OpenBanking,
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -1502,7 +1512,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
-    OpenBanking,
+    OpenBanking {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1923,20 +1933,28 @@ pub enum VoucherData {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer,
-    Wallet,
-    PayLater,
-    Paypal,
-    BankRedirect,
-    Crypto,
-    BankDebit,
-    MandatePayment,
-    Reward,
-    Upi,
-    Voucher,
-    GiftCard,
-    CardRedirect,
-    CardToken,
+    BankTransfer {},
+    Wallet {},
+    PayLater {},
+    Paypal {},
+    BankRedirect {},
+    Crypto {},
+    BankDebit {},
+    MandatePayment {},
+    Reward {},
+    Upi {},
+    Voucher {},
+    GiftCard {},
+    CardRedirect {},
+    CardToken {},
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PaymentMethodDataResponseWithBilling {
+    // The struct is flattened in order to provide backwards compatibility
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodDataResponse,
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1998,6 +2016,9 @@ pub struct Address {
     pub address: Option<AddressDetails>,
 
     pub phone: Option<PhoneDetails>,
+
+    #[schema(value_type = Option<String>)]
+    pub email: Option<Email>,
 }
 
 // used by customers also, could be moved outside
@@ -2102,7 +2123,9 @@ pub enum NextActionData {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    ThirdPartySdkSessionToken {
+        session_token: Option<SessionTokenType>,
+    },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
@@ -2368,7 +2391,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
-    pub payment_method_data: Option<PaymentMethodDataResponse>,
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
@@ -2789,19 +2812,19 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {} => Self::PayLater,
-            AdditionalPaymentData::Wallet {} => Self::Wallet,
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
-            AdditionalPaymentData::Crypto {} => Self::Crypto,
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit,
-            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
-            AdditionalPaymentData::Reward {} => Self::Reward,
-            AdditionalPaymentData::Upi {} => Self::Upi,
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
-            AdditionalPaymentData::Voucher {} => Self::Voucher,
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
-            AdditionalPaymentData::CardToken {} => Self::CardToken,
+            AdditionalPaymentData::PayLater {} => Self::PayLater {},
+            AdditionalPaymentData::Wallet {} => Self::Wallet {},
+            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
+            AdditionalPaymentData::Crypto {} => Self::Crypto {},
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
+            AdditionalPaymentData::Reward {} => Self::Reward {},
+            AdditionalPaymentData::Upi {} => Self::Upi {},
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
+            AdditionalPaymentData::Voucher {} => Self::Voucher {},
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
+            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
+            AdditionalPaymentData::CardToken {} => Self::CardToken {},
         }
     }
 }
@@ -3106,6 +3129,13 @@ pub struct SessionTokenForSimplifiedApplePay {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SessionTokenType {
+    Wallet(SessionToken),
+    OpenBanking(OpenBankingSessionToken),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
@@ -3174,6 +3204,13 @@ pub struct KlarnaSessionTokenResponse {
 pub struct PaypalSessionTokenResponse {
     /// The session token for PayPal
     pub session_token: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct OpenBankingSessionToken {
+    /// The session token for OpenBanking Connectors
+    pub open_banking_session_token: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3309,7 +3346,7 @@ pub struct PaymentsSessionResponse {
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
-    pub session_token: Vec<SessionToken>,
+    pub session_token: Vec<SessionTokenType>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

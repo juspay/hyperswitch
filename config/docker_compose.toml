@@ -78,7 +78,8 @@ stream_read_count = 1
 auto_pipeline = true
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
-default_command_timeout = 0
+default_command_timeout = 30
+unresponsive_timeout = 10
 max_feed_count = 200
 
 [cors]
@@ -307,6 +308,11 @@ family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
 boleto = { country = "BR", currency = "BRL" }
+ideal = { country = "NL", currency = "EUR" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
+
 
 [pm_filters.volt]
 open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}

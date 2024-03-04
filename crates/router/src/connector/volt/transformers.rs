@@ -133,6 +133,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 | api_models::payments::BankRedirectData::Sofort { .. }
                 | api_models::payments::BankRedirectData::Trustly { .. }
                 | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+                | api_models::payments::BankRedirectData::OpenBanking { .. }
                 | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Volt"),
@@ -240,10 +241,8 @@ impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
 impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
-            VoltPaymentStatus::Completed
-            | VoltPaymentStatus::Received
-            | VoltPaymentStatus::Settled => Self::Charged,
-            VoltPaymentStatus::DelayedAtBank => Self::Pending,
+            VoltPaymentStatus::Received | VoltPaymentStatus::Settled => Self::Charged,
+            VoltPaymentStatus::Completed | VoltPaymentStatus::DelayedAtBank => Self::Pending,
             VoltPaymentStatus::NewPayment
             | VoltPaymentStatus::BankRedirect
             | VoltPaymentStatus::AwaitingCheckoutAuthorisation => Self::AuthenticationPending,
@@ -421,13 +420,13 @@ impl<F, T>
 impl From<VoltWebhookPaymentStatus> for enums::AttemptStatus {
     fn from(status: VoltWebhookPaymentStatus) -> Self {
         match status {
-            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                Self::Charged
-            }
+            VoltWebhookPaymentStatus::Received => Self::Charged,
             VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                 Self::Failure
             }
-            VoltWebhookPaymentStatus::Pending => Self::Pending,
+            VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                Self::Pending
+            }
         }
     }
 }
@@ -577,13 +576,13 @@ impl From<VoltWebhookBodyEventType> for api::IncomingWebhookEvent {
     fn from(status: VoltWebhookBodyEventType) -> Self {
         match status {
             VoltWebhookBodyEventType::Payment(payment_data) => match payment_data.status {
-                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Received => {
-                    Self::PaymentIntentSuccess
-                }
+                VoltWebhookPaymentStatus::Received => Self::PaymentIntentSuccess,
                 VoltWebhookPaymentStatus::Failed | VoltWebhookPaymentStatus::NotReceived => {
                     Self::PaymentIntentFailure
                 }
-                VoltWebhookPaymentStatus::Pending => Self::PaymentIntentProcessing,
+                VoltWebhookPaymentStatus::Completed | VoltWebhookPaymentStatus::Pending => {
+                    Self::PaymentIntentProcessing
+                }
             },
             VoltWebhookBodyEventType::Refund(refund_data) => match refund_data.status {
                 VoltWebhookRefundsStatus::RefundConfirmed => Self::RefundSuccess,

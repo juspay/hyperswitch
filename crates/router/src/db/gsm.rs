@@ -1,5 +1,6 @@
 use diesel_models::gsm as storage;
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
@@ -52,6 +53,7 @@ pub trait GsmInterface {
 
 #[async_trait::async_trait]
 impl GsmInterface for Store {
+    #[instrument(skip_all)]
     async fn add_gsm_rule(
         &self,
         rule: storage::GatewayStatusMappingNew,
@@ -60,6 +62,7 @@ impl GsmInterface for Store {
         rule.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_gsm_decision(
         &self,
         connector: String,
@@ -77,6 +80,7 @@ impl GsmInterface for Store {
         .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_gsm_rule(
         &self,
         connector: String,
@@ -92,6 +96,7 @@ impl GsmInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_gsm_rule(
         &self,
         connector: String,
@@ -108,6 +113,7 @@ impl GsmInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn delete_gsm_rule(
         &self,
         connector: String,

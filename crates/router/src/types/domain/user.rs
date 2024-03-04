@@ -811,15 +811,6 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
     }
 }
 
-impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
-    fn from(value: info::PermissionInfo) -> Self {
-        Self {
-            enum_name: value.enum_name.into(),
-            description: value.description,
-        }
-    }
-}
-
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),
@@ -924,5 +915,25 @@ impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
             UserStatus::Active => Self::Active,
             UserStatus::InvitationSent => Self::InvitationSent,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct RoleName(String);
+
+impl RoleName {
+    pub fn new(name: String) -> UserResult<Self> {
+        let is_empty_or_whitespace = name.trim().is_empty();
+        let is_too_long = name.graphemes(true).count() > consts::user_role::MAX_ROLE_NAME_LENGTH;
+
+        if is_empty_or_whitespace || is_too_long || name.contains(' ') {
+            Err(UserErrors::RoleNameParsingError.into())
+        } else {
+            Ok(Self(name.to_lowercase()))
+        }
+    }
+
+    pub fn get_role_name(self) -> String {
+        self.0
     }
 }

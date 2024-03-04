@@ -302,7 +302,7 @@ where
     )
     .await?;
 
-    payments::call_connector_service(
+    let (router_data, _mca) = payments::call_connector_service(
         state,
         merchant_account,
         key_store,
@@ -316,7 +316,9 @@ where
         api::HeaderPayload::default(),
         frm_suggestion,
     )
-    .await
+    .await?;
+
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]

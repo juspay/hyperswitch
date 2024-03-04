@@ -608,6 +608,7 @@ fn get_payment_details_and_product(
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::OpenBanking { .. }
             | api_models::payments::BankRedirectData::Przelewy24 { .. }
             | api_models::payments::BankRedirectData::Trustly { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }

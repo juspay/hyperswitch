@@ -44,7 +44,8 @@ stream_read_count = 1
 auto_pipeline = true
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
-default_command_timeout = 0
+default_command_timeout = 30
+unresponsive_timeout = 10
 max_feed_count = 200
 
 
@@ -70,7 +71,6 @@ host_rs = ""
 mock_locker = true
 basilisk_host = ""
 locker_enabled = true
-
 
 [forex_api]
 call_delay = 21600
@@ -258,7 +258,7 @@ adyen = { banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_ban
 
 [bank_config.ideal]
 stripe = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
-adyen = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
+adyen = { banks = "abn_amro,asn_bank,bunq,ing,knab,n26,nationale_nederlanden,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot, yoursafe" }
 
 [bank_config.online_banking_czech_republic]
 adyen = { banks = "ceska_sporitelna,komercni_banka,platnosc_online_karta_platnicza" }
@@ -316,14 +316,14 @@ mobile_pay = { country = "DK,FI", currency = "DKK,SEK,NOK,EUR" }
 ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
 we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,LI,MT,SI,GR,PT,IT,CA,US", currency = "AUD,CAD,CNY,EUR,GBP,HKD,JPY,NZD,SGD,USD" }
 mb_way = { country = "PT", currency = "EUR" }
-klarna = { country = "AT,ES,GB,SE,NO,AT,NL,DE,CH,BE,FR,DK,FI,PT,IE,IT,PL,CA,US", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
 affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "AU,NZ,ES,GB,FR,IT,CA,US", currency = "GBP" }
 pay_bright = { country = "CA", currency = "CAD" }
 walley = { country = "SE,NO,DK,FI", currency = "DKK,EUR,NOK,SEK" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
-sofort = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
 ideal = { country = "NL", currency = "EUR" }
 blik = {country = "PL", currency = "PLN"}
 trustly = {country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK"}

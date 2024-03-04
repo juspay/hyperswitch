@@ -409,6 +409,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::OpenBankingUk
+            | api_enums::PaymentMethodType::OpenBanking
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
@@ -590,6 +591,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
+            email: address.email.clone().map(pii::Email::from),
         }
     }
 }
@@ -858,6 +860,16 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
             error_code: capture.error_code,
             error_reason: capture.error_reason,
             reference_id: capture.connector_response_reference_id,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
         }
     }
 }
