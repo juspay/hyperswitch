@@ -1690,7 +1690,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     // TODO: Handle case where payment method and token both are present in request properly.
     let (payment_method, pm_id) = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
-            let (payment_method_details, pm_id) = Ctx::retrieve_payment_method_with_token(
+            let pm_data = Ctx::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
                 &hyperswitch_token,
@@ -1700,13 +1700,15 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             )
             .await;
 
-            let payment_method_details =
-                payment_method_details.attach_printable("in 'make_pm_data'")?;
+            let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                if let Some((payment_method_data, payment_method)) = payment_method_details {
+                if let (Some((payment_method_data, payment_method)), Some(pm_id)) = (
+                    payment_method_details.payment_method_data,
+                    payment_method_details.payment_method_id,
+                ) {
                     payment_data.payment_attempt.payment_method = Some(payment_method);
-                    (Some(payment_method_data), pm_id)
+                    (Some(payment_method_data), Some(pm_id))
                 } else {
                     (None, None)
                 },
@@ -2967,7 +2969,7 @@ pub async fn get_merchant_connector_account(
 /// # Arguments
 ///
 /// * `router_data` - original router data
-/// * `request` - new requestcore/helper
+/// * `request` - new request core/helper
 /// * `response` - new response
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     router_data: RouterData<F1, Req1, Res1>,

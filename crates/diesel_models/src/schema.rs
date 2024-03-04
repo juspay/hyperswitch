@@ -62,6 +62,38 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    authentication (authentication_id) {
+        #[max_length = 64]
+        authentication_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        authentication_connector -> Varchar,
+        #[max_length = 64]
+        connector_authentication_id -> Nullable<Varchar>,
+        authentication_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        payment_method_id -> Varchar,
+        #[max_length = 64]
+        authentication_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        authentication_status -> Varchar,
+        #[max_length = 64]
+        authentication_lifecycle_status -> Varchar,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        #[max_length = 64]
+        error_message -> Nullable<Varchar>,
+        #[max_length = 64]
+        error_code -> Nullable<Varchar>,
+        connector_metadata -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     blocklist (id) {
         id -> Int4,
         #[max_length = 64]
@@ -1108,6 +1140,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    authentication,
     blocklist,
     blocklist_fingerprint,
     blocklist_lookup,
