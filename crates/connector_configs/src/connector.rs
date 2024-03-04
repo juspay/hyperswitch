@@ -74,6 +74,7 @@ pub struct ConfigMetadata {
     pub google_pay: Option<GooglePayData>,
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
+    pub endpoint_prefix: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

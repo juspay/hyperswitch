@@ -124,6 +124,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             address: PaymentAddress {
                 billing: None,
                 shipping: None,
+                payment_method_billing: None,
             },
             confirm: None,
             payment_method_data: None,

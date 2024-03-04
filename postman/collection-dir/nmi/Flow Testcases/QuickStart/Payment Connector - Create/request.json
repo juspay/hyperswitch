@@ -41,8 +41,9 @@
       "connector_type": "fiz_operations",
       "connector_name": "nmi",
       "connector_account_details": {
-        "auth_type": "HeaderKey",
-        "api_key": "{{connector_api_key}}"
+        "auth_type": "BodyKey",
+        "api_key": "{{connector_api_key}}",
+        "key1": "{{connector_key1}}"
       },
       "test_mode": false,
       "disabled": false,
@@ -104,8 +105,14 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": ["{{baseUrl}}"],
-    "path": ["account", ":account_id", "connectors"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
     "variable": [
       {
         "key": "account_id",

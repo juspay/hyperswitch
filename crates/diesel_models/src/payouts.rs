@@ -29,6 +29,7 @@ pub struct Payouts {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
+    pub attempt_count: i16,
 }
 
 impl Default for Payouts {
@@ -53,6 +54,7 @@ impl Default for Payouts {
             metadata: Option::default(),
             created_at: now,
             last_modified_at: now,
+            attempt_count: i16::default(),
         }
     }
 }
@@ -90,6 +92,7 @@ pub struct PayoutsNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
+    pub attempt_count: i16,
 }
 
 #[derive(Debug)]
@@ -114,6 +117,9 @@ pub enum PayoutsUpdate {
         recurring: bool,
         last_modified_at: Option<PrimitiveDateTime>,
     },
+    AttemptCountUpdate {
+        attempt_count: i16,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -130,6 +136,7 @@ pub struct PayoutsUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub payout_method_id: Option<String>,
+    pub attempt_count: Option<i16>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -173,6 +180,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             } => Self {
                 last_modified_at,
                 recurring: Some(recurring),
+                ..Default::default()
+            },
+            PayoutsUpdate::AttemptCountUpdate { attempt_count } => Self {
+                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
         }

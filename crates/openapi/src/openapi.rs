@@ -116,6 +116,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::customers::customers_update,
         routes::customers::customers_delete,
         routes::customers::customers_mandates_list,
+        routes::customers::default_payment_method_set_api,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
@@ -190,6 +191,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::CustomerPaymentMethodsListResponse,
         api_models::payment_methods::PaymentMethodDeleteResponse,
         api_models::payment_methods::PaymentMethodUpdate,
+        api_models::payment_methods::CustomerDefaultPaymentMethodResponse,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::RequestPaymentMethodTypes,
@@ -295,6 +297,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MandateData,
         api_models::payments::PhoneDetails,
         api_models::payments::PaymentMethodData,
+        api_models::payments::PaymentMethodDataRequest,
         api_models::payments::MandateType,
         api_models::payments::AcceptanceType,
         api_models::payments::MandateAmountData,
@@ -385,6 +388,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsMethodData,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payment_methods::RequiredFieldInfo,
+        api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
         api_models::payment_methods::SurchargeResponse,

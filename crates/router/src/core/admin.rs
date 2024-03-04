@@ -1717,6 +1717,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Adyen => {
             adyen::transformers::AdyenAuthType::try_from(val)?;
+            adyen::transformers::AdyenConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Airwallex => {

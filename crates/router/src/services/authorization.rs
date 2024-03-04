@@ -6,6 +6,7 @@ use crate::{
     routes::app::AppStateInfo,
 };
 
+#[cfg(feature = "olap")]
 pub mod info;
 pub mod permission_groups;
 pub mod permissions;

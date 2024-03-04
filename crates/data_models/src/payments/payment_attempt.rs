@@ -163,6 +163,7 @@ pub struct PaymentAttempt {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
 }
 
@@ -245,6 +246,7 @@ pub struct PaymentAttemptNew {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub mandate_data: Option<MandateDetails>,
+    pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
 }
 
@@ -319,6 +321,7 @@ pub enum PaymentAttemptUpdate {
         external_three_ds_authentication_requested: Option<bool>,
         authentication_connector: Option<String>,
         authentication_id: Option<String>,
+        payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
     },
     RejectUpdate {

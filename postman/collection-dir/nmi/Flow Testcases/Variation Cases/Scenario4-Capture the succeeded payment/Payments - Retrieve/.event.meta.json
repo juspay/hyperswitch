@@ -1,3 +1,5 @@
 {
-  "eventOrder": ["event.test.js"]
+  "eventOrder": [
+    "event.test.js"
+  ]
 }

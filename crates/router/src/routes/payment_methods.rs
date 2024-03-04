@@ -102,6 +102,12 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
     let customer_id = customer_id.into_inner().0;
+
+    let ephemeral_auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -116,7 +122,7 @@ pub async fn list_customer_payment_method_api(
                 Some(&customer_id),
             )
         },
-        &auth::ApiKeyAuth,
+        &*ephemeral_auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -157,6 +163,7 @@ pub async fn list_customer_payment_method_api_client(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -252,6 +259,42 @@ pub async fn payment_method_delete_api(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+pub async fn default_payment_method_set_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<payment_methods::DefaultPaymentMethod>,
+) -> HttpResponse {
+    let flow = Flow::DefaultPaymentMethodsSet;
+    let payload = path.into_inner();
+    let customer_id = payload.clone().customer_id;
+
+    let ephemeral_auth =
+        match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, default_payment_method| {
+            cards::set_default_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                &customer_id,
+                default_payment_method.payment_method_id,
+            )
+        },
+        &*ephemeral_auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
