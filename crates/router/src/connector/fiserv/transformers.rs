@@ -104,7 +104,7 @@ pub struct TransactionDetails {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
-    terminal_id: Option<String>,
+    terminal_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -428,7 +428,7 @@ pub struct ReferenceTransactionDetails {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FiservSessionObject {
-    pub terminal_id: String,
+    pub terminal_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {
