@@ -1,4 +1,3 @@
-use crate::services::authorization::{self as authz, roles::predefined_roles};
 use api_models::user_role as user_role_api;
 use diesel_models::user_role::UserRole;
 use error_stack::ResultExt;
@@ -8,7 +7,9 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     routes::AppState,
-    services::authorization::{permissions::Permission, roles},
+    services::authorization::{
+        self as authz, permissions::Permission, roles, roles::predefined_roles,
+    },
 };
 
 impl From<Permission> for user_role_api::Permission {

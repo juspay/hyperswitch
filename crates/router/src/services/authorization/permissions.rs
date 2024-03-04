@@ -1,6 +1,8 @@
 use strum::Display;
 
-#[derive(PartialEq, Display, Clone, Debug, Copy, Eq, Hash, serde::Deserialize, serde::Serialize)]
+#[derive(
+    PartialEq, Display, Clone, Debug, Copy, Eq, Hash, serde::Deserialize, serde::Serialize,
+)]
 pub enum Permission {
     PaymentRead,
     PaymentWrite,
