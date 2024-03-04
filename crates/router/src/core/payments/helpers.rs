@@ -825,16 +825,6 @@ fn validate_new_mandate_request(
         .clone()
         .get_required_value("mandate_data")?;
 
-    if api_enums::FutureUsage::OnSession
-        == req
-            .setup_future_usage
-            .get_required_value("setup_future_usage")?
-    {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`setup_future_usage` must be `off_session` for mandates".into()
-        }))?
-    };
-
     // Only use this validation if the customer_acceptance is present
     if mandate_data
         .customer_acceptance

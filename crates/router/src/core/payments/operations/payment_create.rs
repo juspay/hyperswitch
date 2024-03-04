@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::enums::{FrmSuggestion, FutureUsage};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
@@ -258,6 +258,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+
+        if FutureUsage::OnSession
+            == request
+                .setup_future_usage
+                .get_required_value("setup_future_usage")?
+            && payment_attempt.mandate_details.is_some()
+        {
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`setup_future_usage` must be `off_session` for mandates".into()
+                }
+            ))?
+        };
+
         // connector mandate reference update history
         let mandate_id = request
             .mandate_id

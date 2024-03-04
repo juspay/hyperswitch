@@ -68,15 +68,23 @@ where
             } else {
                 None
             };
+
+            let mandate_data_customer_acceptance = resp
+                .request
+                .get_setup_mandate_details()
+                .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
+
             let customer_acceptance = resp
                 .request
                 .get_customer_acceptance()
+                .or(mandate_data_customer_acceptance.clone().map(From::from))
                 .encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let pm_id = if resp.request.get_customer_acceptance().is_some()
-                && resp.request.get_setup_future_usage().is_some()
+            let pm_id = if resp.request.get_setup_future_usage().is_some()
+                && (resp.request.get_customer_acceptance().is_some()
+                    || mandate_data_customer_acceptance.is_some())
             {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
