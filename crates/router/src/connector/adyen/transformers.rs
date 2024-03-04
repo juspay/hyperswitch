@@ -2290,7 +2290,8 @@ impl<'a> TryFrom<(&api_models::payments::BankRedirectData, Option<bool>)>
                 Ok(AdyenPaymentMethod::Trustly)
             }
             payments::BankRedirectData::Interac { .. }
-            | payments::BankRedirectData::Przelewy24 { .. } => {
+            | payments::BankRedirectData::Przelewy24 { .. }
+            | payments::BankRedirectData::OpenBanking { .. } => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Adyen",

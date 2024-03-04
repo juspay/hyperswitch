@@ -353,5 +353,6 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         connector_onboarding,
         cors: conf.cors,
+        locker_open_banking_connectors: conf.locker_open_banking_connectors,
     }
 }

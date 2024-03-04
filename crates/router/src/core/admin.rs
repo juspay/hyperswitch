@@ -2265,7 +2265,7 @@ async fn locker_recipient_create_call(
         state,
         &payload,
         name.as_str(),
-        api_enums::LockerChoice::Tartarus,
+        api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

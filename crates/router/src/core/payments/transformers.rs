@@ -36,6 +36,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_recipient_data: Option<types::MerchantRecipientData>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -140,7 +141,15 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data: merchant_connector_account.get_metadata(),
+        connector_meta_data: if let Some(data) = merchant_recipient_data {
+            let val = serde_json::to_value(data)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encoding MerchantRecipientDatas")?;
+            Some(masking::Secret::new(val))
+        } else {
+            merchant_connector_account.get_metadata()
+        },
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data.payment_intent.amount_captured,
@@ -814,7 +823,7 @@ where
 {
     // If the operation is confirm, we will send session token response in next action
     if format!("{operation:?}").eq("PaymentConfirm") {
-        payment_attempt
+        let condition1 = payment_attempt
             .connector
             .as_ref()
             .map(|connector| {
@@ -829,7 +838,36 @@ where
                     Some(false)
                 }
             })
-            .unwrap_or(false)
+            .unwrap_or(false);
+
+        let condition2 = payment_attempt
+            .connector
+            .as_ref()
+            .map(|connector| matches!(connector.as_str(), "plaid"))
+            .and_then(|is_connector_supports_third_party_sdk| {
+                if is_connector_supports_third_party_sdk {
+                    payment_attempt
+                        .payment_method
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::BankRedirect))
+                        .map(|first_match| {
+                            payment_attempt
+                                .payment_method_type
+                                .map(|pmt| {
+                                    matches!(
+                                        pmt,
+                                        diesel_models::enums::PaymentMethodType::OpenBanking
+                                    )
+                                })
+                                .map(|second_match| first_match && second_match)
+                        })
+                        .flatten()
+                } else {
+                    Some(false)
+                }
+            })
+            .unwrap_or(false);
+
+        condition1 || condition2
     } else {
         false
     }
@@ -1106,6 +1144,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     .map(|customer| customer.clone().into_inner())
             });
 
+        let customer_id = additional_data
+            .customer_data
+            .as_ref()
+            .map(|data| data.customer_id.clone());
+
+        let conn_transaction_id = payment_data.payment_attempt.connector_transaction_id;
+
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -1126,12 +1171,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             order_category,
             session_token: None,
             enrolled_for_3ds: true,
-            related_transaction_id: None,
+            related_transaction_id: conn_transaction_id,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             router_return_url,
             webhook_url,
             complete_authorize_url,
-            customer_id: None,
+            customer_id,
             surcharge_details: payment_data.surcharge_details,
             request_incremental_authorization: matches!(
                 payment_data

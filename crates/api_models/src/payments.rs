@@ -1243,6 +1243,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OnlineBankingThailand { .. } => {
                 api_enums::PaymentMethodType::OnlineBankingThailand
             }
+            Self::OpenBanking { .. } => api_enums::PaymentMethodType::OpenBanking,
         }
     }
 }
@@ -1511,6 +1512,7 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
+    OpenBanking {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2121,7 +2123,9 @@ pub enum NextActionData {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    ThirdPartySdkSessionToken {
+        session_token: Option<SessionTokenType>,
+    },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
@@ -3125,6 +3129,13 @@ pub struct SessionTokenForSimplifiedApplePay {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum SessionTokenType {
+    Wallet(SessionToken),
+    OpenBanking(OpenBankingSessionToken),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
@@ -3193,6 +3204,13 @@ pub struct KlarnaSessionTokenResponse {
 pub struct PaypalSessionTokenResponse {
     /// The session token for PayPal
     pub session_token: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct OpenBankingSessionToken {
+    /// The session token for OpenBanking Connectors
+    pub open_banking_session_token: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -3328,7 +3346,7 @@ pub struct PaymentsSessionResponse {
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
-    pub session_token: Vec<SessionToken>,
+    pub session_token: Vec<SessionTokenType>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
