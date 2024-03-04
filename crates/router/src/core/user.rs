@@ -1135,7 +1135,7 @@ pub async fn switch_merchant_id(
             .attach_printable("User doesn't have access to switch")?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, user_role).await;
 
         (token, user_role.role_id.clone())
     };

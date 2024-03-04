@@ -1,7 +1,7 @@
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
 use diesel_models::user_role::UserRole;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 
 use crate::{
@@ -110,23 +110,23 @@ pub async fn set_role_permissions_in_cache(
 ) -> UserResult<()> {
     let role_info = roles::RoleInfo::from_role_id(state, role_id, merchant_id, org_id)
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error getting role_info from role_id")?;
 
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
     }
 
-    let redis_conn = state
-        .store
-        .get_redis_conn()
-        .change_context(UserErrors::InternalServerError)?;
-
-    redis_conn
-        .serialize_and_set_key_with_expiry(
-            &authz::get_cache_key_from_role_id(role_id),
-            role_info.get_permissions_set(),
-            consts::JWT_TOKEN_TIME_IN_SECS as i64,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
+    authz::set_permissions_in_cache(
+        state,
+        role_id,
+        &role_info.get_permissions_set().into_iter().collect(),
+        consts::JWT_TOKEN_TIME_IN_SECS
+            .try_into()
+            .into_report()
+            .change_context(UserErrors::InternalServerError)?,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Error setting permissions in redis")
 }

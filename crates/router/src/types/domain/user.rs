@@ -861,7 +861,7 @@ impl SignInWithSingleRoleStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &self.user_role).await;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
         let dashboard_entry_response =
             utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;

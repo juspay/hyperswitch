@@ -1,5 +1,5 @@
 use common_enums::PermissionGroup;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 
 use super::authentication::AuthToken;
@@ -30,7 +30,14 @@ where
         let permissions =
             get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id)
                 .await?;
-        set_permissions_in_cache(state, &token.role_id, &permissions, token.exp).await?;
+        let token_expiry: i64 = token
+            .exp
+            .try_into()
+            .into_report()
+            .change_context(ApiErrorResponse::InternalServerError)?;
+        let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
+        set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl).await?;
+
         Ok(permissions)
     }
 }
@@ -82,11 +89,11 @@ where
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
 }
 
-async fn set_permissions_in_cache<A>(
+pub async fn set_permissions_in_cache<A>(
     state: &A,
     role_id: &str,
     permissions: &Vec<permissions::Permission>,
-    jwt_expiry: u64,
+    expiry: i64,
 ) -> RouterResult<()>
 where
     A: AppStateInfo + Sync,
@@ -97,13 +104,11 @@ where
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let cache_expiry = jwt_expiry as i64 - common_utils::date_time::now_unix_timestamp();
-
     redis_conn
         .serialize_and_set_key_with_expiry(
             &get_cache_key_from_role_id(role_id),
             permissions,
-            cache_expiry,
+            expiry,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
