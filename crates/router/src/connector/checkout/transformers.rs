@@ -188,7 +188,7 @@ pub struct CardSource {
 pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -301,7 +301,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
@@ -314,7 +314,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
+                                token: apple_pay_payment_token.into(),
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
