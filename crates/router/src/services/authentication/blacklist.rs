@@ -66,21 +66,6 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
-pub async fn check_role_in_blacklist<A: AppStateInfo>(
-    state: &A,
-    role_id: &str,
-    token_expiry: u64,
-) -> RouterResult<bool> {
-    let token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
-    let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
-    let redis_conn = get_redis_connection(state)?;
-    redis_conn
-        .get_key::<Option<i64>>(token.as_str())
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
-}
-
 pub async fn check_user_and_role_in_blacklist<A: AppStateInfo>(
     state: &A,
     user_id: &str,
