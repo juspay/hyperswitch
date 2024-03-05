@@ -253,7 +253,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// The billing details of the customer
+    /// The billing details of the payment. This address will be used for invoicing.
     pub billing: Option<Address>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment should be captured.
@@ -1053,7 +1053,9 @@ pub enum BankDebitData {
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
     pub payment_method_data: PaymentMethodData,
-    /// billing details for the payment, this billing detail is tied to the payment method
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
 }
 

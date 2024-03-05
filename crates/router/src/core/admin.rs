@@ -947,11 +947,22 @@ pub async fn create_payment_connector(
         status: connector_status,
     };
 
-    let mut default_routing_config =
-        routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+    let transaction_type = match req.connector_type {
+        #[cfg(feature = "payouts")]
+        api_enums::ConnectorType::PayoutProcessor => api_enums::TransactionType::Payout,
+        _ => api_enums::TransactionType::Payment,
+    };
 
-    let mut default_routing_config_for_profile =
-        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
+    let mut default_routing_config =
+        routing_helpers::get_merchant_default_config(&*state.store, merchant_id, &transaction_type)
+            .await?;
+
+    let mut default_routing_config_for_profile = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        &profile_id,
+        &transaction_type,
+    )
+    .await?;
 
     let mca = state
         .store
@@ -981,6 +992,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 merchant_id,
                 default_routing_config.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -990,6 +1002,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 &profile_id.clone(),
                 default_routing_config_for_profile.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -1682,6 +1695,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Adyen => {
             adyen::transformers::AdyenAuthType::try_from(val)?;
+            adyen::transformers::AdyenConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Airwallex => {

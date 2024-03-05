@@ -200,7 +200,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
             db,
-            request.billing.as_ref(),
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.billing.as_ref()),
             payment_attempt.payment_method_billing_address_id.as_deref(),
             merchant_id,
             payment_intent
@@ -711,17 +714,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         })?;
 
         helpers::validate_payment_method_fields_present(request)?;
-
-        if request.mandate_data.is_none()
-            && request
-                .setup_future_usage
-                .map(|fut_usage| fut_usage == storage_enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` cannot be `off_session` for normal payments".into()
-            }))?
-        }
 
         let mandate_type = helpers::validate_mandate(request, false)?;
 
