@@ -1096,7 +1096,7 @@ pub struct CardsData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardDetails {
-    last_digits: Secret<String>,
+    last_digits: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
