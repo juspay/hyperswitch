@@ -1249,12 +1249,16 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
-
+    let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.amount);
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if pa.mandate_details.is_some() {
+        } else if pa.mandate_details.is_some()
+            || setup_future_usage
+                .map(|future_usage| future_usage == api_enums::FutureUsage::OffSession)
+                .unwrap_or(false)
+        {
             Some(api::MandateTransactionType::NewMandateTransaction)
         } else {
             None
