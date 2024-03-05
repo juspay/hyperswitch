@@ -87,7 +87,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
 
-            Flow::DeepHealthCheck => Self::Health,
+            Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
@@ -96,12 +96,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
-            | Flow::ValidatePaymentMethod => Self::PaymentMethods,
+            | Flow::ValidatePaymentMethod
+            | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
+            | Flow::PaymentsRetrieveForceSync
             | Flow::PaymentsUpdate
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
@@ -123,6 +125,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
+            | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
@@ -173,7 +176,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::Signout
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
-            | Flow::GetMutltipleDashboardMetadata
+            | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
             | Flow::SwitchMerchant

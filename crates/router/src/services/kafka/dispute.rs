@@ -7,7 +7,7 @@ use crate::types::storage::dispute::Dispute;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaDispute<'a> {
     pub dispute_id: &'a String,
-    pub amount: &'a String,
+    pub dispute_amount: i64,
     pub currency: &'a String,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
@@ -38,7 +38,7 @@ impl<'a> KafkaDispute<'a> {
     pub fn from_storage(dispute: &'a Dispute) -> Self {
         Self {
             dispute_id: &dispute.dispute_id,
-            amount: &dispute.amount,
+            dispute_amount: dispute.amount.parse::<i64>().unwrap_or_default(),
             currency: &dispute.currency,
             dispute_stage: &dispute.dispute_stage,
             dispute_status: &dispute.dispute_status,

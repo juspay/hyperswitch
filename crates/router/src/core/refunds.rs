@@ -1167,34 +1167,3 @@ pub async fn get_refund_sync_process_schedule_time(
 
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
 }
-
-pub async fn retry_refund_sync_task(
-    db: &dyn db::StorageInterface,
-    connector: String,
-    merchant_id: String,
-    pt: storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
-
-    match schedule_time {
-        Some(s_time) => {
-            let retry_schedule = db
-                .as_scheduler()
-                .retry_process(pt, s_time)
-                .await
-                .map_err(Into::into);
-            metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes("flow", "Refund")],
-            );
-            retry_schedule
-        }
-        None => db
-            .as_scheduler()
-            .finish_process_with_business_status(pt, "RETRIES_EXCEEDED".to_string())
-            .await
-            .map_err(Into::into),
-    }
-}

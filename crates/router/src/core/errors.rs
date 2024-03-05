@@ -292,6 +292,10 @@ pub enum WebhooksFlowError {
     OutgoingWebhookEncodingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+    #[error("Failed to update outgoing webhook process tracker task")]
+    OutgoingWebhookProcessTrackerTaskUpdateFailed,
+    #[error("Failed to schedule retry attempt for outgoing webhook")]
+    OutgoingWebhookRetrySchedulingFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
