@@ -61,8 +61,8 @@ async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<
     redis_conn
         .delete_key(authz::get_cache_key_from_role_id(role_id).as_str())
         .await
-        .change_context(ApiErrorResponse::InternalServerError)?;
-    Ok(())
+        .map(|_| ())
+        .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub async fn check_user_in_blacklist<A: AppStateInfo>(

@@ -108,14 +108,14 @@ pub async fn set_role_permissions_in_cache_if_required(
     merchant_id: &str,
     org_id: &str,
 ) -> UserResult<()> {
+    if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
+        return Ok(());
+    }
+
     let role_info = roles::RoleInfo::from_role_id(state, role_id, merchant_id, org_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error getting role_info from role_id")?;
-
-    if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
-        return Ok(());
-    }
 
     authz::set_permissions_in_cache(
         state,

@@ -1105,16 +1105,6 @@ pub async fn switch_merchant_id(
         )
         .await?;
 
-        utils::user_role::set_role_permissions_in_cache_if_required(
-            &state,
-            user_from_token.role_id.as_str(),
-            request.merchant_id.as_str(),
-            org_id.as_str(),
-        )
-        .await
-        .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
-        .ok();
-
         (token, user_from_token.role_id)
     } else {
         let user_roles = state
