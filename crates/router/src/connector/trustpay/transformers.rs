@@ -461,6 +461,10 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "100.380.401" => (true, "User authentication failed"),
         "100.380.501" => (true, "Risk management transaction timeout"),
         "100.390.103" => (true, "PARes validation failed - problem with signature"),
+        "100.390.105" => (
+            true,
+            "Transaction rejected because of technical error in 3DSecure system",
+        ),
         "100.390.111" => (
             true,
             "Communication error to VISA/Mastercard Directory Server",
