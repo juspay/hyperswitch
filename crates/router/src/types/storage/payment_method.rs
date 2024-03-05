@@ -3,7 +3,7 @@ pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
-
+use std::collections::HashMap;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentTokenKind {
@@ -54,7 +54,4 @@ impl PaymentTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference {
-    pub connector_mandate_id: Option<String>,
-    pub merchant_connector_account_id: Option<String>,
-}
+pub struct PaymentsMandateReference(pub HashMap<String, Option<String>>);
