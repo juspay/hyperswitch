@@ -224,7 +224,8 @@ pub async fn attach_dispute_evidence(
     ))
     .await
 }
-/// Diputes - Retrieve Dispute
+
+/// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
     path = "/disputes/evidence/{dispute_id}",

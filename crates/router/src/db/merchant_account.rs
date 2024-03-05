@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
@@ -78,6 +79,7 @@ where
 
 #[async_trait::async_trait]
 impl MerchantAccountInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
@@ -97,6 +99,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -129,6 +132,7 @@ impl MerchantAccountInterface for Store {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_merchant(
         &self,
         this: domain::MerchantAccount,
@@ -155,6 +159,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[instrument(skip_all)]
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
@@ -181,6 +186,7 @@ impl MerchantAccountInterface for Store {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[instrument(skip_all)]
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -228,6 +234,7 @@ impl MerchantAccountInterface for Store {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn list_merchant_accounts_by_organization_id(
         &self,
         organization_id: &str,
@@ -268,6 +275,7 @@ impl MerchantAccountInterface for Store {
         Ok(merchant_accounts)
     }
 
+    #[instrument(skip_all)]
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -305,6 +313,7 @@ impl MerchantAccountInterface for Store {
     }
 
     #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
     async fn list_multiple_merchant_accounts(
         &self,
         merchant_ids: Vec<String>,

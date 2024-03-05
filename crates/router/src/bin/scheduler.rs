@@ -255,6 +255,9 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow => Ok(Box::new(
+                    workflows::outgoing_webhook_retry::OutgoingWebhookRetryWorkflow,
+                )),
             }
         };
 
