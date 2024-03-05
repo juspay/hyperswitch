@@ -121,6 +121,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             frm_metadata: self.frm_metadata.clone(),
             refund_id: None,
             dispute_id: None,
+            connector_response: None,
         };
 
         Ok(router_data)

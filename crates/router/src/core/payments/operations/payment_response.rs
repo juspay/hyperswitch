@@ -18,7 +18,14 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::PaymentMethodRetrieve,
-        payments::{helpers as payments_helpers, types::MultipleCaptureData, PaymentData},
+        payments::{
+            helpers::{
+                self as payments_helpers,
+                update_additional_payment_data_with_connector_response_pm_data,
+            },
+            types::MultipleCaptureData,
+            PaymentData,
+        },
         utils as core_utils,
     },
     routes::{metrics, AppState},
@@ -471,6 +478,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         flow_name.clone(),
                     )
                     .await;
+
+                    let additional_payment_method_data =
+                        update_additional_payment_data_with_connector_response_pm_data(
+                            payment_data.payment_attempt.payment_method_data.clone(),
+                            router_data
+                                .connector_response
+                                .and_then(|connector_response| {
+                                    connector_response.additional_payment_method_data
+                                }),
+                        )?;
+
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
@@ -506,6 +524,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                             unified_message: option_gsm.map(|gsm| gsm.unified_message),
                             connector_transaction_id: err.connector_transaction_id,
+                            payment_method_data: additional_payment_method_data,
                         }),
                     )
                 }
@@ -596,6 +615,16 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
 
+                    let additional_payment_method_data =
+                        update_additional_payment_data_with_connector_response_pm_data(
+                            payment_data.payment_attempt.payment_method_data.clone(),
+                            router_data
+                                .connector_response
+                                .and_then(|connector_response| {
+                                    connector_response.additional_payment_method_data
+                                }),
+                        )?;
+
                     // incase of success, update error code and error message
                     let error_status = if router_data.status == enums::AttemptStatus::Charged {
                         Some(None)
@@ -657,6 +686,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                                 authentication_data,
                                 encoded_data,
+                                payment_method_data: additional_payment_method_data,
                             }),
                         ),
                     };

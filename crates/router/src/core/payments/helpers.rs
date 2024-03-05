@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use api_models::payments::{CardToken, GetPaymentMethodType, RequestSurchargeDetails};
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
 use data_models::{
@@ -47,6 +47,7 @@ use crate::{
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
+        self as core_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -3014,6 +3015,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         frm_metadata: router_data.frm_metadata,
         refund_id: router_data.refund_id,
         dispute_id: router_data.dispute_id,
+        connector_response: router_data.connector_response,
     }
 }
 
@@ -3390,6 +3392,9 @@ pub async fn get_additional_payment_data(
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
+                        // These are filled after calling the processor / connector
+                        payment_checks: None,
+                        authentication_data: None,
                     },
                 ))
             } else {
@@ -3417,6 +3422,9 @@ pub async fn get_additional_payment_data(
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
                                 card_holder_name: card_data.card_holder_name.clone(),
+                                // These are filled after calling the processor / connector
+                                payment_checks: None,
+                                authentication_data: None,
                             },
                         ))
                     });
@@ -3434,6 +3442,9 @@ pub async fn get_additional_payment_data(
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
                             card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
                         },
                     ))
                 })
@@ -3909,4 +3920,63 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+pub fn add_connector_response_to_additional_payment_data(
+    additional_payment_data: api_models::payments::AdditionalPaymentData,
+    connector_response_payment_method_data: core_types::AdditionalPaymentMethodConnectorResponse,
+) -> api_models::payments::AdditionalPaymentData {
+    match (
+        &additional_payment_data,
+        connector_response_payment_method_data,
+    ) {
+        (
+            api_models::payments::AdditionalPaymentData::Card(additional_card_data),
+            core_types::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data,
+                payment_checks,
+            },
+        ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
+            api_models::payments::AdditionalCardInfo {
+                payment_checks,
+                authentication_data,
+                ..*additional_card_data.clone()
+            },
+        )),
+        _ => additional_payment_data,
+    }
+}
+
+pub fn update_additional_payment_data_with_connector_response_pm_data(
+    additional_payment_data: Option<serde_json::Value>,
+    connector_response_pm_data: Option<core_types::AdditionalPaymentMethodConnectorResponse>,
+) -> RouterResult<Option<serde_json::Value>> {
+    let parsed_additional_payment_method_data = additional_payment_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "additional_payment_method_data",
+                )
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse value into payment_method_data")?;
+
+    let additional_payment_method_data = parsed_additional_payment_method_data
+        .zip(connector_response_pm_data)
+        .map(|(additional_pm_data, connector_response_pm_data)| {
+            add_connector_response_to_additional_payment_data(
+                additional_pm_data,
+                connector_response_pm_data,
+            )
+        });
+
+    additional_payment_method_data
+        .as_ref()
+        .map(Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode additional pm data")
 }

@@ -358,6 +358,16 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Could not parse the connector response")?;
 
+            let additional_payment_method_data =
+                payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+                    payment_data.payment_attempt.payment_method_data.clone(),
+                    router_data
+                        .connector_response
+                        .and_then(|connector_response| {
+                            connector_response.additional_payment_method_data
+                        }),
+                )?;
+
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ResponseUpdate {
@@ -393,6 +403,7 @@ where
                     encoded_data,
                     unified_code: None,
                     unified_message: None,
+                    payment_method_data: additional_payment_method_data,
                 },
                 storage_scheme,
             )
@@ -405,6 +416,17 @@ where
         }
         Err(ref error_response) => {
             let option_gsm = get_gsm(state, &router_data).await?;
+
+            let additional_payment_method_data =
+                payments::helpers::update_additional_payment_data_with_connector_response_pm_data(
+                    payment_data.payment_attempt.payment_method_data.clone(),
+                    router_data
+                        .connector_response
+                        .and_then(|connector_response| {
+                            connector_response.additional_payment_method_data
+                        }),
+                )?;
+
             db.update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -418,6 +440,7 @@ where
                     unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
                     unified_message: option_gsm.map(|gsm| gsm.unified_message),
                     connector_transaction_id: error_response.connector_transaction_id.clone(),
+                    payment_method_data: additional_payment_method_data,
                 },
                 storage_scheme,
             )

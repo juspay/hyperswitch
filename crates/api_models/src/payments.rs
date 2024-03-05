@@ -1091,34 +1091,6 @@ pub enum PaymentMethodData {
 }
 
 impl PaymentMethodData {
-    pub fn get_payment_method_type_if_session_token_type(
-        &self,
-    ) -> Option<api_enums::PaymentMethodType> {
-        match self {
-            Self::Wallet(wallet) => match wallet {
-                WalletData::ApplePay(_) => Some(api_enums::PaymentMethodType::ApplePay),
-                WalletData::GooglePay(_) => Some(api_enums::PaymentMethodType::GooglePay),
-                WalletData::PaypalSdk(_) => Some(api_enums::PaymentMethodType::Paypal),
-                _ => None,
-            },
-            Self::PayLater(pay_later) => match pay_later {
-                PayLaterData::KlarnaSdk { .. } => Some(api_enums::PaymentMethodType::Klarna),
-                _ => None,
-            },
-            Self::Card(_)
-            | Self::CardRedirect(_)
-            | Self::BankRedirect(_)
-            | Self::BankDebit(_)
-            | Self::BankTransfer(_)
-            | Self::Crypto(_)
-            | Self::MandatePayment
-            | Self::Reward
-            | Self::Upi(_)
-            | Self::Voucher(_)
-            | Self::GiftCard(_)
-            | Self::CardToken(_) => None,
-        }
-    }
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: AdditionalPaymentData,
@@ -1134,6 +1106,7 @@ impl PaymentMethodData {
             self.to_owned()
         }
     }
+
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
             Self::Card(_) => Some(api_enums::PaymentMethod::Card),
@@ -1348,6 +1321,8 @@ pub struct AdditionalCardInfo {
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+    pub payment_checks: Option<serde_json::Value>,
+    pub authentication_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1889,6 +1864,8 @@ pub struct CardResponse {
     pub card_exp_month: Option<Secret<String>>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+    pub payment_checks: Option<serde_json::Value>,
+    pub authentication_data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2798,6 +2775,8 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.card_holder_name,
+            payment_checks: card.payment_checks,
+            authentication_data: card.authentication_data,
         }
     }
 }

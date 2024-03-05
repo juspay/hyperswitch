@@ -136,6 +136,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             unified_code: None,
                             unified_message: None,
                             connector_transaction_id: None,
+                            payment_method_data: None,
                         };
 
                     payment_data.payment_attempt = db

@@ -72,6 +72,7 @@ pub async fn construct_mandate_revoke_router_data(
         quote_id: None,
         refund_id: None,
         dispute_id: None,
+        connector_response: None,
     };
 
     Ok(router_data)
