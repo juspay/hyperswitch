@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use common_enums::PermissionGroup;
 use error_stack::{IntoReport, ResultExt};
+use redis_interface::RedisConnectionPool;
 use router_env::logger;
 
 use super::authentication::AuthToken;
@@ -23,43 +26,46 @@ where
     A: AppStateInfo + Sync,
 {
     if let Some(permissions) = get_permissions_from_predefined_roles(&token.role_id) {
-        Ok(permissions)
-    } else if let Some(permissions) = get_permissions_from_cache(state, &token.role_id).await {
-        Ok(permissions)
-    } else {
-        let permissions =
-            get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id)
-                .await?;
-        let token_expiry: i64 = token
-            .exp
-            .try_into()
-            .into_report()
-            .change_context(ApiErrorResponse::InternalServerError)?;
-        let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
-        set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl).await?;
-
-        Ok(permissions)
+        return Ok(permissions);
     }
+
+    if let Ok(permissions) = get_permissions_from_cache(state, &token.role_id)
+        .await
+        .map_err(|e| logger::error!("Failed to get permissions from cache {}", e))
+    {
+        return Ok(permissions);
+    }
+
+    let permissions =
+        get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
+
+    let token_expiry: i64 = token
+        .exp
+        .try_into()
+        .into_report()
+        .change_context(ApiErrorResponse::InternalServerError)?;
+    let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
+
+    set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl)
+        .await
+        .map_err(|e| logger::error!("Failed to set permissions in cache {}", e))
+        .ok();
+    Ok(permissions)
 }
 
 async fn get_permissions_from_cache<A>(
     state: &A,
     role_id: &str,
-) -> Option<Vec<permissions::Permission>>
+) -> RouterResult<Vec<permissions::Permission>>
 where
     A: AppStateInfo + Sync,
 {
-    let redis_conn = state
-        .store()
-        .get_redis_conn()
-        .map_err(|e| logger::error!("Error eshtablishing redis connection {:?}", e))
-        .ok()?;
+    let redis_conn = get_redis_connection(state)?;
 
     redis_conn
         .get_and_deserialize_key(&get_cache_key_from_role_id(role_id), "Vec<Permission>")
         .await
-        .map_err(|e| logger::error!("Error getting permissions from cache {:?}", e))
-        .ok()
+        .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub fn get_cache_key_from_role_id(role_id: &str) -> String {
@@ -98,11 +104,7 @@ pub async fn set_permissions_in_cache<A>(
 where
     A: AppStateInfo + Sync,
 {
-    let redis_conn = state
-        .store()
-        .get_redis_conn()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
+    let redis_conn = get_redis_connection(state)?;
 
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -138,4 +140,12 @@ pub fn check_authorization(
             }
             .into(),
         )
+}
+
+fn get_redis_connection<A: AppStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+    state
+        .store()
+        .get_redis_conn()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")
 }

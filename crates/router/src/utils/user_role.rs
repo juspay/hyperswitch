@@ -91,7 +91,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
     state: &AppState,
     user_role: &UserRole,
 ) -> bool {
-    set_role_permissions_in_cache(
+    set_role_permissions_in_cache_if_required(
         state,
         user_role.role_id.as_str(),
         user_role.merchant_id.as_str(),
@@ -102,7 +102,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
     .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache(
+pub async fn set_role_permissions_in_cache_if_required(
     state: &AppState,
     role_id: &str,
     merchant_id: &str,
