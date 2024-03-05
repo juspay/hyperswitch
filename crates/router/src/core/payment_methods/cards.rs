@@ -353,7 +353,13 @@ pub async fn add_payment_method(
         None => {
             let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
 
-            let locker_id = Some(resp.payment_method_id);
+            let locker_id = if resp.payment_method == api_enums::PaymentMethod::Card
+                || resp.payment_method == api_enums::PaymentMethod::BankTransfer
+            {
+                Some(resp.payment_method_id)
+            } else {
+                None
+            };
             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             insert_payment_method(
                 db,
@@ -1182,8 +1188,8 @@ pub async fn list_payment_methods(
                 db,
                 pi.shipping_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1199,8 +1205,8 @@ pub async fn list_payment_methods(
                 db,
                 pi.billing_address_id.clone(),
                 &key_store,
-                pi.payment_id.clone(),
-                merchant_account.merchant_id.clone(),
+                &pi.payment_id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -2735,26 +2741,22 @@ pub async fn list_customer_payment_method(
         };
 
         #[cfg(feature = "payouts")]
-        let (pmd, hyperswitch_token_data) = match pm.payment_method {
+        let pmd = match pm.payment_method {
             enums::PaymentMethod::BankTransfer => {
-                let token = generate_id(consts::ID_LENGTH, "token");
-                let token_data = PaymentTokenData::temporary_generic(token.clone());
-                (
-                    Some(
-                        get_bank_from_hs_locker(
-                            state,
-                            &key_store,
-                            &token,
-                            &pm.customer_id,
-                            &pm.merchant_id,
-                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                        )
-                        .await?,
-                    ),
-                    token_data,
+                let token = hyperswitch_token_data.get_token();
+                Some(
+                    get_bank_from_hs_locker(
+                        state,
+                        &key_store,
+                        token,
+                        &pm.customer_id,
+                        &pm.merchant_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                    )
+                    .await?,
                 )
             }
-            _ => (None, hyperswitch_token_data),
+            _ => None,
         };
 
         // Retrieve the masked bank details to be sent as a response

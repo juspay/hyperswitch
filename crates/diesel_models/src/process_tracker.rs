@@ -229,6 +229,7 @@ pub enum ProcessTrackerRunner {
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
+    OutgoingWebhookRetryWorkflow,
 }
 
 #[cfg(test)]
