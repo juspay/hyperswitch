@@ -51,4 +51,14 @@ impl PaymentTokenData {
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
     }
+
+    pub fn get_token(&self) -> &String {
+        match &self {
+            Self::Temporary(data) | Self::TemporaryGeneric(data) => &data.token,
+            Self::Permanent(data) | Self::PermanentCard(data) => &data.token,
+            PaymentTokenData::AuthBankDebit(auth_details) => match auth_details.access_token {
+                payment_methods::BankAccountAccessCreds::AccessToken(ref token) => token,
+            },
+        }
+    }
 }

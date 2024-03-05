@@ -2741,26 +2741,22 @@ pub async fn list_customer_payment_method(
         };
 
         #[cfg(feature = "payouts")]
-        let (pmd, hyperswitch_token_data) = match pm.payment_method {
+        let pmd = match pm.payment_method {
             enums::PaymentMethod::BankTransfer => {
-                let token = generate_id(consts::ID_LENGTH, "token");
-                let token_data = PaymentTokenData::temporary_generic(token.clone());
-                (
-                    Some(
-                        get_bank_from_hs_locker(
-                            state,
-                            &key_store,
-                            &token,
-                            &pm.customer_id,
-                            &pm.merchant_id,
-                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
-                        )
-                        .await?,
-                    ),
-                    token_data,
+                let token = hyperswitch_token_data.get_token();
+                Some(
+                    get_bank_from_hs_locker(
+                        state,
+                        &key_store,
+                        token,
+                        &pm.customer_id,
+                        &pm.merchant_id,
+                        pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+                    )
+                    .await?,
                 )
             }
-            _ => (None, hyperswitch_token_data),
+            _ => None,
         };
 
         // Retrieve the masked bank details to be sent as a response
