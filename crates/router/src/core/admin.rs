@@ -2222,11 +2222,6 @@ async fn locker_recipient_create_call(
     key_store: &domain::MerchantKeyStore,
     data: &types::MerchantAccountData,
 ) -> RouterResult<String> {
-    let name = match data {
-        types::MerchantAccountData::Bacs { name, .. } => name.clone(),
-        types::MerchantAccountData::Iban { name, .. } => name.clone(),
-    };
-
     let key = key_store.key.get_inner().peek();
 
     let enc_data = async {
@@ -2257,14 +2252,14 @@ async fn locker_recipient_create_call(
 
     let payload = transformers::StoreLockerReq::LockerGeneric(transformers::StoreGenericReq {
         merchant_id,
-        merchant_customer_id: name.clone(),
+        merchant_customer_id: merchant_id.to_string(),
         enc_data,
     });
 
     let store_resp = cards::call_to_locker_hs(
         state,
         &payload,
-        name.as_str(),
+        merchant_id,
         api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
