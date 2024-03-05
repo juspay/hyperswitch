@@ -67,7 +67,7 @@ where
             } else {
                 None
             };
-            let future_usage_validation = resp
+            let _future_usage_validation = resp
                 .request
                 .get_setup_future_usage()
                 .map(|future_usage| {
@@ -76,7 +76,7 @@ where
                 })
                 .unwrap_or(false);
 
-            let pm_id = if future_usage_validation {
+            let pm_id = if resp.request.get_setup_future_usage().is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
@@ -348,6 +348,7 @@ where
                         } else {
                             None
                         };
+
                         resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                         payment_methods::cards::create_payment_method(
                             db,
