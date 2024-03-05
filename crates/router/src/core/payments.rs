@@ -1133,7 +1133,6 @@ where
         key_store,
         &connector,
         state,
-        customer,
         merchant_account,
     )
     .await?;
@@ -1295,7 +1294,6 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     key_store: &domain::MerchantKeyStore,
     connector: &api::ConnectorData,
     state: &AppState,
-    customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<router_types::MerchantRecipientData>> {
     let auth_type: router_types::ConnectorAuthType = merchant_connector_account
