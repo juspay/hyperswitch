@@ -436,6 +436,7 @@ pub async fn update_business_profile_cascade(
             applepay_verified_domains: None,
             payment_link_config: None,
             session_expiry: None,
+            authentication_connector_details: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -1185,6 +1186,7 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let metadata = req.metadata.clone().or(mca.metadata.clone());
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .into_report()
@@ -1192,27 +1194,27 @@ pub async fn update_payment_connector(
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
-        |err| match *err.current_context() {
-            errors::ConnectorError::InvalidConnectorName => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The connector name is invalid".to_string(),
-                })
-            }
-            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("The {} is invalid", field_name),
-                }),
-            errors::ConnectorError::FailedToObtainAuthType => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The auth type is invalid for the connector".to_string(),
-                })
-            }
-            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The request body is invalid".to_string(),
+    validate_auth_and_metadata_type(connector_enum, &auth, &metadata).map_err(|err| match *err
+        .current_context()
+    {
+        errors::ConnectorError::InvalidConnectorName => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The connector name is invalid".to_string(),
+            })
+        }
+        errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("The {} is invalid", field_name),
             }),
-        },
-    )?;
+        errors::ConnectorError::FailedToObtainAuthType => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The auth type is invalid for the connector".to_string(),
+            })
+        }
+        _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "The request body is invalid".to_string(),
+        }),
+    })?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
