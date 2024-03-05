@@ -2,6 +2,7 @@
 check-filename = true
 
 [default.extend-identifiers]
+"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
 BA = "BA"  # Bosnia and Herzegovina country code
 CAF = "CAF"  # Central African Republic country code
 flate2 = "flate2"

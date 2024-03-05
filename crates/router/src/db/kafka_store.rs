@@ -488,6 +488,13 @@ impl EventInterface for KafkaStore {
         self.diesel_store.insert_event(event).await
     }
 
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        self.diesel_store.find_event_by_event_id(event_id).await
+    }
+
     async fn update_event(
         &self,
         event_id: String,

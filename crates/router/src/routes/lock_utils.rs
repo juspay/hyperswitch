@@ -178,7 +178,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::Signout
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
-            | Flow::GetMutltipleDashboardMetadata
+            | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
             | Flow::SwitchMerchant
