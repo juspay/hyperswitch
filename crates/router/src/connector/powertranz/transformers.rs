@@ -2,7 +2,7 @@ use api_models::payments::Card;
 use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
 use error_stack::IntoReport;
-use masking::Secret;
+use masking::{Secret, ExposeInterface};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -258,7 +258,7 @@ pub struct PowertranzBaseResponse {
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
     iso_response_code: String,
-    redirect_data: Option<String>,
+    redirect_data: Option<Secret<String>>,
     response_message: String,
     order_identifier: String,
 }
@@ -324,7 +324,7 @@ impl<F, T>
             item.response
                 .redirect_data
                 .map(|redirect_data| services::RedirectForm::Html {
-                    html_data: redirect_data,
+                    html_data: redirect_data.expose(),
                 });
         let response = error_response.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
