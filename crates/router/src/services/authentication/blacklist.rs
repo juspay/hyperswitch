@@ -12,12 +12,12 @@ use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, ROLE_BLACKLIST_PREFIX, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
     routes::app::AppStateInfo,
-    services::authorization as authz,
 };
 #[cfg(feature = "olap")]
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
+    services::authorization as authz,
 };
 
 #[cfg(feature = "olap")]
