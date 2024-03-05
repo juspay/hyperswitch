@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.02.26.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [Volt] Fix status mapping for Volt ([#3951](https://github.com/juspay/hyperswitch/pull/3951)) ([`16dc855`](https://github.com/juspay/hyperswitch/commit/16dc85542b05e545e0d6bb4108d425365d3f8948))
+
+- - -
+
 ## 2024.02.26.0-hotfix2
 
 ### Bug Fixes
