@@ -1703,14 +1703,16 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                if let (Some((payment_method_data, payment_method)), Some(pm_id)) = (
-                    payment_method_details.payment_method_data,
-                    payment_method_details.payment_method_id,
-                ) {
+                if let Some((payment_method_data, payment_method)) =
+                    payment_method_details.payment_method_data
+                {
                     payment_data.payment_attempt.payment_method = Some(payment_method);
-                    (Some(payment_method_data), Some(pm_id))
+                    (
+                        Some(payment_method_data),
+                        payment_method_details.payment_method_id,
+                    )
                 } else {
-                    (None, None)
+                    (None, payment_method_details.payment_method_id)
                 },
             )
         }
