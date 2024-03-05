@@ -3214,8 +3214,8 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
-            external_three_ds_authentication_requested: old_payment_attempt
-                .external_three_ds_authentication_requested,
+            external_three_ds_authentication_attempted: old_payment_attempt
+                .external_three_ds_authentication_attempted,
             authentication_connector: None,
             authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,

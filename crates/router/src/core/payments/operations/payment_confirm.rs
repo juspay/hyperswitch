@@ -846,7 +846,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
-                        external_three_ds_authentication_requested: None,
+                        external_three_ds_authentication_attempted: None,
                         authentication_connector: None,
                         authentication_id: None,
                         payment_method_billing_address_id,
