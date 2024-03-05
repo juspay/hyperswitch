@@ -767,7 +767,7 @@ where
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
                         .set_request_external_3ds_authentication(
-                            payment_attempt.external_three_ds_authentication_requested,
+                            payment_attempt.external_three_ds_authentication_attempted,
                         )
                         .to_owned(),
                     headers,
@@ -838,7 +838,7 @@ where
                 external_authentication_details,
                 expires_on: payment_intent.session_expiry,
                 request_external_3ds_authentication: payment_attempt
-                    .external_three_ds_authentication_requested,
+                    .external_three_ds_authentication_attempted,
                 ..Default::default()
             },
             headers,

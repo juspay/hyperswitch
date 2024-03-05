@@ -3142,10 +3142,10 @@ pub async fn payment_external_authentication(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    if payment_attempt.external_three_ds_authentication_requested != Some(true) {
+    if payment_attempt.external_three_ds_authentication_attempted != Some(true) {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message:
-                "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_requested is false".to_owned(),
+                "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false".to_owned(),
         })?
     }
     helpers::validate_payment_status_against_allowed_statuses(

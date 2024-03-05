@@ -806,7 +806,7 @@ impl PaymentCreate {
                     .mandate_data
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
-                external_three_ds_authentication_requested: None,
+                external_three_ds_authentication_attempted: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 ..storage::PaymentAttemptNew::default()

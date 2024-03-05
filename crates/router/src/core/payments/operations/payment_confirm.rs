@@ -1014,7 +1014,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
         let (
-            external_three_ds_authentication_requested,
+            external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
@@ -1051,7 +1051,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
-                        external_three_ds_authentication_requested,
+                        external_three_ds_authentication_attempted,
                         authentication_connector,
                         authentication_id,
                         payment_method_billing_address_id,
