@@ -1203,6 +1203,16 @@ pub enum PaymentMethodStatus {
     Processing,
 }
 
+impl From<AttemptStatus> for PaymentMethodStatus {
+    fn from(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Charged => Self::Active,
+            AttemptStatus::Failure => Self::Inactive,
+            _ => Self::Processing,
+        }
+    }
+}
+
 /// To indicate the type of payment experience that the customer would go through
 #[derive(
     Eq,

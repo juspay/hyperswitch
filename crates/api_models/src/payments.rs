@@ -2542,6 +2542,13 @@ pub struct PaymentsResponse {
 
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
+
+    /// Payment Method Id
+    pub payment_method_id: Option<String>,
+
+    /// Payment Method Status
+    #[schema(value_type = Option<PaymentMethodStatus>)]
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

@@ -616,6 +616,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
+                    let payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
+
                     utils::add_apple_pay_payment_status_metrics(
                         router_data.status,
                         router_data.apple_pay_flow.clone(),
@@ -648,7 +650,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
-                                payment_method_id: Some(router_data.payment_method_id),
+                                payment_method_id: Some(payment_method_id),
                                 mandate_id: payment_data
                                     .mandate_id
                                     .clone()
@@ -865,6 +867,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
+    payment_data.payment_method_status = router_data.payment_method_status;
     Ok(payment_data)
 }
 

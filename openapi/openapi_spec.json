@@ -12036,6 +12036,14 @@
           }
         }
       },
+      "PaymentMethodStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "processing"
+        ]
+      },
       "PaymentMethodType": {
         "type": "string",
         "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",
@@ -13903,6 +13911,19 @@
           "fingerprint": {
             "type": "string",
             "description": "Payment Fingerprint",
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Payment Method Id",
+            "nullable": true
+          },
+          "payment_method_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodStatus"
+              }
+            ],
             "nullable": true
           }
         }

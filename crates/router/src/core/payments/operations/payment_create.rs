@@ -400,6 +400,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             connector_customer_id: None,
             recurring_mandate_payment_data,
             ephemeral_key,
+            payment_method_status: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details,
@@ -461,6 +462,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),

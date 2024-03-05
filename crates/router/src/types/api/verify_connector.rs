@@ -86,6 +86,7 @@ impl VerifyConnectorData {
             payment_method_token: None,
             connector_api_version: None,
             recurring_mandate_payment_data: None,
+            payment_method_status: None,
             connector_request_reference_id: attempt_id,
             address: types::PaymentAddress {
                 shipping: None,

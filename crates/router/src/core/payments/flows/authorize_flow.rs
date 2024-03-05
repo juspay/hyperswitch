@@ -76,7 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
             logger::debug!(auth_type=?self.auth_type);
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -91,17 +91,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
             if is_mandate {
-                let payment_method_id = Box::pin(tokenization::save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                    self.request.payment_method_type,
-                    key_store,
-                    is_mandate,
-                ))
-                .await?;
+                let (payment_method_id, payment_method_status) =
+                    Box::pin(tokenization::save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                        self.request.payment_method_type,
+                        key_store,
+                        is_mandate,
+                    ))
+                    .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
+
                 Ok(mandate::mandate_procedure(
                     state,
                     resp,
@@ -118,12 +123,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let key_store = key_store.clone();
                 let state = state.clone();
 
-                logger::info!("Initiating async call to save_payment_method in locker");
+                logger::info!("Call to save_payment_method in locker");
 
-                tokio::spawn(async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
-
-                    let result = Box::pin(tokenization::save_payment_method(
+                let (payment_method_id, payment_method_status) =
+                    Box::pin(tokenization::save_payment_method(
                         &state,
                         &connector,
                         response,
@@ -133,12 +136,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &key_store,
                         is_mandate,
                     ))
-                    .await;
+                    .await?;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    }
-                });
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
 
                 Ok(resp)
             }

@@ -35,7 +35,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
     is_mandate: bool,
-) -> RouterResult<Option<String>>
+) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour,
 {
@@ -75,6 +75,8 @@ where
                         || (future_usage == storage_enums::FutureUsage::OnSession && !is_mandate)
                 })
                 .unwrap_or(false);
+
+            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
 
             let pm_id = if future_usage_validation {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
@@ -368,9 +370,9 @@ where
             } else {
                 None
             };
-            Ok(pm_id)
+            Ok((pm_id, Some(pm_status)))
         }
-        Err(_) => Ok(None),
+        Err(_) => Ok((None, None)),
     }
 }
 
