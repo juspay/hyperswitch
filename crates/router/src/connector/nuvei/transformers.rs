@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
     utils::OptionExt,
 };
 
@@ -75,6 +75,7 @@ pub struct NuveiPaymentsRequest {
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
+    pub device_details: Option<DeviceDetails>,
     pub checksum: String,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
@@ -135,7 +136,6 @@ pub struct PaymentOption {
     pub card: Option<Card>,
     pub redirect_url: Option<Url>,
     pub user_payment_option_id: Option<String>,
-    pub device_details: Option<DeviceDetails>,
     pub alternative_payment_method: Option<AlternativePaymentMethod>,
     pub billing_address: Option<BillingAddress>,
 }
@@ -315,7 +315,7 @@ pub struct V2AdditionalParams {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceDetails {
-    pub ip_address: String,
+    pub ip_address: Secret<String, pii::IpAddress>,
 }
 
 impl From<enums::CaptureMethod> for TransactionType {
@@ -615,6 +615,9 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             | api_models::enums::BankNames::Starling
             | api_models::enums::BankNames::TsbBank
             | api_models::enums::BankNames::TescoBank
+            | api_models::enums::BankNames::Yoursafe
+            | api_models::enums::BankNames::N26
+            | api_models::enums::BankNames::NationaleNederlanden
             | api_models::enums::BankNames::UlsterBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Nuvei"),
@@ -746,6 +749,7 @@ impl<F>
         let item = data.0;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
+            api::PaymentMethodData::MandatePayment => Self::try_from(item),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
                 payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
@@ -845,7 +849,6 @@ impl<F>
             payments::PaymentMethodData::BankDebit(_)
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
-            | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
@@ -874,6 +877,7 @@ impl<F>
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address: request_data.billing_address,
+            device_details: request_data.device_details,
             url_details: Some(UrlDetails {
                 success_url: return_url.clone(),
                 failure_url: return_url.clone(),
@@ -888,104 +892,110 @@ fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let browser_info = item.request.get_browser_info()?;
+    let browser_information = item.request.browser_info.clone();
     let related_transaction_id = if item.is_three_ds() {
         item.request.related_transaction_id.clone()
     } else {
         None
     };
-    let connector_mandate_id = &item.request.connector_mandate_id();
-    if connector_mandate_id.is_some() {
-        Ok(NuveiPaymentsRequest {
-            related_transaction_id,
-            is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
-            user_token_id: Some(item.request.get_email()?),
-            payment_option: PaymentOption {
-                user_payment_option_id: connector_mandate_id.clone(),
-                ..Default::default()
-            },
+
+    let address = item.get_billing_address_details_as_optional();
+
+    let billing_address = match address {
+        Some(address) => Some(BillingAddress {
+            first_name: Some(address.get_first_name()?.clone()),
+            last_name: Some(address.get_last_name()?.clone()),
+            email: item.request.get_email()?,
+            country: item.get_billing_country()?,
+        }),
+        None => None,
+    };
+    let (is_rebilling, additional_params, user_token_id) =
+        match item.request.setup_mandate_details.clone() {
+            Some(mandate_data) => {
+                let details = match mandate_data
+                    .mandate_type
+                    .get_required_value("mandate_type")
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "mandate_type",
+                    })? {
+                    MandateDataType::SingleUse(details) => details,
+                    MandateDataType::MultiUse(details) => {
+                        details.ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "mandate_data.mandate_type.multi_use",
+                        })?
+                    }
+                };
+                let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(Some(
+                    details.get_metadata().ok_or_else(utils::missing_field_err(
+                        "mandate_data.mandate_type.{multi_use|single_use}.metadata",
+                    ))?,
+                ))?;
+                (
+                    Some("0".to_string()), // In case of first installment, rebilling should be 0
+                    Some(V2AdditionalParams {
+                        rebill_expiry: Some(
+                            details
+                                .get_end_date(date_time::DateFormat::YYYYMMDD)
+                                .change_context(errors::ConnectorError::DateFormattingFailed)?
+                                .ok_or_else(utils::missing_field_err(
+                                    "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+                                ))?,
+                        ),
+                        rebill_frequency: Some(mandate_meta.frequency),
+                        challenge_window_size: None,
+                    }),
+                    Some(item.request.get_email()?),
+                )
+            }
+            _ => (None, None, None),
+        };
+    let three_d = if item.is_three_ds() {
+        let browser_details = match &browser_information {
+            Some(browser_info) => Some(BrowserDetails {
+                accept_header: browser_info.get_accept_header()?,
+                ip: browser_info.get_ip_address()?,
+                java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
+                java_script_enabled: browser_info
+                    .get_java_script_enabled()?
+                    .to_string()
+                    .to_uppercase(),
+                language: browser_info.get_language()?,
+                screen_height: browser_info.get_screen_height()?,
+                screen_width: browser_info.get_screen_width()?,
+                color_depth: browser_info.get_color_depth()?,
+                user_agent: browser_info.get_user_agent()?,
+                time_zone: browser_info.get_time_zone()?,
+            }),
+            None => None,
+        };
+        Some(ThreeD {
+            browser_details,
+            v2_additional_params: additional_params,
+            notification_url: item.request.complete_authorize_url.clone(),
+            merchant_url: item.return_url.clone(),
+            platform_type: Some(PlatformType::Browser),
+            method_completion_ind: Some(MethodCompletion::Unavailable),
             ..Default::default()
         })
     } else {
-        let (is_rebilling, additional_params, user_token_id) =
-            match item.request.setup_mandate_details.clone() {
-                Some(mandate_data) => {
-                    let details = match mandate_data
-                        .mandate_type
-                        .get_required_value("mandate_type")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "mandate_type",
-                        })? {
-                        MandateDataType::SingleUse(details) => details,
-                        MandateDataType::MultiUse(details) => {
-                            details.ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "mandate_data.mandate_type.multi_use",
-                            })?
-                        }
-                    };
-                    let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(
-                        Some(details.get_metadata().ok_or_else(utils::missing_field_err(
-                            "mandate_data.mandate_type.{multi_use|single_use}.metadata",
-                        ))?),
-                    )?;
-                    (
-                        Some("0".to_string()), // In case of first installment, rebilling should be 0
-                        Some(V2AdditionalParams {
-                            rebill_expiry: Some(
-                                details
-                                    .get_end_date(date_time::DateFormat::YYYYMMDD)
-                                    .change_context(errors::ConnectorError::DateFormattingFailed)?
-                                    .ok_or_else(utils::missing_field_err(
-                                        "mandate_data.mandate_type.{multi_use|single_use}.end_date",
-                                    ))?,
-                            ),
-                            rebill_frequency: Some(mandate_meta.frequency),
-                            challenge_window_size: None,
-                        }),
-                        Some(item.request.get_email()?),
-                    )
-                }
-                _ => (None, None, None),
-            };
-        let three_d = if item.is_three_ds() {
-            Some(ThreeD {
-                browser_details: Some(BrowserDetails {
-                    accept_header: browser_info.get_accept_header()?,
-                    ip: browser_info.get_ip_address()?,
-                    java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
-                    java_script_enabled: browser_info
-                        .get_java_script_enabled()?
-                        .to_string()
-                        .to_uppercase(),
-                    language: browser_info.get_language()?,
-                    screen_height: browser_info.get_screen_height()?,
-                    screen_width: browser_info.get_screen_width()?,
-                    color_depth: browser_info.get_color_depth()?,
-                    user_agent: browser_info.get_user_agent()?,
-                    time_zone: browser_info.get_time_zone()?,
-                }),
-                v2_additional_params: additional_params,
-                notification_url: item.request.complete_authorize_url.clone(),
-                merchant_url: item.return_url.clone(),
-                platform_type: Some(PlatformType::Browser),
-                method_completion_ind: Some(MethodCompletion::Unavailable),
-                ..Default::default()
-            })
-        } else {
-            None
-        };
+        None
+    };
 
-        Ok(NuveiPaymentsRequest {
-            related_transaction_id,
-            is_rebilling,
-            user_token_id,
-            payment_option: PaymentOption::from(NuveiCardDetails {
-                card: card_details.clone(),
-                three_d,
-            }),
-            ..Default::default()
-        })
-    }
+    Ok(NuveiPaymentsRequest {
+        related_transaction_id,
+        is_rebilling,
+        user_token_id,
+        device_details: Option::<DeviceDetails>::foreign_try_from(
+            &item.request.browser_info.clone(),
+        )?,
+        payment_option: PaymentOption::from(NuveiCardDetails {
+            card: card_details.clone(),
+            three_d,
+        }),
+        billing_address,
+        ..Default::default()
+    })
 }
 impl From<NuveiCardDetails> for PaymentOption {
     fn from(card_details: NuveiCardDetails) -> Self {
@@ -1529,6 +1539,51 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
             ),
             ..item.data
         })
+    }
+}
+
+impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for NuveiPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        {
+            let item = data;
+            let connector_mandate_id = &item.request.connector_mandate_id();
+            let related_transaction_id = if item.is_three_ds() {
+                item.request.related_transaction_id.clone()
+            } else {
+                None
+            };
+            Ok(Self {
+                related_transaction_id,
+                device_details: Option::<DeviceDetails>::foreign_try_from(
+                    &item.request.browser_info.clone(),
+                )?,
+                is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                user_token_id: Some(item.request.get_email()?),
+                payment_option: PaymentOption {
+                    user_payment_option_id: connector_mandate_id.clone(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<&Option<BrowserInformation>> for Option<DeviceDetails> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(browser_info: &Option<BrowserInformation>) -> Result<Self, Self::Error> {
+        let device_details = match browser_info {
+            Some(browser_info) => Some(DeviceDetails {
+                ip_address: browser_info.get_ip_address()?,
+            }),
+            None => None,
+        };
+        Ok(device_details)
     }
 }
 

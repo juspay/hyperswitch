@@ -123,10 +123,14 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -168,6 +172,8 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
@@ -303,7 +309,7 @@ pub enum Flow {
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
-    GetMutltipleDashboardMetadata,
+    GetMultipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup

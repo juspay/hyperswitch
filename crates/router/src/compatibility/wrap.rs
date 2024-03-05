@@ -135,7 +135,7 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(api::ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+        Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match api::build_payment_link_html(payment_link_data) {

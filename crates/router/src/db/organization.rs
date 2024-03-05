@@ -1,6 +1,7 @@
 use common_utils::errors::CustomResult;
 use diesel_models::organization as storage;
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use crate::{connection, core::errors, services::Store};
 
@@ -25,6 +26,7 @@ pub trait OrganizationInterface {
 
 #[async_trait::async_trait]
 impl OrganizationInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_organization(
         &self,
         organization: storage::OrganizationNew,
@@ -37,6 +39,7 @@ impl OrganizationInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_organization_by_org_id(
         &self,
         org_id: &str,
@@ -48,6 +51,7 @@ impl OrganizationInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn update_organization_by_org_id(
         &self,
         org_id: &str,

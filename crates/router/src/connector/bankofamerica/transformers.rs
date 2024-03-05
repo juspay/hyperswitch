@@ -604,7 +604,7 @@ impl
         let processing_information = ProcessingInformation::from((
             item,
             Some(PaymentSolution::ApplePay),
-            Some(apple_pay_wallet_data.payment_method.network),
+            Some(apple_pay_wallet_data.payment_method.network.clone()),
         ));
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month()?;
@@ -622,14 +622,29 @@ impl
             item.router_data.request.metadata.clone().map(|metadata| {
                 Vec::<MerchantDefinedInformation>::foreign_from(metadata.peek().to_owned())
             });
-
+        let ucaf_collection_indicator = match apple_pay_wallet_data
+            .payment_method
+            .network
+            .to_lowercase()
+            .as_str()
+        {
+            "mastercard" => Some("2".to_string()),
+            _ => None,
+        };
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
             merchant_defined_information,
-            consumer_authentication_information: None,
+            consumer_authentication_information: Some(BankOfAmericaConsumerAuthInformation {
+                ucaf_collection_indicator,
+                cavv: None,
+                ucaf_authentication_data: None,
+                xid: None,
+                directory_server_transaction_id: None,
+                specification_version: None,
+            }),
         })
     }
 }
@@ -703,7 +718,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                             let processing_information = ProcessingInformation::from((
                                 item,
                                 Some(PaymentSolution::ApplePay),
-                                Some(apple_pay_data.payment_method.network),
+                                Some(apple_pay_data.payment_method.network.clone()),
                             ));
                             let client_reference_information =
                                 ClientReferenceInformation::from(item);
@@ -723,13 +738,31 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                         metadata.peek().to_owned(),
                                     )
                                 });
+                            let ucaf_collection_indicator = match apple_pay_data
+                                .payment_method
+                                .network
+                                .to_lowercase()
+                                .as_str()
+                            {
+                                "mastercard" => Some("2".to_string()),
+                                _ => None,
+                            };
                             Ok(Self {
                                 processing_information,
                                 payment_information,
                                 order_information,
                                 merchant_defined_information,
                                 client_reference_information,
-                                consumer_authentication_information: None,
+                                consumer_authentication_information: Some(
+                                    BankOfAmericaConsumerAuthInformation {
+                                        ucaf_collection_indicator,
+                                        cavv: None,
+                                        ucaf_authentication_data: None,
+                                        xid: None,
+                                        directory_server_transaction_id: None,
+                                        specification_version: None,
+                                    },
+                                ),
                             })
                         }
                     }
