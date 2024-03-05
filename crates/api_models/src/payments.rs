@@ -2579,7 +2579,7 @@ pub struct PaymentsResponse {
     /// Payment Fingerprint
     pub fingerprint: Option<String>,
 
-    #[schema(value_type = Option<BrowserInformation>)
+    #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
     pub browser_information: Option<serde_json::Value>,
 }
