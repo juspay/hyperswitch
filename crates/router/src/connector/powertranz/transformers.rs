@@ -2,7 +2,7 @@ use api_models::payments::Card;
 use common_utils::pii::{Email, IpAddress};
 use diesel_models::enums::RefundStatus;
 use error_stack::IntoReport;
-use masking::{Secret, ExposeInterface};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
