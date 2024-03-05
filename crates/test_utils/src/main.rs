@@ -18,17 +18,20 @@ fn main() {
 
     // Filter out None values leaving behind Some(Path)
     let paths: Vec<String> = runner.modified_file_paths.into_iter().flatten().collect();
-    let git_status = Command::new("git").arg("restore").args(&paths).output();
 
-    match git_status {
-        Ok(output) => {
-            if !output.status.success() {
-                let stderr_str = String::from_utf8_lossy(&output.stderr);
-                eprintln!("Git command failed with error: {stderr_str}");
+    if !paths.is_empty() {
+        let git_status = Command::new("git").arg("restore").args(&paths).output();
+
+        match git_status {
+            Ok(output) => {
+                if !output.status.success() {
+                    let stderr_str = String::from_utf8_lossy(&output.stderr);
+                    eprintln!("Git command failed with error: {stderr_str}");
+                }
             }
-        }
-        Err(e) => {
-            eprintln!("Error running Git: {e}");
+            Err(e) => {
+                eprintln!("Error running Git: {e}");
+            }
         }
     }
 
