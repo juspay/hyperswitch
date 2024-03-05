@@ -454,6 +454,12 @@ pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
