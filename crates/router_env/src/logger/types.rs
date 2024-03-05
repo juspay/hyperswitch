@@ -49,11 +49,16 @@ pub enum Tag {
 
     /// Event: general.
     Event,
+
+    /// Compatibility Layer Request
+    CompatibilityLayerRequest,
 }
 
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
+    /// Health check
+    HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Merchants account create flow.
@@ -82,6 +87,8 @@ pub enum Flow {
     ConfigKeyFetch,
     /// ConfigKey Update flow.
     ConfigKeyUpdate,
+    /// ConfigKey Delete flow.
+    ConfigKeyDelete,
     /// Customers create flow.
     CustomersCreate,
     /// Customers retrieve flow.
@@ -116,10 +123,14 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Default Payment method flow.
+    DefaultPaymentMethodsSet,
     /// Payments create flow.
     PaymentsCreate,
     /// Payments Retrieve flow.
     PaymentsRetrieve,
+    /// Payments Retrieve force sync flow.
+    PaymentsRetrieveForceSync,
     /// Payments update flow.
     PaymentsUpdate,
     /// Payments confirm flow.
@@ -161,6 +172,8 @@ pub enum Flow {
     RefundsCreate,
     /// Refunds retrieve flow.
     RefundsRetrieve,
+    /// Refunds retrieve force sync flow.
+    RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
     /// Refunds list flow.
@@ -296,7 +309,7 @@ pub enum Flow {
     /// Set Dashboard Metadata flow
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
-    GetMutltipleDashboardMetadata,
+    GetMultipleDashboardMetadata,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup
@@ -339,6 +352,8 @@ pub enum Flow {
     InviteMultipleUser,
     /// Reinvite user
     ReInviteUser,
+    /// Accept invite from email
+    AcceptInviteFromEmail,
     /// Delete user role
     DeleteUserRole,
     /// Incremental Authorization flow
@@ -359,6 +374,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Create Role
+    CreateRole,
+    /// Update Role
+    UpdateRole,
 }
 
 ///

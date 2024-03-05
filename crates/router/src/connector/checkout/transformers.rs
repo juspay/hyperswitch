@@ -188,7 +188,7 @@ pub struct CardSource {
 pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -207,7 +207,7 @@ pub struct ApplePayPredecrypt {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    eci: Option<Secret<String>>,
+    eci: Option<String>,
     cryptogram: Secret<String>,
 }
 
@@ -301,7 +301,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
@@ -314,7 +314,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
+                                token: apple_pay_payment_token.into(),
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -616,7 +616,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -668,7 +668,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None

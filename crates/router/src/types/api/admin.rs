@@ -1,11 +1,10 @@
 pub use api_models::admin::{
-    payout_routing_algorithm, BusinessProfileCreate, BusinessProfileResponse,
-    BusinessProfileUpdate, MerchantAccountCreate, MerchantAccountDeleteResponse,
-    MerchantAccountResponse, MerchantAccountUpdate, MerchantConnectorCreate,
-    MerchantConnectorDeleteResponse, MerchantConnectorDetails, MerchantConnectorDetailsWrap,
-    MerchantConnectorId, MerchantConnectorResponse, MerchantDetails, MerchantId,
-    PaymentMethodsEnabled, PayoutRoutingAlgorithm, PayoutStraightThroughAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
+    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
+    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, PayoutRoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
+    WebhookDetails,
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
@@ -73,6 +72,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: None,
         })
     }
 }
@@ -158,6 +158,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: None,
         })
     }
 }

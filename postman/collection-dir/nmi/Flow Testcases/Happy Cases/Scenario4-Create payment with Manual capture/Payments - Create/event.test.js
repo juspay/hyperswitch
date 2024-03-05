@@ -1,4 +1,3 @@
-pm.environment.set("random_number", _.random(100, 100000));
 pm.environment.set("amount", pm.response.json().amount);
 
 // Validate status 2xx

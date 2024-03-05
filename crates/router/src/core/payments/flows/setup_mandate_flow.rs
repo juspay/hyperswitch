@@ -69,7 +69,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .as_ref()
             .and_then(|mandate_data| mandate_data.update_mandate_id.clone())
         {
-            self.update_mandate_flow(
+            Box::pin(self.update_mandate_flow(
                 state,
                 merchant_account,
                 mandate_id,
@@ -79,7 +79,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 &state.conf.mandates.update_mandate_supported,
                 connector_request,
                 maybe_customer,
-            )
+            ))
             .await
         } else {
             let connector_integration: services::BoxedConnectorIntegration<

@@ -179,7 +179,7 @@ pub async fn get_multiple_dashboard_metadata(
     req: HttpRequest,
     query: web::Query<user_api::dashboard_metadata::GetMultipleMetaDataRequest>,
 ) -> HttpResponse {
-    let flow = Flow::GetMutltipleDashboardMetadata;
+    let flow = Flow::GetMultipleDashboardMetadata;
     let payload = match ReportSwitchExt::<_, ApiErrorResponse>::switch(parse_string_to_enums(
         query.into_inner().keys,
     )) {
@@ -291,7 +291,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::PaymentWrite),
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -415,6 +415,25 @@ pub async fn resend_invite(
         payload.into_inner(),
         user_core::resend_invite,
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn accept_invite_from_email(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInviteFromEmail;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

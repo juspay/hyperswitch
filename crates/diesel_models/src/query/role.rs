@@ -1,12 +1,10 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     enums::RoleScope, query::generics, role::*, schema::roles::dsl, PgPooledConn, StorageResult,
 };
 
 impl RoleNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
         generics::generic_insert(conn, self).await
     }
@@ -17,6 +15,23 @@ impl Role {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::role_id.eq(role_id.to_owned()),
+        )
+        .await
+    }
+
+    pub async fn find_by_role_id_in_merchant_scope(
+        conn: &PgPooledConn,
+        role_id: &str,
+        merchant_id: &str,
+        org_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id.eq(role_id.to_owned()).and(
+                dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
+                    .eq(org_id.to_owned())
+                    .and(dsl::scope.eq(RoleScope::Organization))),
+            ),
         )
         .await
     }

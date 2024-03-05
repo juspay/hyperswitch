@@ -483,6 +483,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     200..=299 => storage::enums::AttemptStatus::Failure,
                                     _ => router_data.status,
                                 }
+                            } else if flow_name == "Capture" {
+                                match err.status_code {
+                                    500..=511 => storage::enums::AttemptStatus::Pending,
+                                    // don't update the status for 429 error status
+                                    429 => router_data.status,
+                                    _ => storage::enums::AttemptStatus::Failure,
+                                }
                             } else {
                                 match err.status_code {
                                     500..=511 => storage::enums::AttemptStatus::Pending,
@@ -604,6 +611,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
 
                     if router_data.status == enums::AttemptStatus::Charged {
+                        payment_data.payment_intent.fingerprint_id =
+                            payment_data.payment_attempt.fingerprint_id.clone();
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
@@ -798,6 +807,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             return_url: router_data.return_url.clone(),
             amount_captured,
             updated_by: storage_scheme.to_string(),
+            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
             incremental_authorization_allowed: payment_data
                 .payment_intent
                 .incremental_authorization_allowed,

@@ -118,12 +118,15 @@ pub struct ReInviteUserRequest {
     pub email: pii::Email,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct AcceptInviteFromEmailRequest {
+    pub token: Secret<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
-
-pub type SwitchMerchantResponse = DashboardEntryResponse;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {
