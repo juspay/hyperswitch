@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    enums::{FrmSuggestion, FutureUsage},
-    payments::RequestSurchargeDetails,
-};
+use api_models::{enums::FrmSuggestion, payments::RequestSurchargeDetails};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, IntoReport, ResultExt};
@@ -352,14 +349,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
-
-        if Some(FutureUsage::OnSession) == payment_intent.setup_future_usage
-            && (payment_attempt.mandate_details.is_some() || request.mandate_data.is_some())
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` must be `off_session` for mandates".into()
-            }))?
-        };
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let profile_id = payment_intent
             .profile_id
             .as_ref()

@@ -3845,3 +3845,17 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
         Ok(())
     }
 }
+
+// This function validates the  mandate_data with its setup_future_usage
+pub fn validate_mandate_data_and_future_usage(
+    setup_future_usages: Option<api_enums::FutureUsage>,
+    mandate_details_present: bool,
+) -> Result<(), errors::ApiErrorResponse> {
+    if Some(api_enums::FutureUsage::OnSession) == setup_future_usages && mandate_details_present {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`setup_future_usage` must be `off_session` for mandates".into(),
+        })
+    } else {
+        Ok(())
+    }
+}

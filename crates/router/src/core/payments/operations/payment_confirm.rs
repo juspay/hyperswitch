@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::{FrmSuggestion, FutureUsage};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{report, IntoReport, ResultExt};
@@ -461,14 +461,13 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 .or(sm.update_mandate_id);
             sm
         });
-        if Some(FutureUsage::OnSession) == payment_intent.setup_future_usage
-            && (payment_attempt.mandate_details.is_some() || request.mandate_data.is_some())
-        {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "`setup_future_usage` must be `off_session` for mandates".into()
-            }))?
-        };
 
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
