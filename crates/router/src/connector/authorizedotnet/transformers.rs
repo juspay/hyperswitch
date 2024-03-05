@@ -935,13 +935,6 @@ pub enum SyncStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum RSyncStatus {
-    RefundSettledSuccessfully,
-    RefundPendingSettlement,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
@@ -954,25 +947,12 @@ pub struct AuthorizedotnetSyncResponse {
     messages: ResponseMessages,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AuthorizedotnetRSyncResponse {
-    transaction: Option<RSyncTransactionResponse>,
-    messages: ResponseMessages,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RSyncTransactionResponse {
-    #[serde(rename = "transId")]
-    transaction_id: String,
-    transaction_status: RSyncStatus,
-}
-
-impl From<RSyncStatus> for enums::RefundStatus {
-    fn from(transaction_status: RSyncStatus) -> Self {
+impl From<SyncStatus> for enums::RefundStatus {
+    fn from(transaction_status: SyncStatus) -> Self {
         match transaction_status {
-            RSyncStatus::RefundSettledSuccessfully => Self::Success,
-            RSyncStatus::RefundPendingSettlement => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully => Self::Success,
+            SyncStatus::RefundPendingSettlement => Self::Pending,
+            _ => Self::Failure,
         }
     }
 }
@@ -994,13 +974,13 @@ impl From<SyncStatus> for enums::AttemptStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetRSyncResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.transaction {
             Some(transaction) => {
