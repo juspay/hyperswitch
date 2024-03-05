@@ -718,6 +718,7 @@ where
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
+                        .set_browser_information(payment_attempt.browser_info)
                         .to_owned(),
                     headers,
                 ))
