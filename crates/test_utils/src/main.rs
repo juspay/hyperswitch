@@ -23,11 +23,12 @@ fn main() {
         let git_status = Command::new("git").arg("restore").args(&paths).output();
 
         match git_status {
-            Ok(output) => {
-                if !output.status.success() {
-                    let stderr_str = String::from_utf8_lossy(&output.stderr);
-                    eprintln!("Git command failed with error: {stderr_str}");
-                }
+            Ok(output) if !output.status.success() => {
+                let stderr_str = String::from_utf8_lossy(&output.stderr);
+                eprintln!("Git command failed with error: {stderr_str}");
+            }
+            Ok(_) => {
+                println!("Git restore successful!");
             }
             Err(e) => {
                 eprintln!("Error running Git: {e}");
