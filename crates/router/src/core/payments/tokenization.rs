@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
 use common_utils::{
@@ -7,7 +9,6 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
-use std::collections::HashMap;
 
 use super::helpers;
 use crate::{

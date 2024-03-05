@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use api_models::payment_methods;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
-use std::collections::HashMap;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentTokenKind {
