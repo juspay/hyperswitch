@@ -244,16 +244,6 @@ pub enum FrmConnectors {
     Riskified,
 }
 
-#[cfg(feature = "frm")]
-impl From<FrmConnectors> for RoutableConnectors {
-    fn from(value: FrmConnectors) -> Self {
-        match value {
-            FrmConnectors::Signifyd => Self::Signifyd,
-            FrmConnectors::Riskified => Self::Riskified,
-        }
-    }
-}
-
 #[derive(
     Clone,
     Copy,

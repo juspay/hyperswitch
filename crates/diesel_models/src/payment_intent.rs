@@ -494,3 +494,56 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
         }
     }
 }
+
+mod tests {
+    #[test]
+    fn test_backwards_compatibility() {
+        let serialized_payment_intent = r#"{
+    "id": 123,
+    "payment_id": "payment_12345",
+    "merchant_id": "merchant_67890",
+    "status": "succeeded",
+    "amount": 10000,
+    "currency": "USD",
+    "amount_captured": null,
+    "customer_id": "cust_123456",
+    "description": "Test Payment",
+    "return_url": "https://example.com/return",
+    "metadata": null,
+    "connector_id": "connector_001",
+    "shipping_address_id": null,
+    "billing_address_id": null,
+    "statement_descriptor_name": null,
+    "statement_descriptor_suffix": null,
+    "created_at": "2024-02-01T12:00:00Z",
+    "modified_at": "2024-02-01T12:00:00Z",
+    "last_synced": null,
+    "setup_future_usage": null,
+    "off_session": null,
+    "client_secret": "sec_abcdef1234567890",
+    "active_attempt_id": "attempt_123",
+    "business_country": "US",
+    "business_label": null,
+    "order_details": null,
+    "allowed_payment_method_types": "credit",
+    "connector_metadata": null,
+    "feature_metadata": null,
+    "attempt_count": 1,
+    "profile_id": null,
+    "merchant_decision": null,
+    "payment_link_id": null,
+    "payment_confirm_source": null,
+    "updated_by": "admin",
+    "surcharge_applicable": null,
+    "request_incremental_authorization": null,
+    "incremental_authorization_allowed": null,
+    "authorization_count": null,
+    "session_expiry": null,
+    "fingerprint_id": null
+}"#;
+        let deserialized_payment_intent =
+            serde_json::from_str::<super::PaymentIntent>(serialized_payment_intent);
+
+        assert!(deserialized_payment_intent.is_ok());
+    }
+}
