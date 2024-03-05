@@ -1133,7 +1133,6 @@ where
         key_store,
         &connector,
         state,
-        customer,
         merchant_account,
     )
     .await?;
@@ -1295,7 +1294,6 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     key_store: &domain::MerchantKeyStore,
     connector: &api::ConnectorData,
     state: &AppState,
-    customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<router_types::MerchantRecipientData>> {
     let auth_type: router_types::ConnectorAuthType = merchant_connector_account
@@ -1311,15 +1309,10 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     let recipient_id = helpers::get_recipient_id_from_open_banking_auth(&auth_type)?;
     let final_recipient_data = if let Some(id) = recipient_id {
         if let Some(_con) = contains {
-            let customer_id = customer
-                .as_ref()
-                .map(|cust| cust.customer_id.clone())
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
             let resp = payment_methods::cards::get_payment_method_from_hs_locker(
                 state,
                 key_store,
-                customer_id.as_str(),
+                merchant_account.merchant_id.as_str(),
                 merchant_account.merchant_id.as_str(),
                 id.as_str(),
                 Some(enums::LockerChoice::HyperswitchCardVault),
