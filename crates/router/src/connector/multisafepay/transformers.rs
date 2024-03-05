@@ -130,7 +130,7 @@ pub struct Customer {
     pub forward_ip: Option<Secret<String, IpAddress>>,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
-    pub gender: Option<String>,
+    pub gender: Option<Secret<String>>,
     pub birthday: Option<Secret<String>>,
     pub address1: Option<Secret<String>>,
     pub address2: Option<Secret<String>>,
