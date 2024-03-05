@@ -238,7 +238,7 @@ async fn get_tracker_for_sync<
     operation: Op,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, Ctx>> {
-    let (payment_intent, payment_attempt, currency, amount);
+    let (payment_intent, mut payment_attempt, currency, amount);
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         db,
@@ -259,8 +259,8 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.shipping_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
@@ -268,11 +268,23 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.billing_address_id.clone(),
         mechant_key_store,
-        payment_intent.payment_id.clone(),
-        merchant_account.merchant_id.clone(),
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
         merchant_account.storage_scheme,
     )
     .await?;
+
+    let payment_method_billing = helpers::get_address_by_id(
+        db,
+        payment_attempt.payment_method_billing_address_id.clone(),
+        mechant_key_store,
+        &payment_intent.payment_id.clone(),
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+
+    payment_attempt.encoded_data = request.param.clone();
 
     let attempts = match request.expand_attempts {
         Some(true) => {
@@ -406,6 +418,9 @@ async fn get_tracker_for_sync<
         address: PaymentAddress {
             shipping: shipping_address.as_ref().map(|a| a.into()),
             billing: billing_address.as_ref().map(|a| a.into()),
+            payment_method_billing: payment_method_billing
+                .as_ref()
+                .map(|address| address.into()),
         },
         confirm: Some(request.force_sync),
         payment_method_data: None,
