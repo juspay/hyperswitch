@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -18406,12 +18399,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       }
                     ],
                     "url": {
@@ -18601,12 +18588,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       }
                     ],
                     "url": {
@@ -19091,12 +19072,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       },
                       {
                         "key": "publishable_key",
