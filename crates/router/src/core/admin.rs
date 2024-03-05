@@ -436,6 +436,7 @@ pub async fn update_business_profile_cascade(
             applepay_verified_domains: None,
             payment_link_config: None,
             session_expiry: None,
+            authentication_connector_details: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {

@@ -910,6 +910,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
+                        api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
