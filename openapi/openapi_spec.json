@@ -14133,6 +14133,14 @@
             "type": "string",
             "description": "Payment Fingerprint",
             "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
