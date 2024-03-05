@@ -374,6 +374,10 @@ pub enum Flow {
     UpdateUserAccountDetails,
     /// Accept user invitation
     AcceptInvitation,
+    /// Initiate external authentication for a payment
+    PaymentsExternalAuthentication,
+    /// Authorize the payment after external 3ds authentication
+    PaymentsAuthorize,
     /// Create Role
     CreateRole,
     /// Update Role

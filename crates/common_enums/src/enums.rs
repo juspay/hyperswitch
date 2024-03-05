@@ -2100,6 +2100,7 @@ pub enum PaymentSource {
     Dashboard,
     Sdk,
     Webhook,
+    ExternalAuthenticator,
 }
 
 #[derive(
