@@ -430,3 +430,6 @@ source = "logs"
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[unmasked_headers]
+keys = "user-agent"
