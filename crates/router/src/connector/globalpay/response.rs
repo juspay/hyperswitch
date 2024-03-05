@@ -203,7 +203,7 @@ pub struct ThreeDs {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BankTransfer {
     /// The last 4 characters of the local reference for a bank account number.
-    pub masked_number_last4: Option<String>,
+    pub masked_number_last4: Option<Secret<String>>,
     /// The name of the bank.
     pub name: Option<Secret<String>>,
     /// The type of bank account associated with the payer's bank account.
@@ -230,7 +230,7 @@ pub struct Card {
     /// The result of the CVV check.
     pub cvv_result: Option<String>,
     /// Masked card number with last 4 digits showing.
-    pub masked_number_last4: Option<String>,
+    pub masked_number_last4: Option<Secret<String>>,
     /// The result codes directly from the card issuer.
     pub provider: Option<ProviderClass>,
     /// The card EMV tag response data from the card issuer for a contactless or chip card
