@@ -38,16 +38,6 @@ pub enum SearchIndex {
     Refunds,
 }
 
-impl ToString for SearchIndex {
-    fn to_string(&self) -> String {
-        String::from(match self {
-            Self::PaymentAttempts => "hyperswitch-payment-attempt-events",
-            Self::PaymentIntents => "hyperswitch-payment-intent-events",
-            Self::Refunds => "hyperswitch-refund-events",
-        })
-    }
-}
-
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSearchResponse {

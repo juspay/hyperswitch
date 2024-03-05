@@ -17,7 +17,7 @@ use opensearch::{
 use serde_json::{json, Value};
 use strum::IntoEnumIterator;
 
-use crate::{errors::AnalyticsError, OpensearchConfig};
+use crate::{errors::AnalyticsError, OpensearchAuth, OpensearchConfig, OpensearchIndexes};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpensearchError {
@@ -29,14 +29,18 @@ pub enum OpensearchError {
     ResponseError,
 }
 
-async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
-    let transport = match auth {
-        OpensearchConfig::Basic {
-            host,
-            username,
-            password,
-        } => {
-            let url = Url::parse(&host).map_err(|_| OpensearchError::ConnectionError)?;
+pub fn search_index_to_opensearch_index(index: SearchIndex, config: &OpensearchIndexes) -> String {
+    match index {
+        SearchIndex::PaymentAttempts => config.payment_attempts.clone(),
+        SearchIndex::PaymentIntents => config.payment_intents.clone(),
+        SearchIndex::Refunds => config.refunds.clone(),
+    }
+}
+
+async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, OpensearchError> {
+    let url = Url::parse(&config.host).map_err(|_| OpensearchError::ConnectionError)?;
+    let transport = match config.auth {
+        OpensearchAuth::Basic { username, password } => {
             let credentials = Credentials::Basic(username, password);
             TransportBuilder::new(SingleNodeConnectionPool::new(url))
                 .cert_validation(CertificateValidation::None)
@@ -44,8 +48,7 @@ async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, Ope
                 .build()
                 .map_err(|_| OpensearchError::ConnectionError)?
         }
-        OpensearchConfig::Aws { host, region } => {
-            let url = Url::parse(&host).map_err(|_| OpensearchError::ConnectionError)?;
+        OpensearchAuth::Aws { region } => {
             let region_provider = RegionProviderChain::first_try(Region::new(region));
             let sdk_config = aws_config::from_env().region(region_provider).load().await;
             let conn_pool = SingleNodeConnectionPool::new(url);
@@ -67,15 +70,16 @@ async fn get_opensearch_client(auth: OpensearchConfig) -> Result<OpenSearch, Ope
 pub async fn msearch_results(
     req: GetGlobalSearchRequest,
     merchant_id: &String,
-    auth: OpensearchConfig,
+    config: OpensearchConfig,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    let client = get_opensearch_client(auth)
+    let client = get_opensearch_client(config.clone())
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
-        msearch_vector.push(json!({"index": index.to_string()}).into());
+        msearch_vector
+            .push(json!({"index": search_index_to_opensearch_index(index,&config.indexes)}).into());
         msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
     }
 
@@ -111,16 +115,16 @@ pub async fn msearch_results(
 pub async fn search_results(
     req: GetSearchRequestWithIndex,
     merchant_id: &String,
-    auth: OpensearchConfig,
+    config: OpensearchConfig,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
 
-    let client = get_opensearch_client(auth)
+    let client = get_opensearch_client(config.clone())
         .await
         .map_err(|_| AnalyticsError::UnknownError)?;
 
     let response = client
-        .search(SearchParts::Index(&[&req.index.to_string()]))
+        .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&config.indexes)]))
         .from(search_req.offset)
         .size(search_req.count)
         .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))

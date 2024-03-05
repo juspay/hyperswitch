@@ -201,14 +201,15 @@ refund_function = "report_download_config_refund_function"   # Config to downloa
 region = "report_download_config_region"                     # Region of the bucket
 
 [opensearch]
+host = "https://localhost:9200"
+
+[opensearch.auth]
 auth = "basic"
 username = "admin"
 password = "admin"
-host = "https://localhost:9200"
-region = ""
+region = "eu-central-1"
 
-# TODO : make opensearch indexes configurable
-[opensearch_indexes]
+[opensearch.indexes]
 payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"

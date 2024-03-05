@@ -618,24 +618,38 @@ pub struct ReportConfig {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
-pub enum OpensearchConfig {
-    Basic {
-        host: String,
-        username: String,
-        password: String,
-    },
-    Aws {
-        host: String,
-        region: String,
-    },
+pub enum OpensearchAuth {
+    Basic { username: String, password: String },
+    Aws { region: String },
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchIndexes {
+    pub payment_attempts: String,
+    pub payment_intents: String,
+    pub refunds: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct OpensearchConfig {
+    host: String,
+    auth: OpensearchAuth,
+    indexes: OpensearchIndexes,
 }
 
 impl Default for OpensearchConfig {
     fn default() -> Self {
-        Self::Basic {
+        Self {
             host: "https://localhost:9200".to_string(),
-            username: "admin".to_string(),
-            password: "admin".to_string(),
+            auth: OpensearchAuth::Basic {
+                username: "admin".to_string(),
+                password: "admin".to_string(),
+            },
+            indexes: OpensearchIndexes {
+                payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
+                payment_intents: "hyperswitch-payment-intent-events".to_string(),
+                refunds: "hyperswitch-refund-events".to_string(),
+            },
         }
     }
 }
