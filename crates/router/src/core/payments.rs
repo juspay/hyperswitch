@@ -41,7 +41,8 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    authentication::types::AuthenticationData, errors::StorageErrorExt,
+    payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -2072,6 +2073,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    pub authentication: Option<(storage::Authentication, AuthenticationData)>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 
