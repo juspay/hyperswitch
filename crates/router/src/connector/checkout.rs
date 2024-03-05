@@ -140,7 +140,7 @@ impl ConnectorCommon for Checkout {
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: response.request_id,
         })
     }
 }
