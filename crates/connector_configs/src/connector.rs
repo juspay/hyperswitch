@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
-use api_models::{enums::Connector, payments};
+use api_models::{
+    enums::{AuthenticationConnectors, Connector},
+    payments,
+};
 use serde::Deserialize;
 #[cfg(any(feature = "sandbox", feature = "development", feature = "production"))]
 use toml;
@@ -75,6 +78,9 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<ApplePayTomlConfig>,
     pub merchant_id: Option<String>,
     pub endpoint_prefix: Option<String>,
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -197,6 +203,15 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+        }
+    }
+
+    pub fn get_authentication_connector_config(
+        connector: AuthenticationConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
         }
     }
 
