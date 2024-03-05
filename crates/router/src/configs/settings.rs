@@ -117,6 +117,13 @@ pub struct Settings<S: SecretState> {
     pub events: EventsConfig,
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
+    pub unmasked_headers: UnmaskedHeaders,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct UnmaskedHeaders {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub keys: HashSet<String>,
 }
 
 #[cfg(feature = "frm")]
