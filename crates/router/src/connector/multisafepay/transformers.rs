@@ -625,7 +625,7 @@ pub struct MultisafepayPaymentDetails {
     pub account_id: Option<Secret<String>>,
     pub card_expiry_date: Option<Secret<String>>,
     pub external_transaction_id: Option<serde_json::Value>,
-    pub last4: Option<String>,
+    pub last4: Option<Secret<String>>,
     pub recurring_flow: Option<String>,
     pub recurring_id: Option<Secret<String>>,
     pub recurring_model: Option<String>,
