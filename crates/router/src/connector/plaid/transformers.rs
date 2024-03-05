@@ -118,7 +118,7 @@ impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPay
                     let recipient_id = match recipient_type {
                         types::MerchantRecipientData::RecipientId(id) => Ok(id.peek().to_string()),
                         _ => Err(errors::ConnectorError::NotSupported {
-                            message: "recipient_id not found".to_string(),
+                            message: "recipient_id not found, other methods".to_string(),
                             connector: "plaid",
                         }),
                     }
