@@ -1725,8 +1725,7 @@ fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
     let phone = item
-        .address
-        .get_billing()
+        .get_optional_billing()
         .and_then(|billing| billing.phone.as_ref());
 
     phone.as_ref().and_then(|phone| {

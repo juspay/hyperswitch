@@ -506,7 +506,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                                 cancel_url: item.router_data.request.complete_authorize_url.clone(),
                                 shipping_preference: if item
                                     .router_data
-                                    .get_optional_billing()
+                                    .get_optional_shipping()
                                     .is_some()
                                 {
                                     ShippingPreference::SetProvidedAddress
