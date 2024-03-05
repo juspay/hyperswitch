@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.05.0
+
+### Features
+
+- **connector:** [PLACETOPAY] Fix refund request and status mapping ([#3894](https://github.com/juspay/hyperswitch/pull/3894)) ([`5eff9d4`](https://github.com/juspay/hyperswitch/commit/5eff9d47d3e53d380ef792a8fbdf06ecf78d3d16))
+- **webhooks:** Implement automatic retries for failed webhook deliveries using scheduler ([#3842](https://github.com/juspay/hyperswitch/pull/3842)) ([`5bb67c7`](https://github.com/juspay/hyperswitch/commit/5bb67c7dcc22f9cee51adf501bdd8455b41548db))
+
+### Bug Fixes
+
+- **connector:** [Volt] Fix status mapping for Volt ([#3915](https://github.com/juspay/hyperswitch/pull/3915)) ([`f132527`](https://github.com/juspay/hyperswitch/commit/f132527490a7d8cd8469573d8e6856f33974959f))
+- **router:** [nuvei] Nuvei recurring MIT fix and mandatory details fix ([#3602](https://github.com/juspay/hyperswitch/pull/3602)) ([`aa001b4`](https://github.com/juspay/hyperswitch/commit/aa001b4579a6be022b46eb0cc3e65c52ec9d10bb))
+
+### Refactors
+
+- **api_keys:** Provide identifier for api key in the expiry reminder email ([#3888](https://github.com/juspay/hyperswitch/pull/3888)) ([`901d61b`](https://github.com/juspay/hyperswitch/commit/901d61bc0ddb4b2ad742de927126f468629a79af))
+- **connectors:** [Checkout] PII data masking ([#3775](https://github.com/juspay/hyperswitch/pull/3775)) ([`6076eb0`](https://github.com/juspay/hyperswitch/commit/6076eb01ca80ae2d06218a09d2a69f01d78cdec4))
+- **test_utils:** Use json to run collection and add run time edit ([#3807](https://github.com/juspay/hyperswitch/pull/3807)) ([`a1d63d4`](https://github.com/juspay/hyperswitch/commit/a1d63d4b8be273c525aac76f22cf3bda25719f28))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`cd7040f`](https://github.com/juspay/hyperswitch/commit/cd7040fa8cad2e69a53e3ed609c9eb8a8a17495a))
+- Upgrade msrv to 1.70 ([#3938](https://github.com/juspay/hyperswitch/pull/3938)) ([`0e60083`](https://github.com/juspay/hyperswitch/commit/0e600837f77af0443335deb0c73d6f3b2bda5ac2))
+
+**Full Changelog:** [`2024.03.04.0...2024.03.05.0`](https://github.com/juspay/hyperswitch/compare/2024.03.04.0...2024.03.05.0)
+
+- - -
+
 ## 2024.03.04.0
 
 ### Features

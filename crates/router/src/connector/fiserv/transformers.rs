@@ -62,8 +62,8 @@ pub enum Source {
     },
     #[allow(dead_code)]
     GooglePay {
-        data: String,
-        signature: String,
+        data: Secret<String>,
+        signature: Secret<String>,
         version: String,
     },
 }
@@ -80,8 +80,8 @@ pub struct CardData {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayToken {
-    signature: String,
-    signed_message: String,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
     protocol_version: String,
 }
 
@@ -104,7 +104,7 @@ pub struct TransactionDetails {
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
     merchant_id: Secret<String>,
-    terminal_id: Option<String>,
+    terminal_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -428,7 +428,7 @@ pub struct ReferenceTransactionDetails {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FiservSessionObject {
-    pub terminal_id: String,
+    pub terminal_id: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for FiservSessionObject {

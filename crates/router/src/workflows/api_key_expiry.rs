@@ -54,6 +54,10 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
 
         let retry_count = process.retry_count;
 
+        let api_key_name = tracking_data.api_key_name.clone();
+
+        let prefix = tracking_data.prefix.clone();
+
         let expires_in = tracking_data
             .expiry_reminder_days
             .get(
@@ -69,6 +73,9 @@ impl ProcessTrackerWorkflow<AppState> for ApiKeyExpiryWorkflow {
             })?,
             subject: "API Key Expiry Notice",
             expires_in: *expires_in,
+            api_key_name,
+            prefix,
+
         };
 
         state
