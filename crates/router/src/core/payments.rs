@@ -1311,15 +1311,10 @@ async fn get_merchant_bank_data_for_open_banking_connectors(
     let recipient_id = helpers::get_recipient_id_from_open_banking_auth(&auth_type)?;
     let final_recipient_data = if let Some(id) = recipient_id {
         if let Some(_con) = contains {
-            let customer_id = customer
-                .as_ref()
-                .map(|cust| cust.customer_id.clone())
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
             let resp = payment_methods::cards::get_payment_method_from_hs_locker(
                 state,
                 key_store,
-                customer_id.as_str(),
+                merchant_account.merchant_id.as_str(),
                 merchant_account.merchant_id.as_str(),
                 id.as_str(),
                 Some(enums::LockerChoice::HyperswitchCardVault),
