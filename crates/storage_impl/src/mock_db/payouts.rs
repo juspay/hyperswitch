@@ -1,20 +1,12 @@
 use common_utils::errors::CustomResult;
-#[cfg(feature = "payouts")]
-use data_models::payouts::payouts::PayoutsInterface;
-#[cfg(not(feature = "payouts"))]
-use data_models::PayoutsInterface;
 use data_models::{
     errors::StorageError,
-    payouts::payouts::{Payouts, PayoutsNew, PayoutsUpdate},
+    payouts::payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
 use diesel_models::enums as storage_enums;
 
 use super::MockDb;
 
-#[cfg(not(feature = "payouts"))]
-impl PayoutsInterface for MockDb {}
-
-#[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutsInterface for MockDb {
     async fn find_payout_by_merchant_id_payout_id(

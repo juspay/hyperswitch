@@ -18,6 +18,8 @@ pub mod payout_attempt;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod redis_conn;
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -99,3 +101,9 @@ impl MockDb {
         })
     }
 }
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for MockDb {}
+
+#[cfg(not(feature = "payouts"))]
+impl PayoutAttemptInterface for MockDb {}
