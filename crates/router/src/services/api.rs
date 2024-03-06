@@ -845,7 +845,7 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkAction>),
+    PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
 }
@@ -1121,11 +1121,35 @@ where
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
+
+    let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
+
+    let incoming_request_header = request.headers();
+
+    let incoming_header_to_log: HashMap<String, http::header::HeaderValue> =
+        incoming_request_header
+            .iter()
+            .fold(HashMap::new(), |mut acc, (key, value)| {
+                let key = key.to_string();
+                if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                    acc.insert(key.clone(), value.clone());
+                } else {
+                    acc.insert(
+                        key.clone(),
+                        http::header::HeaderValue::from_static("**MASKED**"),
+                    );
+                }
+                acc
+            });
+
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
+    logger::info!(
+        tag = ?Tag::BeginRequest, payload = ?payload,
+    headers = ?incoming_header_to_log);
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
@@ -1186,7 +1210,7 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+        Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {

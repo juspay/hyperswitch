@@ -75,7 +75,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
-        helpers::validate_card_data(request.payment_method_data.clone())?;
+        helpers::validate_card_data(
+            request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
+        )?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -193,6 +198,24 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let payment_method_billing = helpers::create_or_update_address_for_payment_by_request(
+            db,
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.billing.as_ref()),
+            payment_attempt.payment_method_billing_address_id.as_deref(),
+            merchant_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
@@ -221,7 +244,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
-                &request.payment_method_data,
+                &request
+                    .payment_method_data
+                    .as_ref()
+                    .map(|pmd| pmd.payment_method_data.clone()),
                 &request.payment_method_type,
                 &mandate_type,
                 &token,
@@ -323,7 +349,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
-
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -337,7 +368,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -353,12 +384,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector,
             token,
             setup_mandate,
+            customer_acceptance,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing.as_ref().map(|a| a.into()),
             },
             confirm: request.confirm,
-            payment_method_data: request.payment_method_data.clone(),
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .map(|pmd| pmd.payment_method_data.clone()),
             force_sync: None,
             refunds: vec![],
             disputes: vec![],
@@ -628,6 +664,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     updated_by: storage_scheme.to_string(),
                     fingerprint_id: None,
                     session_expiry,
+                    request_external_three_ds_authentication: payment_data
+                        .payment_intent
+                        .request_external_three_ds_authentication,
                 },
                 storage_scheme,
             )
