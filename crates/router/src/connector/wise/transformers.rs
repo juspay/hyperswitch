@@ -94,7 +94,7 @@ pub struct WiseBankDetails {
     legal_type: LegalType,
     account_type: Option<AccountType>,
     address: WiseAddressDetails,
-    post_code: Option<Secret<String>>,
+    post_code: Option<String>,
     nationality: Option<String>,
     account_holder_name: Option<Secret<String>>,
     email: Option<Email>,
