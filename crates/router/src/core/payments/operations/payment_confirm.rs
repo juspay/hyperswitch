@@ -849,6 +849,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         merchant_connector_id,
                         surcharge_amount,
                         tax_amount,
+                        external_three_ds_authentication_attempted: None,
+                        authentication_connector: None,
+                        authentication_id: None,
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
                         payment_method_id: m_payment_method_id,
@@ -900,6 +903,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         updated_by: m_storage_scheme,
                         fingerprint_id: None,
                         session_expiry,
+                        request_external_three_ds_authentication: None,
                     },
                     storage_scheme,
                 )

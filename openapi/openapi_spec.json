@@ -913,6 +913,72 @@
         ]
       }
     },
+    "/accounts/{account_id}/kv": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - KV Status",
+        "description": "Merchant Account - KV Status\n\nToggle KV mode for the Merchant Account",
+        "operationId": "Enable/Disable KV for a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleKVRequest"
+              },
+              "examples": {
+                "Disable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "false"
+                  }
+                },
+                "Enable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "true"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "KV mode is enabled/disabled for Merchant Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleKVResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -4708,6 +4774,41 @@
           "device_data_collection_pending"
         ]
       },
+      "AuthenticationConnectorDetails": {
+        "type": "object",
+        "required": [
+          "authentication_connectors",
+          "three_ds_requestor_url"
+        ],
+        "properties": {
+          "authentication_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationConnectors"
+            },
+            "description": "List of authentication connectors"
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
+          }
+        }
+      },
+      "AuthenticationConnectors": {
+        "type": "string",
+        "enum": [
+          "threedsecureio"
+        ]
+      },
+      "AuthenticationStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "pending",
+          "success",
+          "failed"
+        ]
+      },
       "AuthenticationType": {
         "type": "string",
         "enum": [
@@ -6171,6 +6272,14 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6280,6 +6389,14 @@
           },
           "payment_link_config": {
             "description": "Default Payment Link config for all payment links created under this business profile",
+            "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -6816,7 +6933,8 @@
           "banking_entities",
           "non_banking_finance",
           "payout_processor",
-          "payment_method_auth"
+          "payment_method_auth",
+          "authentication_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -7751,6 +7869,13 @@
           }
         }
       },
+      "DecoupledAuthenticationType": {
+        "type": "string",
+        "enum": [
+          "challenge",
+          "frictionless"
+        ]
+      },
       "DefaultPaymentMethod": {
         "type": "object",
         "required": [
@@ -7765,6 +7890,13 @@
             "type": "string"
           }
         }
+      },
+      "DeviceChannel": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "BRW"
+        ]
       },
       "DisputeResponse": {
         "type": "object",
@@ -8046,6 +8178,50 @@
           "mandate_active",
           "mandate_revoked"
         ]
+      },
+      "ExternalAuthenticationDetailsResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "authentication_flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DecoupledAuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "electronic_commerce_indicator": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (eci)",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "ds_transaction_id": {
+            "type": "string",
+            "description": "DS Transaction ID",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Message Version",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error Code",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error Message",
+            "nullable": true
+          }
+        }
       },
       "FeatureMetadata": {
         "type": "object",
@@ -10663,6 +10839,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows",
+            "required": [
+              "three_ds_data",
+              "type"
+            ],
+            "properties": {
+              "three_ds_data": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_invoke"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -12652,6 +12847,12 @@
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
             "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -13029,6 +13230,81 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsExternalAuthenticationRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+          }
+        }
+      },
+      "PaymentsExternalAuthenticationResponse": {
+        "type": "object",
+        "required": [
+          "trans_status"
+        ],
+        "properties": {
+          "trans_status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL to be used for challenge submission",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by the EMVCo",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
+            "nullable": true
+          },
+          "three_dsserver_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
           }
         }
@@ -13440,6 +13716,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
             "nullable": true
           }
         }
@@ -13899,6 +14181,19 @@
               "$ref": "#/components/schemas/IncrementalAuthorizationResponse"
             },
             "description": "List of incremental authorizations happened to the payment",
+            "nullable": true
+          },
+          "external_authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalAuthenticationDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "request_external_3ds_authentication": {
+            "type": "boolean",
+            "description": "Flag indicating if external 3ds authentication is made or not",
             "nullable": true
           },
           "expires_on": {
@@ -14413,6 +14708,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
             "nullable": true
           }
         }
@@ -15955,6 +16256,48 @@
           }
         }
       },
+      "SdkInformation": {
+        "type": "object",
+        "required": [
+          "sdk_app_id",
+          "sdk_enc_data",
+          "sdk_ephem_pub_key",
+          "sdk_trans_id",
+          "sdk_reference_number",
+          "sdk_max_timeout"
+        ],
+        "properties": {
+          "sdk_app_id": {
+            "type": "string",
+            "description": "Unique ID created on installations of the 3DS Requestor App on a Consumer Device"
+          },
+          "sdk_enc_data": {
+            "type": "string",
+            "description": "JWE Object containing data encrypted by the SDK for the DS to decrypt"
+          },
+          "sdk_ephem_pub_key": {
+            "type": "object",
+            "description": "Public key component of the ephemeral key pair generated by the 3DS SDK",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "sdk_trans_id": {
+            "type": "string",
+            "description": "Unique transaction identifier assigned by the 3DS SDK"
+          },
+          "sdk_reference_number": {
+            "type": "string",
+            "description": "Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App"
+          },
+          "sdk_max_timeout": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Indicates maximum amount of time in minutes",
+            "minimum": 0
+          }
+        }
+      },
       "SdkNextAction": {
         "type": "object",
         "required": [
@@ -16385,6 +16728,71 @@
           }
         }
       },
+      "ThreeDsCompletionIndicator": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U"
+        ]
+      },
+      "ThreeDsData": {
+        "type": "object",
+        "required": [
+          "three_ds_authentication_url",
+          "three_ds_authorize_url",
+          "three_ds_method_details"
+        ],
+        "properties": {
+          "three_ds_authentication_url": {
+            "type": "string",
+            "description": "ThreeDS authentication url - to initiate authentication"
+          },
+          "three_ds_authorize_url": {
+            "type": "string",
+            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
+          },
+          "three_ds_method_details": {
+            "$ref": "#/components/schemas/ThreeDsMethodData"
+          }
+        }
+      },
+      "ThreeDsMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_data_submission",
+              "three_ds_method_data",
+              "three_ds_method_key"
+            ],
+            "properties": {
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data"
+              },
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url",
+                "nullable": true
+              },
+              "three_ds_method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "three_ds_method_key"
+        }
+      },
       "TimeRange": {
         "type": "object",
         "required": [
@@ -16415,8 +16823,54 @@
           }
         }
       },
+      "ToggleKVRequest": {
+        "type": "object",
+        "required": [
+          "kv_enabled"
+        ],
+        "properties": {
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
+      "ToggleKVResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "kv_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionStatus": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U",
+          "A",
+          "R",
+          "C",
+          "D",
+          "I"
+        ]
       },
       "TransactionType": {
         "type": "string",
