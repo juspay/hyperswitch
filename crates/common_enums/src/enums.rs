@@ -365,6 +365,8 @@ pub enum ConnectorType {
     PayoutProcessor,
     /// PaymentMethods Auth Services
     PaymentMethodAuth,
+    /// 3DS Authentication Service Providers
+    AuthenticationProcessor,
 }
 
 /// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
@@ -2337,6 +2339,7 @@ pub enum RoleScope {
     Debug,
     Eq,
     PartialEq,
+    Hash,
     serde::Serialize,
     serde::Deserialize,
     strum::Display,
