@@ -29,7 +29,6 @@
       "key": "Accept",
       "value": "application/json"
     },
-    ,
     {
       "key": "publishable_key",
       "value": "",

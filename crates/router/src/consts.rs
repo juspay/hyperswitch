@@ -78,6 +78,8 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
+pub const ROLE_CACHE_PREFIX: &str = "CR_";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
