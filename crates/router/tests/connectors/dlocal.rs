@@ -437,6 +437,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 }),
                 email: None,
             }),
+            payment_method_billing: None,
         }),
         auth_type: None,
         access_token: None,

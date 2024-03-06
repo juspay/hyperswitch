@@ -156,7 +156,7 @@ services:
         hard: 262144
 
   hyperswitch-server:
-    image: rust:1.65
+    image: rust:latest
     command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
