@@ -7,10 +7,17 @@ use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
+    connector::utils::{
+        self, CardData, PaymentsSyncRequestData, RefundsRequestData, RouterData, WalletData,
+    },
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{
+        self,
+        api::{self, enums as api_enums},
+        storage::enums,
+        transformers::ForeignFrom,
+    },
     utils::OptionExt,
 };
 
@@ -231,6 +238,8 @@ struct TransactionRequest {
     amount: f64,
     currency_code: String,
     payment: PaymentDetails,
+    order: Order,
+    bill_to: Option<BillTo>,
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
@@ -241,6 +250,24 @@ struct TransactionRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingOptions {
     is_subsequent_auth: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BillTo {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    address: Option<Secret<String>>,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country: Option<api_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Order {
+    description: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -341,12 +368,27 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             }),
             None => None,
         };
-
+        let bill_to = match item.router_data.get_billing() {
+            Ok(billing) => billing.address.as_ref().map(|address| BillTo {
+                first_name: address.first_name.clone(),
+                last_name: address.last_name.clone(),
+                address: address.line1.clone(),
+                city: address.city.clone(),
+                state: address.state.clone(),
+                zip: address.zip.clone(),
+                country: address.country,
+            }),
+            Err(_) => None,
+        };
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::from(item.router_data.request.capture_method),
             amount: item.amount,
-            payment: payment_details,
             currency_code: item.router_data.request.currency.to_string(),
+            payment: payment_details,
+            order: Order {
+                description: item.router_data.connector_request_reference_id.clone(),
+            },
+            bill_to,
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
