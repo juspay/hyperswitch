@@ -314,14 +314,35 @@ pub async fn list_merchant_ids_for_user(
     .await
 }
 
-pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn get_user_role_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<user_api::GetUserDetailsRequest>,
+) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
+        payload.into_inner(),
+        user_core::get_user_details_in_merchant_account,
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_users_for_merchant_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListUsersForMerchantAccount;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
         (),
-        |state, user, _| user_core::get_users_for_merchant_account(state, user),
+        |state, user, _| user_core::list_users_for_merchant_account(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
