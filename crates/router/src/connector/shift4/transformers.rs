@@ -582,7 +582,7 @@ pub struct Token {
     #[serde(rename = "objectType")]
     pub object_type: String,
     pub first6: String,
-    pub last4: Secret<String>,
+    pub last4: String,
     pub fingerprint: Secret<String>,
     pub brand: String,
     #[serde(rename = "type")]
