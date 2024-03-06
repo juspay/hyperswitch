@@ -1322,6 +1322,47 @@ pub async fn list_payment_methods(
         .await?;
     }
 
+    // Filter out applepay payment method from mca if customer has already saved it
+    response
+        .iter()
+        .position(|pm| {
+            pm.payment_method == enums::PaymentMethod::Wallet
+                && pm.payment_method_type == enums::PaymentMethodType::ApplePay
+        })
+        .as_ref()
+        .zip(customer.as_ref())
+        .async_map(|(index, customer)| async {
+            match db
+                .find_payment_method_by_customer_id_merchant_id_list(
+                    &customer.customer_id,
+                    &merchant_account.merchant_id,
+                    None,
+                )
+                .await
+            {
+                Ok(customer_payment_methods) => {
+                    if customer_payment_methods.iter().any(|pm| {
+                        pm.payment_method == enums::PaymentMethod::Wallet
+                            && pm.payment_method_type == Some(enums::PaymentMethodType::ApplePay)
+                    }) {
+                        response.remove(*index);
+                    }
+                    Ok(())
+                }
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        Ok(())
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("failed to find payment methods for a customer")
+                    }
+                }
+            }
+        })
+        .await
+        .transpose()?;
+
     let mut pmt_to_auth_connector = HashMap::new();
 
     if let Some((payment_attempt, payment_intent)) =
