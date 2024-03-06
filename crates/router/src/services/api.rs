@@ -20,7 +20,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -110,7 +110,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -847,7 +847,7 @@ pub enum ApplicationResponse<R> {
     Form(Box<RedirectionFormData>),
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, String)>)),
+    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1046,7 +1046,7 @@ where
                 );
 
                 if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
-                    if let Ok(external_latency) = value.parse::<u128>() {
+                    if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
                         overhead_latency.replace(external_latency);
                     }
                 }
@@ -1309,24 +1309,24 @@ pub fn http_server_error_json_response<T: body::MessageBody + 'static>(
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    mut headers: Vec<(String, String)>,
+    headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
-
-    for (name, value) in headers.iter_mut() {
-        if name == X_HS_LATENCY {
-            if let Some(request_duration) = request_duration {
-                if let Ok(external_latency) = value.parse::<u128>() {
-                    let updated_duration = request_duration.as_millis() - external_latency;
-                    *value = updated_duration.to_string();
+    headers
+        .into_iter()
+        .fold(HttpResponse::Ok(), |mut response_builder, (name, value)| {
+            let mut value = value.into_inner();
+            if name == X_HS_LATENCY {
+                if let Some(request_duration) = request_duration {
+                    if let Ok(external_latency) = value.parse::<u128>() {
+                        let updated_duration = request_duration.as_millis() - external_latency;
+                        value = updated_duration.to_string();
+                    }
                 }
             }
-        }
-        response_builder.append_header((name.clone(), value.clone()));
-    }
-
-    response_builder
+            response_builder.append_header((name, value));
+            response_builder
+        })
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }

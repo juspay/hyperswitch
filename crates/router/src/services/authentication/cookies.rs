@@ -2,7 +2,7 @@ use cookie::{
     time::{Duration, OffsetDateTime},
     Cookie, SameSite,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, Mask, Secret};
 
 use crate::{
     consts::{JWT_TOKEN_COOKIE_NAME, JWT_TOKEN_TIME_IN_SECS},
@@ -16,7 +16,9 @@ pub fn set_cookie_response<R>(response: R, token: Secret<String>) -> UserRespons
         .map_err(|_| UserErrors::InternalServerError)?;
     let (expiry, max_age) = get_expiry_and_max_age_from_seconds(jwt_expiry_in_seconds);
 
-    let header_value = create_cookie(token, expiry, max_age).to_string();
+    let header_value = create_cookie(token, expiry, max_age)
+        .to_string()
+        .into_masked();
     let header_key = get_cookie_header();
     let header = vec![(header_key, header_value)];
 
@@ -27,7 +29,9 @@ pub fn remove_cookie_response() -> UserResponse<()> {
     let (expiry, max_age) = get_expiry_and_max_age_from_seconds(0);
 
     let header_key = get_cookie_header();
-    let header_value = create_cookie("".to_string().into(), expiry, max_age).to_string();
+    let header_value = create_cookie("".to_string().into(), expiry, max_age)
+        .to_string()
+        .into_masked();
     let header = vec![(header_key, header_value)];
     Ok(ApplicationResponse::JsonWithHeaders(((), header)))
 }
