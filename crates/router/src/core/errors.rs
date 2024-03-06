@@ -259,7 +259,7 @@ pub enum WebhooksFlowError {
     #[error("Webhook details for merchant not configured")]
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
-    MerchantWebhookURLNotConfigured,
+    MerchantWebhookUrlNotConfigured,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
@@ -276,6 +276,25 @@ pub enum WebhooksFlowError {
     OutgoingWebhookProcessTrackerTaskUpdateFailed,
     #[error("Failed to schedule retry attempt for outgoing webhook")]
     OutgoingWebhookRetrySchedulingFailed,
+}
+
+impl WebhooksFlowError {
+    pub(crate) fn is_webhook_delivery_retryable_error(&self) -> bool {
+        match self {
+            Self::MerchantConfigNotFound
+            | Self::MerchantWebhookDetailsNotFound
+            | Self::MerchantWebhookUrlNotConfigured => false,
+
+            Self::WebhookEventUpdationFailed
+            | Self::OutgoingWebhookSigningFailed
+            | Self::CallToMerchantFailed
+            | Self::NotReceivedByMerchant
+            | Self::DisputeWebhookValidationFailed
+            | Self::OutgoingWebhookEncodingFailed
+            | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
+            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

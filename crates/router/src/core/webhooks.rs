@@ -817,21 +817,44 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     delivery_attempt: types::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let webhook_details_json = business_profile
-        .webhook_details
-        .get_required_value("webhook_details")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+    let get_webhook_url = |business_profile: &diesel_models::business_profile::BusinessProfile| {
+        let webhook_details_json = business_profile
+            .webhook_details
+            .clone()
+            .get_required_value("webhook_details")
+            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    let webhook_details: api::WebhookDetails =
-        webhook_details_json
+        let webhook_details: api::WebhookDetails = webhook_details_json
             .parse_value("WebhookDetails")
             .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    let webhook_url = webhook_details
-        .webhook_url
-        .get_required_value("webhook_url")
-        .change_context(errors::WebhooksFlowError::MerchantWebhookURLNotConfigured)
-        .map(ExposeInterface::expose)?;
+        webhook_details
+            .webhook_url
+            .get_required_value("webhook_url")
+            .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
+            .map(ExposeInterface::expose)
+    };
+    let webhook_url = match (get_webhook_url(&business_profile), process_tracker.clone()) {
+        (Ok(webhook_url), _) => Ok(webhook_url),
+        (Err(error), Some(process_tracker)) => {
+            if !error
+                .current_context()
+                .is_webhook_delivery_retryable_error()
+            {
+                logger::debug!("Failed to obtain merchant webhook URL, aborting retries");
+                state
+                    .store
+                    .as_scheduler()
+                    .finish_process_with_business_status(process_tracker, "COMPLETED_BY_PT".into())
+                    .await
+                    .change_context(
+                        errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
+                    )?;
+            }
+            Err(error)
+        }
+        (Err(error), None) => Err(error),
+    }?;
 
     let outgoing_webhook_event_id = webhook.event_id.clone();
 
