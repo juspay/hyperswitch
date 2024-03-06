@@ -825,16 +825,6 @@ fn validate_new_mandate_request(
         .clone()
         .get_required_value("mandate_data")?;
 
-    if api_enums::FutureUsage::OnSession
-        == req
-            .setup_future_usage
-            .get_required_value("setup_future_usage")?
-    {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`setup_future_usage` must be `off_session` for mandates".into()
-        }))?
-    };
-
     // Only use this validation if the customer_acceptance is present
     if mandate_data
         .customer_acceptance
@@ -2685,6 +2675,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -2740,6 +2731,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -2794,6 +2786,7 @@ mod tests {
                 common_utils::date_time::now()
                     .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
             ),
+            request_external_three_ds_authentication: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3211,6 +3204,10 @@ impl AttemptType {
             unified_code: None,
             unified_message: None,
             net_amount: old_payment_attempt.amount,
+            external_three_ds_authentication_attempted: old_payment_attempt
+                .external_three_ds_authentication_attempted,
+            authentication_connector: None,
+            authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
@@ -3850,6 +3847,20 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+// This function validates the  mandate_data with its setup_future_usage
+pub fn validate_mandate_data_and_future_usage(
+    setup_future_usages: Option<api_enums::FutureUsage>,
+    mandate_details_present: bool,
+) -> Result<(), errors::ApiErrorResponse> {
+    if Some(api_enums::FutureUsage::OnSession) == setup_future_usages && mandate_details_present {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`setup_future_usage` must be `off_session` for mandates".into(),
         })
     } else {
         Ok(())

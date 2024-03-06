@@ -55,14 +55,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "x-feature",
-                "value": "router-custom",
-                "type": "text",
-                "disabled": true
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -6842,7 +6835,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":\"{{another_random_number}}\"}"
+                      "raw": "{\"amount\":\"{{another_random_number}}\",\"amount_to_capture\":\"{{another_random_number}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id",
@@ -6955,12 +6948,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       },
                       {
                         "key": "publishable_key",
@@ -7315,7 +7302,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":\"{{another_random_number}}\"}"
+                      "raw": "{\"amount\":\"{{another_random_number}}\",\"amount_to_capture\":\"{{another_random_number}}\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id",
@@ -7428,12 +7415,6 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
-                      },
-                      {
-                        "key": "x-feature",
-                        "value": "router-custom",
-                        "type": "text",
-                        "disabled": true
                       },
                       {
                         "key": "publishable_key",
