@@ -414,6 +414,7 @@ async fn get_tracker_for_sync<
             }),
         mandate_connector: None,
         setup_mandate: None,
+        customer_acceptance: None,
         token: None,
         address: PaymentAddress::new(
             shipping_address.as_ref().map(|a| a.into()),

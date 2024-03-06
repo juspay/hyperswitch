@@ -145,6 +145,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: payment_attempt.payment_token.clone(),
             address: PaymentAddress::new(
                 shipping_address.as_ref().map(|a| a.into()),
