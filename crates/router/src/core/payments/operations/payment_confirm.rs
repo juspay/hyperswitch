@@ -361,6 +361,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
         helpers::validate_card_data(
             request
@@ -461,6 +462,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sm
         });
 
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
@@ -539,6 +546,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector,
             setup_mandate,
+            customer_acceptance,
             token,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
