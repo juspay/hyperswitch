@@ -335,6 +335,12 @@ cashapp = {country = "US", currency = "USD"}
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }
 
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
 [pm_filters.helcim]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
@@ -432,3 +438,6 @@ source = "logs"
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[unmasked_headers]
+keys = "user-agent"

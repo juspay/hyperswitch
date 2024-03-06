@@ -295,3 +295,6 @@ enabled = true
 client_id = ""
 client_secret = ""
 partner_id = ""
+
+[unmasked_headers]
+keys = "user-agent"

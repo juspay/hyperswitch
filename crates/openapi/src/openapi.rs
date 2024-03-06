@@ -91,6 +91,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::retrieve_merchant_account,
         routes::merchant_account::update_merchant_account,
         routes::merchant_account::delete_merchant_account,
+        routes::merchant_account::merchant_account_kv_status,
 
         // Routes for merchant connector account
         routes::merchant_connector_account::payment_connector_create,
@@ -432,6 +433,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantAccountResponse,
         api_models::admin::MerchantConnectorId,
         api_models::admin::MerchantDetails,
+        api_models::admin::ToggleKVRequest,
+        api_models::admin::ToggleKVResponse,
         api_models::admin::WebhookDetails,
         api_models::api_keys::ApiKeyExpiration,
         api_models::api_keys::CreateApiKeyRequest,

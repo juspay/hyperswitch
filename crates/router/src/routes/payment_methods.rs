@@ -275,15 +275,16 @@ pub async fn default_payment_method_set_api(
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
+    let db = &*state.store.clone();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, default_payment_method| {
+        |_state, auth: auth::AuthenticationData, default_payment_method| {
             cards::set_default_payment_method(
-                state,
-                auth.merchant_account,
+                db,
+                auth.merchant_account.merchant_id,
                 auth.key_store,
                 &customer_id,
                 default_payment_method.payment_method_id,

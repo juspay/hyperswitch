@@ -648,7 +648,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -700,7 +700,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -1214,21 +1214,14 @@ pub struct CheckoutDisputeWebhookData {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutDisputeTransactionType,
     pub data: CheckoutDisputeWebhookData,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTransactionType {
-    AuthenticationStarted,
-    AuthenticationApproved,
-    PaymentApproved,
-    PaymentCaptured,
-    PaymentDeclined,
-    PaymentRefunded,
-    PaymentRefundDeclined,
+pub enum CheckoutDisputeTransactionType {
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1270,12 +1263,20 @@ impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     }
 }
 
-impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTransactionType) -> Self {
+impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutDisputeTransactionType) -> Self {
         match code {
-            CheckoutTransactionType::DisputeArbitrationLost
-            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
-            _ => Self::Dispute,
+            CheckoutDisputeTransactionType::DisputeArbitrationLost
+            | CheckoutDisputeTransactionType::DisputeArbitrationWon => Self::PreArbitration,
+            CheckoutDisputeTransactionType::DisputeReceived
+            | CheckoutDisputeTransactionType::DisputeExpired
+            | CheckoutDisputeTransactionType::DisputeAccepted
+            | CheckoutDisputeTransactionType::DisputeCanceled
+            | CheckoutDisputeTransactionType::DisputeEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutDisputeTransactionType::DisputeEvidenceRequired
+            | CheckoutDisputeTransactionType::DisputeWon
+            | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
         }
     }
 }

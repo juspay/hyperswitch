@@ -367,6 +367,12 @@ pay_easy = {country = "JP", currency = "JPY"}
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
+
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -573,3 +579,6 @@ enabled = true
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[unmasked_headers]
+keys = "user-agent"
