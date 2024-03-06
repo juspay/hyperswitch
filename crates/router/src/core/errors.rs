@@ -260,38 +260,18 @@ pub enum WebhooksFlowError {
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
     MerchantWebhookURLNotConfigured,
-    #[error("Payments core flow failed")]
-    PaymentsCoreFailed,
-    #[error("Refunds core flow failed")]
-    RefundsCoreFailed,
-    #[error("Dispuste core flow failed")]
-    DisputeCoreFailed,
-    #[error("Webhook event creation failed")]
-    WebhookEventCreationFailed,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
     OutgoingWebhookSigningFailed,
-    #[error("Unable to fork webhooks flow for outgoing webhooks")]
-    ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
-    #[error("Resource not found")]
-    ResourceNotFound,
-    #[error("Webhook source verification failed")]
-    WebhookSourceVerificationFailed,
-    #[error("Webhook event object creation failed")]
-    WebhookEventObjectCreationFailed,
-    #[error("Not implemented")]
-    NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
     #[error("Failed to update outgoing webhook process tracker task")]
     OutgoingWebhookProcessTrackerTaskUpdateFailed,
     #[error("Failed to schedule retry attempt for outgoing webhook")]
