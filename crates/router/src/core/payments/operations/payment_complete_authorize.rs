@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::enums::{FrmSuggestion, FutureUsage};
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
 use router_derive::PaymentOperation;
@@ -60,7 +60,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .or(payment_intent.setup_future_usage);
+            .or(payment_intent.setup_future_usage)
+            .or(Some(FutureUsage::OnSession));
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,

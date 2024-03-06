@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::RequestSurchargeDetails};
+use api_models::{
+    enums::{FrmSuggestion, FutureUsage},
+    payments::RequestSurchargeDetails,
+};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, IntoReport, ResultExt};
@@ -71,7 +74,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .or(payment_intent.setup_future_usage);
+            .or(payment_intent.setup_future_usage)
+            .or(Some(FutureUsage::OnSession));
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 

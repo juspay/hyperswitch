@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::enums::{FrmSuggestion, FutureUsage};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{report, IntoReport, ResultExt};
@@ -340,7 +340,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .or(payment_intent.setup_future_usage);
+            .or(payment_intent.setup_future_usage)
+            .or(Some(FutureUsage::OnSession));
 
         let (
             token,
