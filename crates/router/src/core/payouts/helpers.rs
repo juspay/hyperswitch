@@ -385,6 +385,7 @@ pub async fn save_payout_data_to_locker(
         None,
         card_details_encrypted,
         key_store,
+        None,
     )
     .await?;
 
