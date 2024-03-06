@@ -330,7 +330,7 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get user details in a merchant account
+    /// Get details of a user in a merchant account
     GetUserDetails,
     /// List users for merchant account
     ListUsersForMerchantAccount,

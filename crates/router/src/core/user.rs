@@ -1220,7 +1220,7 @@ pub async fn get_user_details_in_merchant_account(
     )
     .await
     .change_context(UserErrors::InternalServerError)
-    .attach_printable("User role exists but role doesn't")?;
+    .attach_printable("User role exists but the corresponding role doesn't")?;
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
