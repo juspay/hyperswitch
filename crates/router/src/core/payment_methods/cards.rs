@@ -84,6 +84,7 @@ pub async fn create_payment_method(
     customer_acceptance: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
     key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: Option<serde_json::Value>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
         .await
@@ -101,6 +102,7 @@ pub async fn create_payment_method(
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
             payment_method_data,
+            connector_mandate_details,
             customer_acceptance: customer_acceptance.map(masking::Secret::new),
             ..storage::PaymentMethodNew::default()
         })
@@ -187,6 +189,7 @@ pub async fn get_or_insert_payment_method(
                     resp.metadata.clone().map(|val| val.expose()),
                     None,
                     locker_id,
+                    None,
                 )
                 .await
             } else {
@@ -372,6 +375,7 @@ pub async fn add_payment_method(
                 pm_metadata.cloned(),
                 None,
                 locker_id,
+                None,
             )
             .await?;
         }
@@ -391,6 +395,7 @@ pub async fn insert_payment_method(
     pm_metadata: Option<serde_json::Value>,
     customer_acceptance: Option<serde_json::Value>,
     locker_id: Option<String>,
+    connector_mandate_details: Option<serde_json::Value>,
 ) -> errors::RouterResult<diesel_models::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -408,6 +413,7 @@ pub async fn insert_payment_method(
         customer_acceptance,
         pm_data_encrypted,
         key_store,
+        connector_mandate_details,
     )
     .await
 }
@@ -1249,12 +1255,16 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
-
+    let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.amount);
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if pa.mandate_details.is_some() {
+        } else if pa.mandate_details.is_some()
+            || setup_future_usage
+                .map(|future_usage| future_usage == api_enums::FutureUsage::OffSession)
+                .unwrap_or(false)
+        {
             Some(api::MandateTransactionType::NewMandateTransaction)
         } else {
             None
