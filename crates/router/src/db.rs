@@ -39,6 +39,8 @@ use data_models::payments::{
 };
 #[cfg(feature = "payouts")]
 use data_models::payouts::{payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface};
+#[cfg(not(feature = "payouts"))]
+use data_models::{PayoutAttemptInterface, PayoutsInterface};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckNew, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -64,11 +66,6 @@ pub enum StorageImpl {
     PostgresqlTest,
     Mock,
 }
-
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutsInterface {}
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutAttemptInterface {}
 
 #[async_trait::async_trait]
 pub trait StorageInterface:

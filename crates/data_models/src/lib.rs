@@ -4,6 +4,12 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutAttemptInterface {}
+
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsInterface {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
