@@ -105,7 +105,7 @@ pub struct Settings<S: SecretState> {
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
-    pub analytics: AnalyticsConfig,
+    pub analytics: SecretStateContainer<AnalyticsConfig, S>,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
     #[cfg(feature = "frm")]
