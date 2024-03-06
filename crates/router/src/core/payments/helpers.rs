@@ -1461,6 +1461,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 "Payment method for given token not found or there was a problem fetching it",
             )?;
 
+                println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{:?}",pm);
     utils::when(
         supplementary_data
             .customer_id
