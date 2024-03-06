@@ -10,15 +10,15 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [features]
-default = ["connector_choice_bcompat","payouts", "connector_choice_mca_id"]
-release = ["connector_choice_bcompat", "connector_choice_mca_id"]
+default = ["connector_choice_bcompat", "payouts", "connector_choice_mca_id"]
+release = ["connector_choice_bcompat", "connector_choice_mca_id", "payouts"]
 connector_choice_bcompat = ["api_models/connector_choice_bcompat"]
 connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
 dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
 production = ["connector_configs/production"]
 development = ["connector_configs/development"]
 sandbox = ["connector_configs/sandbox"]
-payouts = []
+payouts = ["api_models/payouts", "euclid/payouts"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

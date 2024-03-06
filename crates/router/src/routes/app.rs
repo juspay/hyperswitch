@@ -1,10 +1,17 @@
 use std::sync::Arc;
 
 use actix_web::{web, Scope};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "hashicorp-vault", feature = "aws_kms")
+))]
+use analytics::AnalyticsConfig;
 #[cfg(all(feature = "business_profile_routing", feature = "olap"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+#[cfg(feature = "aws_kms")]
+use external_services::aws_kms::{self, decrypt::AwsKmsDecrypt};
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -394,10 +401,18 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
-            .service(
-                web::resource("/active")
-                    .route(web::get().to(cloud_routing::routing_retrieve_linked_config)),
-            )
+            .service(web::resource("/active").route(web::get().to(
+                |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+                    cloud_routing::routing_retrieve_linked_config(
+                        state,
+                        req,
+                        #[cfg(feature = "business_profile_routing")]
+                        query_params,
+                        #[cfg(feature = "business_profile_routing")]
+                        &TransactionType::Payment,
+                    )
+                },
+            )))
             .service(
                 web::resource("")
                     .route(
@@ -517,6 +532,18 @@ impl Routing {
                             )
                         })),
                 )
+                .service(web::resource("/payouts/active").route(web::get().to(
+                    |state, req, #[cfg(feature = "business_profile_routing")] query_params| {
+                        cloud_routing::routing_retrieve_linked_config(
+                            state,
+                            req,
+                            #[cfg(feature = "business_profile_routing")]
+                            query_params,
+                            #[cfg(feature = "business_profile_routing")]
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
                 .service(
                     web::resource("/payouts/default")
                         .route(web::get().to(|state, req| {

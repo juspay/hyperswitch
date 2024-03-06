@@ -256,12 +256,13 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::CardRedirectType => dir_enums::CardRedirectType::VARIANTS,
         dir::DirKeyKind::GiftCardType => dir_enums::GiftCardType::VARIANTS,
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
+        dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
+
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
         | dir::DirKeyKind::BusinessLabel
         | dir::DirKeyKind::MetaData => Err("Key does not have variants".to_string())?,
-        dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
     };
 
     Ok(serde_wasm_bindgen::to_value(variants)?)
@@ -326,4 +327,53 @@ pub fn get_response_payload(input: JsValue) -> JsResult {
     let input: ConnectorApiIntegrationPayload = serde_wasm_bindgen::from_value(input)?;
     let result = ConnectorApiIntegrationPayload::get_transformed_response_payload(input);
     Ok(serde_wasm_bindgen::to_value(&result)?)
+}
+
+#[cfg(feature = "payouts")]
+#[wasm_bindgen(js_name = getAllPayoutKeys)]
+pub fn get_all_payout_keys() -> JsResult {
+    let keys: Vec<&'static str> = dir::PayoutDirKeyKind::VARIANTS.to_vec();
+    Ok(serde_wasm_bindgen::to_value(&keys)?)
+}
+
+#[cfg(feature = "payouts")]
+#[wasm_bindgen(js_name = getPayoutVariantValues)]
+pub fn get_payout_variant_values(key: &str) -> Result<JsValue, JsValue> {
+    let key =
+        dir::PayoutDirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+
+    let variants: &[&str] = match key {
+        dir::PayoutDirKeyKind::BusinessCountry => dir_enums::BusinessCountry::VARIANTS,
+        dir::PayoutDirKeyKind::BillingCountry => dir_enums::BillingCountry::VARIANTS,
+        dir::PayoutDirKeyKind::PayoutType => dir_enums::PayoutType::VARIANTS,
+        dir::PayoutDirKeyKind::WalletType => dir_enums::PayoutWalletType::VARIANTS,
+        dir::PayoutDirKeyKind::BankTransferType => dir_enums::PayoutBankTransferType::VARIANTS,
+
+        dir::PayoutDirKeyKind::PayoutAmount | dir::PayoutDirKeyKind::BusinessLabel => {
+            Err("Key does not have variants".to_string())?
+        }
+    };
+
+    Ok(serde_wasm_bindgen::to_value(variants)?)
+}
+
+#[cfg(feature = "payouts")]
+#[wasm_bindgen(js_name = getPayoutDescriptionCategory)]
+pub fn get_payout_description_category() -> JsResult {
+    let keys = dir::PayoutDirKeyKind::VARIANTS.to_vec();
+    let mut category: HashMap<Option<&str>, Vec<types::PayoutDetails<'_>>> = HashMap::new();
+    for key in keys {
+        let dir_key =
+            dir::PayoutDirKeyKind::from_str(key).map_err(|_| "Invalid key received".to_string())?;
+        let details = types::PayoutDetails {
+            description: dir_key.get_detailed_message(),
+            kind: dir_key.clone(),
+        };
+        category
+            .entry(dir_key.get_str("Category"))
+            .and_modify(|val| val.push(details.clone()))
+            .or_insert(vec![details]);
+    }
+
+    Ok(serde_wasm_bindgen::to_value(&category)?)
 }
