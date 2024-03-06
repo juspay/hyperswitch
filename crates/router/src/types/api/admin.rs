@@ -73,6 +73,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config,
             session_expiry: item.session_expiry,
+            authentication_connector_details: None,
         })
     }
 }
@@ -161,6 +162,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .session_expiry
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: None,
         })
     }
 }
