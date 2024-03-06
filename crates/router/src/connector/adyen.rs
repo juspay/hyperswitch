@@ -403,6 +403,13 @@ impl
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl api::PaymentSession for Adyen {}
@@ -510,6 +517,13 @@ impl
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -681,6 +695,13 @@ impl
     ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
         Ok(services::CaptureSyncMethod::Individual)
     }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl
@@ -789,6 +810,14 @@ impl
     }
 
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -925,6 +954,14 @@ impl
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl
@@ -1016,6 +1053,13 @@ impl
     }
 
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -1129,6 +1173,13 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -1221,6 +1272,13 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
     }
 
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -1324,6 +1382,13 @@ impl
     }
 
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -1446,6 +1511,13 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl api::Refund for Adyen {}
@@ -1547,6 +1619,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 
     fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn get_5xx_error_response(
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
