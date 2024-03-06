@@ -287,6 +287,8 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            //If Unexpected Event is recieved, need to understand how it reached this point
+            //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
                 Err(errors::ConnectorError::WebhookBodyDecodingFailed).into_report()
             }
@@ -369,14 +371,15 @@ pub enum AdyenWebhookStatus {
     UnexpectedEvent,
 }
 
+//Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookResponse {
-    psp_reference: String,
-    original_reference: Option<String>,
-    result_code: AdyenWebhookStatus,
+    transaction_id: String,
+    payment_reference: Option<String>,
+    status: AdyenWebhookStatus,
     amount: Option<Amount>,
-    merchant_reference: String,
+    merchant_reference_id: String,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     event_code: WebhookEventCode,
@@ -3195,7 +3198,7 @@ pub fn get_webhook_response(
 > {
     let status = storage_enums::AttemptStatus::foreign_try_from((
         is_capture_manual,
-        response.result_code.clone(),
+        response.status.clone(),
     ))?;
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
@@ -3210,7 +3213,7 @@ pub fn get_webhook_response(
             reason: response.refusal_reason.clone(),
             status_code,
             attempt_status: None,
-            connector_transaction_id: Some(response.psp_reference.clone()),
+            connector_transaction_id: Some(response.transaction_id.clone()),
         })
     } else {
         None
@@ -3229,14 +3232,14 @@ pub fn get_webhook_response(
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(
                 response
-                    .original_reference
-                    .unwrap_or(response.psp_reference),
+                    .payment_reference
+                    .unwrap_or(response.transaction_id),
             ),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(response.merchant_reference),
+            connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
         };
         Ok((status, error, payments_response_data))
@@ -4122,9 +4125,10 @@ pub struct AdyenIncomingWebhook {
 impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
     fn from(notif: AdyenNotificationRequestItemWH) -> Self {
         Self {
-            psp_reference: notif.psp_reference,
-            original_reference: notif.original_reference,
-            result_code: match notif.event_code {
+            transaction_id: notif.psp_reference,
+            payment_reference: notif.original_reference,
+            //Transalting into custom status so that it can be clearly mapped to out attempt_status
+            status: match notif.event_code {
                 WebhookEventCode::Authorisation => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Authorised
@@ -4163,7 +4167,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 value: notif.amount.value,
                 currency: notif.amount.currency,
             }),
-            merchant_reference: notif.merchant_reference,
+            merchant_reference_id: notif.merchant_reference,
             refusal_reason: None,
             refusal_reason_code: None,
             event_code: notif.event_code,
@@ -4171,13 +4175,14 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
     }
 }
 
+//This will be triggered in Psync handler of webhook response
 impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     fn get_connector_capture_id(&self) -> String {
-        self.psp_reference.clone()
+        self.transaction_id.clone()
     }
 
     fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
-        match self.result_code {
+        match self.status {
             AdyenWebhookStatus::Captured => enums::AttemptStatus::Charged,
             _ => enums::AttemptStatus::CaptureFailed,
         }
@@ -4191,7 +4196,7 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     }
 
     fn get_connector_reference_id(&self) -> Option<String> {
-        Some(self.merchant_reference.clone())
+        Some(self.merchant_reference_id.clone())
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
