@@ -116,8 +116,7 @@ pub async fn create_payment_method(
             payment_method_id.to_owned(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to set the payment method as default")?;
+        .map_err(|err| logger::error!(error=?err,"Failed to set the payment method as default"));
     }
     Ok(response)
 }
