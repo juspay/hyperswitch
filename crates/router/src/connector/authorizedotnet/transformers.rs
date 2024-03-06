@@ -368,8 +368,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             }),
             None => None,
         };
-        let bill_to = match item.router_data.get_billing() {
-            Ok(billing) => billing.address.as_ref().map(|address| BillTo {
+        let bill_to = item
+            .router_data
+            .get_billing_address_details_as_optional()
+            .map(|address| BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
                 address: address.line1.clone(),
@@ -377,9 +379,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                 state: address.state.clone(),
                 zip: address.zip.clone(),
                 country: address.country,
-            }),
-            Err(_) => None,
-        };
+            });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::from(item.router_data.request.capture_method),
             amount: item.amount,
