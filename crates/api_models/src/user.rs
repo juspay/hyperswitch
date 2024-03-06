@@ -1,7 +1,8 @@
+use common_enums::{PermissionGroup, RoleScope};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
-use crate::user_role::{role, UserStatus};
+use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -163,8 +164,15 @@ pub struct GetUserDetailsRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct GetUserDetailsResponse {
-    pub user: UserDetails,
-    pub role: role::RoleInfoWithGroupsResponse,
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+    pub role_name: String,
+    pub status: UserStatus,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: time::PrimitiveDateTime,
+    pub groups: Vec<PermissionGroup>,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

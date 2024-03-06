@@ -1,7 +1,4 @@
-use api_models::{
-    user::{self as user_api, InviteMultipleUserResponse},
-    user_role::role as role_api,
-};
+use api_models::user::{self as user_api, InviteMultipleUserResponse};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{enums::UserStatus, user as storage_user, user_role::UserRoleNew};
@@ -1227,20 +1224,14 @@ pub async fn get_user_details_in_merchant_account(
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserDetailsResponse {
-            user: user_api::UserDetails {
-                email: required_user.get_email(),
-                name: required_user.get_name(),
-                role_id: role_info.get_role_id().to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                status: required_user_role.status.foreign_into(),
-                last_modified_at: required_user_role.last_modified,
-            },
-            role: role_api::RoleInfoWithGroupsResponse {
-                role_id: role_info.get_role_id().to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                groups: role_info.get_permission_groups().to_vec(),
-                role_scope: role_info.get_scope(),
-            },
+            email: required_user.get_email(),
+            name: required_user.get_name(),
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            status: required_user_role.status.foreign_into(),
+            last_modified_at: required_user_role.last_modified,
+            groups: role_info.get_permission_groups().to_vec(),
+            role_scope: role_info.get_scope(),
         },
     ))
 }
