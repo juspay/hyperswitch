@@ -1657,6 +1657,7 @@ pub async fn update_business_profile(
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
         session_expiry: request.session_expiry.map(i64::from),
+        authentication_connector_details: None,
     };
 
     let updated_business_profile = db
