@@ -23,6 +23,11 @@ pub struct GenericTokenData {
     pub token: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WalletTokenData {
+    pub payment_method_id: String,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PaymentTokenData {
@@ -33,6 +38,7 @@ pub enum PaymentTokenData {
     Permanent(CardTokenData),
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountConnectorDetails),
+    WalletToken(WalletTokenData),
 }
 
 impl PaymentTokenData {
@@ -50,5 +56,9 @@ impl PaymentTokenData {
 
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
+    }
+
+    pub fn wallet_token(payment_method_id: String) -> Self {
+        Self::WalletToken(WalletTokenData { payment_method_id })
     }
 }
