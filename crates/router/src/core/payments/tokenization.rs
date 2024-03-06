@@ -380,6 +380,7 @@ where
                         } else {
                             None
                         };
+
                         resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                         payment_methods::cards::create_payment_method(
                             db,
