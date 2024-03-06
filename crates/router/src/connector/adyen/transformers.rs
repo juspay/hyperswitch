@@ -287,7 +287,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
             AdyenWebhookStatus::Captured => Ok(Self::Charged),
             AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
-            //If Unexpected Event is recieved, need to understand how it reached this point
+            //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent => {
                 Err(errors::ConnectorError::WebhookBodyDecodingFailed).into_report()
@@ -4127,7 +4127,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
         Self {
             transaction_id: notif.psp_reference,
             payment_reference: notif.original_reference,
-            //Transalting into custom status so that it can be clearly mapped to out attempt_status
+            //Translating into custom status so that it can be clearly mapped to out attempt_status
             status: match notif.event_code {
                 WebhookEventCode::Authorisation => {
                     if is_success_scenario(notif.success) {
