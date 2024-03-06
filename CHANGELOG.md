@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix4
+
+### Miscellaneous Tasks
+
+- **configs:** [BOA] Add USD Currency Filter Configuration ([#3975](https://github.com/juspay/hyperswitch/pull/3975)) ([`c438058`](https://github.com/juspay/hyperswitch/commit/c43805895054cc714aa30d12121b23d789ab3c80))
+
+- - -
+
 ## 2024.03.01.0-hotfix3
 
 ### Bug Fixes
