@@ -1,6 +1,9 @@
 use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{
+    ext_traits::{Encode, ValueExt},
+    pii,
+};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -34,7 +37,6 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-    is_mandate: bool,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -67,16 +69,24 @@ where
             } else {
                 None
             };
-            let future_usage_validation = resp
-                .request
-                .get_setup_future_usage()
-                .map(|future_usage| {
-                    (future_usage == storage_enums::FutureUsage::OffSession && is_mandate)
-                        || (future_usage == storage_enums::FutureUsage::OnSession && !is_mandate)
-                })
-                .unwrap_or(false);
 
-            let pm_id = if future_usage_validation {
+            let mandate_data_customer_acceptance = resp
+                .request
+                .get_setup_mandate_details()
+                .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
+
+            let customer_acceptance = resp
+                .request
+                .get_customer_acceptance()
+                .or(mandate_data_customer_acceptance.clone().map(From::from))
+                .map(|ca| ca.encode_to_value())
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to serialize customer acceptance to value")?;
+
+            let pm_id = if resp.request.get_setup_future_usage().is_some()
+                && customer_acceptance.is_some()
+            {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
                     Some(&resp.request.get_payment_method_data()),
@@ -181,6 +191,7 @@ where
                                             locker_id,
                                             merchant_id,
                                             pm_metadata,
+                                            customer_acceptance,
                                             pm_data_encrypted,
                                             key_store,
                                         )
@@ -243,6 +254,7 @@ where
                                                     &merchant_account.merchant_id,
                                                     &customer.customer_id,
                                                     resp.metadata.clone().map(|val| val.expose()),
+                                                    customer_acceptance,
                                                     locker_id,
                                                 )
                                                 .await
@@ -357,6 +369,7 @@ where
                             locker_id,
                             merchant_id,
                             pm_metadata,
+                            customer_acceptance,
                             pm_data_encrypted,
                             key_store,
                         )
