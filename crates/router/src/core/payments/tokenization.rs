@@ -1,4 +1,5 @@
 use api_models::payment_methods::PaymentMethodsData;
+use common_enums::PaymentMethod;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
@@ -342,7 +343,11 @@ where
                     None => {
                         let pm_metadata = create_payment_method_metadata(None, connector_token)?;
 
-                        locker_id = Some(resp.payment_method_id);
+                        locker_id = if resp.payment_method == PaymentMethod::Card {
+                            Some(resp.payment_method_id)
+                        } else {
+                            None
+                        };
                         resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                         payment_methods::cards::create_payment_method(
                             db,

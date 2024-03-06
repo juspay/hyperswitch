@@ -61,7 +61,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.65
+          toolchain: "1.70"
 
       - uses: Swatinem/rust-cache@v2.7.0
         with:
@@ -71,7 +71,6 @@ jobs:
         uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: cargo-hack
-          version: 0.6.5
 
       - name: Deny warnings
         shell: bash

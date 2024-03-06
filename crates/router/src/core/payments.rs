@@ -910,6 +910,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
+                        api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -2026,6 +2027,7 @@ pub enum CallConnectorAction {
 pub struct PaymentAddress {
     pub shipping: Option<api::Address>,
     pub billing: Option<api::Address>,
+    pub payment_method_billing: Option<api::Address>,
 }
 
 #[derive(Clone)]

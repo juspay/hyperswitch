@@ -34,7 +34,7 @@ pub enum ProcessTrackerError {
     #[error("Failed to fetch processes from database")]
     ProcessFetchingFailed,
     #[error("Failed while fetching: {resource_name}")]
-    ResourceFetchingFailed { resource_name: &'static str },
+    ResourceFetchingFailed { resource_name: String },
     #[error("Failed while executing: {flow}")]
     FlowExecutionError { flow: &'static str },
     #[error("Not Implemented")]
