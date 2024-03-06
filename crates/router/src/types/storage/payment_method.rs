@@ -56,7 +56,7 @@ impl PaymentTokenData {
         match &self {
             Self::Temporary(data) | Self::TemporaryGeneric(data) => &data.token,
             Self::Permanent(data) | Self::PermanentCard(data) => &data.token,
-            PaymentTokenData::AuthBankDebit(auth_details) => match auth_details.access_token {
+            Self::AuthBankDebit(auth_details) => match auth_details.access_token {
                 payment_methods::BankAccountAccessCreds::AccessToken(ref token) => token,
             },
         }

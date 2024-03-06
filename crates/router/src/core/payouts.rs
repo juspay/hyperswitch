@@ -404,9 +404,10 @@ pub async fn payouts_update_core(
                 payout_data.payout_attempt.payout_token.as_deref(),
                 &payout_data.payout_attempt.customer_id,
                 &payout_data.payout_attempt.merchant_id,
-                &payout_data.payout_attempt.payout_id,
                 Some(&payouts.payout_type),
                 &key_store,
+                Some(&payout_data),
+                merchant_account.storage_scheme,
             )
             .await?
             .get_required_value("payout_method_data")?,
