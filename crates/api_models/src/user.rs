@@ -128,8 +128,6 @@ pub struct SwitchMerchantIdRequest {
     pub merchant_id: String,
 }
 
-pub type SwitchMerchantResponse = DashboardEntryResponse;
-
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {
     pub name: Secret<String>,
