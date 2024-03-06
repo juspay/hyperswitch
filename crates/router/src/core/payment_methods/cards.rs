@@ -3380,7 +3380,8 @@ pub async fn delete_payment_method(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Customer not found for the payment method")?;
 
     utils::when(
         customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id),
