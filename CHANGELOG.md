@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix5
+
+### Refactors
+
+- Kms decrypt analytics config ([#3985](https://github.com/juspay/hyperswitch/pull/3985)) ([`ec6af6a`](https://github.com/juspay/hyperswitch/commit/ec6af6a0941543384b75df178814a126eeaa443b))
+
+- - -
+
 ## 2024.03.01.0-hotfix4
 
 ### Miscellaneous Tasks
