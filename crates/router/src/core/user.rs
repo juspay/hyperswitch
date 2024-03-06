@@ -93,6 +93,8 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
@@ -120,6 +122,8 @@ pub async fn signin_without_invite_checks(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
@@ -965,6 +969,8 @@ pub async fn accept_invite_from_email(
 
     let token =
         utils::user::generate_jwt_auth_token(&state, &user_from_db, &update_status_result).await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &update_status_result)
+        .await;
 
     let response = utils::user::get_dashboard_entry_response(
         &state,
@@ -1043,7 +1049,7 @@ pub async fn switch_merchant_id(
     state: AppState,
     request: user_api::SwitchMerchantIdRequest,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::SwitchMerchantResponse> {
+) -> UserResponse<user_api::DashboardEntryResponse> {
     if user_from_token.merchant_id == request.merchant_id {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same merchant id".to_string(),
@@ -1092,13 +1098,14 @@ pub async fn switch_merchant_id(
             .organization_id;
 
         let token = utils::user::generate_jwt_auth_token_with_custom_role_attributes(
-            state,
+            &state,
             &user,
             request.merchant_id.clone(),
-            org_id,
+            org_id.clone(),
             user_from_token.role_id.clone(),
         )
         .await?;
+
         (token, user_from_token.role_id)
     } else {
         let user_roles = state
@@ -1119,10 +1126,12 @@ pub async fn switch_merchant_id(
             .attach_printable("User doesn't have access to switch")?;
 
         let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, user_role).await;
+
         (token, user_role.role_id.clone())
     };
 
-    let response = user_api::SwitchMerchantResponse {
+    let response = user_api::DashboardEntryResponse {
         token: token.clone(),
         name: user.get_name(),
         email: user.get_email(),
@@ -1265,6 +1274,7 @@ pub async fn verify_email_without_invite_checks(
         .await
         .map_err(|e| logger::error!(?e));
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;

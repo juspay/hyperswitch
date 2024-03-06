@@ -30,12 +30,6 @@
       "value": "application/json"
     },
     {
-      "key": "x-feature",
-      "value": "router-custom",
-      "type": "text",
-      "disabled": true
-    },
-    {
       "key": "publishable_key",
       "value": "",
       "type": "text",

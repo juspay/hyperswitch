@@ -30,12 +30,6 @@
       "value": "application/json"
     },
     {
-      "key": "x-feature",
-      "value": "router-custom",
-      "type": "text",
-      "disabled": true
-    },
-    {
       "key": "publishable_key",
       "value": "",
       "type": "text",
@@ -79,14 +73,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",

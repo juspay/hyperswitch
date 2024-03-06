@@ -34,6 +34,7 @@ pub struct BusinessProfile {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
+    pub authentication_connector_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -59,6 +60,7 @@ pub struct BusinessProfileNew {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
+    pub authentication_connector_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -81,6 +83,7 @@ pub struct BusinessProfileUpdateInternal {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<serde_json::Value>,
     pub session_expiry: Option<i64>,
+    pub authentication_connector_details: Option<serde_json::Value>,
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -105,6 +108,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             applepay_verified_domains: new.applepay_verified_domains,
             payment_link_config: new.payment_link_config,
             session_expiry: new.session_expiry,
+            authentication_connector_details: new.authentication_connector_details,
         }
     }
 }
@@ -128,6 +132,7 @@ impl BusinessProfileUpdateInternal {
             applepay_verified_domains,
             payment_link_config,
             session_expiry,
+            authentication_connector_details,
         } = self;
         BusinessProfile {
             profile_name: profile_name.unwrap_or(source.profile_name),
@@ -148,6 +153,7 @@ impl BusinessProfileUpdateInternal {
             applepay_verified_domains,
             payment_link_config,
             session_expiry,
+            authentication_connector_details,
             ..source
         }
     }

@@ -158,6 +158,8 @@ pub async fn transfer_org_ownership(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
+    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
@@ -169,7 +171,7 @@ pub async fn accept_invitation(
     state: AppState,
     user_token: auth::UserWithoutMerchantFromToken,
     req: user_role_api::AcceptInvitationRequest,
-) -> UserResponse<user_role_api::AcceptInvitationResponse> {
+) -> UserResponse<user_api::DashboardEntryResponse> {
     let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
         state
             .store
@@ -201,7 +203,10 @@ pub async fn accept_invitation(
             .change_context(UserErrors::InternalServerError)?
             .into();
 
+        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
+
         let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
