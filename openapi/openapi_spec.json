@@ -913,6 +913,72 @@
         ]
       }
     },
+    "/accounts/{account_id}/kv": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - KV Status",
+        "description": "Merchant Account - KV Status\n\nToggle KV mode for the Merchant Account",
+        "operationId": "Enable/Disable KV for a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleKVRequest"
+              },
+              "examples": {
+                "Disable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "false"
+                  }
+                },
+                "Enable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "true"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "KV mode is enabled/disabled for Merchant Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleKVResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -16754,6 +16820,39 @@
         "properties": {
           "blocklist_guard_status": {
             "type": "string"
+          }
+        }
+      },
+      "ToggleKVRequest": {
+        "type": "object",
+        "required": [
+          "kv_enabled"
+        ],
+        "properties": {
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
+      "ToggleKVResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "kv_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
           }
         }
       },
