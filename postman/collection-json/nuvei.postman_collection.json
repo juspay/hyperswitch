@@ -1,1662 +1,1661 @@
-
 {
-	"info": {
-		"_postman_id": "d329ee53-0de4-4154-b0b1-78708ec6e708",
-		"name": "nuvei",
-		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "19204656"
-	},
-	"item": [
-		{
-			"name": "Health check",
-			"item": [
-				{
-					"name": "New Request",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Validate status 2xx",
-									"pm.test(\"[POST]::/accounts - Status code is 2xx\", function () {",
-									"  pm.response.to.be.success;",
-									"});",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "x-feature",
-								"value": "router-custom",
-								"type": "text",
-								"disabled": true
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/health",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"health"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Flow Testcases",
-			"item": [
-				{
-					"name": "QuickStart",
-					"item": [
-						{
-							"name": "Merchant Account - Create",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Validate status 2xx",
-											"pm.test(\"[POST]::/accounts - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(\"[POST]::/accounts - Content-Type is application/json\", function () {",
-											"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"    \"application/json\",",
-											"  );",
-											"});",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id",
-											"if (jsonData?.merchant_id) {",
-											"  pm.collectionVariables.set(\"merchant_id\", jsonData.merchant_id);",
-											"  console.log(",
-											"    \"- use {{merchant_id}} as collection variable for value\",",
-											"    jsonData.merchant_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{merchant_id}}, as jsonData.merchant_id is undefined.\",",
-											"  );",
-											"}",
-											"",
-											"// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
-											"if (jsonData?.api_key) {",
-											"  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
-											"  console.log(",
-											"    \"- use {{api_key}} as collection variable for value\",",
-											"    jsonData.api_key,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
-											"  );",
-											"}",
-											"",
-											"// pm.collectionVariables - Set publishable_key as variable for jsonData.publishable_key",
-											"if (jsonData?.publishable_key) {",
-											"  pm.collectionVariables.set(\"publishable_key\", jsonData.publishable_key);",
-											"  console.log(",
-											"    \"- use {{publishable_key}} as collection variable for value\",",
-											"    jsonData.publishable_key,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{publishable_key}}, as jsonData.publishable_key is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								},
-								{
-									"listen": "prerequest",
-									"script": {
-										"exec": [
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "apikey",
-									"apikey": [
-										{
-											"key": "value",
-											"value": "{{admin_api_key}}",
-											"type": "string"
-										},
-										{
-											"key": "key",
-											"value": "api-key",
-											"type": "string"
-										},
-										{
-											"key": "in",
-											"value": "header",
-											"type": "string"
-										}
-									]
-								},
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"merchant_id\":\"postman_merchant_GHAction_{{$guid}}\",\"locker_id\":\"m0010\",\"merchant_name\":\"NewAge Retailer\",\"primary_business_details\":[{\"country\":\"US\",\"business\":\"default\"}],\"merchant_details\":{\"primary_contact_person\":\"John Test\",\"primary_email\":\"JohnTest@test.com\",\"primary_phone\":\"sunt laborum\",\"secondary_contact_person\":\"John Test2\",\"secondary_email\":\"JohnTest2@test.com\",\"secondary_phone\":\"cillum do dolor id\",\"website\":\"www.example.com\",\"about_business\":\"Online Retail with a wide selection of organic products for North America\",\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"return_url\":\"https://duck.com\",\"webhook_details\":{\"webhook_version\":\"1.0.1\",\"webhook_username\":\"ekart_retail\",\"webhook_password\":\"password_ekart@123\",\"payment_created_enabled\":true,\"payment_succeeded_enabled\":true,\"payment_failed_enabled\":true},\"sub_merchants_enabled\":false,\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/accounts",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"accounts"
-									]
-								},
-								"description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
-							},
-							"response": []
-						},
-						{
-							"name": "API Key - Create",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Validate status 2xx",
-											"pm.test(\"[POST]::/api_keys/:merchant_id - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(",
-											"  \"[POST]::/api_keys/:merchant_id - Content-Type is application/json\",",
-											"  function () {",
-											"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"      \"application/json\",",
-											"    );",
-											"  },",
-											");",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set api_key_id as variable for jsonData.key_id",
-											"if (jsonData?.key_id) {",
-											"  pm.collectionVariables.set(\"api_key_id\", jsonData.key_id);",
-											"  console.log(",
-											"    \"- use {{api_key_id}} as collection variable for value\",",
-											"    jsonData.key_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{api_key_id}}, as jsonData.key_id is undefined.\",",
-											"  );",
-											"}",
-											"",
-											"// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
-											"if (jsonData?.api_key) {",
-											"  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
-											"  console.log(",
-											"    \"- use {{api_key}} as collection variable for value\",",
-											"    jsonData.api_key,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "apikey",
-									"apikey": [
-										{
-											"key": "value",
-											"value": "{{admin_api_key}}",
-											"type": "string"
-										},
-										{
-											"key": "key",
-											"value": "api-key",
-											"type": "string"
-										}
-									]
-								},
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"name\":\"API Key 1\",\"description\":null,\"expiration\":\"2069-09-23T01:02:03.000Z\"}"
-								},
-								"url": {
-									"raw": "{{baseUrl}}/api_keys/:merchant_id",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"api_keys",
-										":merchant_id"
-									],
-									"variable": [
-										{
-											"key": "merchant_id",
-											"value": "{{merchant_id}}"
-										}
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Payment Connector - Create",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Validate status 2xx",
-											"pm.test(",
-											"  \"[POST]::/account/:account_id/connectors - Status code is 2xx\",",
-											"  function () {",
-											"    pm.response.to.be.success;",
-											"  },",
-											");",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(",
-											"  \"[POST]::/account/:account_id/connectors - Content-Type is application/json\",",
-											"  function () {",
-											"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"      \"application/json\",",
-											"    );",
-											"  },",
-											");",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id",
-											"if (jsonData?.merchant_connector_id) {",
-											"  pm.collectionVariables.set(",
-											"    \"merchant_connector_id\",",
-											"    jsonData.merchant_connector_id,",
-											"  );",
-											"  console.log(",
-											"    \"- use {{merchant_connector_id}} as collection variable for value\",",
-											"    jsonData.merchant_connector_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								},
-								{
-									"listen": "prerequest",
-									"script": {
-										"exec": [
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"auth": {
-									"type": "apikey",
-									"apikey": [
-										{
-											"key": "value",
-											"value": "{{admin_api_key}}",
-											"type": "string"
-										},
-										{
-											"key": "key",
-											"value": "api-key",
-											"type": "string"
-										},
-										{
-											"key": "in",
-											"value": "header",
-											"type": "string"
-										}
-									]
-								},
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"nuvei\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"key1\":\"{{connector_key1}}\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\"},\"test_mode\":true,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/account/:account_id/connectors",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"account",
-										":account_id",
-										"connectors"
-									],
-									"variable": [
-										{
-											"key": "account_id",
-											"value": "{{merchant_id}}",
-											"description": "(Required) The unique identifier for the merchant account"
-										}
-									]
-								},
-								"description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
-							},
-							"response": []
-						},
-						{
-							"name": "Payments - Create",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"pm.environment.set(\"random_number\", _.random(1000, 100000));",
-											"",
-											"// Set the environment variable 'amount' with the value from the response",
-											"pm.environment.set(\"amount\", pm.response.json().amount);",
-											"",
-											"// Validate status 2xx",
-											"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-											"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"    \"application/json\",",
-											"  );",
-											"});",
-											"",
-											"// Validate if response has JSON Body",
-											"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-											"  pm.response.to.have.jsonBody();",
-											"});",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-											"if (jsonData?.payment_id) {",
-											"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-											"  console.log(",
-											"    \"- use {{payment_id}} as collection variable for value\",",
-											"    jsonData.payment_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-											"  );",
-											"}",
-											"",
-											"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-											"if (jsonData?.mandate_id) {",
-											"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-											"  console.log(",
-											"    \"- use {{mandate_id}} as collection variable for value\",",
-											"    jsonData.mandate_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-											"  );",
-											"}",
-											"",
-											"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-											"if (jsonData?.client_secret) {",
-											"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-											"  console.log(",
-											"    \"- use {{client_secret}} as collection variable for value\",",
-											"    jsonData.client_secret,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								},
-								{
-									"listen": "prerequest",
-									"script": {
-										"exec": [
-											"pm.environment.set(\"random_number\", _.random(1000, 100000));",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/payments",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"payments"
-									]
-								},
-								"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-							},
-							"response": []
-						},
-						{
-							"name": "Payments - Retrieve",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Validate status 2xx",
-											"pm.test(\"[GET]::/refunds/:id - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(\"[GET]::/refunds/:id - Content-Type is application/json\", function () {",
-											"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"    \"application/json\",",
-											"  );",
-											"});",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
-											"if (jsonData?.refund_id) {",
-											"  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
-											"  console.log(",
-											"    \"- use {{refund_id}} as collection variable for value\",",
-											"    jsonData.refund_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/payments/:id?force_sync=true",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"payments",
-										":id"
-									],
-									"query": [
-										{
-											"key": "force_sync",
-											"value": "true"
-										}
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "{{payment_id}}",
-											"description": "(Required) unique refund id"
-										}
-									]
-								},
-								"description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-							},
-							"response": []
-						},
-						{
-							"name": "Refunds - Create",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Get the value of 'amount' from the environment",
-											"const amount = pm.environment.get(\"amount\");",
-											"",
-											"// Validate status 2xx",
-											"pm.test(\"[POST]::/refunds - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(\"[POST]::/refunds - Content-Type is application/json\", function () {",
-											"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"    \"application/json\",",
-											"  );",
-											"});",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
-											"if (jsonData?.refund_id) {",
-											"  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
-											"  console.log(",
-											"    \"- use {{refund_id}} as collection variable for value\",",
-											"    jsonData.refund_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": {{amount}},\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/refunds",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"refunds"
-									]
-								},
-								"description": "To create a refund against an already processed payment"
-							},
-							"response": []
-						},
-						{
-							"name": "Refunds - Retrieve",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"// Validate status 2xx",
-											"pm.test(\"[GET]::/refunds/:id - Status code is 2xx\", function () {",
-											"  pm.response.to.be.success;",
-											"});",
-											"",
-											"// Validate if response header has matching content-type",
-											"pm.test(\"[GET]::/refunds/:id - Content-Type is application/json\", function () {",
-											"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-											"    \"application/json\",",
-											"  );",
-											"});",
-											"",
-											"// Set response object as internal variable",
-											"let jsonData = {};",
-											"try {",
-											"  jsonData = pm.response.json();",
-											"} catch (e) {}",
-											"",
-											"// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
-											"if (jsonData?.refund_id) {",
-											"  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
-											"  console.log(",
-											"    \"- use {{refund_id}} as collection variable for value\",",
-											"    jsonData.refund_id,",
-											"  );",
-											"} else {",
-											"  console.log(",
-											"    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
-											"  );",
-											"}",
-											""
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Accept",
-										"value": "application/json"
-									}
-								],
-								"url": {
-									"raw": "{{baseUrl}}/refunds/:id?force_sync=true",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"refunds",
-										":id"
-									],
-									"query": [
-										{
-											"key": "force_sync",
-											"value": "true"
-										}
-									],
-									"variable": [
-										{
-											"key": "id",
-											"value": "{{refund_id}}",
-											"description": "(Required) unique refund id"
-										}
-									]
-								},
-								"description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Variation Cases",
-					"item": [
-						{
-							"name": "Scenario1- Create Payment with Invalid card",
-							"item": [
-								{
-									"name": "Payments - Create(Expired Card)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Expired Card\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Expired Card' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Expired Card\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"4000247422310226\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Create(Invalid CVV)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Invalid CVV\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Invalid CVV' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Invalid CVV\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333583123003909\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Create(Lost Card)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Lost/Stolen\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Lost/Stolen' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Lost/Stolen\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333452804487502\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "Scenario1- Payment Decline scenario",
-							"item": [
-								{
-									"name": "Payments - Create(Decline)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Decline\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Decline' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Decline\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"375521501910816\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Create(Do Not Honor)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Do Not Honor\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Do Not Honor' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Do Not Honor\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333463046218753\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Create(Insufficient Funds)",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.environment.set(\"random_number\", _.random(100, 100000));",
-													"",
-													"// Validate status 2xx",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"  pm.response.to.be.success;",
-													"});",
-													"",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
-													"    \"application/json\",",
-													"  );",
-													"});",
-													"",
-													"// Validate if response has JSON Body",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"  pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {",
-													"  jsonData = pm.response.json();",
-													"} catch (e) {}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"  console.log(",
-													"    \"- use {{payment_id}} as collection variable for value\",",
-													"    jsonData.payment_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"  console.log(",
-													"    \"- use {{mandate_id}} as collection variable for value\",",
-													"    jsonData.mandate_id,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"  console.log(",
-													"    \"- use {{client_secret}} as collection variable for value\",",
-													"    jsonData.client_secret,",
-													"  );",
-													"} else {",
-													"  console.log(",
-													"    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
-													"  );",
-													"}",
-													"",
-													"",
-													"// Response body should have \"error_message: Insufficient Funds\"",
-													"pm.test(\"[POST]::/payments - Content check if 'error_message : Insufficient Funds' exists\", function () {",
-													"  pm.expect(jsonData.error_message).to.eql(\"Insufficient Funds\");",
-													"});",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333475572200849\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								}
-							]
-						}
-					]
-				}
-			]
-		}
-	],
-	"auth": {
-		"type": "apikey",
-		"apikey": [
-			{
-				"key": "value",
-				"value": "{{api_key}}",
-				"type": "string"
-			},
-			{
-				"key": "key",
-				"value": "api-key",
-				"type": "string"
-			},
-			{
-				"key": "in",
-				"value": "header",
-				"type": "string"
-			}
-		]
-	},
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"exec": [
-					""
-				],
-				"type": "text/javascript"
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"exec": [
-					"// Set response object as internal variable",
-					"let jsonData = {};",
-					"try {",
-					"  jsonData = pm.response.json();",
-					"} catch (e) {}",
-					"",
-					"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-					"if (jsonData?.payment_id) {",
-					"  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-					"  console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
-					"}",
-					"",
-					"console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
-					""
-				],
-				"type": "text/javascript"
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "https://sandbox.hyperswitch.io",
-			"type": "string"
-		},
-		{
-			"key": "admin_api_key",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "api_key",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "merchant_id",
-			"value": ""
-		},
-		{
-			"key": "payment_id",
-			"value": ""
-		},
-		{
-			"key": "customer_id",
-			"value": ""
-		},
-		{
-			"key": "mandate_id",
-			"value": ""
-		},
-		{
-			"key": "payment_method_id",
-			"value": ""
-		},
-		{
-			"key": "refund_id",
-			"value": ""
-		},
-		{
-			"key": "merchant_connector_id",
-			"value": ""
-		},
-		{
-			"key": "client_secret",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "connector_api_key",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "publishable_key",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "api_key_id",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "payment_token",
-			"value": ""
-		},
-		{
-			"key": "gateway_merchant_id",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "certificate",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "certificate_keys",
-			"value": "",
-			"type": "string"
-		}
-	]
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Set response object as internal variable",
+          "let jsonData = {};",
+          "try {",
+          "  jsonData = pm.response.json();",
+          "} catch (e) {}",
+          "",
+          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+          "if (jsonData?.payment_id) {",
+          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+          "  console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+          "}",
+          "",
+          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "item": [
+        {
+          "name": "New Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/accounts - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-feature",
+                "value": "router-custom",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Flow Testcases",
+      "item": [
+        {
+          "name": "QuickStart",
+          "item": [
+            {
+              "name": "Merchant Account - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(\"[POST]::/accounts - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(\"[POST]::/accounts - Content-Type is application/json\", function () {",
+                      "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "    \"application/json\",",
+                      "  );",
+                      "});",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id",
+                      "if (jsonData?.merchant_id) {",
+                      "  pm.collectionVariables.set(\"merchant_id\", jsonData.merchant_id);",
+                      "  console.log(",
+                      "    \"- use {{merchant_id}} as collection variable for value\",",
+                      "    jsonData.merchant_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{merchant_id}}, as jsonData.merchant_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
+                      "if (jsonData?.api_key) {",
+                      "  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
+                      "  console.log(",
+                      "    \"- use {{api_key}} as collection variable for value\",",
+                      "    jsonData.api_key,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set publishable_key as variable for jsonData.publishable_key",
+                      "if (jsonData?.publishable_key) {",
+                      "  pm.collectionVariables.set(\"publishable_key\", jsonData.publishable_key);",
+                      "  console.log(",
+                      "    \"- use {{publishable_key}} as collection variable for value\",",
+                      "    jsonData.publishable_key,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{publishable_key}}, as jsonData.publishable_key is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    },
+                    {
+                      "key": "in",
+                      "value": "header",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\"merchant_id\":\"postman_merchant_GHAction_{{$guid}}\",\"locker_id\":\"m0010\",\"merchant_name\":\"NewAge Retailer\",\"primary_business_details\":[{\"country\":\"US\",\"business\":\"default\"}],\"merchant_details\":{\"primary_contact_person\":\"John Test\",\"primary_email\":\"JohnTest@test.com\",\"primary_phone\":\"sunt laborum\",\"secondary_contact_person\":\"John Test2\",\"secondary_email\":\"JohnTest2@test.com\",\"secondary_phone\":\"cillum do dolor id\",\"website\":\"www.example.com\",\"about_business\":\"Online Retail with a wide selection of organic products for North America\",\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"return_url\":\"https://duck.com\",\"webhook_details\":{\"webhook_version\":\"1.0.1\",\"webhook_username\":\"ekart_retail\",\"webhook_password\":\"password_ekart@123\",\"payment_created_enabled\":true,\"payment_succeeded_enabled\":true,\"payment_failed_enabled\":true},\"sub_merchants_enabled\":false,\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "accounts"
+                  ]
+                },
+                "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
+              },
+              "response": []
+            },
+            {
+              "name": "API Key - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(\"[POST]::/api_keys/:merchant_id - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(",
+                      "  \"[POST]::/api_keys/:merchant_id - Content-Type is application/json\",",
+                      "  function () {",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "      \"application/json\",",
+                      "    );",
+                      "  },",
+                      ");",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set api_key_id as variable for jsonData.key_id",
+                      "if (jsonData?.key_id) {",
+                      "  pm.collectionVariables.set(\"api_key_id\", jsonData.key_id);",
+                      "  console.log(",
+                      "    \"- use {{api_key_id}} as collection variable for value\",",
+                      "    jsonData.key_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{api_key_id}}, as jsonData.key_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set api_key as variable for jsonData.api_key",
+                      "if (jsonData?.api_key) {",
+                      "  pm.collectionVariables.set(\"api_key\", jsonData.api_key);",
+                      "  console.log(",
+                      "    \"- use {{api_key}} as collection variable for value\",",
+                      "    jsonData.api_key,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{api_key}}, as jsonData.api_key is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"name\":\"API Key 1\",\"description\":null,\"expiration\":\"2069-09-23T01:02:03.000Z\"}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api_keys/:merchant_id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api_keys",
+                    ":merchant_id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "merchant_id",
+                      "value": "{{merchant_id}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Payment Connector - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(",
+                      "  \"[POST]::/account/:account_id/connectors - Status code is 2xx\",",
+                      "  function () {",
+                      "    pm.response.to.be.success;",
+                      "  },",
+                      ");",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(",
+                      "  \"[POST]::/account/:account_id/connectors - Content-Type is application/json\",",
+                      "  function () {",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "      \"application/json\",",
+                      "    );",
+                      "  },",
+                      ");",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id",
+                      "if (jsonData?.merchant_connector_id) {",
+                      "  pm.collectionVariables.set(",
+                      "    \"merchant_connector_id\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "  console.log(",
+                      "    \"- use {{merchant_connector_id}} as collection variable for value\",",
+                      "    jsonData.merchant_connector_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "apikey",
+                  "apikey": [
+                    {
+                      "key": "value",
+                      "value": "{{admin_api_key}}",
+                      "type": "string"
+                    },
+                    {
+                      "key": "key",
+                      "value": "api-key",
+                      "type": "string"
+                    },
+                    {
+                      "key": "in",
+                      "value": "header",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"nuvei\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"key1\":\"{{connector_key1}}\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\"},\"test_mode\":true,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/account/:account_id/connectors",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "account",
+                    ":account_id",
+                    "connectors"
+                  ],
+                  "variable": [
+                    {
+                      "key": "account_id",
+                      "value": "{{merchant_id}}",
+                      "description": "(Required) The unique identifier for the merchant account"
+                    }
+                  ]
+                },
+                "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+              },
+              "response": []
+            },
+            {
+              "name": "Payments - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                      "",
+                      "// Set the environment variable 'amount' with the value from the response",
+                      "pm.environment.set(\"amount\", pm.response.json().amount);",
+                      "",
+                      "// Validate status 2xx",
+                      "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                      "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "    \"application/json\",",
+                      "  );",
+                      "});",
+                      "",
+                      "// Validate if response has JSON Body",
+                      "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                      "  pm.response.to.have.jsonBody();",
+                      "});",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                      "if (jsonData?.payment_id) {",
+                      "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                      "  console.log(",
+                      "    \"- use {{payment_id}} as collection variable for value\",",
+                      "    jsonData.payment_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                      "if (jsonData?.mandate_id) {",
+                      "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                      "  console.log(",
+                      "    \"- use {{mandate_id}} as collection variable for value\",",
+                      "    jsonData.mandate_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                      "  );",
+                      "}",
+                      "",
+                      "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                      "if (jsonData?.client_secret) {",
+                      "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                      "  console.log(",
+                      "    \"- use {{client_secret}} as collection variable for value\",",
+                      "    jsonData.client_secret,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "pm.environment.set(\"random_number\", _.random(1000, 100000));",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  },
+                  "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/payments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "payments"
+                  ]
+                },
+                "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+              },
+              "response": []
+            },
+            {
+              "name": "Payments - Retrieve",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(\"[GET]::/refunds/:id - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(\"[GET]::/refunds/:id - Content-Type is application/json\", function () {",
+                      "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "    \"application/json\",",
+                      "  );",
+                      "});",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
+                      "if (jsonData?.refund_id) {",
+                      "  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
+                      "  console.log(",
+                      "    \"- use {{refund_id}} as collection variable for value\",",
+                      "    jsonData.refund_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/payments/:id?force_sync=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "payments",
+                    ":id"
+                  ],
+                  "query": [
+                    {
+                      "key": "force_sync",
+                      "value": "true"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{payment_id}}",
+                      "description": "(Required) unique refund id"
+                    }
+                  ]
+                },
+                "description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+              },
+              "response": []
+            },
+            {
+              "name": "Refunds - Create",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Get the value of 'amount' from the environment",
+                      "const amount = pm.environment.get(\"amount\");",
+                      "",
+                      "// Validate status 2xx",
+                      "pm.test(\"[POST]::/refunds - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(\"[POST]::/refunds - Content-Type is application/json\", function () {",
+                      "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "    \"application/json\",",
+                      "  );",
+                      "});",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
+                      "if (jsonData?.refund_id) {",
+                      "  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
+                      "  console.log(",
+                      "    \"- use {{refund_id}} as collection variable for value\",",
+                      "    jsonData.refund_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": {{amount}},\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/refunds",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "refunds"
+                  ]
+                },
+                "description": "To create a refund against an already processed payment"
+              },
+              "response": []
+            },
+            {
+              "name": "Refunds - Retrieve",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Validate status 2xx",
+                      "pm.test(\"[GET]::/refunds/:id - Status code is 2xx\", function () {",
+                      "  pm.response.to.be.success;",
+                      "});",
+                      "",
+                      "// Validate if response header has matching content-type",
+                      "pm.test(\"[GET]::/refunds/:id - Content-Type is application/json\", function () {",
+                      "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                      "    \"application/json\",",
+                      "  );",
+                      "});",
+                      "",
+                      "// Set response object as internal variable",
+                      "let jsonData = {};",
+                      "try {",
+                      "  jsonData = pm.response.json();",
+                      "} catch (e) {}",
+                      "",
+                      "// pm.collectionVariables - Set refund_id as variable for jsonData.payment_id",
+                      "if (jsonData?.refund_id) {",
+                      "  pm.collectionVariables.set(\"refund_id\", jsonData.refund_id);",
+                      "  console.log(",
+                      "    \"- use {{refund_id}} as collection variable for value\",",
+                      "    jsonData.refund_id,",
+                      "  );",
+                      "} else {",
+                      "  console.log(",
+                      "    \"INFO - Unable to assign variable {{refund_id}}, as jsonData.refund_id is undefined.\",",
+                      "  );",
+                      "}",
+                      ""
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/refunds/:id?force_sync=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "refunds",
+                    ":id"
+                  ],
+                  "query": [
+                    {
+                      "key": "force_sync",
+                      "value": "true"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{refund_id}}",
+                      "description": "(Required) unique refund id"
+                    }
+                  ]
+                },
+                "description": "To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Variation Cases",
+          "item": [
+            {
+              "name": "Scenario1- Create Payment with Invalid card",
+              "item": [
+                {
+                  "name": "Payments - Create(Expired Card)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Expired Card\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Expired Card' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Expired Card\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"4000247422310226\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Payments - Create(Invalid CVV)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Invalid CVV\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Invalid CVV' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Invalid CVV\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333583123003909\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Payments - Create(Lost Card)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Lost/Stolen\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Lost/Stolen' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Lost/Stolen\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333452804487502\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Scenario1- Payment Decline scenario",
+              "item": [
+                {
+                  "name": "Payments - Create(Decline)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Decline\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Decline' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Decline\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"375521501910816\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Payments - Create(Do Not Honor)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Do Not Honor\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Do Not Honor' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Do Not Honor\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333463046218753\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Payments - Create(Insufficient Funds)",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.environment.set(\"random_number\", _.random(100, 100000));",
+                          "",
+                          "// Validate status 2xx",
+                          "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                          "  pm.response.to.be.success;",
+                          "});",
+                          "",
+                          "",
+                          "// Validate if response header has matching content-type",
+                          "pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
+                          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(",
+                          "    \"application/json\",",
+                          "  );",
+                          "});",
+                          "",
+                          "// Validate if response has JSON Body",
+                          "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                          "  pm.response.to.have.jsonBody();",
+                          "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) {}",
+                          "",
+                          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+                          "if (jsonData?.payment_id) {",
+                          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+                          "  console.log(",
+                          "    \"- use {{payment_id}} as collection variable for value\",",
+                          "    jsonData.payment_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
+                          "if (jsonData?.mandate_id) {",
+                          "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                          "  console.log(",
+                          "    \"- use {{mandate_id}} as collection variable for value\",",
+                          "    jsonData.mandate_id,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
+                          "if (jsonData?.client_secret) {",
+                          "  pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
+                          "  console.log(",
+                          "    \"- use {{client_secret}} as collection variable for value\",",
+                          "    jsonData.client_secret,",
+                          "  );",
+                          "} else {",
+                          "  console.log(",
+                          "    \"INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.\",",
+                          "  );",
+                          "}",
+                          "",
+                          "",
+                          "// Response body should have \"error_message: Insufficient Funds\"",
+                          "pm.test(\"[POST]::/payments - Content check if 'error_message : Insufficient Funds' exists\", function () {",
+                          "  pm.expect(jsonData.error_message).to.eql(\"Insufficient Funds\");",
+                          "});",
+                          "",
+                          "",
+                          "",
+                          ""
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\"amount\":100,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"connector\":[\"nuvei\"],\"customer_id\":\"futurebilling\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"testing\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"setup_future_usage\":\"off_session\",\"payment_method_data\":{\"card\":{\"card_number\":\"5333475572200849\",\"card_exp_month\":\"12\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":100,\"currency\":\"USD\",\"metadata\":{\"frequency\":\"1\"},\"end_date\":\"2025-05-03T04:07:52.723Z\"}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"jkjj Street\",\"line3\":\"no 1111 Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"JP\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/payments",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "payments"
+                      ]
+                    },
+                    "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+                  },
+                  "response": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "info": {
+    "_postman_id": "d329ee53-0de4-4154-b0b1-78708ec6e708",
+    "name": "nuvei",
+    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "19204656"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://sandbox.hyperswitch.io",
+      "type": "string"
+    },
+    {
+      "key": "admin_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "merchant_id",
+      "value": ""
+    },
+    {
+      "key": "payment_id",
+      "value": ""
+    },
+    {
+      "key": "customer_id",
+      "value": ""
+    },
+    {
+      "key": "mandate_id",
+      "value": ""
+    },
+    {
+      "key": "payment_method_id",
+      "value": ""
+    },
+    {
+      "key": "refund_id",
+      "value": ""
+    },
+    {
+      "key": "merchant_connector_id",
+      "value": ""
+    },
+    {
+      "key": "client_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "connector_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_token",
+      "value": ""
+    },
+    {
+      "key": "gateway_merchant_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "certificate",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "certificate_keys",
+      "value": "",
+      "type": "string"
+    }
+  ]
 }

@@ -99,7 +99,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     merchant_account,
                     self.request.payment_method_type,
                     key_store,
-                    is_mandate,
                 ))
                 .await?;
                 Ok(mandate::mandate_procedure(
@@ -131,7 +130,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
-                        is_mandate,
                     ))
                     .await;
 
@@ -293,6 +291,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 

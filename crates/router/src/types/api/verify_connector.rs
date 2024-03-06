@@ -50,6 +50,7 @@ impl VerifyConnectorData {
             related_transaction_id: None,
             statement_descriptor_suffix: None,
             request_incremental_authorization: false,
+            customer_acceptance: None,
         }
     }
 
