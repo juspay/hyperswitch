@@ -1579,7 +1579,7 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     let process_tracker_id = scheduler::utils::get_process_tracker_id(
         runner,
         task,
-        &event.primary_object_id,
+        &event.event_id,
         &business_profile.merchant_id,
     );
     let process_tracker_entry = storage::ProcessTrackerNew::new(
