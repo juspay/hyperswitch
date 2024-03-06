@@ -108,7 +108,7 @@ pub async fn create_payment_method(
         .attach_printable("Failed to add payment method in db")?;
 
     if customer.default_payment_method_id.is_none() {
-        set_default_payment_method(
+        let _ = set_default_payment_method(
             db,
             merchant_id.to_string(),
             key_store.clone(),
