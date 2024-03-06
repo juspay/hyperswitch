@@ -2820,6 +2820,12 @@ pub async fn list_customer_payment_method(
                 }
             }
 
+            enums::PaymentMethod::Wallet => (
+                None,
+                None,
+                PaymentTokenData::wallet_token(pm.payment_method_id.clone()),
+            ),
+
             _ => (
                 None,
                 None,
