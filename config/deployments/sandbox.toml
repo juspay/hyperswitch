@@ -125,6 +125,9 @@ bank_redirect.giropay.connector_list = "adyen,globalpay"
 card.credit ={connector_list ="cybersource"}
 card.debit = {connector_list ="cybersource"}
 
+[network_transactoin_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
+
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
 
