@@ -91,6 +91,7 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub network_transactoin_id_supported_connectors: NetworkTransactoinidSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -247,6 +248,12 @@ pub struct CorsSettings {
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTransactoinidSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
