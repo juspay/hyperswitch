@@ -14,15 +14,13 @@ use crate::{
         self,
         api::{self, MessageCategory},
         authentication::ChallengeParams,
-        storage::enums,
         transformers::ForeignTryFrom,
     },
     utils::OptionExt,
 };
 
-//TODO: Fill the struct with respective fields
 pub struct ThreedsecureioRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: String,
     pub router_data: T,
 }
 
@@ -43,9 +41,8 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
-            amount,
+            amount: amount.to_string(),
             router_data: item,
         })
     }
@@ -54,9 +51,8 @@ impl<T>
 impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(router_data: (i64, T)) -> Result<Self, Self::Error> {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
-            amount: router_data.0,
+            amount: router_data.0.to_string(),
             router_data: router_data.1,
         })
     }
@@ -155,8 +151,6 @@ impl
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct ThreedsecureioAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -170,152 +164,6 @@ impl TryFrom<&types::ConnectorAuthType> for ThreedsecureioAuthType {
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
-    }
-}
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum ThreedsecureioPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<ThreedsecureioPaymentStatus> for enums::AttemptStatus {
-    fn from(item: ThreedsecureioPaymentStatus) -> Self {
-        match item {
-            ThreedsecureioPaymentStatus::Succeeded => Self::Charged,
-            ThreedsecureioPaymentStatus::Failed => Self::Failure,
-            ThreedsecureioPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ThreedsecureioPaymentsResponse {
-    status: ThreedsecureioPaymentStatus,
-    id: String,
-}
-
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            ThreedsecureioPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            ThreedsecureioPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct ThreedsecureioRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&ThreedsecureioRouterData<&types::RefundsRouterData<F>>>
-    for ThreedsecureioRefundRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &ThreedsecureioRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
     }
 }
 
@@ -496,7 +344,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             merchant_name: connector_meta_data.merchant_name,
             message_type: "AReq".to_string(),
             message_version: authentication_data.message_version.clone(),
-            purchase_amount: item.amount.to_string(),
+            purchase_amount: item.amount.clone(),
             purchase_currency: purchase_currency.numeric().to_string(),
             trans_type: "01".to_string(),
             purchase_exponent: purchase_currency

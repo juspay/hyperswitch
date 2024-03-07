@@ -53,7 +53,6 @@ impl
         types::PaymentsResponseData,
     > for Threedsecureio
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Threedsecureio
