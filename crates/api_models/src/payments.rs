@@ -309,6 +309,8 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
+    #[serde(default)]
+    #[serde(with = "payment_method_data_serde")]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
@@ -1056,6 +1058,70 @@ pub enum BankDebitData {
     },
 }
 
+mod payment_method_data_serde {
+    use super::*;
+    use serde::ser::{SerializeStruct, Serializer};
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<PaymentMethodDataRequest>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(untagged)]
+        enum __Inner {
+            RewardString(String),
+            OptionalPaymentMethod(Box<PaymentMethodDataRequest>),
+        }
+
+        let deserialize_to_inner = Option::<__Inner>::deserialize(deserializer)?;
+        if let Some(inner_deserialized) = deserialize_to_inner {
+            match inner_deserialized {
+                __Inner::OptionalPaymentMethod(value) => Ok(Some(*value)),
+                __Inner::RewardString(inner_string) => {
+                    let payment_method_data = match inner_string.as_str() {
+                        "reward" => PaymentMethodData::Reward,
+                        _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                    };
+
+                    Ok(Some(PaymentMethodDataRequest {
+                        payment_method_data,
+                        billing: None,
+                    }))
+                }
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn serialize<S>(
+        payment_method_data_request: &Option<PaymentMethodDataRequest>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(payment_method_data_request) = payment_method_data_request {
+            match payment_method_data_request.payment_method_data {
+                PaymentMethodData::Reward => serializer.serialize_str("reward"),
+                _ => {
+                    let mut state = serializer.serialize_struct("PaymentMethodDataRequest", 2)?;
+                    state.serialize_field(
+                        "payment_method_data",
+                        &payment_method_data_request.payment_method_data,
+                    )?;
+                    state.serialize_field("billing", &payment_method_data_request.billing)?;
+                    state.end()
+                }
+            }
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
@@ -1121,7 +1187,7 @@ impl PaymentMethodData {
             | Self::BankTransfer(_)
             | Self::Crypto(_)
             | Self::MandatePayment
-            | Self::Reward
+            | Self::Reward {}
             | Self::Upi(_)
             | Self::Voucher(_)
             | Self::GiftCard(_)
