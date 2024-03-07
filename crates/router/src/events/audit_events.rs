@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use data_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
 
 use super::EventsHandler;
@@ -22,7 +21,8 @@ pub enum AuditEventType {
     PaymentUpdate {
         payment_id: String,
         merchant_id: String,
-        data: HashMap<String, String>,
+        payment_intent: PaymentIntent,
+        payment_attempt: PaymentAttempt,
     },
 }
 

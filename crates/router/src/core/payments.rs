@@ -12,7 +12,7 @@ pub mod transformers;
 pub mod types;
 
 use std::{
-    collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
+    fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
 };
 
 use api_models::{self, enums, payments::HeaderPayload};
@@ -2077,7 +2077,6 @@ where
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub frm_metadata: Option<serde_json::Value>,
-    pub changes: HashMap<String, String>,
 }
 
 impl<F> PaymentData<F>
@@ -2088,7 +2087,8 @@ where
         AuditEventType::PaymentUpdate {
             payment_id: self.payment_intent.payment_id.clone(),
             merchant_id: self.payment_intent.merchant_id.clone(),
-            data: self.changes.clone(),
+            payment_intent: self.payment_intent.clone(),
+            payment_attempt: self.payment_attempt.clone(),
         }
     }
 }
