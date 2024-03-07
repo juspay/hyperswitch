@@ -1186,6 +1186,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }
@@ -1481,6 +1482,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            customer_acceptance: payment_data.customer_acceptance,
             router_return_url,
             email: payment_data.email,
             customer_name,
