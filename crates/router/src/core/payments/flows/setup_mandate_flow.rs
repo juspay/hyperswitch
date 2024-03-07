@@ -224,7 +224,7 @@ impl types::SetupMandateRouterData {
                     types::SetupMandateRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let mut resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     self,
@@ -236,7 +236,7 @@ impl types::SetupMandateRouterData {
 
                 let payment_method_type = self.request.payment_method_type;
 
-                let pm_id = Box::pin(tokenization::save_payment_method(
+                let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -245,8 +245,10 @@ impl types::SetupMandateRouterData {
                     payment_method_type,
                     key_store,
                 ))
-                .await?
-                .0;
+                .await?;
+
+                resp.payment_method_id = pm_id.clone();
+                resp.payment_method_status = payment_method_status;
 
                 Ok(mandate::mandate_procedure(
                     state,
