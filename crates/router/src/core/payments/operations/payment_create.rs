@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::{FrmSuggestion, FutureUsage};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::{
@@ -284,7 +284,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         let mandate_details_present = payment_attempt.mandate_details.is_some();
 
         helpers::validate_mandate_data_and_future_usage(
-            payment_intent.setup_future_usage,
+            request.setup_future_usage,
             mandate_details_present,
         )?;
         // connector mandate reference update history
@@ -884,7 +884,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.or(Some(FutureUsage::OnSession)),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
