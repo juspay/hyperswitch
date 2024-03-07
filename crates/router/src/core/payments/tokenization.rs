@@ -43,6 +43,7 @@ pub async fn save_payment_method<F: Clone, FData>(
 where
     FData: mandate::MandateBehaviour,
 {
+    let mut pm_status = None;
     match resp.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -71,14 +72,12 @@ where
             } else {
                 None
             };
-            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
 
             let mandate_data_customer_acceptance = resp
                 .request
                 .get_setup_mandate_details()
                 .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
 
-            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
             let customer_acceptance = resp
                 .request
                 .get_customer_acceptance()
@@ -122,6 +121,7 @@ where
                     )
                     .await?
                 } else {
+                    pm_status = Some(common_enums::PaymentMethodStatus::from(resp.status));
                     Box::pin(save_in_locker(
                         state,
                         merchant_account,
@@ -403,7 +403,7 @@ where
             } else {
                 None
             };
-            Ok((pm_id, Some(pm_status)))
+            Ok((pm_id, pm_status))
         }
         Err(_) => Ok((None, None)),
     }
