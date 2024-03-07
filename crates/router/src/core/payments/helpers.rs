@@ -825,16 +825,6 @@ fn validate_new_mandate_request(
         .clone()
         .get_required_value("mandate_data")?;
 
-    if api_enums::FutureUsage::OnSession
-        == req
-            .setup_future_usage
-            .get_required_value("setup_future_usage")?
-    {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`setup_future_usage` must be `off_session` for mandates".into()
-        }))?
-    };
-
     // Only use this validation if the customer_acceptance is present
     if mandate_data
         .customer_acceptance
@@ -3466,9 +3456,16 @@ pub async fn get_additional_payment_data(
                 _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
             }
         }
-        api_models::payments::PaymentMethodData::Wallet(_) => {
-            api_models::payments::AdditionalPaymentData::Wallet {}
-        }
+        api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
+                api_models::payments::AdditionalPaymentData::Wallet(Some(
+                    api_models::payments::Wallets::ApplePay(
+                        apple_pay_wallet_data.payment_method.to_owned(),
+                    ),
+                ))
+            }
+            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+        },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
         }
@@ -3865,6 +3862,23 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     if !(consts::MIN_SESSION_EXPIRY..=consts::MAX_SESSION_EXPIRY).contains(&session_expiry) {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "session_expiry should be between 60(1 min) to 7890000(3 months).".to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+// This function validates the  mandate_data with its setup_future_usage
+pub fn validate_mandate_data_and_future_usage(
+    setup_future_usages: Option<api_enums::FutureUsage>,
+    mandate_details_present: bool,
+) -> Result<(), errors::ApiErrorResponse> {
+    if mandate_details_present
+        && (Some(api_enums::FutureUsage::OnSession) == setup_future_usages
+            || setup_future_usages.is_none())
+    {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`setup_future_usage` must be `off_session` for mandates".into(),
         })
     } else {
         Ok(())

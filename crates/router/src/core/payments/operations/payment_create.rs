@@ -281,6 +281,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+        let mandate_details_present = payment_attempt.mandate_details.is_some();
+
+        helpers::validate_mandate_data_and_future_usage(
+            request.setup_future_usage,
+            mandate_details_present,
+        )?;
         // connector mandate reference update history
         let mandate_id = request
             .mandate_id
@@ -355,6 +361,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(MandateData::from);
 
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -368,6 +376,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     .payment_method_data
                     .apply_additional_payment_data(additional_payment_data)
             });
+
         let amount = payment_attempt.get_total_amount().into();
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -379,6 +388,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id,
             mandate_connector,
             setup_mandate,
+            customer_acceptance,
             token,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
