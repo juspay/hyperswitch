@@ -58,10 +58,16 @@ jobs:
         with:
           make-default: true
 
+      - name: Get rust version from Cargo.toml
+        shell: bash
+        run: |
+          rust_version=$(yq -oy '.package.rust-version' Cargo.toml)
+          echo "rust_version=${rust_version}" >> $GITHUB_ENV
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.70"
+          toolchain: "${{ env.rust_version }}"
 
       - uses: Swatinem/rust-cache@v2.7.0
         with:
