@@ -114,7 +114,7 @@ jobs:
       - name: Get rust version from Cargo.toml
         shell: bash
         run: |
-          rust_version=$(yq -oy '.package.rust-version' Cargo.toml)
+          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
           echo "rust_version=${rust_version}" >> $GITHUB_ENV
 
       - name: Install Rust
