@@ -13,13 +13,156 @@ use crate::{
     routes::AppState,
     services::{self, execute_connector_processing_step},
     types::{
-        api,
+        self as router_types,
+        api::{self, ConnectorCallType},
         authentication::{AuthNFlowType, AuthenticationResponseData},
         storage,
         transformers::ForeignFrom,
         RouterData,
     },
 };
+pub fn is_separate_authn_supported_connector(connector: router_types::Connector) -> bool {
+    #[cfg(feature = "dummy_connector")]
+    match connector {
+        api_models::enums::Connector::DummyConnector1
+        | api_models::enums::Connector::DummyConnector2
+        | api_models::enums::Connector::DummyConnector3
+        | api_models::enums::Connector::DummyConnector4
+        | api_models::enums::Connector::DummyConnector5
+        | api_models::enums::Connector::DummyConnector6
+        | api_models::enums::Connector::DummyConnector7
+        | api_models::enums::Connector::Aci
+        | api_models::enums::Connector::Adyen
+        | api_models::enums::Connector::Airwallex
+        | api_models::enums::Connector::Authorizedotnet
+        | api_models::enums::Connector::Bambora
+        | api_models::enums::Connector::Bankofamerica
+        | api_models::enums::Connector::Bitpay
+        | api_models::enums::Connector::Bluesnap
+        | api_models::enums::Connector::Boku
+        | api_models::enums::Connector::Braintree
+        | api_models::enums::Connector::Cashtocode
+        | api_models::enums::Connector::Coinbase
+        | api_models::enums::Connector::Cryptopay
+        | api_models::enums::Connector::Dlocal
+        | api_models::enums::Connector::Fiserv
+        | api_models::enums::Connector::Forte
+        | api_models::enums::Connector::Globalpay
+        | api_models::enums::Connector::Globepay
+        | api_models::enums::Connector::Gocardless
+        | api_models::enums::Connector::Helcim
+        | api_models::enums::Connector::Iatapay
+        | api_models::enums::Connector::Klarna
+        | api_models::enums::Connector::Mollie
+        | api_models::enums::Connector::Multisafepay
+        | api_models::enums::Connector::Nexinets
+        | api_models::enums::Connector::Nmi
+        | api_models::enums::Connector::Nuvei
+        | api_models::enums::Connector::Opennode
+        | api_models::enums::Connector::Payme
+        | api_models::enums::Connector::Paypal
+        | api_models::enums::Connector::Payu
+        | api_models::enums::Connector::Placetopay
+        | api_models::enums::Connector::Powertranz
+        | api_models::enums::Connector::Prophetpay
+        | api_models::enums::Connector::Rapyd
+        | api_models::enums::Connector::Shift4
+        | api_models::enums::Connector::Square
+        | api_models::enums::Connector::Stax
+        | api_models::enums::Connector::Trustpay
+        | api_models::enums::Connector::Tsys
+        | api_models::enums::Connector::Volt
+        | api_models::enums::Connector::Wise
+        | api_models::enums::Connector::Worldline
+        | api_models::enums::Connector::Worldpay
+        | api_models::enums::Connector::Zen
+        | api_models::enums::Connector::Signifyd
+        | api_models::enums::Connector::Plaid
+        | api_models::enums::Connector::Riskified
+        | api_models::enums::Connector::Cybersource
+        | api_models::enums::Connector::Noon
+        | api_models::enums::Connector::Stripe => false,
+        api_models::enums::Connector::Checkout => true,
+    }
+    #[cfg(not(feature = "dummy_connector"))]
+    match connector {
+        api_models::enums::Connector::Aci
+        | api_models::enums::Connector::Adyen
+        | api_models::enums::Connector::Airwallex
+        | api_models::enums::Connector::Authorizedotnet
+        | api_models::enums::Connector::Bambora
+        | api_models::enums::Connector::Bankofamerica
+        | api_models::enums::Connector::Bitpay
+        | api_models::enums::Connector::Bluesnap
+        | api_models::enums::Connector::Boku
+        | api_models::enums::Connector::Braintree
+        | api_models::enums::Connector::Cashtocode
+        | api_models::enums::Connector::Coinbase
+        | api_models::enums::Connector::Cryptopay
+        | api_models::enums::Connector::Dlocal
+        | api_models::enums::Connector::Fiserv
+        | api_models::enums::Connector::Forte
+        | api_models::enums::Connector::Globalpay
+        | api_models::enums::Connector::Globepay
+        | api_models::enums::Connector::Gocardless
+        | api_models::enums::Connector::Helcim
+        | api_models::enums::Connector::Iatapay
+        | api_models::enums::Connector::Klarna
+        | api_models::enums::Connector::Mollie
+        | api_models::enums::Connector::Multisafepay
+        | api_models::enums::Connector::Nexinets
+        | api_models::enums::Connector::Nmi
+        | api_models::enums::Connector::Nuvei
+        | api_models::enums::Connector::Opennode
+        | api_models::enums::Connector::Payme
+        | api_models::enums::Connector::Paypal
+        | api_models::enums::Connector::Payu
+        | api_models::enums::Connector::Placetopay
+        | api_models::enums::Connector::Powertranz
+        | api_models::enums::Connector::Prophetpay
+        | api_models::enums::Connector::Rapyd
+        | api_models::enums::Connector::Shift4
+        | api_models::enums::Connector::Square
+        | api_models::enums::Connector::Stax
+        | api_models::enums::Connector::Trustpay
+        | api_models::enums::Connector::Tsys
+        | api_models::enums::Connector::Volt
+        | api_models::enums::Connector::Wise
+        | api_models::enums::Connector::Worldline
+        | api_models::enums::Connector::Worldpay
+        | api_models::enums::Connector::Zen
+        | api_models::enums::Connector::Signifyd
+        | api_models::enums::Connector::Plaid
+        | api_models::enums::Connector::Riskified
+        | api_models::enums::Connector::Threedsecureio
+        | api_models::enums::Connector::Cybersource
+        | api_models::enums::Connector::Noon
+        | api_models::enums::Connector::Stripe => false,
+        api_models::enums::Connector::Checkout => true,
+    }
+}
+
+pub fn get_connector_name_if_separate_authn_supported(
+    connector_call_type: &ConnectorCallType,
+) -> Option<String> {
+    match connector_call_type {
+        ConnectorCallType::PreDetermined(connector_data) => {
+            if is_separate_authn_supported_connector(connector_data.connector_name) {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
+        }
+        ConnectorCallType::Retryable(connectors) => connectors.first().and_then(|connector_data| {
+            if is_separate_authn_supported_connector(connector_data.connector_name) {
+                Some(connector_data.connector_name.to_string())
+            } else {
+                None
+            }
+        }),
+        ConnectorCallType::SessionMultiple(_) => None,
+    }
+}
 
 pub async fn update_trackers<F: Clone, Req>(
     state: &AppState,

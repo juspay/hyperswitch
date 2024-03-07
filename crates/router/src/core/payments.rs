@@ -163,14 +163,17 @@ where
     .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
-
-    payment_data = tokenize_in_router_when_confirm_false(
+    let is_external_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication;
+    payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
         state,
         &operation,
         &mut payment_data,
         &validate_result,
         &key_store,
         &customer,
+        is_external_authentication_requested,
     )
     .await?;
 
@@ -211,6 +214,18 @@ where
             should_continue_transaction,
             should_continue_capture,
         );
+
+        operation
+            .to_domain()?
+            .call_external_three_ds_authentication_if_eligible(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+            )
+            .await?;
 
         if should_continue_transaction {
             #[cfg(feature = "frm")]
@@ -1006,6 +1021,70 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSyn
 
     fn get_payment_action(&self) -> services::PaymentAction {
         services::PaymentAction::PSync
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PaymentAuthenticateCompleteAuthorize;
+
+#[async_trait::async_trait]
+impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticateCompleteAuthorize {
+    async fn call_payment_flow(
+        &self,
+        state: &AppState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        req: PaymentsRedirectResponseData,
+        connector_action: CallConnectorAction,
+    ) -> RouterResponse<api::PaymentsResponse> {
+        let payment_confirm_req = api::PaymentsRequest {
+            payment_id: Some(req.resource_id.clone()),
+            merchant_id: req.merchant_id.clone(),
+            feature_metadata: Some(api_models::payments::FeatureMetadata {
+                redirect_response: Some(api_models::payments::RedirectResponse {
+                    param: req.param.map(Secret::new),
+                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                }),
+            }),
+            ..Default::default()
+        };
+        Box::pin(payments_core::<
+            api::Authorize,
+            api::PaymentsResponse,
+            _,
+            _,
+            _,
+            Ctx,
+        >(
+            state.clone(),
+            merchant_account,
+            merchant_key_store,
+            PaymentConfirm,
+            payment_confirm_req,
+            services::api::AuthFlow::Merchant,
+            connector_action,
+            None,
+            HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+        ))
+        .await
+    }
+    fn generate_response(
+        &self,
+        payments_response: api_models::payments::PaymentsResponse,
+        business_profile: diesel_models::business_profile::BusinessProfile,
+        payment_id: String,
+        connector: String,
+    ) -> RouterResult<api::RedirectionResponse> {
+        helpers::get_handle_response_url(
+            payment_id,
+            &business_profile,
+            payments_response,
+            connector,
+        )
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::CompleteAuthorize
     }
 }
 
@@ -1980,35 +2059,37 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
-pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
+pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F, Req, Ctx>(
     state: &AppState,
     operation: &BoxedOperation<'_, F, Req, Ctx>,
     payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    is_external_authentication_requested: Option<bool>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
-    let payment_data = if !is_operation_confirm(operation) {
-        let (_operation, payment_method_data) = operation
-            .to_domain()?
-            .make_pm_data(
-                state,
-                payment_data,
-                validate_result.storage_scheme,
-                merchant_key_store,
-                customer,
-            )
-            .await?;
-        payment_data.payment_method_data = payment_method_data;
-        payment_data
-    } else {
-        payment_data
-    };
+    let payment_data =
+        if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
+            let (_operation, payment_method_data) = operation
+                .to_domain()?
+                .make_pm_data(
+                    state,
+                    payment_data,
+                    validate_result.storage_scheme,
+                    merchant_key_store,
+                    customer,
+                )
+                .await?;
+            payment_data.payment_method_data = payment_method_data;
+            payment_data
+        } else {
+            payment_data
+        };
     Ok(payment_data.to_owned())
 }
 

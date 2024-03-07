@@ -35,7 +35,9 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        self, api, domain,
+        self,
+        api::{self, ConnectorCallType},
+        domain,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -162,6 +164,18 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
         _state: &AppState,
         _payment_data: &mut PaymentData<F>,
         _merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    async fn call_external_three_ds_authentication_if_eligible<'a>(
+        &'a self,
+        _state: &AppState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _merchant_account: &storage::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
