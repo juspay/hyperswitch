@@ -1060,10 +1060,31 @@ pub enum BankDebitData {
 
 /// Custom serializer and deserializer for PaymentMethodData
 mod payment_method_data_serde {
-    use serde::ser::{SerializeStruct, Serializer};
 
     use super::*;
 
+    /// Deserialize `reward` payment_method as string for backwards compatibility
+    /// The api contract would be
+    /// ```json
+    /// {
+    ///   "payment_method": "reward",
+    ///   "payment_method_type": "evoucher",
+    ///   "payment_method_data": "reward",
+    /// }
+    /// ```
+    ///
+    /// For other payment methods, use the provided deserializer
+    /// ```json
+    /// "payment_method_data": {
+    ///   "card": {
+    ///     "card_number": "4242424242424242",
+    ///     "card_exp_month": "10",
+    ///     "card_exp_year": "25",
+    ///     "card_holder_name": "joseph Doe",
+    ///     "card_cvc": "123"
+    ///    }
+    /// }
+    /// ```
     pub fn deserialize<'de, D>(
         deserializer: D,
     ) -> Result<Option<PaymentMethodDataRequest>, D::Error>
