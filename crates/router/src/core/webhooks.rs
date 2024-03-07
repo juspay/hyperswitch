@@ -659,8 +659,21 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    let merchant_id = business_profile.merchant_id.clone();
     let event_id = format!("{primary_object_id}_{event_type}");
+
+    if !state.conf.webhooks.outgoing_enabled
+        || get_webhook_url_from_business_profile(&business_profile).is_err()
+    {
+        logger::debug!(
+            business_profile_id=%business_profile.profile_id,
+            %event_id,
+            "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
+             could not be obtained; skipping outgoing webhooks for event"
+        );
+        return Ok(());
+    }
+
+    let merchant_id = business_profile.merchant_id.clone();
     let new_event = storage::EventNew {
         event_id: event_id.clone(),
         event_type,
@@ -688,50 +701,48 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         }
     }?;
 
-    if state.conf.webhooks.outgoing_enabled {
-        let outgoing_webhook = api::OutgoingWebhook {
-            merchant_id: merchant_id.clone(),
-            event_id: event.event_id.clone(),
-            event_type: event.event_type,
-            content: content.clone(),
-            timestamp: event.created_at,
-        };
+    let outgoing_webhook = api::OutgoingWebhook {
+        merchant_id: merchant_id.clone(),
+        event_id: event.event_id.clone(),
+        event_type: event.event_type,
+        content: content.clone(),
+        timestamp: event.created_at,
+    };
 
-        let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
-            &*state.store,
-            &business_profile,
-            &event,
-        )
-        .await
-        .map_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to add outgoing webhook retry task to process tracker"
-            );
-            error
-        })
-        .ok();
-
-        // Using a tokio spawn here and not arbiter because not all caller of this function
-        // may have an actix arbiter
-        tokio::spawn(
-            async move {
-                trigger_appropriate_webhook_and_raise_event(
-                    state,
-                    merchant_account,
-                    business_profile,
-                    outgoing_webhook,
-                    types::WebhookDeliveryAttempt::InitialAttempt,
-                    content,
-                    event.event_id,
-                    event_type,
-                    process_tracker,
-                )
-                .await;
-            }
-            .in_current_span(),
+    let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
+        &*state.store,
+        &business_profile,
+        &event,
+    )
+    .await
+    .map_err(|error| {
+        logger::error!(
+            ?error,
+            "Failed to add outgoing webhook retry task to process tracker"
         );
-    }
+        error
+    })
+    .ok();
+
+    // Using a tokio spawn here and not arbiter because not all caller of this function
+    // may have an actix arbiter
+    tokio::spawn(
+        async move {
+            trigger_appropriate_webhook_and_raise_event(
+                state,
+                merchant_account,
+                business_profile,
+                outgoing_webhook,
+                types::WebhookDeliveryAttempt::InitialAttempt,
+                content,
+                event.event_id,
+                event_type,
+                process_tracker,
+            )
+            .await;
+        }
+        .in_current_span(),
+    );
 
     Ok(())
 }
@@ -817,24 +828,10 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     delivery_attempt: types::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let get_webhook_url = |business_profile: &diesel_models::business_profile::BusinessProfile| {
-        let webhook_details_json = business_profile
-            .webhook_details
-            .clone()
-            .get_required_value("webhook_details")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-        let webhook_details: api::WebhookDetails = webhook_details_json
-            .parse_value("WebhookDetails")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-        webhook_details
-            .webhook_url
-            .get_required_value("webhook_url")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
-            .map(ExposeInterface::expose)
-    };
-    let webhook_url = match (get_webhook_url(&business_profile), process_tracker.clone()) {
+    let webhook_url = match (
+        get_webhook_url_from_business_profile(&business_profile),
+        process_tracker.clone(),
+    ) {
         (Ok(webhook_url), _) => Ok(webhook_url),
         (Err(error), Some(process_tracker)) => {
             if !error
@@ -1633,4 +1630,25 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
             Err(error)
         }
     }
+}
+
+fn get_webhook_url_from_business_profile(
+    business_profile: &diesel_models::business_profile::BusinessProfile,
+) -> CustomResult<String, errors::WebhooksFlowError> {
+    let webhook_details_json = business_profile
+        .webhook_details
+        .clone()
+        .get_required_value("webhook_details")
+        .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+
+    let webhook_details: api::WebhookDetails =
+        webhook_details_json
+            .parse_value("WebhookDetails")
+            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
+
+    webhook_details
+        .webhook_url
+        .get_required_value("webhook_url")
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
+        .map(ExposeInterface::expose)
 }
