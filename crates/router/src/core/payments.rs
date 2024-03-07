@@ -1066,10 +1066,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentAuthenticat
             services::api::AuthFlow::Merchant,
             connector_action,
             None,
-            HeaderPayload {
-                payment_confirm_source: Some(enums::PaymentSource::ExternalAuthenticator),
-                x_hs_latency: None,
-            },
+            HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
         ))
         .await
     }
