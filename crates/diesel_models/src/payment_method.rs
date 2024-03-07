@@ -70,7 +70,7 @@ pub struct PaymentMethodNew {
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
-    pub network_transaction_id: Option<String>
+    pub network_transaction_id: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
