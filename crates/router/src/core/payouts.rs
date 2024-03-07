@@ -1245,7 +1245,13 @@ pub async fn fulfill_payout(
 
     match router_data_resp.response {
         Ok(payout_response_data) => {
-            if payout_data.payouts.recurring && payout_data.payouts.payout_method_id.is_none() {
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_attempt.status.to_owned());
+            if payout_data.payouts.recurring
+                && payout_data.payouts.payout_method_id.is_none()
+                && !helpers::is_payout_err_state(status)
+            {
                 helpers::save_payout_data_to_locker(
                     state,
                     payout_attempt,
@@ -1258,9 +1264,6 @@ pub async fn fulfill_payout(
                 )
                 .await?;
             }
-            let status = payout_response_data
-                .status
-                .unwrap_or(payout_attempt.status.to_owned());
             let updated_payouts = storage::payout_attempt::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_attempt.connector_payout_id.to_owned(),
                 status,
