@@ -336,8 +336,10 @@ pub enum Flow {
     DeleteSampleData,
     /// List merchant accounts for user
     UserMerchantAccountList,
-    /// Get users for merchant account
+    /// Get details of a user in a merchant account
     GetUserDetails,
+    /// List users for merchant account
+    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
