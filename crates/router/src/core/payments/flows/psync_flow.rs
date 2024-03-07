@@ -87,7 +87,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut resp = services::execute_connector_processing_step(
+                let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     &self,
@@ -96,10 +96,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 )
                 .await
                 .to_payment_failed_response()?;
-                if self.status != resp.status {
-                    resp.payment_method_status =
-                        Some(common_enums::PaymentMethodStatus::from(resp.status));
-                }
                 Ok(resp)
             }
         }

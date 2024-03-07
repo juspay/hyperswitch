@@ -39,6 +39,7 @@ pub async fn save_payment_method<F: Clone, FData>(
 where
     FData: mandate::MandateBehaviour,
 {
+    let mut pm_status = None;
     match resp.response {
         Ok(_) => {
             let db = &*state.store;
@@ -76,7 +77,6 @@ where
                 })
                 .unwrap_or(false);
 
-            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
 
             let pm_id = if future_usage_validation {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
@@ -96,6 +96,7 @@ where
                     )
                     .await?
                 } else {
+                    pm_status = Some(common_enums::PaymentMethodStatus::from(resp.status));
                     Box::pin(save_in_locker(
                         state,
                         merchant_account,
@@ -370,7 +371,7 @@ where
             } else {
                 None
             };
-            Ok((pm_id, Some(pm_status)))
+            Ok((pm_id, pm_status))
         }
         Err(_) => Ok((None, None)),
     }

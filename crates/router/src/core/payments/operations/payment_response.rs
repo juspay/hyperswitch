@@ -441,6 +441,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
+    payment_data.payment_method_status = router_data.payment_method_status;
     let (capture_update, mut payment_attempt_update) = match router_data.response.clone() {
         Err(err) => {
             let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
@@ -816,6 +817,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         },
     };
 
+    update_payment_method_status(state, payment_data.clone(), router_data.status.clone()).await?;
     let m_db = state.clone().store;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
@@ -867,8 +869,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
-    payment_data.payment_method_status = router_data.payment_method_status;
     Ok(payment_data)
+}
+
+async fn update_payment_method_status<F: Clone>(
+    state: &AppState,
+    mut payment_data: PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+) -> RouterResult<()> {
+    if let Some(id) = payment_data.payment_attempt.payment_method_id {
+        let pm = state
+            .store
+            .find_payment_method(&id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if pm.status != attempt_status.into() {
+            let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
+
+            payment_data.payment_method_status = Some(updated_pm_status.clone());
+            let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+                status: Some(updated_pm_status),
+            };
+            state
+                .store
+                .update_payment_method(pm, pm_update)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+        }
+    };
+    Ok(())
 }
 
 fn response_to_capture_update(
