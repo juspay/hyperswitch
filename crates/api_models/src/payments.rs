@@ -1059,8 +1059,9 @@ pub enum BankDebitData {
 }
 
 mod payment_method_data_serde {
-    use super::*;
     use serde::ser::{SerializeStruct, Serializer};
+
+    use super::*;
 
     pub fn deserialize<'de, D>(
         deserializer: D,
