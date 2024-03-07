@@ -199,7 +199,7 @@ impl PaymentMethodRetrieve for Oss {
                             .to_string(),
                     ),
                 }
-            },
+            }
 
             storage::PaymentTokenData::AuthBankDebit(auth_token) => {
                 storage::PaymentMethodDataWithId {
@@ -213,13 +213,11 @@ impl PaymentMethodRetrieve for Oss {
                     .await?,
                     payment_method_id: None,
                 }
-            },
+            }
 
-            storage::PaymentTokenData::WalletToken(_) => {
-                storage::PaymentMethodDataWithId {
-                    payment_method_data: None,
-                    payment_method_id: None,
-                }
+            storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
+                payment_method_data: None,
+                payment_method_id: None,
             },
         })
     }
