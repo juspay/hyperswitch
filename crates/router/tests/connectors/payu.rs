@@ -94,8 +94,9 @@ async fn should_authorize_gpay_payment() {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
                         info: api_models::payments::GooglePayPaymentMethodInfo {
-                            card_network: "VISA".to_string(),
-                            card_details: "1234".to_string(),
+                            card_network:"VISA".to_string(),
+                            card_details:"1234".to_string(),
+                            assurance_details: None,
                         },
                         tokenization_data: api_models::payments::GpayTokenizationData {
                             token_type: "payu".to_string(),
