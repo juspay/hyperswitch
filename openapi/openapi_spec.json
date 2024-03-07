@@ -12724,6 +12724,14 @@
             ],
             "nullable": true
           },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
+          },
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
@@ -13077,6 +13085,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -13558,6 +13574,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -14568,6 +14592,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true

@@ -200,7 +200,8 @@ impl AppState {
             };
 
             #[cfg(feature = "olap")]
-            let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
+            let pool =
+                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
