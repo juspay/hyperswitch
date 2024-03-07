@@ -384,18 +384,16 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             )),
         }?;
 
-        let authentication_data = item.router_data.request.authentication_data.clone();
+        let authentication_data = item.router_data.request.authentication_data.as_ref();
 
         let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
-                eci: authentication_data.clone().and_then(|auth| auth.eci),
-                cryptogram: authentication_data.clone().and_then(|auth| auth.cavv),
-                xid: authentication_data
-                    .clone()
-                    .map(|auth| auth.threeds_server_transaction_id),
-                version: authentication_data.clone().map(|auth| auth.message_version),
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.map(|auth| auth.message_version.clone()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
