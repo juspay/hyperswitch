@@ -9,7 +9,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{
+    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
+    ResponseError,
+};
 use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_enums::Currency;
@@ -1126,7 +1129,7 @@ where
 
     let incoming_request_header = request.headers();
 
-    let incoming_header_to_log: HashMap<String, http::header::HeaderValue> =
+    let incoming_header_to_log: HashMap<String, HeaderValue> =
         incoming_request_header
             .iter()
             .fold(HashMap::new(), |mut acc, (key, value)| {
@@ -1336,21 +1339,33 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
 ) -> HttpResponse {
-    headers
-        .into_iter()
-        .fold(HttpResponse::Ok(), |mut response_builder, (name, value)| {
-            let mut value = value.into_inner();
-            if name == X_HS_LATENCY {
-                if let Some(request_duration) = request_duration {
-                    if let Ok(external_latency) = value.parse::<u128>() {
-                        let updated_duration = request_duration.as_millis() - external_latency;
-                        value = updated_duration.to_string();
-                    }
+    let mut response_builder = HttpResponse::Ok();
+    for (header_name, header_value) in headers {
+        let is_sensitive_header = header_value.is_masked();
+        let mut header_value = header_value.into_inner();
+        if header_name == X_HS_LATENCY {
+            if let Some(request_duration) = request_duration {
+                if let Ok(external_latency) = header_value.parse::<u128>() {
+                    let updated_duration = request_duration.as_millis() - external_latency;
+                    header_value = updated_duration.to_string();
                 }
             }
-            response_builder.append_header((name, value));
-            response_builder
-        })
+        }
+        let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
+            Ok(header_value) => header_value,
+            Err(e) => {
+                logger::error!(?e);
+                return http_server_error_json_response("Something Went Wrong");
+            }
+        };
+
+        if is_sensitive_header {
+            header_value.set_sensitive(true);
+        }
+        response_builder.append_header((header_name, header_value));
+    }
+
+    response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
