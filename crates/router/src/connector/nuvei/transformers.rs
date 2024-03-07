@@ -880,7 +880,7 @@ impl<F>
             device_details: request_data.device_details,
             url_details: Some(UrlDetails {
                 success_url: return_url.clone(),
-                failure_url: format!("{}/{}", return_url.clone(), "failed"),
+                failure_url: return_url.clone(),
                 pending_url: return_url,
             }),
             ..request
