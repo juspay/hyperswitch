@@ -91,21 +91,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
             if is_mandate {
-                let (payment_method_id, payment_method_status) =
-                    Box::pin(tokenization::save_payment_method(
-                        state,
-                        connector,
-                        resp.to_owned(),
-                        maybe_customer,
-                        merchant_account,
-                        self.request.payment_method_type,
-                        key_store,
-                        is_mandate,
-                    ))
-                    .await?;
-
                 resp.payment_method_id = payment_method_id.clone();
                 resp.payment_method_status = payment_method_status;
+
+                let (payment_method_id, payment_method_status) = = Box::pin(tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                    self.request.payment_method_type,
+                    key_store,
+                ))
+                .await?;
 
                 Ok(mandate::mandate_procedure(
                     state,
@@ -134,7 +132,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &merchant_account,
                         self.request.payment_method_type,
                         &key_store,
-                        is_mandate,
                     ))
                     .await?;
 
@@ -294,6 +291,9 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
+        self.customer_acceptance.clone().map(From::from)
     }
 }
 

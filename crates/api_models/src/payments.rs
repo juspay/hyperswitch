@@ -348,8 +348,11 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest)]
     pub client_secret: Option<String>,
 
-    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server usually and the customer_acceptance sub object is usually passed by the SDK or client
+    /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
     pub mandate_data: Option<MandateData>,
+
+    /// Passing this object during payments confirm . The customer_acceptance sub object is usually passed by the SDK or client
+    pub customer_acceptance: Option<CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
@@ -1358,12 +1361,18 @@ pub struct AdditionalCardInfo {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum Wallets {
+    ApplePay(ApplepayPaymentMethod),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
-    Wallet {},
+    Wallet(Option<Wallets>),
     PayLater {},
     BankTransfer {},
     Crypto {},
@@ -1936,7 +1945,7 @@ pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
     BankTransfer {},
-    Wallet {},
+    Wallet(Option<Wallets>),
     PayLater {},
     Paypal {},
     BankRedirect {},
@@ -2872,7 +2881,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
             AdditionalPaymentData::PayLater {} => Self::PayLater {},
-            AdditionalPaymentData::Wallet {} => Self::Wallet {},
+            AdditionalPaymentData::Wallet(wallet) => Self::Wallet(wallet),
             AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
             AdditionalPaymentData::Crypto {} => Self::Crypto {},
             AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
