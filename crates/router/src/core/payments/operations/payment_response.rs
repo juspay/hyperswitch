@@ -817,7 +817,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         },
     };
 
-    update_payment_method_status(state, payment_data.clone(), router_data.status.clone()).await?;
+    update_payment_method_status(state, payment_data.clone(), router_data.status).await?;
     let m_db = state.clone().store;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
@@ -887,7 +887,7 @@ async fn update_payment_method_status<F: Clone>(
         if pm.status != attempt_status.into() {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
 
-            payment_data.payment_method_status = Some(updated_pm_status.clone());
+            payment_data.payment_method_status = Some(updated_pm_status);
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(updated_pm_status),
             };

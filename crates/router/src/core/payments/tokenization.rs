@@ -72,14 +72,12 @@ where
             } else {
                 None
             };
-            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
 
             let mandate_data_customer_acceptance = resp
                 .request
                 .get_setup_mandate_details()
                 .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
 
-            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
             let customer_acceptance = resp
                 .request
                 .get_customer_acceptance()
