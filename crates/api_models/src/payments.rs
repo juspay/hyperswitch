@@ -10,7 +10,8 @@ use masking::Secret;
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
+    ser::Serializer,
+    Deserialize, Deserializer, Serialize,
 };
 use time::PrimitiveDateTime;
 use url::Url;
@@ -309,8 +310,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
-    #[serde(default)]
-    #[serde(with = "payment_method_data_serde")]
+    #[serde(with = "payment_method_data_serde", default)]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
@@ -1058,6 +1058,7 @@ pub enum BankDebitData {
     },
 }
 
+/// Custom serializer and deserializer for PaymentMethodData
 mod payment_method_data_serde {
     use serde::ser::{SerializeStruct, Serializer};
 
@@ -1076,24 +1077,20 @@ mod payment_method_data_serde {
             OptionalPaymentMethod(Box<PaymentMethodDataRequest>),
         }
 
-        let deserialize_to_inner = Option::<__Inner>::deserialize(deserializer)?;
-        if let Some(inner_deserialized) = deserialize_to_inner {
-            match inner_deserialized {
-                __Inner::OptionalPaymentMethod(value) => Ok(Some(*value)),
-                __Inner::RewardString(inner_string) => {
-                    let payment_method_data = match inner_string.as_str() {
-                        "reward" => PaymentMethodData::Reward,
-                        _ => Err(serde::de::Error::custom("Invalid Variant"))?,
-                    };
+        let deserialize_to_inner = __Inner::deserialize(deserializer)?;
+        match deserialize_to_inner {
+            __Inner::OptionalPaymentMethod(value) => Ok(Some(*value)),
+            __Inner::RewardString(inner_string) => {
+                let payment_method_data = match inner_string.as_str() {
+                    "reward" => PaymentMethodData::Reward,
+                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                };
 
-                    Ok(Some(PaymentMethodDataRequest {
-                        payment_method_data,
-                        billing: None,
-                    }))
-                }
+                Ok(Some(PaymentMethodDataRequest {
+                    payment_method_data,
+                    billing: None,
+                }))
             }
-        } else {
-            Ok(None)
         }
     }
 
@@ -1107,15 +1104,19 @@ mod payment_method_data_serde {
         if let Some(payment_method_data_request) = payment_method_data_request {
             match payment_method_data_request.payment_method_data {
                 PaymentMethodData::Reward => serializer.serialize_str("reward"),
-                _ => {
-                    let mut state = serializer.serialize_struct("PaymentMethodDataRequest", 2)?;
-                    state.serialize_field(
-                        "payment_method_data",
-                        &payment_method_data_request.payment_method_data,
-                    )?;
-                    state.serialize_field("billing", &payment_method_data_request.billing)?;
-                    state.end()
-                }
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::Card(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Wallet(_) => payment_method_data_request.serialize(serializer),
             }
         } else {
             serializer.serialize_none()
@@ -2006,6 +2007,39 @@ pub enum VoucherData {
     PayEasy(Box<JCSVoucherData>),
 }
 
+/// Use custom serializer to provide backwards compatible response for `reward` payment_method_data
+pub fn serialize_payment_method_data_response<S>(
+    payment_method_data_response: &Option<PaymentMethodDataResponseWithBilling>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(payment_method_data_response) = payment_method_data_response {
+        match payment_method_data_response.payment_method_data {
+            PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
+            PaymentMethodDataResponse::BankDebit {}
+            | PaymentMethodDataResponse::BankRedirect {}
+            | PaymentMethodDataResponse::Card(_)
+            | PaymentMethodDataResponse::CardRedirect {}
+            | PaymentMethodDataResponse::CardToken {}
+            | PaymentMethodDataResponse::Crypto {}
+            | PaymentMethodDataResponse::MandatePayment {}
+            | PaymentMethodDataResponse::GiftCard {}
+            | PaymentMethodDataResponse::PayLater {}
+            | PaymentMethodDataResponse::Paypal {}
+            | PaymentMethodDataResponse::Upi {}
+            | PaymentMethodDataResponse::Wallet(_)
+            | PaymentMethodDataResponse::BankTransfer {}
+            | PaymentMethodDataResponse::Voucher {} => {
+                payment_method_data_response.serialize(serializer)
+            }
+        }
+    } else {
+        serializer.serialize_none()
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -2027,7 +2061,7 @@ pub enum PaymentMethodDataResponse {
     CardToken {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
@@ -2493,6 +2527,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
