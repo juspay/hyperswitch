@@ -120,6 +120,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let token_data = if let Some(token) = token.clone() {
+            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
+        } else {
+            None
+        };
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
@@ -302,7 +308,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         mandate_obj.connector_mandate_ids,
                     ) {
                         (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
                                     network_tx_id,
@@ -314,7 +320,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
                             api_models::payments::MandateIds {
-                                mandate_id: mandate_obj.mandate_id,
+                                mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                                 api_models::payments::ConnectorMandateReferenceId{
                                     connector_mandate_id: connector_id.connector_mandate_id,
@@ -325,7 +331,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             }
                          }),
                         (_, _) => Ok(api_models::payments::MandateIds {
-                            mandate_id: mandate_obj.mandate_id,
+                            mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
                     }
@@ -390,6 +396,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
+            token_data,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -399,6 +406,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             },
             confirm: request.confirm,
             payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,

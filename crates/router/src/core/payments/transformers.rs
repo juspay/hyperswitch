@@ -325,7 +325,9 @@ where
                 phone: customer
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
+                mandate_id: data
+                    .mandate_id
+                    .and_then(|mandate_ids| mandate_ids.mandate_id),
                 payment_method: data.payment_attempt.payment_method,
                 payment_method_data: payment_method_data_response,
                 payment_token: data.token,

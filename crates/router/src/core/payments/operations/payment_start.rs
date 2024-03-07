@@ -114,6 +114,15 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
+        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
+            Some(
+                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
 
@@ -147,6 +156,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: payment_attempt.payment_token.clone(),
+            token_data,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -157,6 +167,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
             payment_method_data: None,
+            payment_method_info: None,
             force_sync: None,
             refunds: vec![],
             disputes: vec![],

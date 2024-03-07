@@ -29,7 +29,7 @@ pub struct WalletTokenData {
     pub payment_method_id: String,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PaymentTokenData {
     // The variants 'Temporary' and 'Permanent' are added for backwards compatibility

@@ -202,6 +202,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate: None,
             customer_acceptance: None,
             token: None,
+            token_data: None,
             address: payments::PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -211,6 +212,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             },
             confirm: None,
             payment_method_data: None,
+            payment_method_info: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
