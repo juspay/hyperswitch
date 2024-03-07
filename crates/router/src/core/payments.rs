@@ -15,7 +15,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoI
 
 use api_models::{self, enums, payments::HeaderPayload};
 use common_utils::{ext_traits::AsyncExt, pii, types::Surcharge};
-use data_models::mandates::MandateData;
+use data_models::mandates::{CustomerAcceptance, MandateData};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -910,6 +910,7 @@ impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCom
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
+                        api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -2049,6 +2050,7 @@ where
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub confirm: Option<bool>,

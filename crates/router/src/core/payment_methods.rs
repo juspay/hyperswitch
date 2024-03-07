@@ -199,6 +199,8 @@ impl PaymentMethodRetrieve for Oss {
                 )
                 .await
             }
+
+            storage::PaymentTokenData::WalletToken(_) => Ok(None),
         }
     }
 }

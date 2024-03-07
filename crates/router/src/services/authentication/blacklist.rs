@@ -17,6 +17,7 @@ use crate::{
 use crate::{
     core::errors::{UserErrors, UserResult},
     routes::AppState,
+    services::authorization as authz,
 };
 
 #[cfg(feature = "olap")]
@@ -48,7 +49,20 @@ pub async fn insert_role_in_blacklist(state: &AppState, role_id: &str) -> UserRe
             expiry,
         )
         .await
+        .change_context(UserErrors::InternalServerError)?;
+    invalidate_role_cache(state, role_id)
+        .await
         .change_context(UserErrors::InternalServerError)
+}
+
+#[cfg(feature = "olap")]
+async fn invalidate_role_cache(state: &AppState, role_id: &str) -> RouterResult<()> {
+    let redis_conn = get_redis_connection(state)?;
+    redis_conn
+        .delete_key(authz::get_cache_key_from_role_id(role_id).as_str())
+        .await
+        .map(|_| ())
+        .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub async fn check_user_in_blacklist<A: AppStateInfo>(
@@ -66,19 +80,25 @@ pub async fn check_user_in_blacklist<A: AppStateInfo>(
         .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
-pub async fn check_role_in_blacklist<A: AppStateInfo>(
+pub async fn check_user_and_role_in_blacklist<A: AppStateInfo>(
     state: &A,
+    user_id: &str,
     role_id: &str,
     token_expiry: u64,
 ) -> RouterResult<bool> {
-    let token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
+    let user_token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
+    let role_token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection(state)?;
-    redis_conn
-        .get_key::<Option<i64>>(token.as_str())
+
+    Ok(redis_conn
+        .get_multiple_keys::<Vec<&str>, i64>(vec![user_token.as_str(), role_token.as_str()])
         .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp.map_or(false, |timestamp| timestamp > token_issued_at))
+        .change_context(ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .max()
+        .flatten()
+        .map_or(false, |timestamp| timestamp > token_issued_at))
 }
 
 #[cfg(feature = "email")]
@@ -136,10 +156,7 @@ impl BlackList for AuthToken {
     where
         A: AppStateInfo + Sync,
     {
-        Ok(
-            check_user_in_blacklist(state, &self.user_id, self.exp).await?
-                || check_role_in_blacklist(state, &self.role_id, self.exp).await?,
-        )
+        check_user_and_role_in_blacklist(state, &self.user_id, &self.role_id, self.exp).await
     }
 }
 
