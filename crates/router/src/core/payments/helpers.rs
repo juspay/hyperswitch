@@ -3873,7 +3873,10 @@ pub fn validate_mandate_data_and_future_usage(
     setup_future_usages: Option<api_enums::FutureUsage>,
     mandate_details_present: bool,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if Some(api_enums::FutureUsage::OnSession) == setup_future_usages && mandate_details_present {
+    if mandate_details_present
+        && (Some(api_enums::FutureUsage::OnSession) == setup_future_usages
+            || setup_future_usages.is_none())
+    {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "`setup_future_usage` must be `off_session` for mandates".into(),
         })
