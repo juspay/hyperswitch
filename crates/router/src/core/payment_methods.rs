@@ -125,7 +125,7 @@ impl PaymentMethodRetrieve for Oss {
         card_token_data: Option<&CardToken>,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<storage::PaymentMethodDataWithId> {
-        Ok(match token_data {
+        let token = match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
                 storage::PaymentMethodDataWithId {
                     payment_method_data: helpers::retrieve_payment_method_with_temporary_token(
@@ -219,6 +219,7 @@ impl PaymentMethodRetrieve for Oss {
                 payment_method_data: None,
                 payment_method_id: None,
             },
-        })
+        };
+        Ok(token)
     }
 }
