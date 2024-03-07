@@ -223,7 +223,7 @@ pub struct CryptopayPaymentResponseData {
     pub status: CryptopayPaymentStatus,
     pub status_context: Option<String>,
     pub address: Option<Secret<String>>,
-    pub network: Option<Secret<String>>,
+    pub network: Option<String>,
     pub uri: Option<String>,
     pub price_amount: Option<String>,
     pub price_currency: Option<String>,

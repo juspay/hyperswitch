@@ -383,7 +383,7 @@ pub struct PaymentElement {
     pub block: Block,
     pub value: CoinbaseProcessingFee,
     pub status: String,
-    pub network: Secret<String>,
+    pub network: String,
     pub deposited: Deposited,
     pub payment_id: String,
     pub detected_at: String,
@@ -425,6 +425,6 @@ pub struct Amount {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TimelinePayment {
     pub value: OverpaymentAbsoluteThreshold,
-    pub network: Secret<String>,
+    pub network: String,
     pub transaction_id: String,
 }
