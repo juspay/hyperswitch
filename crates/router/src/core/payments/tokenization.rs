@@ -77,7 +77,6 @@ where
                 })
                 .unwrap_or(false);
 
-
             let pm_id = if future_usage_validation {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
