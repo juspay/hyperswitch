@@ -124,7 +124,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.0
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: false
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.2.0
@@ -263,6 +263,8 @@ jobs:
       #     crate: cargo-nextest
 
       - uses: Swatinem/rust-cache@v2.7.0
+        with:
+          save-if: false
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
