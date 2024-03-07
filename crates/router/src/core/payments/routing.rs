@@ -635,6 +635,7 @@ pub async fn refresh_kgraph_cache(
                 mca.connector_type != storage_enums::ConnectorType::PaymentVas
                     && mca.connector_type != storage_enums::ConnectorType::PaymentMethodAuth
                     && mca.connector_type != storage_enums::ConnectorType::PayoutProcessor
+                    && mca.connector_type != storage_enums::ConnectorType::AuthenticationProcessor
             });
         }
         #[cfg(feature = "payouts")]
