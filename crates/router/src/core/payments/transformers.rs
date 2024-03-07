@@ -452,8 +452,15 @@ where
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
-    let payment_method_data_response =
+    let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+    let payment_method_data_response = payment_method_data.map(|payment_method_data| {
+        api_models::payments::PaymentMethodDataResponseWithBilling {
+            payment_method_data,
+            billing: payment_data.address.payment_method_billing,
+        }
+    });
 
     let mut headers = connector_http_status_code
         .map(|status_code| {
@@ -1134,6 +1141,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
+            customer_acceptance: payment_data.customer_acceptance,
         })
     }
 }
@@ -1429,6 +1437,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            customer_acceptance: payment_data.customer_acceptance,
             router_return_url,
             email: payment_data.email,
             customer_name,

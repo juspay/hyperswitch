@@ -204,7 +204,7 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum GetToken {
     GpayMetadata,
     ApplePayMetadata,
@@ -214,7 +214,7 @@ pub enum GetToken {
 /// Routing algorithm will output merchant connector identifier instead of connector name
 /// In order to support backwards compatibility for older routing algorithms and merchant accounts
 /// the support for connector name is retained
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,

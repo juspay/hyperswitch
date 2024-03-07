@@ -200,7 +200,8 @@ impl AppState {
             };
 
             #[cfg(feature = "olap")]
-            let pool = crate::analytics::AnalyticsProvider::from_conf(&conf.analytics).await;
+            let pool =
+                crate::analytics::AnalyticsProvider::from_conf(conf.analytics.get_inner()).await;
 
             #[cfg(feature = "email")]
             let email_client = Arc::new(create_email_client(&conf).await);
@@ -631,6 +632,10 @@ impl Customers {
                 .service(
                     web::resource("/{customer_id}/payment_methods")
                         .route(web::get().to(list_customer_payment_method_api)),
+                )
+                .service(
+                    web::resource("/{customer_id}/payment_methods/{payment_method_id}/default")
+                        .route(web::post().to(default_payment_method_set_api)),
                 )
                 .service(
                     web::resource("/{customer_id}")
@@ -1115,7 +1120,10 @@ impl User {
         // User management
         route = route.service(
             web::scope("/user")
-                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(
+                    web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
+                )
                 .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),

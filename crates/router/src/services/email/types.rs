@@ -50,6 +50,8 @@ pub enum EmailBody {
     },
     ApiKeyExpiryReminder {
         expires_in: u8,
+        api_key_name: String,
+        prefix: String,
     },
 }
 
@@ -128,8 +130,14 @@ Email         : {user_email}
 
 (note: This is an auto generated email. Use merchant email for any further communications)",
             ),
-            EmailBody::ApiKeyExpiryReminder { expires_in } => format!(
+            EmailBody::ApiKeyExpiryReminder {
+                expires_in,
+                api_key_name,
+                prefix,
+            } => format!(
                 include_str!("assets/api_key_expiry_reminder.html"),
+                api_key_name = api_key_name,
+                prefix = prefix,
                 expires_in = expires_in,
             ),
         }
@@ -441,6 +449,8 @@ pub struct ApiKeyExpiryReminder {
     pub recipient_email: domain::UserEmail,
     pub subject: &'static str,
     pub expires_in: u8,
+    pub api_key_name: String,
+    pub prefix: String,
 }
 
 #[async_trait::async_trait]
@@ -450,6 +460,8 @@ impl EmailData for ApiKeyExpiryReminder {
 
         let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
             expires_in: self.expires_in,
+            api_key_name: self.api_key_name.clone(),
+            prefix: self.prefix.clone(),
         });
 
         Ok(EmailContents {

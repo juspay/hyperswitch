@@ -342,6 +342,19 @@ impl KafkaProducer {
         self.log_event(&KafkaEvent::new(&KafkaDispute::from_storage(dispute)))
             .attach_printable_lazy(|| format!("Failed to add positive dispute event {dispute:?}"))
     }
+
+    pub fn get_topic(&self, event: EventType) -> &str {
+        match event {
+            EventType::ApiLogs => &self.api_logs_topic,
+            EventType::PaymentAttempt => &self.attempt_analytics_topic,
+            EventType::PaymentIntent => &self.intent_analytics_topic,
+            EventType::Refund => &self.refund_analytics_topic,
+            EventType::ConnectorApiLogs => &self.connector_logs_topic,
+            EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
+            EventType::Dispute => &self.dispute_analytics_topic,
+            EventType::AuditEvent => &self.audit_events_topic,
+        }
+    }
 }
 
 impl Drop for RdKafkaProducer {

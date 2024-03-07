@@ -39,6 +39,7 @@ impl BlocklistFingerprintInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,
@@ -58,7 +59,6 @@ impl BlocklistFingerprintInterface for Store {
 
 #[async_trait::async_trait]
 impl BlocklistFingerprintInterface for MockDb {
-    #[instrument(skip_all)]
     async fn insert_blocklist_fingerprint_entry(
         &self,
         _pm_fingerprint_new: storage::BlocklistFingerprintNew,
@@ -87,6 +87,7 @@ impl BlocklistFingerprintInterface for KafkaStore {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
         &self,
         merchant_id: &str,

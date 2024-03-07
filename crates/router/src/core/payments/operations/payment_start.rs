@@ -40,7 +40,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
-        mechant_key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, Ctx>> {
@@ -84,25 +84,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        let shipping_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
-            mechant_key_store,
+            payment_intent.shipping_address_id.clone(),
+            key_store,
             &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
+
+        let billing_address = helpers::get_address_by_id(
             db,
-            None,
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent.customer_id.as_ref(),
-            mechant_key_store,
+            payment_intent.billing_address_id.clone(),
+            key_store,
             &payment_intent.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            db,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            key_store,
+            &payment_intent.payment_id,
+            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
@@ -138,10 +145,14 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: payment_attempt.payment_token.clone(),
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
+                payment_method_billing: payment_method_billing
+                    .as_ref()
+                    .map(|address| address.into()),
             },
             confirm: Some(payment_attempt.confirm),
             payment_attempt,
