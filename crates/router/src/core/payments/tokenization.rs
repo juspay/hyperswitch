@@ -72,6 +72,7 @@ where
             } else {
                 None
             };
+            let pm_status = common_enums::PaymentMethodStatus::from(resp.status);
 
             let mandate_data_customer_acceptance = resp
                 .request
