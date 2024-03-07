@@ -265,6 +265,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             default_profile: self.default_profile,
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
+            storage_scheme: self.storage_scheme,
         })
     }
 }
