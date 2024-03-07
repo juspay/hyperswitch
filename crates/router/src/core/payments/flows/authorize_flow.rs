@@ -91,10 +91,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let is_mandate = resp.request.setup_mandate_details.is_some();
 
             if is_mandate {
-                resp.payment_method_id = payment_method_id.clone();
-                resp.payment_method_status = payment_method_status;
-
-                let (payment_method_id, payment_method_status) = = Box::pin(tokenization::save_payment_method(
+                let (payment_method_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -104,6 +101,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     key_store,
                 ))
                 .await?;
+
+                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_status = payment_method_status;
 
                 Ok(mandate::mandate_procedure(
                     state,
