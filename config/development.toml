@@ -580,4 +580,3 @@ file_storage_backend = "file_system"
 
 [unmasked_headers]
 keys = "user-agent"
-
