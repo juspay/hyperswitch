@@ -167,6 +167,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             email: None,
             mandate_id: None,
             mandate_connector: None,
+            customer_acceptance: None,
             token: None,
             setup_mandate: None,
             address: payments::PaymentAddress {

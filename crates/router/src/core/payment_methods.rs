@@ -214,6 +214,8 @@ impl PaymentMethodRetrieve for Oss {
                     payment_method_id: None,
                 }
             }
+
+            storage::PaymentTokenData::WalletToken(_) => Ok(None),
         })
     }
 }
