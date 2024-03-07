@@ -842,7 +842,7 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
                 state
                     .store
                     .as_scheduler()
-                    .finish_process_with_business_status(process_tracker, "COMPLETED_BY_PT".into())
+                    .finish_process_with_business_status(process_tracker, "FAILURE".into())
                     .await
                     .change_context(
                         errors::WebhooksFlowError::OutgoingWebhookProcessTrackerTaskUpdateFailed,
