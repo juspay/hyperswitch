@@ -1,5 +1,6 @@
 {{ css_color_scheme }}
 
+
 html,
 body {
   height: 100%;
@@ -26,6 +27,84 @@ body {
   /* IE and Edge */
   scrollbar-width: none;
   /* Firefox */
+}
+
+/* add shimmer */
+#payment-details-shimmer{
+  min-width: 300px;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: linear-gradient(to right, #f6f7f8 0%, #edeef1 50%, #f6f7f8 100%);
+  background-size: 300%;
+  animation: shimmer 1.5s infinite linear;
+  background-position-x: -100%;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  flex-direction: column; 
+  z-index: 3;
+}
+
+.shine {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 104px; 
+  display: inline-block;
+  position: relative; 
+  justify-content: center;
+  display: flex;
+  -webkit-animation-duration: 2s;
+  -webkit-animation-fill-mode: forwards; 
+  -webkit-animation-iteration-count: infinite;
+  -webkit-animation-name: placeholderShimmer;
+  -webkit-animation-timing-function: linear;
+}
+
+.wrap {
+  display: inline-flex;
+  margin: 10px;
+}
+
+box {
+  height: 104px;
+  width: 100px;
+  border-radius: 25px;
+}
+
+lines {
+  height: 15px;
+  width: 200px; 
+  border-radius: 25px;
+  margin: 7px;
+} 
+
+.line-shimmer > :first-child{
+  width: 140px; 
+}
+
+.line-shimmer {
+  display: inline-flex;
+  flex-direction: column; 
+  margin-left: 25px;
+  margin-top: 15px;
+  vertical-align: top; 
+} 
+
+@-webkit-keyframes placeholderShimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  
+  100% {
+    background-position: 468px 0; 
+  }
 }
 
 /* For ellipsis on text lines */
@@ -608,7 +687,7 @@ body {
 #payment-form {
   max-width: 560px;
   width: 100%;
-  min-height: 500px;
+  /* min-height: 500px; */
   max-height: 90vh;
   height: 100%;
   overflow: scroll;

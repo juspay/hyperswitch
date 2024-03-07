@@ -417,7 +417,17 @@ function initializeSDK() {
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
   showSDK();
+
+  let payment_script = document.getElementsByTagName("body");
+  let shimmer = document.getElementById("payment-details-shimmer");
+  
+  if (payment_script.length > 0) {
+    payment_script[0].removeChild(shimmer);
+  } else {
+      console.error("payment_script array is empty");
+  }
 }
+
 
 /**
  * Use - mount payment widget on the passed element
