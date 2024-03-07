@@ -93,7 +93,7 @@ pub enum AccountType {
 pub struct WiseBankDetails {
     legal_type: LegalType,
     account_type: Option<AccountType>,
-    address: WiseAddressDetails,
+    address: Option<WiseAddressDetails>,
     post_code: Option<String>,
     nationality: Option<String>,
     account_holder_name: Option<Secret<String>>,
@@ -321,7 +321,7 @@ fn get_payout_bank_details(
     match payout_method_data {
         PayoutMethodData::Bank(payouts::BankPayout::Ach(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             abartn: Some(b.bank_routing_number),
             account_type: Some(AccountType::Checking),
@@ -329,14 +329,14 @@ fn get_payout_bank_details(
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             sort_code: Some(b.bank_sort_code),
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Sepa(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
-            address: wise_address_details,
+            address: Some(wise_address_details),
             iban: Some(b.iban.to_owned()),
             bic: b.bic,
             ..WiseBankDetails::default()
