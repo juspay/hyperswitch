@@ -1200,10 +1200,53 @@ pub async fn list_merchant_ids_for_user(
     ))
 }
 
-pub async fn get_users_for_merchant_account(
+pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::GetUsersResponse> {
+    request: user_api::GetUserDetailsRequest,
+) -> UserResponse<user_api::GetUserDetailsResponse> {
+    let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let required_user_role = state
+        .store
+        .find_user_role_by_user_id_merchant_id(
+            required_user.get_user_id(),
+            &user_from_token.merchant_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)
+        .attach_printable("User not found in the merchant account")?;
+
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &required_user_role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("User role exists but the corresponding role doesn't")?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserDetailsResponse {
+            email: required_user.get_email(),
+            name: required_user.get_name(),
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            status: required_user_role.status.foreign_into(),
+            last_modified_at: required_user_role.last_modified,
+            groups: role_info.get_permission_groups().to_vec(),
+            role_scope: role_info.get_scope(),
+        },
+    ))
+}
+
+pub async fn list_users_for_merchant_account(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::ListUsersResponse> {
     let users_and_user_roles = state
         .store
         .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
@@ -1242,7 +1285,7 @@ pub async fn get_users_for_merchant_account(
         })
         .collect();
 
-    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(
+    Ok(ApplicationResponse::Json(user_api::ListUsersResponse(
         user_details_vec,
     )))
 }

@@ -3,7 +3,7 @@ use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{ext_traits::Encode, pii};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         PaymentsAuthorizeData,
     },
     utils as crate_utils,
@@ -271,6 +271,31 @@ impl ForeignFrom<(bool, AdyenStatus, Option<common_enums::PaymentMethodType>)>
     }
 }
 
+impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (is_manual_capture, adyen_webhook_status): (bool, AdyenWebhookStatus),
+    ) -> Result<Self, Self::Error> {
+        match adyen_webhook_status {
+            AdyenWebhookStatus::Authorised => match is_manual_capture {
+                true => Ok(Self::Authorized),
+                // In case of Automatic capture Authorized is the final status of the payment
+                false => Ok(Self::Charged),
+            },
+            AdyenWebhookStatus::AuthorisationFailed => Ok(Self::Failure),
+            AdyenWebhookStatus::Cancelled => Ok(Self::Voided),
+            AdyenWebhookStatus::CancelFailed => Ok(Self::VoidFailed),
+            AdyenWebhookStatus::Captured => Ok(Self::Charged),
+            AdyenWebhookStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            //If Unexpected Event is received, need to understand how it reached this point
+            //Webhooks with Payment Events only should try to conume this resource object.
+            AdyenWebhookStatus::UnexpectedEvent => {
+                Err(errors::ConnectorError::WebhookBodyDecodingFailed).into_report()
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct AdyenRedirectRequest {
     pub details: AdyenRedirectRequestTypes,
@@ -320,6 +345,7 @@ pub enum AdyenPaymentResponse {
     QrCodeResponse(Box<QrCodeResponseResponse>),
     RedirectionResponse(Box<RedirectionResponse>),
     RedirectionErrorResponse(Box<RedirectionErrorResponse>),
+    WebhookResponse(Box<AdyenWebhookResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -332,8 +358,31 @@ pub struct Response {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<AdditionalData>,
-    // event_code will be available only in webhook body
-    event_code: Option<WebhookEventCode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AdyenWebhookStatus {
+    Authorised,
+    AuthorisationFailed,
+    Cancelled,
+    CancelFailed,
+    Captured,
+    CaptureFailed,
+    UnexpectedEvent,
+}
+
+//Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenWebhookResponse {
+    transaction_id: String,
+    payment_reference: Option<String>,
+    status: AdyenWebhookStatus,
+    amount: Option<Amount>,
+    merchant_reference_id: String,
+    refusal_reason: Option<String>,
+    refusal_reason_code: Option<String>,
+    event_code: WebhookEventCode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3090,7 +3139,6 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code, pmt));
-    let status = update_attempt_status_based_on_event_type_if_needed(status, &response.event_code);
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
@@ -3134,10 +3182,11 @@ pub fn get_adyen_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_adyen_response_for_multiple_partial_capture(
-    response: Response,
+pub fn get_webhook_response(
+    response: AdyenWebhookResponse,
+    is_capture_manual: bool,
+    is_multiple_capture_psync_flow: bool,
     status_code: u16,
-    pmt: Option<enums::PaymentMethodType>,
 ) -> errors::CustomResult<
     (
         storage_enums::AttemptStatus,
@@ -3146,28 +3195,53 @@ pub fn get_adyen_response_for_multiple_partial_capture(
     ),
     errors::ConnectorError,
 > {
-    let (status, error, _) = get_adyen_response(response.clone(), true, status_code, pmt)?;
-    let status = update_attempt_status_based_on_event_type_if_needed(status, &response.event_code);
-    let capture_sync_response_list = utils::construct_captures_response_hashmap(vec![response]);
-    Ok((
-        status,
-        error,
-        types::PaymentsResponseData::MultipleCaptureResponse {
-            capture_sync_response_list,
-        },
-    ))
-}
-
-fn update_attempt_status_based_on_event_type_if_needed(
-    status: storage_enums::AttemptStatus,
-    event: &Option<WebhookEventCode>,
-) -> storage_enums::AttemptStatus {
-    if status == storage_enums::AttemptStatus::Authorized
-        && event == &Some(WebhookEventCode::Capture)
-    {
-        storage_enums::AttemptStatus::Charged
+    let status = storage_enums::AttemptStatus::foreign_try_from((
+        is_capture_manual,
+        response.status.clone(),
+    ))?;
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.refusal_reason.clone(),
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: Some(response.transaction_id.clone()),
+        })
     } else {
-        status
+        None
+    };
+
+    if is_multiple_capture_psync_flow {
+        let capture_sync_response_list = utils::construct_captures_response_hashmap(vec![response]);
+        Ok((
+            status,
+            error,
+            types::PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list,
+            },
+        ))
+    } else {
+        let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(
+                response
+                    .payment_reference
+                    .unwrap_or(response.transaction_id),
+            ),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(response.merchant_reference_id),
+            incremental_authorization_allowed: None,
+        };
+        Ok((status, error, payments_response_data))
     }
 }
 
@@ -3655,11 +3729,7 @@ impl<F, Req>
         let is_manual_capture = utils::is_manual_capture(capture_method);
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::Response(response) => {
-                if is_multiple_capture_psync_flow {
-                    get_adyen_response_for_multiple_partial_capture(*response, item.http_code, pmt)?
-                } else {
-                    get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
-                }
+                get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
             AdyenPaymentResponse::PresentToShopper(response) => {
                 get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?
@@ -3673,6 +3743,12 @@ impl<F, Req>
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
             }
+            AdyenPaymentResponse::WebhookResponse(response) => get_webhook_response(
+                *response,
+                is_manual_capture,
+                is_multiple_capture_psync_flow,
+                item.http_code,
+            )?,
         };
 
         Ok(Self {
@@ -3892,6 +3968,8 @@ pub enum WebhookEventCode {
     Refund,
     CancelOrRefund,
     Cancellation,
+    Capture,
+    CaptureFailed,
     RefundFailed,
     RefundReversed,
     NotificationOfChargeback,
@@ -3900,8 +3978,6 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
-    Capture,
-    CaptureFailed,
     #[serde(other)]
     Unknown,
 }
@@ -4045,52 +4121,81 @@ pub struct AdyenIncomingWebhook {
     pub notification_items: Vec<AdyenItemObjectWH>,
 }
 
-impl From<AdyenNotificationRequestItemWH> for Response {
+impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
     fn from(notif: AdyenNotificationRequestItemWH) -> Self {
         Self {
-            psp_reference: notif.psp_reference,
-            merchant_reference: notif.merchant_reference,
-            result_code: match notif.success.as_str() {
-                "true" => {
-                    if notif.event_code == WebhookEventCode::Cancellation {
-                        AdyenStatus::Cancelled
+            transaction_id: notif.psp_reference,
+            payment_reference: notif.original_reference,
+            //Translating into custom status so that it can be clearly mapped to out attempt_status
+            status: match notif.event_code {
+                WebhookEventCode::Authorisation => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
                     } else {
-                        AdyenStatus::Authorised
+                        AdyenWebhookStatus::AuthorisationFailed
                     }
                 }
-                _ => AdyenStatus::Refused,
+                WebhookEventCode::Cancellation => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Cancelled
+                    } else {
+                        AdyenWebhookStatus::CancelFailed
+                    }
+                }
+                WebhookEventCode::Capture => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Captured
+                    } else {
+                        AdyenWebhookStatus::CaptureFailed
+                    }
+                }
+                WebhookEventCode::CaptureFailed => AdyenWebhookStatus::CaptureFailed,
+                WebhookEventCode::CancelOrRefund
+                | WebhookEventCode::Refund
+                | WebhookEventCode::RefundFailed
+                | WebhookEventCode::RefundReversed
+                | WebhookEventCode::NotificationOfChargeback
+                | WebhookEventCode::Chargeback
+                | WebhookEventCode::ChargebackReversed
+                | WebhookEventCode::SecondChargeback
+                | WebhookEventCode::PrearbitrationWon
+                | WebhookEventCode::PrearbitrationLost
+                | WebhookEventCode::Unknown => AdyenWebhookStatus::UnexpectedEvent,
             },
             amount: Some(Amount {
                 value: notif.amount.value,
                 currency: notif.amount.currency,
             }),
+            merchant_reference_id: notif.merchant_reference,
             refusal_reason: None,
             refusal_reason_code: None,
-            additional_data: None,
-            event_code: Some(notif.event_code),
+            event_code: notif.event_code,
         }
     }
 }
 
-impl utils::MultipleCaptureSyncResponse for Response {
+//This will be triggered in Psync handler of webhook response
+impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
     fn get_connector_capture_id(&self) -> String {
-        self.psp_reference.clone()
+        self.transaction_id.clone()
     }
 
     fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
-        match self.result_code {
-            AdyenStatus::Authorised => enums::AttemptStatus::Charged,
+        match self.status {
+            AdyenWebhookStatus::Captured => enums::AttemptStatus::Charged,
             _ => enums::AttemptStatus::CaptureFailed,
         }
     }
 
     fn is_capture_response(&self) -> bool {
-        self.event_code == Some(WebhookEventCode::Capture)
-            || self.event_code == Some(WebhookEventCode::CaptureFailed)
+        matches!(
+            self.event_code,
+            WebhookEventCode::Capture | WebhookEventCode::CaptureFailed
+        )
     }
 
     fn get_connector_reference_id(&self) -> Option<String> {
-        Some(self.merchant_reference.clone())
+        Some(self.merchant_reference_id.clone())
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
