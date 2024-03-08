@@ -1609,7 +1609,18 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
             }
         }
 
-        _ => Ok(None),
+        storage::PaymentTokenData::WalletToken(data) => state
+            .store
+            .find_payment_method(&data.payment_method_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieveing payment method from DB")
+            .map(Some),
+
+        storage::PaymentTokenData::Temporary(_)
+        | storage::PaymentTokenData::TemporaryGeneric(_)
+        | storage::PaymentTokenData::Permanent(_)
+        | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
     }
 }
 
