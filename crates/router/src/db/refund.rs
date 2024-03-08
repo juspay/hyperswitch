@@ -499,7 +499,7 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::combine_kv_result(
                         async {
                             kv_wrapper(
                                 self,
@@ -680,7 +680,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{merchant_id}_pid_{payment_id}");
-                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                    Box::pin(db_utils::combine_kv_result(
                         async {
                             kv_wrapper(
                                 self,

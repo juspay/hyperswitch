@@ -69,3 +69,33 @@ where
         },
     }
 }
+
+pub async fn combine_kv_result<F, RFut, DFut, T>(
+    redis_fut: RFut,
+    database_call_closure: F,
+) -> error_stack::Result<Vec<T>, StorageError>
+where
+    T: crate::SortKey,
+    F: FnOnce() -> DFut,
+    RFut:
+        futures::Future<Output = error_stack::Result<Vec<T>, redis_interface::errors::RedisError>>,
+    DFut: futures::Future<Output = error_stack::Result<Vec<T>, StorageError>>,
+{
+    let redis_output = redis_fut.await;
+    let database_result = database_call_closure().await;
+    match (redis_output, database_result) {
+        (Ok(r), Err(_)) => Ok(r),
+        (Err(_), Ok(d)) => Ok(d),
+        (Err(_), Err(d)) => Err(d),
+        (Ok(mut r), Ok(d)) => {
+            r.extend(d);
+
+            // Need to do this since we can't mandate Sort and Hash traits on T
+            // Since the structs that has been passed here has serde_json::Value which doesnt
+            // implement both
+            r.sort_by_key(|r| r.sort_key());
+            r.dedup_by_key(|r| r.sort_key());
+            Ok(r)
+        }
+    }
+}

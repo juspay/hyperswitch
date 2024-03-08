@@ -284,6 +284,22 @@ pub trait UniqueConstraints {
     }
 }
 
+pub trait SortKey {
+    fn sort_key(&self) -> String;
+}
+
+impl SortKey for diesel_models::Refund {
+    fn sort_key(&self) -> String {
+        self.refund_id.clone()
+    }
+}
+
+impl SortKey for data_models::payments::payment_attempt::PaymentAttempt {
+    fn sort_key(&self) -> String {
+        self.payment_id.clone()
+    }
+}
+
 impl UniqueConstraints for diesel_models::Address {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("address_{}", self.address_id)]

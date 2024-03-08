@@ -32,7 +32,10 @@ use crate::{
     errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
     redis::kv_store::{kv_wrapper, KvOperation},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::{
+        combine_kv_result, pg_connection_read, pg_connection_write,
+        try_redis_get_else_try_database_get,
+    },
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
 
@@ -951,7 +954,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
-                Box::pin(try_redis_get_else_try_database_get(
+                Box::pin(combine_kv_result(
                     async {
                         kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
                             .await?
