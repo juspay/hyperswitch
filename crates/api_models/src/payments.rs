@@ -4059,6 +4059,7 @@ pub enum PaymentLinkStatusWrap {
 #[cfg(test)]
 mod payments_request_api_contract {
     #![allow(clippy::unwrap_used)]
+    #![allow(clippy::panic)]
     use std::str::FromStr;
 
     use super::*;
@@ -4098,5 +4099,29 @@ mod payments_request_api_contract {
         } else {
             panic!("Received unexpected response")
         }
+    }
+
+    #[test]
+    fn test_successful_payment_method_reward() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "reward",
+            "payment_method_data": "reward",
+            "payment_method_type": "e_voucher"
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert_eq!(
+            payments_request
+                .unwrap()
+                .payment_method_data
+                .unwrap()
+                .payment_method_data,
+            PaymentMethodData::Reward
+        );
     }
 }
