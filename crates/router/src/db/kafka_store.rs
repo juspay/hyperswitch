@@ -1299,6 +1299,16 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    async fn get_payment_method_count_by_customer_id_merchant_id(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_method_count_by_customer_id_merchant_id(customer_id, merchant_id)
+            .await
+    }
+
     async fn find_payment_method_by_locker_id(
         &self,
         locker_id: &str,
