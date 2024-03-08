@@ -355,7 +355,7 @@ pub struct CoinbasePaymentResponseData {
     pub fees_settled: bool,
     pub pricing_type: String,
     pub redirect_url: String,
-    pub support_email: Secret<String>,
+    pub support_email: pii::Email,
     pub brand_logo_url: String,
     pub offchain_eligible: bool,
     pub organization_name: String,
