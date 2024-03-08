@@ -160,7 +160,8 @@ impl PaymentMethodRetrieve for Oss {
                         payment_method: Some(payment_method),
                         payment_method_id: None,
                     },
-                ).unwrap_or_default()
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::Permanent(card_token) => {
@@ -188,7 +189,8 @@ impl PaymentMethodRetrieve for Oss {
                                 .to_string(),
                         ),
                     },
-                ).unwrap_or_default()
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::PermanentCard(card_token) => {
@@ -216,7 +218,8 @@ impl PaymentMethodRetrieve for Oss {
                                 .to_string(),
                         ),
                     },
-                ).unwrap_or_default()
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::AuthBankDebit(auth_token) => {
@@ -234,7 +237,8 @@ impl PaymentMethodRetrieve for Oss {
                         payment_method: Some(payment_method),
                         payment_method_id: None,
                     },
-                ).unwrap_or_default()
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
