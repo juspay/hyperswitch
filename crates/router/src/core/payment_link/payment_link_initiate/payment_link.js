@@ -399,7 +399,8 @@ function initializeSDK() {
       : paymentDetails.sdk_layout;
 
   var unifiedCheckoutOptions = {
-    disableSaveCards: true,
+    displaySavedPaymentMethodsCheckbox: true,
+    displaySavedPaymentMethods: true,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -418,10 +419,12 @@ function initializeSDK() {
   mountUnifiedCheckout("#unified-checkout");
   showSDK();
 
-  let payment_script = document.getElementsByTagName("body");
   let shimmer = document.getElementById("payment-details-shimmer");
+  shimmer.classList.add("reduce-opacity")
 
-  document.body.removeChild(shimmer);
+  setTimeout(() => {
+    document.body.removeChild(shimmer);
+  }, 500)
 }
 
 

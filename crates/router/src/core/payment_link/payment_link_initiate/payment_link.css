@@ -49,6 +49,13 @@ body {
   align-items: center;
   flex-direction: column; 
   z-index: 3;
+  transition: opacity 0.5s;
+  opacity: 1;
+}
+
+.reduce-opacity {
+  opacity: 0 !important;
+  transition: opacity 0.5s;
 }
 
 .shine {
