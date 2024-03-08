@@ -124,7 +124,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 logger::info!("Call to save_payment_method in locker");
 
-                let pm = Box::pin(tokenization::save_payment_method(
+                let save_pm_result = Box::pin(tokenization::save_payment_method(
                     &state,
                     &connector,
                     response,
@@ -135,12 +135,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 ))
                 .await;
 
-                match pm {
+                match save_pm_result {
                     Ok((payment_method_id, payment_method_status)) => {
                         resp.payment_method_id = payment_method_id.clone();
                         resp.payment_method_status = payment_method_status;
                     }
-                    Err(_) => logger::error!("Save pm to locker failed"),
+                    Err(_error) => {
+                        logger::error!(?_error)
+                    }
                 }
 
                 Ok(resp)
