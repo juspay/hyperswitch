@@ -2743,7 +2743,7 @@ where
             let profile_id = payment_data.payment_intent.profile_id.clone();
 
             #[cfg(not(feature = "business_profile_routing"))]
-            let profile_id = None;
+            let profile_id: Option<String> = None;
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
