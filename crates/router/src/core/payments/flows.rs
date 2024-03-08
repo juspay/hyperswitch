@@ -2271,3 +2271,126 @@ default_imp_for_revoking_mandates!(
     connector::Worldpay,
     connector::Zen
 );
+
+macro_rules! default_imp_for_connector_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::ExternalAuthentication for $path::$connector {}
+            impl api::ConnectorAuthentication for $path::$connector {}
+            impl api::ConnectorPreAuthentication for $path::$connector {}
+            impl api::ConnectorPostAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Authentication,
+            types::authentication::ConnectorAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PreAuthentication,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegration<
+            api::PostAuthentication,
+            types::authentication::ConnectorPostAuthenticationRequestData,
+            types::authentication::AuthenticationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ExternalAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPreAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorPostAuthentication for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Authentication,
+        types::authentication::ConnectorAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_connector_authentication!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bankofamerica,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);

@@ -3448,9 +3448,16 @@ pub async fn get_additional_payment_data(
                 _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
             }
         }
-        api_models::payments::PaymentMethodData::Wallet(_) => {
-            api_models::payments::AdditionalPaymentData::Wallet {}
-        }
+        api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
+                api_models::payments::AdditionalPaymentData::Wallet(Some(
+                    api_models::payments::Wallets::ApplePay(
+                        apple_pay_wallet_data.payment_method.to_owned(),
+                    ),
+                ))
+            }
+            _ => api_models::payments::AdditionalPaymentData::Wallet(None),
+        },
         api_models::payments::PaymentMethodData::PayLater(_) => {
             api_models::payments::AdditionalPaymentData::PayLater {}
         }
@@ -3858,7 +3865,10 @@ pub fn validate_mandate_data_and_future_usage(
     setup_future_usages: Option<api_enums::FutureUsage>,
     mandate_details_present: bool,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if Some(api_enums::FutureUsage::OnSession) == setup_future_usages && mandate_details_present {
+    if mandate_details_present
+        && (Some(api_enums::FutureUsage::OnSession) == setup_future_usages
+            || setup_future_usages.is_none())
+    {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "`setup_future_usage` must be `off_session` for mandates".into(),
         })

@@ -11,11 +11,11 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthorizeResponse, ChangePasswordRequest, ConnectAccountRequest,
-    CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest, GetUsersResponse,
-    InviteUserRequest, InviteUserResponse, ReInviteUserRequest, ResetPasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SwitchMerchantIdRequest, UpdateUserAccountDetailsRequest, UserMerchantCreate,
-    VerifyEmailRequest,
+    CreateInternalUserRequest, DashboardEntryResponse, ForgotPasswordRequest,
+    GetUserDetailsRequest, GetUserDetailsResponse, InviteUserRequest, InviteUserResponse,
+    ListUsersResponse, ReInviteUserRequest, ResetPasswordRequest, SendVerifyEmailRequest,
+    SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest, SwitchMerchantIdRequest,
+    UpdateUserAccountDetailsRequest, UserMerchantCreate, VerifyEmailRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -48,7 +48,7 @@ common_utils::impl_misc_api_event_type!(
     SwitchMerchantIdRequest,
     CreateInternalUserRequest,
     UserMerchantCreate,
-    GetUsersResponse,
+    ListUsersResponse,
     AuthorizeResponse,
     ConnectAccountRequest,
     ForgotPasswordRequest,
@@ -60,7 +60,9 @@ common_utils::impl_misc_api_event_type!(
     SendVerifyEmailRequest,
     AcceptInviteFromEmailRequest,
     SignInResponse,
-    UpdateUserAccountDetailsRequest
+    UpdateUserAccountDetailsRequest,
+    GetUserDetailsRequest,
+    GetUserDetailsResponse
 );
 
 #[cfg(feature = "dummy_connector")]
