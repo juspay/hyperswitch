@@ -420,12 +420,8 @@ function initializeSDK() {
 
   let payment_script = document.getElementsByTagName("body");
   let shimmer = document.getElementById("payment-details-shimmer");
-  
-  if (payment_script.length > 0) {
-    payment_script[0].removeChild(shimmer);
-  } else {
-      console.error("payment_script array is empty");
-  }
+
+  document.body.removeChild(shimmer);
 }
 
 
