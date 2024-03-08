@@ -880,7 +880,7 @@ async fn update_payment_method_status<F: Clone>(
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
-            .find_payment_method(&id)
+            .find_payment_method(id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
