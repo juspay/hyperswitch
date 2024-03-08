@@ -4,7 +4,7 @@ use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
 use isocountry;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
@@ -352,24 +352,18 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                     field_name: "billing_address.address.city",
                 })?
                 .to_string(),
-            bill_addr_country: billing_country.numeric_id().to_string(),
-            bill_addr_line1: billing_address
-                .line1
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+            bill_addr_country: billing_country.numeric_id().to_string().into(),
+            bill_addr_line1: billing_address.line1.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "billing_address.address.line1",
-                })?
-                .expose()
-                .to_string(),
-            bill_addr_post_code: billing_address
-                .zip
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
+                },
+            )?,
+            bill_addr_post_code: billing_address.zip.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "billing_address.address.zip",
-                })?
-                .expose()
-                .to_string(),
-            bill_addr_state: billing_state.peek().to_string(),
+                },
+            )?,
+            bill_addr_state: billing_state,
             // Indicates the type of Authentication request, "01" for Payment transaction
             three_dsrequestor_authentication_ind: "01".to_string(),
             device_channel: match item.router_data.request.device_channel.clone() {
@@ -544,10 +538,10 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub acquirer_merchant_id: String,
     pub card_expiry_date: String,
     pub bill_addr_city: String,
-    pub bill_addr_country: String,
-    pub bill_addr_line1: String,
-    pub bill_addr_post_code: String,
-    pub bill_addr_state: String,
+    pub bill_addr_country: Secret<String>,
+    pub bill_addr_line1: Secret<String>,
+    pub bill_addr_post_code: Secret<String>,
+    pub bill_addr_state: Secret<String>,
     pub email: Option<common_utils::pii::Email>,
     pub three_dsrequestor_authentication_ind: String,
     pub cardholder_name: Option<Secret<String>>,
