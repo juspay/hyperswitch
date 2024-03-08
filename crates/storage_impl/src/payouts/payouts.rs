@@ -21,9 +21,11 @@ use crate::{
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
+use router_env::instrument;
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payout(
         &self,
         new: PayoutsNew,
@@ -91,6 +93,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payout(
         &self,
         this: &Payouts,
@@ -143,6 +146,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -184,6 +188,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payout(
         &self,
         new: PayoutsNew,
@@ -200,6 +205,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .map(Payouts::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn update_payout(
         &self,
         this: &Payouts,
@@ -218,6 +224,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .map(Payouts::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
