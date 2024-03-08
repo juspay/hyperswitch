@@ -52,12 +52,12 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             "{}_{}",
             tracking_data.primary_object_id, tracking_data.event_type
         );
-        let event = db.find_event_by_event_id(&event_id).await?;
+        let event = db.find_event_by_event_id(&event_id, &key_store).await?;
 
         let (content, event_type) = get_outgoing_webhook_content_and_event_type(
             state.clone(),
             merchant_account.clone(),
-            key_store,
+            key_store.clone(),
             &tracking_data,
         )
         .await?;
@@ -77,6 +77,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     state.clone(),
                     merchant_account,
                     business_profile,
+                    &key_store,
                     outgoing_webhook,
                     webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
                     content,

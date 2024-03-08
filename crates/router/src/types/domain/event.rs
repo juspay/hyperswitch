@@ -104,6 +104,7 @@ impl super::behaviour::Conversion for Event {
             is_webhook_notified: self.is_webhook_notified,
             primary_object_id: self.primary_object_id,
             primary_object_type: self.primary_object_type,
+            created_at: self.created_at,
             idempotent_event_id: self.idempotent_event_id,
             initial_attempt_id: self.initial_attempt_id,
             request: self.request.map(Into::into),

@@ -96,7 +96,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
             >(
                 state.clone(),
                 merchant_account.clone(),
-                key_store,
+                key_store.clone(),
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
                     resource_id: id,
@@ -172,6 +172,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                     state,
                     merchant_account,
                     business_profile,
+                    &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.clone(),
@@ -257,7 +258,7 @@ pub async fn refunds_incoming_webhook_flow(
         refunds::refund_retrieve_core(
             state.clone(),
             merchant_account.clone(),
-            key_store,
+            key_store.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
                 force_sync: Some(true),
@@ -277,6 +278,7 @@ pub async fn refunds_incoming_webhook_flow(
             state,
             merchant_account,
             business_profile,
+            &key_store,
             outgoing_event_type,
             enums::EventClass::Refunds,
             refund_id,
@@ -461,7 +463,7 @@ pub async fn mandates_incoming_webhook_flow(
         let mandates_response = Box::new(
             api::mandates::MandateResponse::from_db_mandate(
                 &state,
-                key_store,
+                key_store.clone(),
                 updated_mandate.clone(),
             )
             .await?,
@@ -472,6 +474,7 @@ pub async fn mandates_incoming_webhook_flow(
                 state,
                 merchant_account,
                 business_profile,
+                &key_store,
                 outgoing_event_type,
                 enums::EventClass::Mandates,
                 updated_mandate.mandate_id.clone(),
@@ -496,6 +499,7 @@ pub async fn disputes_incoming_webhook_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
@@ -538,6 +542,7 @@ pub async fn disputes_incoming_webhook_flow(
             state,
             merchant_account,
             business_profile,
+            &key_store,
             event_type,
             enums::EventClass::Disputes,
             dispute_object.dispute_id.clone(),
@@ -590,7 +595,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
         >(
             state.clone(),
             merchant_account.to_owned(),
-            key_store,
+            key_store.clone(),
             payments::PaymentConfirm,
             request,
             services::api::AuthFlow::Merchant,
@@ -623,6 +628,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
                     state,
                     merchant_account,
                     business_profile,
+                    &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.clone(),
@@ -647,6 +653,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    merchant_key_store: &domain::MerchantKeyStore,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
@@ -668,20 +675,24 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     }
 
     let merchant_id = business_profile.merchant_id.clone();
-    let new_event = storage::EventNew {
+    let new_event = domain::Event {
         event_id: event_id.clone(),
         event_type,
         event_class,
         is_webhook_notified: false,
         primary_object_id,
         primary_object_type,
+        created_at: common_utils::date_time::now(),
         idempotent_event_id: Some(event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
         request: None,
         response: None,
     };
 
-    let event_insert_result = state.store.insert_event(new_event).await;
+    let event_insert_result = state
+        .store
+        .insert_event(new_event, merchant_key_store)
+        .await;
 
     let event = match event_insert_result {
         Ok(event) => Ok(event),
@@ -721,6 +732,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     })
     .ok();
 
+    let cloned_key_store = merchant_key_store.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -729,6 +741,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 state,
                 merchant_account,
                 business_profile,
+                &cloned_key_store,
                 outgoing_webhook,
                 types::WebhookDeliveryAttempt::InitialAttempt,
                 content,
@@ -749,6 +762,7 @@ pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    merchant_key_store: &domain::MerchantKeyStore,
     outgoing_webhook: api::OutgoingWebhook,
     delivery_attempt: types::WebhookDeliveryAttempt,
     content: api::OutgoingWebhookContent,
@@ -762,6 +776,7 @@ pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
             trigger_webhook_and_raise_event::<stripe_webhooks::StripeOutgoingWebhook>(
                 state,
                 business_profile,
+                merchant_key_store,
                 outgoing_webhook,
                 delivery_attempt,
                 content,
@@ -775,6 +790,7 @@ pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
             trigger_webhook_and_raise_event::<api_models::webhooks::OutgoingWebhook>(
                 state,
                 business_profile,
+                merchant_key_store,
                 outgoing_webhook,
                 delivery_attempt,
                 content,
@@ -791,6 +807,7 @@ pub(crate) async fn trigger_appropriate_webhook_and_raise_event(
 async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    merchant_key_store: &domain::MerchantKeyStore,
     outgoing_webhook: api::OutgoingWebhook,
     delivery_attempt: types::WebhookDeliveryAttempt,
     content: api::OutgoingWebhookContent,
@@ -802,6 +819,7 @@ async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
     let trigger_webhook_result = trigger_webhook_to_merchant::<W>(
         state.clone(),
         business_profile,
+        merchant_key_store,
         outgoing_webhook,
         delivery_attempt,
         process_tracker,
@@ -821,6 +839,7 @@ async fn trigger_webhook_and_raise_event<W: types::OutgoingWebhookType>(
 async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
+    merchant_key_store: &domain::MerchantKeyStore,
     webhook: api::OutgoingWebhook,
     delivery_attempt: types::WebhookDeliveryAttempt,
     process_tracker: Option<storage::ProcessTracker>,
@@ -912,12 +931,10 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
                 &[metrics::KeyValue::new(MERCHANT_ID, merchant_id)],
             );
 
-            let update_event = storage::EventUpdate::UpdateWebhookNotified {
-                is_webhook_notified: Some(true),
-            };
+            let update_event = domain::EventUpdate::UpdateWebhookNotifiedSuccess;
             state
                 .store
-                .update_event(outgoing_webhook_event_id, update_event)
+                .update_event(outgoing_webhook_event_id, update_event, merchant_key_store)
                 .await
                 .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
 
@@ -1407,6 +1424,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetr
                 state.clone(),
                 merchant_account,
                 business_profile,
+                key_store,
                 webhook_details,
                 source_verified,
                 *connector,
@@ -1567,7 +1585,7 @@ async fn fetch_optional_mca_and_connector(
 pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
     business_profile: &diesel_models::business_profile::BusinessProfile,
-    event: &storage::Event,
+    event: &domain::Event,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,

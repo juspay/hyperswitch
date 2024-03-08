@@ -14,15 +14,11 @@ pub struct EventNew {
     pub is_webhook_notified: bool,
     pub primary_object_id: String,
     pub primary_object_type: storage_enums::EventObjectType,
+    pub created_at: PrimitiveDateTime,
     pub idempotent_event_id: Option<String>,
     pub initial_attempt_id: Option<String>,
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
-}
-
-#[derive(Debug)]
-pub enum EventUpdate {
-    UpdateWebhookNotified { is_webhook_notified: Option<bool> },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -46,16 +42,4 @@ pub struct Event {
     pub initial_attempt_id: Option<String>,
     pub request: Option<Encryption>,
     pub response: Option<Encryption>,
-}
-
-impl From<EventUpdate> for EventUpdateInternal {
-    fn from(event_update: EventUpdate) -> Self {
-        match event_update {
-            EventUpdate::UpdateWebhookNotified {
-                is_webhook_notified,
-            } => Self {
-                is_webhook_notified,
-            },
-        }
-    }
 }
