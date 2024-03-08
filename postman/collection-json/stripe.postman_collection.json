@@ -21830,7 +21830,7 @@
                           "} catch (e) { }",
                           "",
                           "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData?.error?.message.eql(\"Invalid card_cvc length\");",
+                          "  pm.expect(jsonData.error.message).eql(\"Invalid card_cvc length\");",
                           "})",
                           ""
                         ],
@@ -21964,7 +21964,7 @@
                           "} catch (e) { }",
                           "",
                           "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData.error.message.eql(\"Invalid Expiry Month\");",
+                          "  pm.expect(jsonData.error.message).eql(\"Invalid Expiry Month\");",
                           "})",
                           ""
                         ],

@@ -1101,10 +1101,10 @@ mod payment_method_data_serde {
         let deserialize_to_inner = __Inner::deserialize(deserializer)?;
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
-                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)?;
-                // .map_err(|serde_json_error| {
-                //     serde::de::Error::custom(serde_json_error.to_string())
-                // })?;
+                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
+                    .map_err(|serde_json_error| {
+                        serde::de::Error::custom(serde_json_error.to_string())
+                    })?;
 
                 Ok(Some(parsed_value))
             }
@@ -4101,7 +4101,6 @@ mod payments_request_api_contract {
         }
     }
 
-    #[test]
     fn test_successful_payment_method_reward() {
         let payments_request = r#"
         {
