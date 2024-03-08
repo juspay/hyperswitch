@@ -399,7 +399,8 @@ function initializeSDK() {
       : paymentDetails.sdk_layout;
 
   var unifiedCheckoutOptions = {
-    disableSaveCards: true,
+    displaySavedPaymentMethodsCheckbox: true,
+    displaySavedPaymentMethods: true,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -417,7 +418,15 @@ function initializeSDK() {
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
   mountUnifiedCheckout("#unified-checkout");
   showSDK();
+
+  let shimmer = document.getElementById("payment-details-shimmer");
+  shimmer.classList.add("reduce-opacity")
+
+  setTimeout(() => {
+    document.body.removeChild(shimmer);
+  }, 500)
 }
+
 
 /**
  * Use - mount payment widget on the passed element
