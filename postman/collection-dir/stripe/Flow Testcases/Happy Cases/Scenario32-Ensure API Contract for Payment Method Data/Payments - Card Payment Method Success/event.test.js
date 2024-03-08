@@ -21,7 +21,7 @@ if (jsonData?.status) {
   pm.test(
     "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_payment_method");
+      pm.expect(jsonData.status).to.eql("requires_confirmation");
     },
   );
 }
