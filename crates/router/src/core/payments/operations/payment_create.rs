@@ -120,12 +120,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         )
         .await?;
 
-        let token_data = if let Some(token) = token.clone() {
-            Some(helpers::retrieve_payment_token_data(state, token, payment_method).await?)
-        } else {
-            None
-        };
-
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
@@ -396,7 +390,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             setup_mandate,
             customer_acceptance,
             token,
-            token_data,
+            token_data: None,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
