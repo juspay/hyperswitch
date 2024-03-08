@@ -1451,7 +1451,6 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 "Payment method for given token not found or there was a problem fetching it",
             )?;
 
-    println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{:?}", pm);
     utils::when(
         supplementary_data
             .customer_id
@@ -1694,10 +1693,9 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                if let Some((payment_method_data, payment_method)) =
-                    payment_method_details.payment_method_data
-                {
-                    payment_data.payment_attempt.payment_method = Some(payment_method);
+                if let Some(payment_method_data) = payment_method_details.payment_method_data {
+                    payment_data.payment_attempt.payment_method =
+                        payment_method_details.payment_method;
                     (
                         Some(payment_method_data),
                         payment_method_details.payment_method_id,

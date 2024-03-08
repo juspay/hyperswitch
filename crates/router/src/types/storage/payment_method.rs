@@ -23,9 +23,10 @@ pub struct CardTokenData {
     pub token: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
 pub struct PaymentMethodDataWithId {
-    pub payment_method_data: Option<(payments::PaymentMethodData, enums::PaymentMethod)>,
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_data: Option<payments::PaymentMethodData>,
     pub payment_method_id: Option<String>,
 }
 

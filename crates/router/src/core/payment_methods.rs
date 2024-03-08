@@ -127,35 +127,44 @@ impl PaymentMethodRetrieve for Oss {
     ) -> RouterResult<storage::PaymentMethodDataWithId> {
         let token = match token_data {
             storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
-                storage::PaymentMethodDataWithId {
-                    payment_method_data: helpers::retrieve_payment_method_with_temporary_token(
-                        state,
-                        &generic_token.token,
-                        payment_intent,
-                        merchant_key_store,
-                        card_token_data,
-                    )
-                    .await?,
-                    payment_method_id: None,
-                }
+                helpers::retrieve_payment_method_with_temporary_token(
+                    state,
+                    &generic_token.token,
+                    payment_intent,
+                    merchant_key_store,
+                    card_token_data,
+                )
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                )
+                .unwrap_or_default()
             }
 
             storage::PaymentTokenData::Temporary(generic_token) => {
-                storage::PaymentMethodDataWithId {
-                    payment_method_data: helpers::retrieve_payment_method_with_temporary_token(
-                        state,
-                        &generic_token.token,
-                        payment_intent,
-                        merchant_key_store,
-                        card_token_data,
-                    )
-                    .await?,
-                    payment_method_id: None,
-                }
+                helpers::retrieve_payment_method_with_temporary_token(
+                    state,
+                    &generic_token.token,
+                    payment_intent,
+                    merchant_key_store,
+                    card_token_data,
+                )
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                ).unwrap_or_default()
             }
 
-            storage::PaymentTokenData::Permanent(card_token) => storage::PaymentMethodDataWithId {
-                payment_method_data: helpers::retrieve_card_with_permanent_token(
+            storage::PaymentTokenData::Permanent(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
                     state,
                     card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                     card_token
@@ -166,56 +175,70 @@ impl PaymentMethodRetrieve for Oss {
                     card_token_data,
                 )
                 .await
-                .map(|card| Some((card, enums::PaymentMethod::Card)))?,
-                payment_method_id: Some(
+                .map(|card| Some((card, enums::PaymentMethod::Card)))?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: Some(
+                            card_token
+                                .payment_method_id
+                                .as_ref()
+                                .unwrap_or(&card_token.token)
+                                .to_string(),
+                        ),
+                    },
+                ).unwrap_or_default()
+            }
+
+            storage::PaymentTokenData::PermanentCard(card_token) => {
+                helpers::retrieve_card_with_permanent_token(
+                    state,
+                    card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                     card_token
                         .payment_method_id
                         .as_ref()
-                        .unwrap_or(&card_token.token)
-                        .to_string(),
-                ),
-            },
-
-            storage::PaymentTokenData::PermanentCard(card_token) => {
-                storage::PaymentMethodDataWithId {
-                    payment_method_data: helpers::retrieve_card_with_permanent_token(
-                        state,
-                        card_token.locker_id.as_ref().unwrap_or(&card_token.token),
-                        card_token
-                            .payment_method_id
-                            .as_ref()
-                            .unwrap_or(&card_token.token),
-                        payment_intent,
-                        card_token_data,
-                    )
-                    .await
-                    .map(|card| Some((card, enums::PaymentMethod::Card)))?,
-
-                    payment_method_id: Some(
-                        card_token
-                            .payment_method_id
-                            .as_ref()
-                            .unwrap_or(&card_token.token)
-                            .to_string(),
-                    ),
-                }
+                        .unwrap_or(&card_token.token),
+                    payment_intent,
+                    card_token_data,
+                )
+                .await
+                .map(|card| Some((card, enums::PaymentMethod::Card)))?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: Some(
+                            card_token
+                                .payment_method_id
+                                .as_ref()
+                                .unwrap_or(&card_token.token)
+                                .to_string(),
+                        ),
+                    },
+                ).unwrap_or_default()
             }
 
             storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-                storage::PaymentMethodDataWithId {
-                    payment_method_data: core_pm_auth::retrieve_payment_method_from_auth_service(
-                        state,
-                        merchant_key_store,
-                        auth_token,
-                        payment_intent,
-                        customer,
-                    )
-                    .await?,
-                    payment_method_id: None,
-                }
+                core_pm_auth::retrieve_payment_method_from_auth_service(
+                    state,
+                    merchant_key_store,
+                    auth_token,
+                    payment_intent,
+                    customer,
+                )
+                .await?
+                .map(
+                    |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                        payment_method_data: Some(payment_method_data),
+                        payment_method: Some(payment_method),
+                        payment_method_id: None,
+                    },
+                ).unwrap_or_default()
             }
 
             storage::PaymentTokenData::WalletToken(_) => storage::PaymentMethodDataWithId {
+                payment_method: None,
                 payment_method_data: None,
                 payment_method_id: None,
             },
