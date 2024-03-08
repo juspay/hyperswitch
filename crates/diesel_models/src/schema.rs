@@ -336,19 +336,22 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    events (id) {
-        id -> Int4,
+    events (event_id) {
         #[max_length = 64]
         event_id -> Varchar,
         event_type -> EventType,
         event_class -> EventClass,
         is_webhook_notified -> Bool,
         #[max_length = 64]
-        intent_reference_id -> Nullable<Varchar>,
-        #[max_length = 64]
         primary_object_id -> Varchar,
         primary_object_type -> EventObjectType,
         created_at -> Timestamp,
+        #[max_length = 64]
+        idempotent_event_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        initial_attempt_id -> Nullable<Varchar>,
+        request -> Nullable<Bytea>,
+        response -> Nullable<Bytea>,
     }
 }
 

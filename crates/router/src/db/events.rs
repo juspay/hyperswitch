@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::IntoReport;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -74,19 +74,17 @@ impl EventInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let stored_event = storage::Event {
-            id: locked_events
-                .len()
-                .try_into()
-                .into_report()
-                .change_context(errors::StorageError::MockDbError)?,
-            event_id: event.event_id,
+            event_id: event.event_id.clone(),
             event_type: event.event_type,
             event_class: event.event_class,
             is_webhook_notified: event.is_webhook_notified,
-            intent_reference_id: event.intent_reference_id,
             primary_object_id: event.primary_object_id,
             primary_object_type: event.primary_object_type,
             created_at: now,
+            idempotent_event_id: Some(event.event_id.clone()),
+            initial_attempt_id: Some(event.event_id),
+            request: None,
+            response: None,
         };
 
         locked_events.push(stored_event.clone());
@@ -152,25 +150,29 @@ mod tests {
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
+        let test_event_id = "test_event_id";
 
         let event1 = mockdb
             .insert_event(storage::EventNew {
-                event_id: "test_event_id".into(),
+                event_id: test_event_id.into(),
                 event_type: enums::EventType::PaymentSucceeded,
                 event_class: enums::EventClass::Payments,
                 is_webhook_notified: false,
-                intent_reference_id: Some("test".into()),
                 primary_object_id: "primary_object_tet".into(),
                 primary_object_type: enums::EventObjectType::PaymentDetails,
+                idempotent_event_id: Some(test_event_id.into()),
+                initial_attempt_id: Some(test_event_id.into()),
+                request: None,
+                response: None,
             })
             .await
             .unwrap();
 
-        assert_eq!(event1.id, 0);
+        assert_eq!(event1.event_id, test_event_id);
 
         let updated_event = mockdb
             .update_event(
-                "test_event_id".into(),
+                test_event_id.into(),
                 storage::EventUpdate::UpdateWebhookNotified {
                     is_webhook_notified: Some(true),
                 },
@@ -180,6 +182,6 @@ mod tests {
 
         assert!(updated_event.is_webhook_notified);
         assert_eq!(updated_event.primary_object_id, "primary_object_tet");
-        assert_eq!(updated_event.id, 0);
+        assert_eq!(updated_event.event_id, test_event_id);
     }
 }

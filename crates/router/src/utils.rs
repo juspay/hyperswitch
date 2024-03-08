@@ -808,7 +808,6 @@ where
                             business_profile,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
-                            None,
                             payment_id,
                             diesel_models::enums::EventObjectType::PaymentDetails,
                             webhooks::OutgoingWebhookContent::PaymentDetails(
