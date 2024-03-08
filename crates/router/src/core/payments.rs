@@ -41,13 +41,15 @@ use self::{
     routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    authentication::types::AuthenticationData, errors::StorageErrorExt,
+    payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     core::{
+        authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::PaymentMethodRetrieve,
         utils,
@@ -58,10 +60,11 @@ use crate::{
     services::{self, api::Authenticate},
     types::{
         self as router_types,
-        api::{self, ConnectorCallType},
+        api::{self, authentication, ConnectorCallType},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
+        BrowserInformation,
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
@@ -2073,6 +2076,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
+    pub authentication: Option<(storage::Authentication, AuthenticationData)>,
     pub frm_metadata: Option<serde_json::Value>,
 }
 
@@ -3028,4 +3032,202 @@ where
         .attach_printable("Invalid connector name received")?;
 
     Ok(ConnectorCallType::Retryable(connector_data))
+}
+
+#[instrument(skip_all)]
+pub async fn payment_external_authentication(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api_models::payments::PaymentsExternalAuthenticationRequest,
+) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
+    let db = &*state.store;
+    let merchant_id = &merchant_account.merchant_id;
+    let storage_scheme = merchant_account.storage_scheme;
+    let payment_id = req.payment_id;
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let attempt_id = payment_intent.active_attempt.get_id().clone();
+    let payment_attempt = db
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            &payment_intent.payment_id,
+            merchant_id,
+            &attempt_id.clone(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    if payment_attempt.external_three_ds_authentication_attempted != Some(true) {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message:
+                "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false".to_owned(),
+        })?
+    }
+    helpers::validate_payment_status_against_allowed_statuses(
+        &payment_intent.status,
+        &[storage_enums::IntentStatus::RequiresCustomerAction],
+        "authenticate",
+    )?;
+    let optional_customer = match &payment_intent.customer_id {
+        Some(customer_id) => Some(
+            state
+                .store
+                .find_customer_by_customer_id_merchant_id(
+                    customer_id,
+                    &merchant_account.merchant_id,
+                    &key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    "error while finding customer with customer_id {customer_id}"
+                })?,
+        ),
+        None => None,
+    };
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+    let currency = payment_attempt.currency.get_required_value("currency")?;
+    let amount = payment_attempt.get_total_amount().into();
+    let shipping_address = helpers::create_or_find_address_for_payment_by_request(
+        db,
+        None,
+        payment_intent.shipping_address_id.as_deref(),
+        merchant_id,
+        payment_intent.customer_id.as_ref(),
+        &key_store,
+        &payment_intent.payment_id,
+        storage_scheme,
+    )
+    .await?;
+    let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        db,
+        None,
+        payment_intent.billing_address_id.as_deref(),
+        merchant_id,
+        payment_intent.customer_id.as_ref(),
+        &key_store,
+        &payment_intent.payment_id,
+        storage_scheme,
+    )
+    .await?;
+    let authentication_connector = payment_attempt
+        .authentication_connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("authentication_connector not found in payment_attempt")?;
+    let merchant_connector_account = db
+        .find_merchant_connector_account_by_profile_id_connector_name(
+            profile_id,
+            &authentication_connector,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: format!("profile id {profile_id} and connector name {authentication_connector}"),
+        })?;
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(
+            merchant_id.to_string(),
+            payment_attempt
+                .authentication_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("missing authentication_id in payment_attempt")?,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while fetching authentication record")?;
+    let authentication_data: AuthenticationData = authentication
+        .authentication_data
+        .clone()
+        .parse_value("authentication data")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing authentication_data")?;
+    let payment_method_details = helpers::get_payment_method_details_from_payment_token(
+        &state,
+        &payment_attempt,
+        &payment_intent,
+        &key_store,
+    )
+    .await?
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
+    .into_report()
+    .attach_printable("missing payment_method_details")?;
+    let browser_info: Option<BrowserInformation> = payment_attempt
+        .browser_info
+        .clone()
+        .map(|browser_information| browser_information.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
+    let payment_connector_name = payment_attempt
+        .connector
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("missing connector in payment_attempt")?;
+    let return_url = Some(helpers::create_authorize_url(
+        &state.conf.server.base_url,
+        &payment_attempt.clone(),
+        payment_connector_name,
+    ));
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_string(),
+        })?;
+
+    let authentication_response = authentication_core::perform_authentication(
+        &state,
+        authentication_connector,
+        payment_method_details.0,
+        payment_method_details.1,
+        billing_address
+            .as_ref()
+            .map(|address| address.into())
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "billing_address",
+            })?,
+        shipping_address.as_ref().map(|address| address.into()),
+        browser_info,
+        business_profile,
+        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
+        amount,
+        Some(currency),
+        authentication::MessageCategory::Payment,
+        req.device_channel,
+        (authentication_data, authentication),
+        return_url,
+        req.sdk_information,
+        req.threeds_method_comp_ind,
+        optional_customer.and_then(|customer| customer.email.map(common_utils::pii::Email::from)),
+    )
+    .await?;
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsExternalAuthenticationResponse {
+            transaction_status: authentication_response.trans_status,
+            acs_url: authentication_response
+                .acs_url
+                .as_ref()
+                .map(ToString::to_string),
+            challenge_request: authentication_response.challenge_request,
+            acs_reference_number: authentication_response.acs_reference_number,
+            acs_trans_id: authentication_response.acs_trans_id,
+            three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,
+            acs_signed_content: authentication_response.acs_signed_content,
+        },
+    ))
 }
