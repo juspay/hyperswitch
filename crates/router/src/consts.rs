@@ -96,5 +96,7 @@ pub const MIN_SESSION_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
 
+pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
+
 // URL for checking the outgoing call
 pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
