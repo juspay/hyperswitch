@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{report, IntoReport, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -747,8 +747,8 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             authentication::utils::get_connector_name_if_separate_authn_supported(
                 connector_call_type,
             );
-        print!("is_pre_authn_call {:?}", authentication.is_none());
-        print!(
+        logger::info!("is_pre_authn_call {:?}", authentication.is_none());
+        logger::info!(
             "separate_authentication_requested {:?}",
             separate_authentication_requested
         );
@@ -786,30 +786,26 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .as_ref()
                 .get_required_value("profile_id")
                 .attach_printable("'profile_id' not set in payment intent")?;
-            let merchant_connector_account = state
-                .store
-                .find_merchant_connector_account_by_profile_id_connector_name(
-                    profile_id,
-                    &authentication_connector,
-                    key_store,
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile id {profile_id} and connector name {authentication_connector}"
-                        ),
-                    },
-                )?;
+            let merchant_connector_account = helpers::get_merchant_connector_account(
+                state,
+                &business_profile.merchant_id,
+                None,
+                key_store,
+                profile_id,
+                &authentication_connector,
+                None,
+            )
+            .await?;
+            let authentication_connector_name = merchant_connector_account
+                .get_connector_name()
+                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
             if let Some(authentication_data) = authentication {
                 // call post authn service
                 authentication::perform_post_authentication(
                     state,
-                    merchant_connector_account.connector_name.clone(),
+                    authentication_connector_name.clone(),
                     business_profile.clone(),
-                    helpers::MerchantConnectorAccountType::DbVal(
-                        merchant_connector_account.clone(),
-                    ),
+                    merchant_connector_account,
                     authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
                         payment_data,
                         authentication_data,
@@ -840,16 +836,14 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 if let Some(card_number) = card_number {
                     authentication::perform_pre_authentication(
                         state,
-                        merchant_connector_account.connector_name.clone(),
+                        authentication_connector_name,
                         authentication::types::PreAuthenthenticationFlowInput::PaymentAuthNFlow {
                             payment_data,
                             should_continue_confirm_transaction,
                             card_number,
                         },
                         business_profile,
-                        helpers::MerchantConnectorAccountType::DbVal(
-                            merchant_connector_account.clone(),
-                        ),
+                        merchant_connector_account,
                         payment_connector_mca,
                     )
                     .await?;
