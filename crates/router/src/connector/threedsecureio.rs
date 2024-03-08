@@ -2,17 +2,13 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use pm_auth::consts;
-use serde_json::{json, to_string};
-use threedsecureio::ThreeDSecureIoConnectorMetaData;
 use transformers as threedsecureio;
 
 use crate::{
     configs::settings,
-    consts::BASE64_ENGINE,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -24,7 +20,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignTryFrom,
         ErrorResponse, RequestContent, Response,
     },
     utils::{self, BytesExt},
@@ -268,7 +263,6 @@ impl
         ))?;
         let req_obj =
             threedsecureio::ThreedsecureioAuthenticationRequest::try_from(&connector_router_data);
-        println!("req_obj authn {:?}", req_obj);
         Ok(RequestContent::Json(Box::new(req_obj?)))
     }
 
@@ -314,6 +308,7 @@ impl
             .parse_struct("ThreedsecureioAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -408,59 +403,16 @@ impl
             .parse_struct("threedsecureio ThreedsecureioPreAuthenticationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        let response = match response {
-            threedsecureio::ThreedsecureioPreAuthenticationResponse::Success(
-                pre_authn_response,
-            ) => {
-                let three_ds_method_data = json!({
-                    "threeDSServerTransID": pre_authn_response.threeds_server_trans_id,
-                });
-                let three_ds_method_data_str = to_string(&three_ds_method_data)
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("error while constructing three_ds_method_data_str")?;
-                let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
-                let connector_metadata = serde_json::json!(ThreeDSecureIoConnectorMetaData {
-                    ds_start_protocol_version: pre_authn_response.ds_start_protocol_version,
-                    ds_end_protocol_version: pre_authn_response.ds_end_protocol_version,
-                    acs_start_protocol_version: pre_authn_response.acs_start_protocol_version,
-                    acs_end_protocol_version: pre_authn_response.acs_end_protocol_version.clone(),
-                });
-                Ok(
-                    types::authentication::AuthenticationResponseData::PreAuthNResponse {
-                        threeds_server_transaction_id: pre_authn_response
-                            .threeds_server_trans_id
-                            .clone(),
-                        maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
-                            pre_authn_response.acs_end_protocol_version.clone(),
-                        )?,
-                        connector_authentication_id: pre_authn_response.threeds_server_trans_id,
-                        three_ds_method_data: three_ds_method_data_base64,
-                        three_ds_method_url: pre_authn_response.threeds_method_url,
-                        message_version: pre_authn_response.acs_end_protocol_version.clone(),
-                        connector_metadata: Some(connector_metadata),
-                    },
-                )
-            }
-            threedsecureio::ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
-                Err(ErrorResponse {
-                    code: error_response.error_code,
-                    message: error_response
-                        .error_description
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
-                    reason: error_response.error_description,
-                    status_code: res.status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                })
-            }
-        };
-
-        Ok(types::authentication::PreAuthNRouterData {
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
-            ..data.clone()
+            data: data.clone(),
+            http_code: res.status_code,
         })
+        // Ok(types::authentication::PreAuthNRouterData {
+        //     response,
+        //     ..data.clone()
+        // })
     }
 
     fn get_error_response(
@@ -511,7 +463,6 @@ impl
                 .threeds_server_transaction_id
                 .clone(),
         };
-        println!("req_obj post-authn {:?}", req_obj);
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -557,6 +508,7 @@ impl
             .parse_struct("threedsecureio PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
         Ok(
             types::authentication::ConnectorPostAuthenticationRouterData {
                 response: Ok(

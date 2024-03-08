@@ -30,8 +30,8 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::DummyConnector4
         | api_models::enums::Connector::DummyConnector5
         | api_models::enums::Connector::DummyConnector6
-        | api_models::enums::Connector::DummyConnector7
-        | api_models::enums::Connector::Aci
+        | api_models::enums::Connector::DummyConnector7 => false,
+        api_models::enums::Connector::Aci
         | api_models::enums::Connector::Adyen
         | api_models::enums::Connector::Airwallex
         | api_models::enums::Connector::Authorizedotnet

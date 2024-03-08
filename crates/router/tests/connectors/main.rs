@@ -54,7 +54,6 @@ mod shift4;
 mod square;
 mod stax;
 mod stripe;
-mod threedsecureio;
 mod trustpay;
 mod tsys;
 mod utils;
