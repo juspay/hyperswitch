@@ -1244,23 +1244,32 @@ impl api::IncomingWebhook for Checkout {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         if checkout::is_chargeback_event(&details.transaction_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
+            let reference = match details.data.reference {
+                Some(reference) => api_models::payments::PaymentIdType::PaymentAttemptId(reference),
+                None => api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
                         .data
                         .payment_id
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
+            };
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                reference,
             ));
         }
         if checkout::is_refund_event(&details.transaction_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(
+            let refund_reference = match details.data.reference {
+                Some(reference) => api_models::webhooks::RefundIdType::RefundId(reference),
+                None => api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
                         .data
                         .action_id
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
+            };
+
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                refund_reference,
             ));
         }
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
