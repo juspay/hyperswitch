@@ -114,7 +114,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsRedirect
-            | Flow::PaymentsIncrementalAuthorization => Self::Payments,
+            | Flow::PaymentsIncrementalAuthorization
+            | Flow::PaymentsExternalAuthentication
+            | Flow::PaymentsAuthorize => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -186,6 +188,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteSampleData
             | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
+            | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
             | Flow::InviteUser

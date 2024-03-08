@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod api_keys;
+pub mod authentication;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -31,8 +32,8 @@ pub use self::fraud_check::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
-    payment_methods::*, payments::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
+    payment_link::*, payment_methods::*, payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -177,6 +178,7 @@ pub trait Connector:
     + ConnectorVerifyWebhookSource
     + FraudCheck
     + ConnectorMandateRevoke
+    + ExternalAuthentication
 {
 }
 
@@ -198,7 +200,8 @@ impl<
             + Payouts
             + ConnectorVerifyWebhookSource
             + FraudCheck
-            + ConnectorMandateRevoke,
+            + ConnectorMandateRevoke
+            + ExternalAuthentication,
     > Connector for T
 {
 }
