@@ -452,9 +452,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
-        payment_intent.request_external_three_ds_authentication = request
-            .request_external_three_ds_authentication
-            .or(payment_intent.request_external_three_ds_authentication);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -1106,9 +1103,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         updated_by: m_storage_scheme,
                         fingerprint_id: None,
                         session_expiry,
-                        request_external_three_ds_authentication: payment_data
-                            .payment_intent
-                            .request_external_three_ds_authentication,
+                        request_external_three_ds_authentication: None,
                     },
                     storage_scheme,
                 )
