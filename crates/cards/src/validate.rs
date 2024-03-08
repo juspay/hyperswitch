@@ -51,12 +51,13 @@ impl FromStr for CardNumber {
     type Err = CCValError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match luhn::valid(s) {
-            true => {
-                let cc_no_whitespace: String = s.split_whitespace().collect();
-                Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
-            }
-            false => Err(CCValError),
+        // Valid test cards for threedsecureio
+        let valid_test_cards = ["4000100511112003", "6000100611111203", "3000100811111072"];
+        if luhn::valid(s) || valid_test_cards.contains(&s) {
+            let cc_no_whitespace: String = s.split_whitespace().collect();
+            Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
+        } else {
+            Err(CCValError)
         }
     }
 }

@@ -34,6 +34,7 @@
     "Scenario28-Confirm a payment with requires_customer_action status",
     "Scenario29-Create payment with payment method billing",
     "Scenario30-Update payment with payment method billing",
-    "Scenario31-Pass payment method billing in Confirm"
+    "Scenario31-Pass payment method billing in Confirm",
+    "Scenario32-Ensure API Contract for Payment Method Data"
   ]
 }
