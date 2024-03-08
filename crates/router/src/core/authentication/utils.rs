@@ -2,7 +2,7 @@ use common_enums::DecoupledAuthenticationType;
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 
-use super::types::AuthenticationData;
+use super::types::{AuthenticationData, ThreeDsMethodData};
 use crate::{
     consts,
     core::{
@@ -20,6 +20,7 @@ use crate::{
         transformers::ForeignFrom,
         RouterData,
     },
+    utils::OptionExt,
 };
 pub fn is_separate_authn_supported_connector(connector: router_types::Connector) -> bool {
     #[cfg(feature = "dummy_connector")]
@@ -171,8 +172,8 @@ pub async fn update_trackers<F: Clone, Req>(
     authentication: storage::Authentication,
     token: Option<String>,
     acquirer_details: Option<super::types::AcquirerDetails>,
-) -> RouterResult<(storage::Authentication, AuthenticationData)> {
-    let mut authentication_data = authentication
+) -> RouterResult<(storage::Authentication, Option<AuthenticationData>)> {
+    let authentication_data_option = authentication
         .authentication_data
         .as_ref()
         .map(|authentication_data| {
@@ -181,11 +182,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 .parse_value::<AuthenticationData>("AuthenticationData")
                 .change_context(ApiErrorResponse::InternalServerError)
         })
-        .transpose()?
-        .unwrap_or_default();
+        .transpose()?;
 
-    let authentication_update = match router_data.response {
-        Ok(response) => Some(match response {
+    let (authentication_update, updated_authentication_data) = match router_data.response {
+        Ok(response) => match response {
             AuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,
@@ -195,102 +195,131 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
             } => {
-                authentication_data.maximum_supported_version = maximum_supported_3ds_version;
-                authentication_data.threeds_server_transaction_id = threeds_server_transaction_id;
-                authentication_data
-                    .three_ds_method_data
-                    .three_ds_method_data = three_ds_method_data;
-                authentication_data
-                    .three_ds_method_data
-                    .three_ds_method_data_submission = three_ds_method_url.is_some();
-                authentication_data.three_ds_method_data.three_ds_method_url = three_ds_method_url;
-                authentication_data.message_version = message_version;
-                authentication_data.acquirer_details = acquirer_details;
-
-                storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                    authentication_data: Some(
-                        Encode::encode_to_value(&authentication_data)
-                            .change_context(ApiErrorResponse::InternalServerError)?,
-                    ),
-                    connector_authentication_id: Some(connector_authentication_id),
-                    payment_method_id: token.map(|token| format!("eph_{}", token)),
-                    authentication_type: None,
-                    authentication_status: Some(common_enums::AuthenticationStatus::Started),
-                    authentication_lifecycle_status: None,
-                    connector_metadata,
-                }
+                let three_ds_method_data = ThreeDsMethodData {
+                    three_ds_method_data,
+                    three_ds_method_data_submission: three_ds_method_url.is_some(),
+                    three_ds_method_url,
+                };
+                let authentication_data = AuthenticationData {
+                    maximum_supported_version: maximum_supported_3ds_version,
+                    threeds_server_transaction_id,
+                    three_ds_method_data,
+                    message_version,
+                    acquirer_details,
+                    ..Default::default()
+                };
+                (
+                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
+                        authentication_data: Some(
+                            Encode::encode_to_value(&authentication_data)
+                                .change_context(ApiErrorResponse::InternalServerError)?,
+                        ),
+                        connector_authentication_id: Some(connector_authentication_id),
+                        payment_method_id: token.map(|token| format!("eph_{}", token)),
+                        authentication_type: None,
+                        authentication_status: Some(common_enums::AuthenticationStatus::Started),
+                        authentication_lifecycle_status: None,
+                        connector_metadata,
+                    },
+                    Some(authentication_data),
+                )
             }
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
-                cavv,
+                authentication_value: cavv,
                 trans_status,
             } => {
-                authentication_data.authn_flow_type = Some(authn_flow_type.clone());
-                authentication_data.cavv = cavv.or(authentication_data.cavv);
-                authentication_data.trans_status = trans_status.clone();
-                storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                    authentication_data: Some(
-                        Encode::encode_to_value(&authentication_data)
-                            .change_context(ApiErrorResponse::InternalServerError)?,
-                    ),
-                    connector_authentication_id: None,
-                    payment_method_id: None,
-                    authentication_type: Some(match authn_flow_type {
-                        AuthNFlowType::Challenge { .. } => DecoupledAuthenticationType::Challenge,
-                        AuthNFlowType::Frictionless => DecoupledAuthenticationType::Frictionless,
-                    }),
-                    authentication_status: Some(common_enums::AuthenticationStatus::foreign_from(
-                        trans_status,
-                    )),
-                    authentication_lifecycle_status: None,
-                    connector_metadata: None,
-                }
+                let authentication_data = authentication_data_option
+                    .get_required_value("authentication_data")
+                    .attach_printable(
+                        "AuthenticationData is required to make Authentication call",
+                    )?;
+                let authentication_data = AuthenticationData {
+                    authn_flow_type: Some(authn_flow_type.clone()),
+                    cavv,
+                    trans_status: trans_status.clone(),
+                    ..authentication_data
+                };
+                (
+                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
+                        authentication_data: Some(
+                            Encode::encode_to_value(&authentication_data)
+                                .change_context(ApiErrorResponse::InternalServerError)?,
+                        ),
+                        connector_authentication_id: None,
+                        payment_method_id: None,
+                        authentication_type: Some(match authn_flow_type {
+                            AuthNFlowType::Challenge { .. } => {
+                                DecoupledAuthenticationType::Challenge
+                            }
+                            AuthNFlowType::Frictionless => {
+                                DecoupledAuthenticationType::Frictionless
+                            }
+                        }),
+                        authentication_status: Some(
+                            common_enums::AuthenticationStatus::foreign_from(trans_status),
+                        ),
+                        authentication_lifecycle_status: None,
+                        connector_metadata: None,
+                    },
+                    Some(authentication_data),
+                )
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
             } => {
-                authentication_data.cavv = authentication_value;
-                authentication_data.eci = eci;
-                authentication_data.trans_status = trans_status.clone();
-                storage::AuthenticationUpdate::AuthenticationDataUpdate {
-                    authentication_data: Some(
-                        Encode::encode_to_value(&authentication_data)
-                            .change_context(ApiErrorResponse::InternalServerError)?,
-                    ),
-                    connector_authentication_id: None,
-                    payment_method_id: None,
-                    authentication_type: None,
-                    authentication_status: Some(common_enums::AuthenticationStatus::foreign_from(
-                        trans_status,
-                    )),
-                    authentication_lifecycle_status: None,
-                    connector_metadata: None,
-                }
+                let authentication_data = authentication_data_option
+                    .get_required_value("authentication_data")
+                    .attach_printable(
+                        "AuthenticationData is required to make Post Authentication call",
+                    )?;
+                let authentication_data = AuthenticationData {
+                    cavv: authentication_value,
+                    eci,
+                    trans_status: trans_status.clone(),
+                    ..authentication_data
+                };
+                (
+                    storage::AuthenticationUpdate::AuthenticationDataUpdate {
+                        authentication_data: Some(
+                            Encode::encode_to_value(&authentication_data)
+                                .change_context(ApiErrorResponse::InternalServerError)?,
+                        ),
+                        connector_authentication_id: None,
+                        payment_method_id: None,
+                        authentication_type: None,
+                        authentication_status: Some(
+                            common_enums::AuthenticationStatus::foreign_from(trans_status),
+                        ),
+                        authentication_lifecycle_status: None,
+                        connector_metadata: None,
+                    },
+                    Some(authentication_data),
+                )
             }
-        }),
-        Err(error) => Some(storage::AuthenticationUpdate::ErrorUpdate {
-            connector_authentication_id: error.connector_transaction_id,
-            authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: Some(error.message),
-            error_code: Some(error.code),
-        }),
+        },
+        Err(error) => (
+            storage::AuthenticationUpdate::ErrorUpdate {
+                connector_authentication_id: error.connector_transaction_id,
+                authentication_status: common_enums::AuthenticationStatus::Failed,
+                error_message: Some(error.message),
+                error_code: Some(error.code),
+            },
+            authentication_data_option,
+        ),
     };
-    let authentication_result = if let Some(authentication_update) = authentication_update {
-        state
-            .store
-            .update_authentication_by_merchant_id_authentication_id(
-                authentication,
-                authentication_update,
-            )
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while updating authentication")
-    } else {
-        Ok(authentication)
-    };
-    authentication_result.map(|authentication| (authentication, authentication_data))
+    let authentication_result = state
+        .store
+        .update_authentication_by_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while updating authentication");
+    authentication_result.map(|authentication| (authentication, updated_authentication_data))
 }
 
 impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptStatus {

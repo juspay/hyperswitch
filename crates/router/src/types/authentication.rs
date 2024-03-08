@@ -22,7 +22,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        cavv: Option<String>,
+        authentication_value: Option<String>,
         trans_status: api_models::payments::TransactionStatus,
     },
     PostAuthNResponse {
