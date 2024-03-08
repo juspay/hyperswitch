@@ -4101,6 +4101,7 @@ mod payments_request_api_contract {
         }
     }
 
+    #[test]
     fn test_successful_payment_method_reward() {
         let payments_request = r#"
         {
@@ -4108,7 +4109,7 @@ mod payments_request_api_contract {
             "currency": "USD",
             "payment_method": "reward",
             "payment_method_data": "reward",
-            "payment_method_type": "e_voucher"
+            "payment_method_type": "evoucher"
         }
         "#;
 
