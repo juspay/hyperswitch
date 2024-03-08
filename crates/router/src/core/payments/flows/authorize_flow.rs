@@ -140,8 +140,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         resp.payment_method_id = payment_method_id.clone();
                         resp.payment_method_status = payment_method_status;
                     }
-                    Err(_error) => {
-                        logger::error!(?_error)
+                    Err(error) => {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", error);
                     }
                 }
 
