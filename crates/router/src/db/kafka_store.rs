@@ -284,7 +284,10 @@ impl ConfigInterface for KafkaStore {
             .await
     }
 
-    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn delete_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store.delete_config_by_key(key).await
     }
 
@@ -482,6 +485,13 @@ impl EventInterface for KafkaStore {
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
         self.diesel_store.insert_event(event).await
+    }
+
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+    ) -> CustomResult<storage::Event, errors::StorageError> {
+        self.diesel_store.find_event_by_event_id(event_id).await
     }
 
     async fn update_event(
@@ -1264,9 +1274,36 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id)
+            .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id, limit)
+            .await
+    }
+
+    async fn find_payment_method_by_customer_id_merchant_id_status(
+        &self,
+        customer_id: &str,
+        merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_status(
+                customer_id,
+                merchant_id,
+                status,
+                limit,
+            )
+            .await
+    }
+
+    async fn find_payment_method_by_locker_id(
+        &self,
+        locker_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_locker_id(locker_id)
             .await
     }
 
@@ -1310,6 +1347,16 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_attempt_id(merchant_id, payout_attempt_id)
+            .await
+    }
+
     async fn update_payout_attempt_by_merchant_id_payout_id(
         &self,
         merchant_id: &str,
@@ -1318,6 +1365,21 @@ impl PayoutAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
         self.diesel_store
             .update_payout_attempt_by_merchant_id_payout_id(merchant_id, payout_id, payout)
+            .await
+    }
+
+    async fn update_payout_attempt_by_merchant_id_payout_attempt_id(
+        &self,
+        merchant_id: &str,
+        payout_attempt_id: &str,
+        payout: storage::PayoutAttemptUpdate,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .update_payout_attempt_by_merchant_id_payout_attempt_id(
+                merchant_id,
+                payout_attempt_id,
+                payout,
+            )
             .await
     }
 
@@ -1816,6 +1878,23 @@ impl RoutingAlgorithmInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
         self.diesel_store
             .list_routing_algorithm_metadata_by_merchant_id(merchant_id, limit, offset)
+            .await
+    }
+
+    async fn list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+        &self,
+        merchant_id: &str,
+        transaction_type: &enums::TransactionType,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
+                merchant_id,
+                transaction_type,
+                limit,
+                offset,
+            )
             .await
     }
 }

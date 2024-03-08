@@ -811,15 +811,6 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
     }
 }
 
-impl From<info::PermissionInfo> for user_role_api::PermissionInfo {
-    fn from(value: info::PermissionInfo) -> Self {
-        Self {
-            enum_name: value.enum_name.into(),
-            description: value.description,
-        }
-    }
-}
-
 pub enum SignInWithRoleStrategyType {
     SingleRole(SignInWithSingleRoleStrategy),
     MultipleRoles(SignInWithMultipleRolesStrategy),
@@ -870,8 +861,11 @@ impl SignInWithSingleRoleStrategy {
     async fn get_signin_response(self, state: &AppState) -> UserResult<user_api::SignInResponse> {
         let token =
             utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
+
         let dashboard_entry_response =
             utils::user::get_dashboard_entry_response(state, self.user, self.user_role, token)?;
+
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,
         ))
@@ -924,5 +918,25 @@ impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
             UserStatus::Active => Self::Active,
             UserStatus::InvitationSent => Self::InvitationSent,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct RoleName(String);
+
+impl RoleName {
+    pub fn new(name: String) -> UserResult<Self> {
+        let is_empty_or_whitespace = name.trim().is_empty();
+        let is_too_long = name.graphemes(true).count() > consts::user_role::MAX_ROLE_NAME_LENGTH;
+
+        if is_empty_or_whitespace || is_too_long || name.contains(' ') {
+            Err(UserErrors::RoleNameParsingError.into())
+        } else {
+            Ok(Self(name.to_lowercase()))
+        }
+    }
+
+    pub fn get_role_name(self) -> String {
+        self.0
     }
 }

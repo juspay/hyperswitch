@@ -1,23 +1,7 @@
-use common_enums::RoleScope;
+use common_enums::PermissionGroup;
 use common_utils::pii;
 
-use crate::user::DashboardEntryResponse;
-
-#[derive(Debug, serde::Serialize)]
-pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
-
-#[derive(Debug, serde::Serialize)]
-pub struct RoleInfoResponse {
-    pub role_id: String,
-    pub permissions: Vec<Permission>,
-    pub role_name: String,
-    pub role_scope: RoleScope,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GetRoleRequest {
-    pub role_id: String,
-}
+pub mod role;
 
 #[derive(Debug, serde::Serialize)]
 pub enum Permission {
@@ -66,11 +50,25 @@ pub enum PermissionModule {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct AuthorizationInfoResponse(pub Vec<ModuleInfo>);
+pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
+
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+pub enum AuthorizationInfo {
+    Module(ModuleInfo),
+    Group(GroupInfo),
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct ModuleInfo {
     pub module: PermissionModule,
+    pub description: &'static str,
+    pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GroupInfo {
+    pub group: PermissionGroup,
     pub description: &'static str,
     pub permissions: Vec<PermissionInfo>,
 }
@@ -98,8 +96,6 @@ pub struct AcceptInvitationRequest {
     pub merchant_ids: Vec<String>,
     pub need_dashboard_entry_response: Option<bool>,
 }
-
-pub type AcceptInvitationResponse = DashboardEntryResponse;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {

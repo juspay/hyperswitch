@@ -150,6 +150,25 @@ impl Connector {
     }
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationConnectors {
+    Threedsecureio,
+}
+
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,
@@ -181,6 +200,28 @@ impl From<PayoutConnectors> for RoutableConnectors {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl From<PayoutConnectors> for Connector {
+    fn from(value: PayoutConnectors) -> Self {
+        match value {
+            PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Wise => Self::Wise,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<Connector> for PayoutConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Adyen => Ok(Self::Adyen),
+            Connector::Wise => Ok(Self::Wise),
+            _ => Err(format!("Invalid payout connector {}", value)),
+        }
+    }
+}
+
 #[cfg(feature = "frm")]
 #[derive(
     Clone,
@@ -201,16 +242,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-}
-
-#[cfg(feature = "frm")]
-impl From<FrmConnectors> for RoutableConnectors {
-    fn from(value: FrmConnectors) -> Self {
-        match value {
-            FrmConnectors::Signifyd => Self::Signifyd,
-            FrmConnectors::Riskified => Self::Riskified,
-        }
-    }
 }
 
 #[derive(
@@ -412,6 +443,9 @@ pub enum BankNames {
     TsbBank,
     TescoBank,
     UlsterBank,
+    Yoursafe,
+    N26,
+    NationaleNederlanden,
 }
 
 #[derive(
@@ -526,4 +560,8 @@ pub enum PmAuthConnectors {
 
 pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnectors> {
     PmAuthConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
+    AuthenticationConnectors::from_str(connector_name).ok()
 }

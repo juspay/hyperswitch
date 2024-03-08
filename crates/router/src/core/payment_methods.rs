@@ -155,7 +155,11 @@ impl PaymentMethodRetrieve for Oss {
             storage::PaymentTokenData::Permanent(card_token) => {
                 helpers::retrieve_card_with_permanent_token(
                     state,
-                    &card_token.token,
+                    card_token.locker_id.as_ref().unwrap_or(&card_token.token),
+                    card_token
+                        .payment_method_id
+                        .as_ref()
+                        .unwrap_or(&card_token.token),
                     payment_intent,
                     card_token_data,
                 )
@@ -166,7 +170,11 @@ impl PaymentMethodRetrieve for Oss {
             storage::PaymentTokenData::PermanentCard(card_token) => {
                 helpers::retrieve_card_with_permanent_token(
                     state,
-                    &card_token.token,
+                    card_token.locker_id.as_ref().unwrap_or(&card_token.token),
+                    card_token
+                        .payment_method_id
+                        .as_ref()
+                        .unwrap_or(&card_token.token),
                     payment_intent,
                     card_token_data,
                 )
@@ -184,6 +192,8 @@ impl PaymentMethodRetrieve for Oss {
                 )
                 .await
             }
+
+            storage::PaymentTokenData::WalletToken(_) => Ok(None),
         }
     }
 }

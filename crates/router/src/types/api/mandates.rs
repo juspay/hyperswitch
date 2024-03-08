@@ -51,7 +51,10 @@ impl MandateResponseExt for MandateResponse {
                     state,
                     &payment_method.customer_id,
                     &payment_method.merchant_id,
-                    &payment_method.payment_method_id,
+                    payment_method
+                        .locker_id
+                        .as_ref()
+                        .unwrap_or(&payment_method.payment_method_id),
                 )
                 .await?;
 

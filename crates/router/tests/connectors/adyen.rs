@@ -24,12 +24,13 @@ impl utils::Connector for AdyenTest {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         use router::connector::Adyen;
-        Some(types::api::PayoutConnectorData {
+        Some(types::api::ConnectorData {
             connector: Box::new(&Adyen),
-            connector_name: types::PayoutConnectors::Adyen,
+            connector_name: types::Connector::Adyen,
             get_token: types::api::GetToken::Connector,
+            merchant_connector_id: None,
         })
     }
 
@@ -62,6 +63,7 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),
@@ -88,6 +90,7 @@ impl AdyenTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),
@@ -167,6 +170,8 @@ impl AdyenTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         })
     }
 }

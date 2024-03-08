@@ -50,10 +50,6 @@ pub struct MerchantAccountCreate {
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -101,6 +97,15 @@ pub struct MerchantAccountCreate {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AuthenticationConnectorDetails {
+    /// List of authentication connectors
+    #[schema(value_type = Vec<AuthenticationConnectors>)]
+    pub authentication_connectors: Vec<enums::AuthenticationConnectors>,
+    /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
+    pub three_ds_requestor_url: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
@@ -136,10 +141,6 @@ pub struct MerchantAccountUpdate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -228,10 +229,6 @@ pub struct MerchantAccountResponse {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -322,124 +319,6 @@ pub struct MerchantDetails {
     /// The merchant's address details
     pub address: Option<AddressDetails>,
 }
-#[cfg(feature = "payouts")]
-pub mod payout_routing_algorithm {
-    use std::{fmt, str::FromStr};
-
-    use serde::{
-        de::{self, Visitor},
-        Deserializer,
-    };
-    use serde_json::Map;
-
-    use super::PayoutRoutingAlgorithm;
-    use crate::enums::PayoutConnectors;
-    struct RoutingAlgorithmVisitor;
-    struct OptionalRoutingAlgorithmVisitor;
-
-    impl<'de> Visitor<'de> for RoutingAlgorithmVisitor {
-        type Value = serde_json::Value;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::MapAccess<'de>,
-        {
-            let mut output = Map::new();
-            let mut routing_data: String = "".to_string();
-            let mut routing_type: String = "".to_string();
-
-            while let Some(key) = map.next_key()? {
-                match key {
-                    "type" => {
-                        routing_type = map.next_value()?;
-                        output.insert(
-                            "type".to_string(),
-                            serde_json::Value::String(routing_type.to_owned()),
-                        );
-                    }
-                    "data" => {
-                        routing_data = map.next_value()?;
-                        output.insert(
-                            "data".to_string(),
-                            serde_json::Value::String(routing_data.to_owned()),
-                        );
-                    }
-                    f => {
-                        output.insert(f.to_string(), map.next_value()?);
-                    }
-                }
-            }
-
-            match routing_type.as_ref() {
-                "single" => {
-                    let routable_payout_connector = PayoutConnectors::from_str(&routing_data);
-                    let routable_conn = match routable_payout_connector {
-                        Ok(rpc) => Ok(rpc),
-                        Err(_) => Err(de::Error::custom(format!(
-                            "Unknown payout connector {routing_data}"
-                        ))),
-                    }?;
-                    Ok(PayoutRoutingAlgorithm::Single(routable_conn))
-                }
-                u => Err(de::Error::custom(format!("Unknown routing algorithm {u}"))),
-            }?;
-            Ok(serde_json::Value::Object(output))
-        }
-    }
-
-    impl<'de> Visitor<'de> for OptionalRoutingAlgorithmVisitor {
-        type Value = Option<serde_json::Value>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("routing algorithm")
-        }
-
-        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            deserializer
-                .deserialize_any(RoutingAlgorithmVisitor)
-                .map(Some)
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_unit<E>(self) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<serde_json::Value, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_any(RoutingAlgorithmVisitor)
-    }
-
-    pub(crate) fn deserialize_option<'a, D>(
-        deserializer: D,
-    ) -> Result<Option<serde_json::Value>, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_option(OptionalRoutingAlgorithmVisitor)
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
@@ -971,13 +850,6 @@ pub enum PayoutRoutingAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum PayoutStraightThroughAlgorithm {
-    Single(api_enums::PayoutConnectors),
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
@@ -1023,10 +895,6 @@ pub struct BusinessProfileCreate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1038,6 +906,9 @@ pub struct BusinessProfileCreate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1093,10 +964,6 @@ pub struct BusinessProfileResponse {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1108,6 +975,9 @@ pub struct BusinessProfileResponse {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<serde_json::Value>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -1155,10 +1025,6 @@ pub struct BusinessProfileUpdate {
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
-    #[serde(
-        default,
-        deserialize_with = "payout_routing_algorithm::deserialize_option"
-    )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified applepay domains for a particular profile
@@ -1170,6 +1036,9 @@ pub struct BusinessProfileUpdate {
 
     /// Default Payment Link config for all payment links created under this business profile
     pub payment_link_config: Option<BusinessPaymentLinkConfig>,
+
+    /// External 3DS authentication details
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]

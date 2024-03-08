@@ -913,6 +913,72 @@
         ]
       }
     },
+    "/accounts/{account_id}/kv": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - KV Status",
+        "description": "Merchant Account - KV Status\n\nToggle KV mode for the Merchant Account",
+        "operationId": "Enable/Disable KV for a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleKVRequest"
+              },
+              "examples": {
+                "Disable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "false"
+                  }
+                },
+                "Enable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "true"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "KV mode is enabled/disabled for Merchant Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleKVResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -4080,6 +4146,50 @@
           }
         ]
       }
+    },
+    "/{customer_id}/payment_methods/{payment_method_id}/default": {
+      "get": {
+        "tags": [
+          "Customer Set Default Payment Method"
+        ],
+        "summary": "Customers - Set Default Payment Method",
+        "description": "Customers - Set Default Payment Method\n\nSet the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "method_id",
+            "in": "path",
+            "description": "Set the Payment Method as Default for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment Method has already been set as default for that customer"
+          },
+          "404": {
+            "description": "Payment Method not found for the customer"
+          }
+        },
+        "security": [
+          {
+            "ephemeral_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4314,6 +4424,10 @@
                 "$ref": "#/components/schemas/PhoneDetails"
               }
             ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -4658,6 +4772,41 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending"
+        ]
+      },
+      "AuthenticationConnectorDetails": {
+        "type": "object",
+        "required": [
+          "authentication_connectors",
+          "three_ds_requestor_url"
+        ],
+        "properties": {
+          "authentication_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationConnectors"
+            },
+            "description": "List of authentication connectors"
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process."
+          }
+        }
+      },
+      "AuthenticationConnectors": {
+        "type": "string",
+        "enum": [
+          "threedsecureio"
+        ]
+      },
+      "AuthenticationStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "pending",
+          "success",
+          "failed"
         ]
       },
       "AuthenticationType": {
@@ -5088,7 +5237,10 @@
           "starling",
           "tsb_bank",
           "tesco_bank",
-          "ulster_bank"
+          "ulster_bank",
+          "yoursafe",
+          "n26",
+          "nationale_nederlanden"
         ]
       },
       "BankRedirectBilling": {
@@ -6120,6 +6272,14 @@
               }
             ],
             "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6229,6 +6389,14 @@
           },
           "payment_link_config": {
             "description": "Default Payment Link config for all payment links created under this business profile",
+            "nullable": true
+          },
+          "authentication_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -6765,7 +6933,8 @@
           "banking_entities",
           "non_banking_finance",
           "payout_processor",
-          "payment_method_auth"
+          "payment_method_auth",
+          "authentication_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -7304,6 +7473,37 @@
           }
         }
       },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
@@ -7380,17 +7580,24 @@
         "type": "object",
         "required": [
           "payment_token",
+          "payment_method_id",
           "customer_id",
           "payment_method",
           "recurring_enabled",
           "installment_payment_enabled",
-          "requires_cvv"
+          "requires_cvv",
+          "default_payment_method_set"
         ],
         "properties": {
           "payment_token": {
             "type": "string",
             "description": "Token for payment method in temporary card locker which gets refreshed often",
             "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "pm_iouuy468iyuowqs"
           },
           "customer_id": {
             "type": "string",
@@ -7491,6 +7698,18 @@
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
             "example": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "default_payment_method_set": {
+            "type": "boolean",
+            "description": "Indicates if the payment method has been set to default or not",
+            "example": true
           }
         }
       },
@@ -7506,6 +7725,11 @@
               "$ref": "#/components/schemas/CustomerPaymentMethod"
             },
             "description": "List of payment methods for customer"
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "Returns whether a customer id is not tied to a payment intent (only when the request is made against a client secret)",
+            "nullable": true
           }
         }
       },
@@ -7635,8 +7859,44 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The identifier for the default payment method.",
+            "example": "pm_djh2837dwduh890123",
+            "nullable": true,
+            "maxLength": 64
           }
         }
+      },
+      "DecoupledAuthenticationType": {
+        "type": "string",
+        "enum": [
+          "challenge",
+          "frictionless"
+        ]
+      },
+      "DefaultPaymentMethod": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "payment_method_id"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "payment_method_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceChannel": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "BRW"
+        ]
       },
       "DisputeResponse": {
         "type": "object",
@@ -7918,6 +8178,50 @@
           "mandate_active",
           "mandate_revoked"
         ]
+      },
+      "ExternalAuthenticationDetailsResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "authentication_flow": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DecoupledAuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "electronic_commerce_indicator": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator (eci)",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "ds_transaction_id": {
+            "type": "string",
+            "description": "DS Transaction ID",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Message Version",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error Code",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error Message",
+            "nullable": true
+          }
+        }
       },
       "FeatureMetadata": {
         "type": "object",
@@ -10312,7 +10616,8 @@
           "description",
           "algorithm",
           "created_at",
-          "modified_at"
+          "modified_at",
+          "algorithm_for"
         ],
         "properties": {
           "id": {
@@ -10337,6 +10642,9 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "$ref": "#/components/schemas/TransactionType"
           }
         }
       },
@@ -10528,6 +10836,25 @@
                 "type": "string",
                 "enum": [
                   "wait_screen_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows",
+            "required": [
+              "three_ds_data",
+              "type"
+            ],
+            "properties": {
+              "three_ds_data": {
+                "$ref": "#/components/schemas/ThreeDsData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_invoke"
                 ]
               }
             }
@@ -11678,6 +12005,26 @@
           }
         ]
       },
+      "PaymentMethodDataRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -11874,6 +12221,12 @@
                 "$ref": "#/components/schemas/Bank"
               }
             ],
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           }
         }
@@ -12301,7 +12654,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -12367,6 +12720,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -12485,6 +12846,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
             "nullable": true
           }
         }
@@ -12658,7 +13025,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -12718,6 +13085,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -12863,6 +13238,81 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsExternalAuthenticationRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "device_channel",
+          "threeds_method_comp_ind"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "sdk_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "device_channel": {
+            "$ref": "#/components/schemas/DeviceChannel"
+          },
+          "threeds_method_comp_ind": {
+            "$ref": "#/components/schemas/ThreeDsCompletionIndicator"
+          }
+        }
+      },
+      "PaymentsExternalAuthenticationResponse": {
+        "type": "object",
+        "required": [
+          "trans_status"
+        ],
+        "properties": {
+          "trans_status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL to be used for challenge submission",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by the EMVCo",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS to identify a single transaction",
+            "nullable": true
+          },
+          "three_dsserver_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the 3DS Server to identify a single transaction",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "Contains the JWS object created by the ACS for the ARes message",
             "nullable": true
           }
         }
@@ -13058,7 +13508,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -13124,6 +13574,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -13274,6 +13732,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
             "nullable": true
           }
         }
@@ -13735,6 +14199,19 @@
             "description": "List of incremental authorizations happened to the payment",
             "nullable": true
           },
+          "external_authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalAuthenticationDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "request_external_3ds_authentication": {
+            "type": "boolean",
+            "description": "Flag indicating if external 3ds authentication is made or not",
+            "nullable": true
+          },
           "expires_on": {
             "type": "string",
             "format": "date-time",
@@ -14055,7 +14532,7 @@
           "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
               }
             ],
             "nullable": true
@@ -14115,6 +14592,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -14234,6 +14719,12 @@
           },
           "frm_metadata": {
             "description": "additional data related to some frm connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether to perform external authentication (if applicable)",
+            "example": true,
             "nullable": true
           }
         }
@@ -15703,6 +16194,14 @@
           "modified_at": {
             "type": "integer",
             "format": "int64"
+          },
+          "algorithm_for": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15765,6 +16264,48 @@
           "token": {
             "type": "string",
             "description": "The encrypted payment token from Samsung"
+          }
+        }
+      },
+      "SdkInformation": {
+        "type": "object",
+        "required": [
+          "sdk_app_id",
+          "sdk_enc_data",
+          "sdk_ephem_pub_key",
+          "sdk_trans_id",
+          "sdk_reference_number",
+          "sdk_max_timeout"
+        ],
+        "properties": {
+          "sdk_app_id": {
+            "type": "string",
+            "description": "Unique ID created on installations of the 3DS Requestor App on a Consumer Device"
+          },
+          "sdk_enc_data": {
+            "type": "string",
+            "description": "JWE Object containing data encrypted by the SDK for the DS to decrypt"
+          },
+          "sdk_ephem_pub_key": {
+            "type": "object",
+            "description": "Public key component of the ephemeral key pair generated by the 3DS SDK",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "sdk_trans_id": {
+            "type": "string",
+            "description": "Unique transaction identifier assigned by the 3DS SDK"
+          },
+          "sdk_reference_number": {
+            "type": "string",
+            "description": "Identifies the vendor and version for the 3DS SDK that is integrated in a 3DS Requestor App"
+          },
+          "sdk_max_timeout": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Indicates maximum amount of time in minutes",
+            "minimum": 0
           }
         }
       },
@@ -16198,6 +16739,71 @@
           }
         }
       },
+      "ThreeDsCompletionIndicator": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U"
+        ]
+      },
+      "ThreeDsData": {
+        "type": "object",
+        "required": [
+          "three_ds_authentication_url",
+          "three_ds_authorize_url",
+          "three_ds_method_details"
+        ],
+        "properties": {
+          "three_ds_authentication_url": {
+            "type": "string",
+            "description": "ThreeDS authentication url - to initiate authentication"
+          },
+          "three_ds_authorize_url": {
+            "type": "string",
+            "description": "ThreeDS authorize url - to complete the payment authorization after authentication"
+          },
+          "three_ds_method_details": {
+            "$ref": "#/components/schemas/ThreeDsMethodData"
+          }
+        }
+      },
+      "ThreeDsMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "three_ds_method_data_submission",
+              "three_ds_method_data",
+              "three_ds_method_key"
+            ],
+            "properties": {
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data"
+              },
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url",
+                "nullable": true
+              },
+              "three_ds_method_key": {
+                "type": "string",
+                "enum": [
+                  "threeDSMethodData"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "three_ds_method_key"
+        }
+      },
       "TimeRange": {
         "type": "object",
         "required": [
@@ -16228,8 +16834,60 @@
           }
         }
       },
+      "ToggleKVRequest": {
+        "type": "object",
+        "required": [
+          "kv_enabled"
+        ],
+        "properties": {
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
+      "ToggleKVResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "kv_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
       "TouchNGoRedirection": {
         "type": "object"
+      },
+      "TransactionStatus": {
+        "type": "string",
+        "enum": [
+          "Y",
+          "N",
+          "U",
+          "A",
+          "R",
+          "C",
+          "D",
+          "I"
+        ]
+      },
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "payment"
+        ]
       },
       "UpdateApiKeyRequest": {
         "type": "object",

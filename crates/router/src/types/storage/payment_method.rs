@@ -1,9 +1,10 @@
+use std::collections::HashMap;
+
 use api_models::payment_methods;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentTokenKind {
@@ -13,12 +14,19 @@ pub enum PaymentTokenKind {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
+    pub payment_method_id: Option<String>,
+    pub locker_id: Option<String>,
     pub token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenericTokenData {
     pub token: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WalletTokenData {
+    pub payment_method_id: String,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -31,14 +39,30 @@ pub enum PaymentTokenData {
     Permanent(CardTokenData),
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountConnectorDetails),
+    WalletToken(WalletTokenData),
 }
 
 impl PaymentTokenData {
-    pub fn permanent_card(token: String) -> Self {
-        Self::PermanentCard(CardTokenData { token })
+    pub fn permanent_card(
+        payment_method_id: Option<String>,
+        locker_id: Option<String>,
+        token: String,
+    ) -> Self {
+        Self::PermanentCard(CardTokenData {
+            payment_method_id,
+            locker_id,
+            token,
+        })
     }
 
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
     }
+
+    pub fn wallet_token(payment_method_id: String) -> Self {
+        Self::WalletToken(WalletTokenData { payment_method_id })
+    }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReference(pub HashMap<String, Option<String>>);

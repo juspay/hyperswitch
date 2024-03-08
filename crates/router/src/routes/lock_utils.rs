@@ -29,6 +29,7 @@ pub enum ApiIdentifier {
     Forex,
     RustLockerMigration,
     Gsm,
+    Role,
     User,
     UserRole,
     ConnectorOnboarding,
@@ -74,6 +75,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
+            | Flow::ConfigKeyDelete
             | Flow::CreateConfigKey => Self::Configs,
 
             Flow::CustomersCreate
@@ -85,7 +87,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
 
-            Flow::DeepHealthCheck => Self::Health,
+            Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
 
             Flow::PaymentMethodsCreate
@@ -94,12 +96,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
-            | Flow::ValidatePaymentMethod => Self::PaymentMethods,
+            | Flow::ValidatePaymentMethod
+            | Flow::DefaultPaymentMethodsSet => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
+            | Flow::PaymentsRetrieveForceSync
             | Flow::PaymentsUpdate
             | Flow::PaymentsConfirm
             | Flow::PaymentsCapture
@@ -110,7 +114,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsRedirect
-            | Flow::PaymentsIncrementalAuthorization => Self::Payments,
+            | Flow::PaymentsIncrementalAuthorization
+            | Flow::PaymentsExternalAuthentication
+            | Flow::PaymentsAuthorize => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -121,6 +127,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
+            | Flow::RefundsRetrieveForceSync
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
@@ -171,7 +178,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::Signout
             | Flow::ChangePassword
             | Flow::SetDashboardMetadata
-            | Flow::GetMutltipleDashboardMetadata
+            | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
             | Flow::SwitchMerchant
@@ -180,6 +187,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteSampleData
             | Flow::UserMerchantAccountList
             | Flow::GetUserDetails
+            | Flow::ListUsersForMerchantAccount
             | Flow::ForgotPassword
             | Flow::ResetPassword
             | Flow::InviteUser
@@ -199,7 +207,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetAuthorizationInfo
             | Flow::AcceptInvitation
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership => Self::UserRole,
+            | Flow::TransferOrgOwnership
+            | Flow::CreateRole
+            | Flow::UpdateRole => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

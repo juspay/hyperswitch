@@ -50,6 +50,8 @@ impl VerifyConnectorData {
             related_transaction_id: None,
             statement_descriptor_suffix: None,
             request_incremental_authorization: false,
+            authentication_data: None,
+            customer_acceptance: None,
         }
     }
 
@@ -90,6 +92,7 @@ impl VerifyConnectorData {
             address: types::PaymentAddress {
                 shipping: None,
                 billing: None,
+                payment_method_billing: None,
             },
             payment_id: common_utils::generate_id_with_default_len(
                 consts::VERIFY_CONNECTOR_ID_PREFIX,

@@ -13,9 +13,12 @@ use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
-    core::errors,
+    core::{authentication::types::AuthenticationData, errors},
     services::authentication::get_header_value_by_key,
-    types::{api as api_types, api::routing as routing_types, storage},
+    types::{
+        api::{self as api_types, routing as routing_types},
+        storage,
+    },
 };
 
 pub trait ForeignInto<T> {
@@ -589,6 +592,7 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
                 number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
+            email: address.email.clone().map(pii::Email::from),
         }
     }
 }
@@ -708,6 +712,35 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
             error_code: authorization.error_code,
             error_message: authorization.error_message,
             previously_authorized_amount: authorization.previously_authorized_amount,
+        }
+    }
+}
+
+impl ForeignFrom<&(storage::Authentication, AuthenticationData)>
+    for payments::ExternalAuthenticationDetailsResponse
+{
+    fn foreign_from(authn_data: &(storage::Authentication, AuthenticationData)) -> Self {
+        let (ds_transaction_id, version) = if authn_data.0.authentication_data.is_some() {
+            (
+                Some(authn_data.1.threeds_server_transaction_id.clone()),
+                Some(format!(
+                    "{}.{}.{}",
+                    authn_data.1.maximum_supported_version.0,
+                    authn_data.1.maximum_supported_version.1,
+                    authn_data.1.maximum_supported_version.2
+                )),
+            )
+        } else {
+            (None, None)
+        };
+        Self {
+            authentication_flow: authn_data.0.authentication_type,
+            electronic_commerce_indicator: authn_data.1.eci.clone(),
+            status: authn_data.0.authentication_status,
+            ds_transaction_id,
+            version,
+            error_code: authn_data.0.error_code.clone(),
+            error_message: authn_data.0.error_message.clone(),
         }
     }
 }
@@ -857,6 +890,16 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
             error_code: capture.error_code,
             error_reason: capture.error_reason,
             reference_id: capture.connector_response_reference_id,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
         }
     }
 }

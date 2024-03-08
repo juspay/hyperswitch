@@ -29,7 +29,7 @@ use tera::{Context, Tera};
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::authentication::AuthenticateAndFetch;
 use crate::{
-    configs::settings::{Connectors, Settings},
+    configs::{settings::Connectors, Settings},
     consts,
     core::{
         api_locking,
@@ -338,30 +338,31 @@ where
                 ],
             );
 
-            let connector_request = connector_request.or(connector_integration
-                .build_request(req, &state.conf.connectors)
-                .map_err(|error| {
-                    if matches!(
-                        error.current_context(),
-                        &errors::ConnectorError::RequestEncodingFailed
-                            | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
-                    ) {
-                        metrics::REQUEST_BUILD_FAILURE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &[metrics::request::add_attributes(
-                                "connector",
-                                req.connector.to_string(),
-                            )],
-                        )
-                    }
-                    error
-                })?);
+            let connector_request = match connector_request {
+                Some(connector_request) => Some(connector_request),
+                None => connector_integration
+                    .build_request(req, &state.conf.connectors)
+                    .map_err(|error| {
+                        if matches!(
+                            error.current_context(),
+                            &errors::ConnectorError::RequestEncodingFailed
+                                | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
+                        ) {
+                            metrics::REQUEST_BUILD_FAILURE.add(
+                                &metrics::CONTEXT,
+                                1,
+                                &[metrics::request::add_attributes(
+                                    "connector",
+                                    req.connector.to_string(),
+                                )],
+                            )
+                        }
+                        error
+                    })?,
+            };
 
             match connector_request {
                 Some(request) => {
-                    logger::debug!(connector_request=?request);
-
                     let masked_request_body = match &request.body {
                         Some(request) => match request {
                             RequestContent::Json(i)
@@ -844,7 +845,7 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
-    PaymenkLinkForm(Box<PaymentLinkAction>),
+    PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
 }
@@ -1120,11 +1121,35 @@ where
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
+
+    let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
+
+    let incoming_request_header = request.headers();
+
+    let incoming_header_to_log: HashMap<String, http::header::HeaderValue> =
+        incoming_request_header
+            .iter()
+            .fold(HashMap::new(), |mut acc, (key, value)| {
+                let key = key.to_string();
+                if unmasked_incoming_header_keys.contains(&key.as_str().to_lowercase()) {
+                    acc.insert(key.clone(), value.clone());
+                } else {
+                    acc.insert(
+                        key.clone(),
+                        http::header::HeaderValue::from_static("**MASKED**"),
+                    );
+                }
+                acc
+            });
+
     tracing::Span::current().record("request_method", request_method);
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
+    logger::info!(
+        tag = ?Tag::BeginRequest, payload = ?payload,
+    headers = ?incoming_header_to_log);
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         server_wrap_util(
@@ -1185,7 +1210,7 @@ where
             .map_into_boxed_body()
         }
 
-        Ok(ApplicationResponse::PaymenkLinkForm(boxed_payment_link_data)) => {
+        Ok(ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
@@ -1820,18 +1845,16 @@ pub fn build_redirection_form(
                         amount: '{amount}'
                     }};
 
-                    var responseForm = document.createElement('form');
-                    responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
-                    responseForm.method='POST';
-
                     const threeDSsecureInterface = threeDS.createUI(options);
 
                     threeDSsecureInterface.on('challenge', function(e) {{
-                        console.log('Challenged');
-                        document.getElementById('loader-wrapper').style.display = 'none';                    
+                        document.getElementById('loader-wrapper').style.display = 'none';
                     }});
 
                     threeDSsecureInterface.on('complete', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
 
                         var item1=document.createElement('input');
                         item1.type='hidden';
@@ -1870,16 +1893,39 @@ pub fn build_redirection_form(
                         responseForm.appendChild(item4);
 
                         var item5=document.createElement('input');
-                        item4.type='hidden';
-                        item4.name='orderId';
-                        item4.value='{order_id}';
+                        item5.type='hidden';
+                        item5.name='orderId';
+                        item5.value='{order_id}';
                         responseForm.appendChild(item5);
+
+                        var item6=document.createElement('input');
+                        item6.type='hidden';
+                        item6.name='customerVaultId';
+                        item6.value='{customer_vault_id}';
+                        responseForm.appendChild(item6);
 
                         document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
 
                     threeDSsecureInterface.on('failure', function(e) {{
+                        var responseForm = document.createElement('form');
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.method='POST';
+
+                        var error_code=document.createElement('input');
+                        error_code.type='hidden';
+                        error_code.name='code';
+                        error_code.value= e.code;
+                        responseForm.appendChild(error_code);
+
+                        var error_message=document.createElement('input');
+                        error_message.type='hidden';
+                        error_message.name='message';
+                        error_message.value= e.message;
+                        responseForm.appendChild(error_message);
+
+                        document.body.appendChild(responseForm);
                         responseForm.submit();
                     }});
 

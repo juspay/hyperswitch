@@ -34,7 +34,7 @@ pub trait Connector {
     }
 
     #[cfg(feature = "payouts")]
-    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+    fn get_payout_data(&self) -> Option<types::api::ConnectorData> {
         None
     }
 }
@@ -915,6 +915,8 @@ impl Default for PaymentAuthorizeType {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         };
         Self(data)
     }
