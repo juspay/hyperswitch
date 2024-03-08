@@ -1,6 +1,6 @@
-// Validate status 2xx
+// Validate status 400
 pm.test("[POST]::/payments - Status code is 400", function () {
-  pm.response.to.be.success;
+  pm.response.to.be.error
 });
 
 // Validate if response header has matching content-type
@@ -21,6 +21,11 @@ try {
   jsonData = pm.response.json();
 } catch (e) { }
 
-pm.test("[POST]::/payments - Response has appropriate error message", function () {
-  jsonData?.error?.message.eq("Invalid Expiry Month");
-})
+if (jsonData?.error?.message) {
+  pm.test(
+    "[POST]::/payments - Content check for error message to equal `Invalid Expiry Year`",
+    function () {
+      pm.expect(jsonData.error.message).to.eql("Invalid Expiry Year");
+    },
+  );
+}

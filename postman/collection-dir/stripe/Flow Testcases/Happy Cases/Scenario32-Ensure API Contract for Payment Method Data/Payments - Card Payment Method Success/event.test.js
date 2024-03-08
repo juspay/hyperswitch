@@ -16,6 +16,12 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
 });
 
 
+// Set response object as internal variable
+let jsonData = {};
+try {
+  jsonData = pm.response.json();
+} catch (e) { }
+
 // Response body should have value "requires_payment_method" for "status"
 if (jsonData?.status) {
   pm.test(

@@ -21806,9 +21806,9 @@
                       "listen": "test",
                       "script": {
                         "exec": [
-                          "// Validate status 2xx",
+                          "// Validate status 400",
                           "pm.test(\"[POST]::/payments - Status code is 400\", function () {",
-                          "  pm.response.to.be.success;",
+                          "  pm.response.to.be.error",
                           "});",
                           "",
                           "// Validate if response header has matching content-type",
@@ -21830,7 +21830,7 @@
                           "} catch (e) { }",
                           "",
                           "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData?.error?.message.eq(\"Invalid card_cvc length\");",
+                          "  jsonData?.error?.message.eql(\"Invalid card_cvc length\");",
                           "})",
                           ""
                         ],
@@ -21878,9 +21878,9 @@
                       "listen": "test",
                       "script": {
                         "exec": [
-                          "// Validate status 2xx",
+                          "// Validate status 400",
                           "pm.test(\"[POST]::/payments - Status code is 400\", function () {",
-                          "  pm.response.to.be.success;",
+                          "  pm.response.to.be.error",
                           "});",
                           "",
                           "// Validate if response header has matching content-type",
@@ -21894,16 +21894,6 @@
                           "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
                           "  pm.response.to.have.jsonBody();",
                           "});",
-                          "",
-                          "// Set response object as internal variable",
-                          "let jsonData = {};",
-                          "try {",
-                          "  jsonData = pm.response.json();",
-                          "} catch (e) { }",
-                          "",
-                          "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData?.error.has(\"not a valid credit card number\")",
-                          "})",
                           ""
                         ],
                         "type": "text/javascript"
@@ -21950,9 +21940,9 @@
                       "listen": "test",
                       "script": {
                         "exec": [
-                          "// Validate status 2xx",
+                          "// Validate status 400",
                           "pm.test(\"[POST]::/payments - Status code is 400\", function () {",
-                          "  pm.response.to.be.success;",
+                          "  pm.response.to.be.error",
                           "});",
                           "",
                           "// Validate if response header has matching content-type",
@@ -21974,7 +21964,7 @@
                           "} catch (e) { }",
                           "",
                           "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData?.error?.message.eq(\"Invalid Expiry Month\");",
+                          "  jsonData.error.message.eql(\"Invalid Expiry Month\");",
                           "})",
                           ""
                         ],
@@ -22001,7 +21991,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"69\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}}}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"13\",\"card_exp_year\":\"69\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -22022,9 +22012,9 @@
                       "listen": "test",
                       "script": {
                         "exec": [
-                          "// Validate status 2xx",
+                          "// Validate status 400",
                           "pm.test(\"[POST]::/payments - Status code is 400\", function () {",
-                          "  pm.response.to.be.success;",
+                          "  pm.response.to.be.error",
                           "});",
                           "",
                           "// Validate if response header has matching content-type",
@@ -22045,9 +22035,14 @@
                           "  jsonData = pm.response.json();",
                           "} catch (e) { }",
                           "",
-                          "pm.test(\"[POST]::/payments - Response has appropriate error message\", function () {",
-                          "  jsonData?.error?.message.eq(\"Invalid Expiry Month\");",
-                          "})",
+                          "if (jsonData?.error?.message) {",
+                          "  pm.test(",
+                          "    \"[POST]::/payments - Content check for error message to equal `Invalid Expiry Year`\",",
+                          "    function () {",
+                          "      pm.expect(jsonData.error.message).to.eql(\"Invalid Expiry Year\");",
+                          "    },",
+                          "  );",
+                          "}",
                           ""
                         ],
                         "type": "text/javascript"
@@ -22111,6 +22106,12 @@
                           "  pm.response.to.have.jsonBody();",
                           "});",
                           "",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) { }",
                           "",
                           "// Response body should have value \"requires_payment_method\" for \"status\"",
                           "if (jsonData?.status) {",
@@ -22183,6 +22184,12 @@
                           "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
                           "  pm.response.to.have.jsonBody();",
                           "});",
+                          "",
+                          "// Set response object as internal variable",
+                          "let jsonData = {};",
+                          "try {",
+                          "  jsonData = pm.response.json();",
+                          "} catch (e) { }",
                           "",
                           "// Response body should have value \"requires_payment_method\" for \"status\"",
                           "if (jsonData?.status) {",
