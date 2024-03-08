@@ -152,6 +152,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 authorization_id: None,
             }),
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
