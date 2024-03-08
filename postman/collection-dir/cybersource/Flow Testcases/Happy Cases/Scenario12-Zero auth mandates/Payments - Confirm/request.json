@@ -82,14 +82,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",

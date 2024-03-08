@@ -51,7 +51,7 @@ pub enum AuthNFlowType {
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card number
-    pub(crate) card_holder_account_number: CardNumber,
+    pub card_holder_account_number: CardNumber,
 }
 
 #[derive(Clone, Debug)]

@@ -2820,6 +2820,12 @@ pub async fn list_customer_payment_method(
                 }
             }
 
+            enums::PaymentMethod::Wallet => (
+                None,
+                None,
+                PaymentTokenData::wallet_token(pm.payment_method_id.clone()),
+            ),
+
             _ => (
                 None,
                 None,
@@ -3428,12 +3434,28 @@ pub async fn delete_payment_method(
     state: routes::AppState,
     merchant_account: domain::MerchantAccount,
     pm_id: api::PaymentMethodId,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let db = state.store.as_ref();
     let key = db
         .find_payment_method(pm_id.payment_method_id.as_str())
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let customer = db
+        .find_customer_by_customer_id_merchant_id(
+            &key.customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Customer not found for the payment method")?;
+
+    utils::when(
+        customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id),
+        || Err(errors::ApiErrorResponse::PaymentMethodDeleteFailed),
+    )?;
 
     if key.payment_method == enums::PaymentMethod::Card {
         let response = delete_card_from_locker(

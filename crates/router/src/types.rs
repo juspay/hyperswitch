@@ -36,6 +36,7 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
+        authentication as authentication_core,
         errors::{self, RouterResult},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
@@ -423,7 +424,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub authentication_data: Option<crate::core::authentication::types::AuthenticationData>,
+    pub authentication_data: Option<authentication_core::types::AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]

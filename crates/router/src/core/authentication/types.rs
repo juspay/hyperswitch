@@ -53,6 +53,7 @@ pub struct ThreeDsMethodData {
     pub three_ds_method_data: String,
     pub three_ds_method_url: Option<String>,
 }
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct AcquirerDetails {
     pub acquirer_bin: String,
