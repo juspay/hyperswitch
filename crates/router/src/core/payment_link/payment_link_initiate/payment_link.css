@@ -55,7 +55,6 @@ body {
 
 .reduce-opacity {
   opacity: 0 !important;
-  transition: opacity 0.5s;
 }
 
 .shine {
