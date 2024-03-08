@@ -140,10 +140,10 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                     None,
                 )
                 .await?;
-                payment_data.authentication =
-                    updated_authentication_data.map(|authentication_data| {
-                        (updated_authentication.clone(), authentication_data)
-                    });
+                payment_data.authentication = Some((
+                    updated_authentication.clone(),
+                    updated_authentication_data.unwrap_or_default(),
+                ));
                 updated_authentication
             } else {
                 authentication_data.0
@@ -207,14 +207,14 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 Some(acquirer_details),
             )
             .await?;
-            payment_data.authentication = authentication_data.map(|authentication_data| {
-                if authentication_data.is_separate_authn_required()
-                    || authentication.authentication_status.is_failed()
-                {
-                    *should_continue_confirm_transaction = false;
-                }
-                (authentication, authentication_data)
-            });
+            if authentication_data
+                .as_ref()
+                .is_some_and(|authentication_data| authentication_data.is_separate_authn_required())
+            {
+                *should_continue_confirm_transaction = false;
+            }
+            payment_data.authentication =
+                Some((authentication, authentication_data.unwrap_or_default()));
         }
         types::PreAuthenthenticationFlowInput::PaymentMethodAuthNFlow {
             card_number: _,

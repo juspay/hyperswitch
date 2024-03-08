@@ -52,7 +52,12 @@ impl FromStr for CardNumber {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Valid test cards for threedsecureio
-        let valid_test_cards = ["4000100511112003", "6000100611111203", "3000100811111072"];
+        let valid_test_cards = [
+            "4000100511112003",
+            "6000100611111203",
+            "3000100811111072",
+            "9000100111111111",
+        ];
         if luhn::valid(s) || valid_test_cards.contains(&s) {
             let cc_no_whitespace: String = s.split_whitespace().collect();
             Ok(Self(StrongSecret::from_str(&cc_no_whitespace)?))
