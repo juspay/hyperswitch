@@ -186,7 +186,7 @@ impl
                         } else {
                             types::authentication::AuthNFlowType::Frictionless
                         },
-                        cavv: response.authentication_value,
+                        authentication_value: response.authentication_value,
                     },
                 )
             }

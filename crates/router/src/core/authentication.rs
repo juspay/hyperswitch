@@ -118,7 +118,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
             authentication_data,
             should_continue_confirm_transaction,
         } => {
-            let new_authentication_data = if !authentication_data
+            let updated_authentication = if !authentication_data
                 .0
                 .authentication_status
                 .is_terminal_status()
@@ -132,7 +132,7 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                 let router_data =
                     utils::do_auth_connector_call(state, authentication_connector, router_data)
                         .await?;
-                let updated_authentication = utils::update_trackers(
+                let (updated_authentication, updated_authentication_data) = utils::update_trackers(
                     state,
                     router_data,
                     authentication_data.0,
@@ -140,13 +140,16 @@ pub async fn perform_post_authentication<F: Clone + Send>(
                     None,
                 )
                 .await?;
-                payment_data.authentication = Some(updated_authentication.clone());
+                payment_data.authentication = Some((
+                    updated_authentication.clone(),
+                    updated_authentication_data.unwrap_or_default(),
+                ));
                 updated_authentication
             } else {
-                authentication_data
+                authentication_data.0
             };
             //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-            if !(new_authentication_data.0.authentication_status
+            if !(updated_authentication.authentication_status
                 == api_models::enums::AuthenticationStatus::Success)
             {
                 *should_continue_confirm_transaction = false;
@@ -204,12 +207,14 @@ pub async fn perform_pre_authentication<F: Clone + Send>(
                 Some(acquirer_details),
             )
             .await?;
-            if authentication_data.is_separate_authn_required()
-                || authentication.authentication_status.is_failed()
+            if authentication_data
+                .as_ref()
+                .is_some_and(|authentication_data| authentication_data.is_separate_authn_required())
             {
                 *should_continue_confirm_transaction = false;
             }
-            payment_data.authentication = Some((authentication, authentication_data))
+            payment_data.authentication =
+                Some((authentication, authentication_data.unwrap_or_default()));
         }
         types::PreAuthenthenticationFlowInput::PaymentMethodAuthNFlow {
             card_number: _,
