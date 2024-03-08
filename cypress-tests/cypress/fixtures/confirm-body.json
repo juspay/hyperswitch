@@ -1,6 +1,6 @@
 {
     "client_secret": "",
-    "return_url": "https://hyperswitch.io/",
+    "return_url": "https://hyperswitch.io",
     "payment_method": "card",
     "confirm": true,
     "payment_method_data": {

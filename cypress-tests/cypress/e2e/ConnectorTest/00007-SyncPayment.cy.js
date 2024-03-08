@@ -21,7 +21,8 @@ describe("Card - Sync payment flow test", () => {
     cy.task('setGlobalState', globalState.data);
   })
   it("create-payment-call-test", () => {
-    cy.createPaymentIntentTest( createPaymentBody, "EUR", "no_three_ds", "automatic", globalState);
+    let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+    cy.createPaymentIntentTest( createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
   });
 
   it("payment_methods-call-test", () => {

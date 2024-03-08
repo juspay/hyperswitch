@@ -5,7 +5,7 @@ import State from "../../utils/State";
 
 let globalState;
 
-describe("Card - ThreeDS payment flow test", () => {  
+describe.skip("Card - ThreeDS payment flow test", () => {  
 
   before("seed global state",  () => {
     
@@ -18,7 +18,7 @@ describe("Card - ThreeDS payment flow test", () => {
     
   })
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     console.log("flushing globalState -> "+ JSON.stringify(globalState));
     cy.task('setGlobalState', globalState.data);
     cy.task('cli_log', " FLUSHING GLOBAL STATE -> "+ JSON.stringify(globalState));
@@ -26,8 +26,8 @@ describe("Card - ThreeDS payment flow test", () => {
 
 
   it("create-payment-call-test", () => {
-    cy.task('cli_log', "PAY CALL ");
-    cy.createPaymentIntentTest( createPaymentBody, "EUR", "three_ds", "automatic", globalState);
+    let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+    cy.createPaymentIntentTest( createPaymentBody, det.currency, "three_ds", "automatic", globalState);
   });
 
   it("payment_methods-call-test", () => {

@@ -23,7 +23,8 @@ describe("Card - Sync Refund flow test", () => {
     })
 
     it("create-payment-call-test", () => {
-        cy.createPaymentIntentTest(createPaymentBody, "EUR", "no_three_ds", "automatic", globalState);
+        let det = getConnectorDetails(globalState.get("connectorId"))["No3DS"];
+        cy.createPaymentIntentTest(createPaymentBody, det.currency, "no_three_ds", "automatic", globalState);
     });
 
     it("payment_methods-call-test", () => {

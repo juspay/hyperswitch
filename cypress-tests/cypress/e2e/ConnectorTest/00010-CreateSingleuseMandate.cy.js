@@ -29,7 +29,7 @@ describe("Card - NoThreeDS CIT payment flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, "USD", det, true, "automatic", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
         });
 
         it("Confirm No 3DS MIT", () => {
@@ -43,7 +43,7 @@ describe("Card - NoThreeDS CIT payment flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUseNo3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, "USD", det, true, "manual", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "manual", globalState);
         });
 
         it("cit-capture-call-test", () => {
@@ -69,7 +69,7 @@ describe("Card - NoThreeDS CIT payment flow test", () => {
             console.log("confirm -> " + globalState.get("connectorId"));
             let det = getConnectorDetails(globalState.get("connectorId"))["MandateSingleUse3DS"];
             console.log("det -> " + det.card);
-            cy.citForMandatesCallTest(citConfirmBody, "USD", det, true, "automatic", globalState);
+            cy.citForMandatesCallTest(citConfirmBody, det, true, "automatic", globalState);
         });
 
         it("cit-capture-call-test", () => {

@@ -50,7 +50,8 @@
       "state": "California",
       "zip": "94122",
       "country": "US",
-      "first_name": "john"
+      "first_name": "john",
+      "last_name": "Doe"
     }
   },
   "shipping": {
@@ -62,7 +63,8 @@
       "state": "California",
       "zip": "94122",
       "country": "US",
-      "first_name": "john"
+      "first_name": "john",
+      "last_name": "Doe"
     }
   },
   "statement_descriptor_name": "joseph",

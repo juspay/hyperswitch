@@ -18,14 +18,17 @@ const successfulThreeDSTestCardDetails = {
 export const connectorDetails = {
     "3DS": {
         "card": successfulThreeDSTestCardDetails,
+        "currency":"USD",
         "successfulStates": "requires_customer_action"
     },
     "No3DS": {
         "card": successfulNo3DSCardDetails,
+        "currency":"USD",
         "successfulStates": "processing"
     },
     "MandateSingleUse3DS": {
         "card": successfulThreeDSTestCardDetails,
+        "currency":"USD",
         "successfulStates": "requires_customer_action",
         "successfulSyncStates": "processing",
         "mandate_type": {
@@ -37,6 +40,7 @@ export const connectorDetails = {
     },
     "MandateSingleUseNo3DS": {
         "card": successfulNo3DSCardDetails,
+        "currency":"USD",
         "successfulStates": "succeeded",
         "successfulSyncStates": "succeeded",
         "mandate_type": {
@@ -48,6 +52,7 @@ export const connectorDetails = {
     },
     "MandateMultiUseNo3DS": {
         "card": successfulNo3DSCardDetails,
+        "currency":"USD",
         "successfulStates": "succeeded",
         "successfulSyncStates": "succeeded",
         "mandate_type": {
@@ -59,6 +64,7 @@ export const connectorDetails = {
     },
     "MandateMultiUse3DS": {
         "card": successfulThreeDSTestCardDetails,
+        "currency":"USD",
         "successfulStates": "requires_customer_action",
         "successfulSyncStates": "processing",
         "mandate_type": {
@@ -67,6 +73,5 @@ export const connectorDetails = {
                 "currency": "USD"
             }
         }
-    },
-
-}; 
+    }
+};
