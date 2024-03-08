@@ -817,7 +817,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         },
     };
 
-    update_payment_method_status(state, payment_data.clone(), router_data.status).await?;
+    update_payment_method_status(state, &mut payment_data, router_data.status).await?;
     let m_db = state.clone().store;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
@@ -874,10 +874,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
 async fn update_payment_method_status<F: Clone>(
     state: &AppState,
-    mut payment_data: PaymentData<F>,
+    payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
 ) -> RouterResult<()> {
-    if let Some(id) = payment_data.payment_attempt.payment_method_id {
+    if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let pm = state
             .store
             .find_payment_method(&id)
