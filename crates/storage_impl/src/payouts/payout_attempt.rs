@@ -16,7 +16,7 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
-use router_env::instrument;
+use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
