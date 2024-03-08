@@ -21800,7 +21800,7 @@
               "name": "Scenario32-Ensure API Contract for Payment Method Data",
               "item": [
                 {
-                  "name": "Payments - Card Payment Method",
+                  "name": "Payments - Card Payment Method Success",
                   "event": [
                     {
                       "listen": "test",
@@ -21956,7 +21956,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":6540,\"currency\":\"USD\"}"
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"payment_method\":\"reward\",\"payment_method_type\":\"evoucher\",\"payment_method_data\":\"reward\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
