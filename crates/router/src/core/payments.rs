@@ -3129,7 +3129,7 @@ pub async fn payment_external_authentication(
         None,
         &key_store,
         profile_id,
-        &authentication_connector.as_str(),
+        authentication_connector.as_str(),
         None,
     )
     .await?;
