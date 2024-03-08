@@ -1,14 +1,16 @@
 use api_models::payments::{DeviceChannel, ThreeDsCompletionIndicator};
+use base64::Engine;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use iso_currency::Currency;
 use isocountry;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, to_string};
 
 use crate::{
     connector::utils::{to_connector_meta, AddressDetailsData, CardData, SELECTED_PAYMENT_METHOD},
-    consts::NO_ERROR_MESSAGE,
+    consts::{BASE64_ENGINE, NO_ERROR_MESSAGE},
     core::errors,
     types::{
         self,
@@ -50,10 +52,82 @@ impl<T>
 
 impl<T> TryFrom<(i64, T)> for ThreedsecureioRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(router_data: (i64, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: router_data.0.to_string(),
-            router_data: router_data.1,
+            amount: amount.to_string(),
+            router_data,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::PreAuthentication,
+            ThreedsecureioPreAuthenticationResponse,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
+    > for types::authentication::PreAuthNRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PreAuthentication,
+            ThreedsecureioPreAuthenticationResponse,
+            types::authentication::PreAuthNRequestData,
+            types::authentication::AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response {
+            ThreedsecureioPreAuthenticationResponse::Success(pre_authn_response) => {
+                let three_ds_method_data = json!({
+                    "threeDSServerTransID": pre_authn_response.threeds_server_trans_id,
+                });
+                let three_ds_method_data_str = to_string(&three_ds_method_data)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("error while constructing three_ds_method_data_str")?;
+                let three_ds_method_data_base64 = BASE64_ENGINE.encode(three_ds_method_data_str);
+                let connector_metadata = serde_json::json!(ThreeDSecureIoConnectorMetaData {
+                    ds_start_protocol_version: pre_authn_response.ds_start_protocol_version,
+                    ds_end_protocol_version: pre_authn_response.ds_end_protocol_version,
+                    acs_start_protocol_version: pre_authn_response.acs_start_protocol_version,
+                    acs_end_protocol_version: pre_authn_response.acs_end_protocol_version.clone(),
+                });
+                Ok(
+                    types::authentication::AuthenticationResponseData::PreAuthNResponse {
+                        threeds_server_transaction_id: pre_authn_response
+                            .threeds_server_trans_id
+                            .clone(),
+                        maximum_supported_3ds_version: ForeignTryFrom::foreign_try_from(
+                            pre_authn_response.acs_end_protocol_version.clone(),
+                        )?,
+                        connector_authentication_id: pre_authn_response.threeds_server_trans_id,
+                        three_ds_method_data: three_ds_method_data_base64,
+                        three_ds_method_url: pre_authn_response.threeds_method_url,
+                        message_version: pre_authn_response.acs_end_protocol_version.clone(),
+                        connector_metadata: Some(connector_metadata),
+                    },
+                )
+            }
+            ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
+                Err(types::ErrorResponse {
+                    code: error_response.error_code,
+                    message: error_response
+                        .error_description
+                        .clone()
+                        .unwrap_or(NO_ERROR_MESSAGE.to_owned()),
+                    reason: error_response.error_description,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
+        };
+        Ok(Self {
+            response,
+            ..item.data.clone()
         })
     }
 }
@@ -86,15 +160,13 @@ impl
                     "messageType": "CReq",
                     "challengeWindowSize": "01",
                 });
-                println!("creq authn {}", creq);
-                let creq_str = serde_json::to_string(&creq)
+                let creq_str = to_string(&creq)
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)
                     .attach_printable("error while constructing creq_str")?;
-                let creq_base64 = base64::Engine::encode(&crate::consts::BASE64_ENGINE, creq_str)
+                let creq_base64 = base64::Engine::encode(&BASE64_ENGINE, creq_str)
                     .trim_end_matches('=')
                     .to_owned();
-                println!("creq_base64 authn {}", creq_base64);
                 Ok(
                     types::authentication::AuthenticationResponseData::AuthNResponse {
                         trans_status: response.trans_status.clone().into(),
@@ -298,6 +370,7 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .expose()
                 .to_string(),
             bill_addr_state: billing_state.peek().to_string(),
+            // Indicates the type of Authentication request, "01" for Payment transaction
             three_dsrequestor_authentication_ind: "01".to_string(),
             device_channel: match item.router_data.request.device_channel.clone() {
                 DeviceChannel::App => "01",
@@ -310,35 +383,35 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             }
             .to_string(),
             browser_javascript_enabled: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.java_script_enabled),
             browser_accept_header: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.accept_header.clone()),
             browser_ip: browser_details
                 .clone()
-                .and_then(|details| details.ip_address.map(|ip| ip.to_string())),
+                .and_then(|details| details.ip_address.map(|ip| Secret::new(ip.to_string()))),
             browser_java_enabled: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.java_enabled),
             browser_language: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.language.clone()),
             browser_color_depth: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.color_depth.map(|a| a.to_string())),
             browser_screen_height: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.screen_height.map(|a| a.to_string())),
             browser_screen_width: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.screen_width.map(|a| a.to_string())),
             browser_tz: browser_details
-                .clone()
+                .as_ref()
                 .and_then(|details| details.time_zone.map(|a| a.to_string())),
             browser_user_agent: browser_details
-                .clone()
-                .and_then(|details| details.user_agent.map(|a| a.to_string())),
+                .as_ref()
+                .and_then(|details| details.user_agent.clone().map(|a| a.to_string())),
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
@@ -355,25 +428,29 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
                 .to_string(),
             purchase_date: date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now())
                 .to_string(),
-            sdk_app_id: sdk_information.clone().map(|sdk_info| sdk_info.sdk_app_id),
+            sdk_app_id: sdk_information
+                .as_ref()
+                .map(|sdk_info| sdk_info.sdk_app_id.clone()),
             sdk_enc_data: sdk_information
-                .clone()
-                .map(|sdk_info| sdk_info.sdk_enc_data),
+                .as_ref()
+                .map(|sdk_info| sdk_info.sdk_enc_data.clone()),
             sdk_ephem_pub_key: sdk_information
-                .clone()
-                .map(|sdk_info| sdk_info.sdk_ephem_pub_key),
+                .as_ref()
+                .map(|sdk_info| sdk_info.sdk_ephem_pub_key.clone()),
             sdk_reference_number: sdk_information
-                .clone()
-                .map(|sdk_info| sdk_info.sdk_reference_number),
+                .as_ref()
+                .map(|sdk_info| sdk_info.sdk_reference_number.clone()),
             sdk_trans_id: sdk_information
-                .clone()
-                .map(|sdk_info| sdk_info.sdk_trans_id),
+                .as_ref()
+                .map(|sdk_info| sdk_info.sdk_trans_id.clone()),
             sdk_max_timeout: sdk_information
-                .clone()
+                .as_ref()
                 .map(|sdk_info| sdk_info.sdk_max_timeout.to_string()),
             device_render_options: match request.device_channel {
                 DeviceChannel::App => Some(DeviceRenderOptions {
+                    // SDK Interface types that the device supports for displaying specific challenge user interfaces within the SDK, 01 for Native
                     sdk_interface: "01".to_string(),
+                    // UI types that the device supports for displaying specific challenge user interfaces within the SDK, 01 for Text
                     sdk_ui_type: vec!["01".to_string()],
                 }),
                 DeviceChannel::Browser => None,
@@ -477,7 +554,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub device_channel: String,
     pub browser_javascript_enabled: Option<bool>,
     pub browser_accept_header: Option<String>,
-    pub browser_ip: Option<String>,
+    pub browser_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
     pub browser_java_enabled: Option<bool>,
     pub browser_language: Option<String>,
     pub browser_color_depth: Option<String>,
