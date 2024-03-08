@@ -1123,7 +1123,10 @@ impl User {
         // User management
         route = route.service(
             web::scope("/user")
-                .service(web::resource("/list").route(web::get().to(get_user_details)))
+                .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(
+                    web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
+                )
                 .service(web::resource("/invite").route(web::post().to(invite_user)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
