@@ -1,0 +1,107 @@
+{
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "merchant_id",
+      "value": ""
+    },
+    {
+      "key": "publishable_key",
+      "value": ""
+    },
+    {
+      "key": "api_key_id",
+      "value": ""
+    },
+    {
+      "key": "api_key",
+      "value": ""
+    },
+    {
+      "key": "merchant_connector_id",
+      "value": ""
+    },
+    {
+      "key": "customer_id",
+      "value": ""
+    },
+    {
+      "key": "payout_id",
+      "value": ""
+    },
+    {
+      "key": "payment_method_id",
+      "value": ""
+    },
+    {
+      "key": "card_payout_token",
+      "value": ""
+    },
+    {
+      "key": "sepa_payout_token",
+      "value": ""
+    },
+    {
+      "key": "bacs_payout_token",
+      "value": ""
+    },
+    {
+      "key": "mca_adyen_id",
+      "value": ""
+    },
+    {
+      "key": "profile_id",
+      "value": ""
+    },
+    {
+      "key": "mca_wise_id",
+      "value": ""
+    },
+    {
+      "key": "algorithm_id",
+      "value": ""
+    },
+    {
+      "key": "volume_algorithm_id",
+      "value": ""
+    },
+    {
+      "key": "advanced_algorithm_id",
+      "value": ""
+    },
+    {
+      "key": "adyen_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adyen_key1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adyen_api_secret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wise_api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "wise_key1",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

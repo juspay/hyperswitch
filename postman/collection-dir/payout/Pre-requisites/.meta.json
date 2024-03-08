@@ -1,0 +1,9 @@
+{
+  "childrenOrder": [
+    "Create Merchant Account",
+    "Create API Key",
+    "Add Adyen Connector",
+    "Add Wise Connector",
+    "Create Customer"
+  ]
+}

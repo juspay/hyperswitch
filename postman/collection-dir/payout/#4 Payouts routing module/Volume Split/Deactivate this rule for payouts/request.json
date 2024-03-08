@@ -1,0 +1,26 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "profile_id": "{{profile_id}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/routing/payouts/deactivate",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "routing",
+      "payouts",
+      "deactivate"
+    ]
+  }
+}

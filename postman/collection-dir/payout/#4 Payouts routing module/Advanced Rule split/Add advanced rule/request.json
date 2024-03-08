@@ -1,0 +1,99 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "id": "routing_merchant_1709540889_pTjRkiN5s7",
+      "profile_id": "{{profile_id}}",
+      "name": "Rule Based Routing-2024-2-5",
+      "description": "This is a rule based routing created at Tue, 05 Mar 2024 06:56:36 GMT",
+      "algorithm": {
+        "type": "advanced",
+        "data": {
+          "defaultSelection": {
+            "type": "priority",
+            "data": []
+          },
+          "rules": [
+            {
+              "name": "rule_1",
+              "connectorSelection": {
+                "type": "priority",
+                "data": [
+                  {
+                    "connector": "wise",
+                    "merchant_connector_id": "{{mca_wise_id}}"
+                  }
+                ]
+              },
+              "statements": [
+                {
+                  "condition": [
+                    {
+                      "lhs": "payment_method",
+                      "comparison": "equal",
+                      "value": {
+                        "type": "enum_variant",
+                        "value": "bank_transfer"
+                      },
+                      "metadata": {}
+                    }
+                  ],
+                  "nested": null
+                }
+              ]
+            },
+            {
+              "name": "rule_2",
+              "connectorSelection": {
+                "type": "priority",
+                "data": [
+                  {
+                    "connector": "adyen",
+                    "merchant_connector_id": "{{mca_adyen_id}}"
+                  }
+                ]
+              },
+              "statements": [
+                {
+                  "condition": [
+                    {
+                      "lhs": "payment_method",
+                      "comparison": "equal",
+                      "value": {
+                        "type": "enum_variant_array",
+                        "value": [
+                          "wallet",
+                          "card"
+                        ]
+                      },
+                      "metadata": {}
+                    }
+                  ],
+                  "nested": null
+                }
+              ]
+            }
+          ],
+          "metadata": {}
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/routing/payouts",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "routing",
+      "payouts"
+    ]
+  }
+}

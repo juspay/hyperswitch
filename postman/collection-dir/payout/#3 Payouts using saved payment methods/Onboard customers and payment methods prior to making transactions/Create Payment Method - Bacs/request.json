@@ -1,0 +1,48 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json",
+      "type": "text"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json",
+      "type": "text"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "bank_transfer",
+      "payment_method_type": "bacs",
+      "customer_id": "{{customer_id}}",
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      },
+      "bank_transfer": {
+        "bank_sort_code": "231470",
+        "bank_account_number": "28821822",
+        "bank_name": "Deutsche Bank",
+        "bank_country_code": "NL",
+        "bank_city": "Amsterdam"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods"
+    ]
+  }
+}

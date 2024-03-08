@@ -1,0 +1,47 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "card",
+      "payment_method_type": "debit",
+      "payment_method_issuer": "Visa",
+      "customer_id": "{{customer_id}}",
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      },
+      "card": {
+        "card_number": "4111111111111111",
+        "card_exp_month": "3",
+        "card_exp_year": "2030",
+        "card_holder_name": "John Doe"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods"
+    ]
+  },
+  "description": "To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants"
+}

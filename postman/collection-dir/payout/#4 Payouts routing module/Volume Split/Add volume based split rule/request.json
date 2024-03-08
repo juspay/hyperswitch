@@ -1,0 +1,46 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "name": "VolumeBasedRouting",
+      "description": "This is a volume based routing created at Fri, 02 Feb 2024 05:30:17 GMT",
+      "profile_id": "{{profile_id}}",
+      "algorithm": {
+        "type": "volume_split",
+        "data": [
+          {
+            "split": 50,
+            "connector": {
+              "connector": "adyen",
+              "merchant_connector_id": "{{mca_adyen_id}}"
+            }
+          },
+          {
+            "split": 50,
+            "connector": {
+              "connector": "wise",
+              "merchant_connector_id": "{{mca_wise_id}}"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/routing/payouts",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "routing",
+      "payouts"
+    ]
+  }
+}

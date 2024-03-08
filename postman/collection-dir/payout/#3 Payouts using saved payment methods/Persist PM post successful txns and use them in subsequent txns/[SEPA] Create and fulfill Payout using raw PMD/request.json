@@ -1,0 +1,75 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "x-feature",
+      "value": "integ-custom",
+      "type": "text"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1,
+      "currency": "EUR",
+      "customer_id": "{{customer_id}}",
+      "email": "payout_customer@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payout request",
+      "payout_type": "bank",
+      "payout_method_data": {
+        "bank": {
+          "iban": "NL46TEST0136169112",
+          "bic": "ABNANL2A",
+          "bank_name": "Deutsche Bank",
+          "bank_country_code": "NL",
+          "bank_city": "Amsterdam"
+        }
+      },
+      "connector": [
+        "adyen"
+      ],
+      "billing": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "CA",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "John",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "entity_type": "Individual",
+      "recurring": true,
+      "metadata": {
+        "ref": "123"
+      },
+      "confirm": true,
+      "auto_fulfill": true
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payouts/create",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payouts",
+      "create"
+    ]
+  }
+}
