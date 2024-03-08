@@ -3785,7 +3785,6 @@ impl TryFrom<(&Option<ErrorDetails>, u16, String)> for types::PaymentsResponseDa
     fn try_from(
         (response, http_code, response_id): (&Option<ErrorDetails>, u16, String),
     ) -> Result<Self, Self::Error> {
-        crate::logger::debug!("aaaaaaaaa{:?}", response);
         let (code, error_message) = match response {
             Some(error_details) => (
                 error_details
