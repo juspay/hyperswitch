@@ -1095,12 +1095,19 @@ mod payment_method_data_serde {
         #[serde(untagged)]
         enum __Inner {
             RewardString(String),
-            OptionalPaymentMethod(Box<PaymentMethodDataRequest>),
+            OptionalPaymentMethod(serde_json::Value),
         }
 
         let deserialize_to_inner = __Inner::deserialize(deserializer)?;
         match deserialize_to_inner {
-            __Inner::OptionalPaymentMethod(value) => Ok(Some(*value)),
+            __Inner::OptionalPaymentMethod(value) => {
+                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
+                    .map_err(|serde_json_error| {
+                        serde::de::Error::custom(serde_json_error.to_string())
+                    })?;
+
+                Ok(Some(parsed_value))
+            }
             __Inner::RewardString(inner_string) => {
                 let payment_method_data = match inner_string.as_str() {
                     "reward" => PaymentMethodData::Reward,
