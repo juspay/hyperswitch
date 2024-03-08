@@ -3082,7 +3082,7 @@ pub async fn payment_external_authentication(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    "error while finding customer with customer_id {customer_id}"
+                    format!("error while finding customer with customer_id {customer_id}")
                 })?,
         ),
         None => None,
@@ -3123,16 +3123,16 @@ pub async fn payment_external_authentication(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .into_report()
         .attach_printable("authentication_connector not found in payment_attempt")?;
-    let merchant_connector_account = db
-        .find_merchant_connector_account_by_profile_id_connector_name(
-            profile_id,
-            &authentication_connector,
-            &key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: format!("profile id {profile_id} and connector name {authentication_connector}"),
-        })?;
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        &state,
+        merchant_id,
+        None,
+        &key_store,
+        profile_id,
+        &authentication_connector.as_str(),
+        None,
+    )
+    .await?;
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id.to_string(),
@@ -3204,7 +3204,7 @@ pub async fn payment_external_authentication(
         shipping_address.as_ref().map(|address| address.into()),
         browser_info,
         business_profile,
-        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account),
+        merchant_connector_account,
         amount,
         Some(currency),
         authentication::MessageCategory::Payment,
