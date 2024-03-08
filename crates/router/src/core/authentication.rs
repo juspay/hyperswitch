@@ -115,39 +115,38 @@ pub async fn perform_post_authentication<F: Clone + Send>(
     match authentication_flow_input {
         types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
             payment_data,
-            authentication_data,
+            authentication_data: (authentication, authentication_data),
             should_continue_confirm_transaction,
         } => {
-            let updated_authentication = if !authentication_data
-                .0
-                .authentication_status
-                .is_terminal_status()
-            {
-                let router_data = transformers::construct_post_authentication_router_data(
-                    authentication_connector.clone(),
-                    business_profile,
-                    merchant_connector_account,
-                    authentication_data.1,
-                )?;
-                let router_data =
-                    utils::do_auth_connector_call(state, authentication_connector, router_data)
+            // let (auth, authentication_data) = authentication;
+            let updated_authentication =
+                if !authentication.authentication_status.is_terminal_status() {
+                    let router_data = transformers::construct_post_authentication_router_data(
+                        authentication_connector.clone(),
+                        business_profile,
+                        merchant_connector_account,
+                        authentication_data,
+                    )?;
+                    let router_data =
+                        utils::do_auth_connector_call(state, authentication_connector, router_data)
+                            .await?;
+                    let (updated_authentication, updated_authentication_data) =
+                        utils::update_trackers(
+                            state,
+                            router_data,
+                            authentication,
+                            payment_data.token.clone(),
+                            None,
+                        )
                         .await?;
-                let (updated_authentication, updated_authentication_data) = utils::update_trackers(
-                    state,
-                    router_data,
-                    authentication_data.0,
-                    payment_data.token.clone(),
-                    None,
-                )
-                .await?;
-                payment_data.authentication = Some((
-                    updated_authentication.clone(),
-                    updated_authentication_data.unwrap_or_default(),
-                ));
-                updated_authentication
-            } else {
-                authentication_data.0
-            };
+                    payment_data.authentication = Some((
+                        updated_authentication.clone(),
+                        updated_authentication_data.unwrap_or_default(),
+                    ));
+                    updated_authentication
+                } else {
+                    authentication
+                };
             //If authentication is not successful, skip the payment connector flows and mark the payment as failure
             if !(updated_authentication.authentication_status
                 == api_models::enums::AuthenticationStatus::Success)

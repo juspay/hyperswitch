@@ -116,8 +116,6 @@ pub fn construct_pre_authentication_router_data(
     )
 }
 
-// pub fn construct_router_data_data ()
-
 pub fn construct_router_data<F: Clone, Req, Res>(
     authentication_connector_name: String,
     payment_method: PaymentMethod,
