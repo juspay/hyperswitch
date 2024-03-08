@@ -1,6 +1,6 @@
-// Validate status 2xx
-pm.test("[POST]::/payments - Status code is 2xx", function () {
-  pm.response.to.be.success;
+// Validate status 400
+pm.test("[POST]::/payments - Status code is 400", function () {
+  pm.response.to.be.error
 });
 
 // Validate if response header has matching content-type
@@ -21,12 +21,6 @@ try {
   jsonData = pm.response.json();
 } catch (e) { }
 
-// Response body should have value "requires_payment_method" for "status"
-if (jsonData?.status) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
-    function () {
-      pm.expect(jsonData.status).to.eql("requires_confirmation");
-    },
-  );
-}
+pm.test("[POST]::/payments - Response has appropriate error message", function () {
+  pm.expect(jsonData.error.message).eql("Invalid Expiry Month");
+})

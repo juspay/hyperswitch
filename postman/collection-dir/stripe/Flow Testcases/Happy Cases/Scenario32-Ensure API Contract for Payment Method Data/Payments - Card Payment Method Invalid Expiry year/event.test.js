@@ -1,6 +1,6 @@
-// Validate status 2xx
-pm.test("[POST]::/payments - Status code is 2xx", function () {
-  pm.response.to.be.success;
+// Validate status 400
+pm.test("[POST]::/payments - Status code is 400", function () {
+  pm.response.to.be.error
 });
 
 // Validate if response header has matching content-type
@@ -21,12 +21,11 @@ try {
   jsonData = pm.response.json();
 } catch (e) { }
 
-// Response body should have value "requires_payment_method" for "status"
-if (jsonData?.status) {
+if (jsonData?.error?.message) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
+    "[POST]::/payments - Content check for error message to equal `Invalid Expiry Year`",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_confirmation");
+      pm.expect(jsonData.error.message).to.eql("Invalid Expiry Year");
     },
   );
 }
