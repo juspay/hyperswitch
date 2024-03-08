@@ -15,6 +15,7 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
+
 // Response body should have value "requires_payment_method" for "status"
 if (jsonData?.status) {
   pm.test(

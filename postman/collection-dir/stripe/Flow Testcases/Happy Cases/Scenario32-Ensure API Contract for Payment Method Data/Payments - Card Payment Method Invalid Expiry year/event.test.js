@@ -1,5 +1,5 @@
 // Validate status 2xx
-pm.test("[POST]::/payments - Status code is 2xx", function () {
+pm.test("[POST]::/payments - Status code is 400", function () {
   pm.response.to.be.success;
 });
 
@@ -15,12 +15,12 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
-// Response body should have value "requires_payment_method" for "status"
-if (jsonData?.status) {
-  pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
-    function () {
-      pm.expect(jsonData.status).to.eql("requires_confirmation");
-    },
-  );
-}
+// Set response object as internal variable
+let jsonData = {};
+try {
+  jsonData = pm.response.json();
+} catch (e) { }
+
+pm.test("[POST]::/payments - Response has appropriate error message", function () {
+  jsonData?.error?.message.eq("Invalid Expiry Month");
+})

@@ -14,3 +14,13 @@ pm.test("[POST]::/payments - Content-Type is application/json", function () {
 pm.test("[POST]::/payments - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
+
+// Set response object as internal variable
+let jsonData = {};
+try {
+  jsonData = pm.response.json();
+} catch (e) { }
+
+pm.test("[POST]::/payments - Response has appropriate error message", function () {
+  jsonData?.error.has("not a valid credit card number")
+})
