@@ -11,9 +11,7 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 
-use std::{
-    collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter,
-};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant, vec::IntoIter};
 
 use api_models::{
     self, enums,
@@ -2819,7 +2817,7 @@ pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
             .connector_mandate_details
             .clone()
             .map(|details| {
-                details.parse_value::<HashMap<String, String>>("connector_mandate_details")
+                details.parse_value::<storage::PaymentsMandateReference>("connector_mandate_details")
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2831,16 +2829,16 @@ pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
         let mut connector_choice = None;
         for connector_data in connectors {
             if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-                if let Some(connector_mandate_id) =
+                if let Some(mandate_reference_record) =
                     connector_mandate_details.get(merchant_connector_id)
                 {
-                    connector_choice = Some((connector_data, connector_mandate_id.clone()));
+                    connector_choice = Some((connector_data, mandate_reference_record.clone()));
                     break;
                 }
             }
         }
 
-        let (chosen_connector_data, chosen_mandate_id) = connector_choice
+        let (chosen_connector_data, mandate_reference_record) = connector_choice
             .get_required_value("connector_choice")
             .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
             .attach_printable("no eligible connector found for token-based MIT payment")?;
@@ -2856,11 +2854,21 @@ pub fn decide_connector_for_token_based_mit_flow<F: Clone>(
             mandate_id: None,
             mandate_reference_id: Some(payments_api::MandateReferenceId::ConnectorMandateId(
                 payments_api::ConnectorMandateReferenceId {
-                    connector_mandate_id: Some(chosen_mandate_id),
+                    connector_mandate_id: Some(
+                        mandate_reference_record.connector_mandate_id.clone(),
+                    ),
                     payment_method_id: Some(payment_method_info.payment_method_id.clone()),
                     update_history: None,
                 },
             )),
+        });
+
+        payment_data.recurring_mandate_payment_data = Some(RecurringMandatePaymentData {
+            payment_method_type: mandate_reference_record.payment_method_type,
+            original_payment_authorized_amount: mandate_reference_record
+                .original_payment_authorized_amount,
+            original_payment_authorized_currency: mandate_reference_record
+                .original_payment_authorized_currency,
         });
 
         Ok(api::ConnectorCallType::PreDetermined(chosen_connector_data))

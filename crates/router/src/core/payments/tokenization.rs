@@ -39,6 +39,8 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
+    amount: Option<i64>,
+    currency: Option<storage_enums::Currency>,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -93,7 +95,13 @@ where
                     .map(|future_usage| future_usage == storage_enums::FutureUsage::OffSession)
                     .unwrap_or(false)
             {
-                add_connector_mandate_details_in_payment_method(responses, connector)
+                add_connector_mandate_details_in_payment_method(
+                    responses,
+                    payment_method_type,
+                    amount,
+                    currency,
+                    connector,
+                )
             } else {
                 None
             }
@@ -646,8 +654,12 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
 
 fn add_connector_mandate_details_in_payment_method(
     resp: types::PaymentsResponseData,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    authorized_amount: Option<i64>,
+    authorized_currency: Option<storage_enums::Currency>,
     connector: &api::ConnectorData,
 ) -> Option<storage::PaymentsMandateReference> {
+    println!("{resp:?}");
     let mut mandate_details = HashMap::new();
 
     let connector_mandate_id = match resp {
@@ -663,8 +675,20 @@ fn add_connector_mandate_details_in_payment_method(
         _ => None,
     };
 
-    if let Some(mca_id) = connector.merchant_connector_id.clone() {
-        mandate_details.insert(mca_id, connector_mandate_id);
+    if let Some((mca_id, connector_mandate_id)) = connector
+        .merchant_connector_id
+        .clone()
+        .zip(connector_mandate_id)
+    {
+        mandate_details.insert(
+            mca_id,
+            storage::PaymentsMandateReferenceRecord {
+                connector_mandate_id,
+                payment_method_type,
+                original_payment_authorized_amount: authorized_amount,
+                original_payment_authorized_currency: authorized_currency,
+            },
+        );
         Some(storage::PaymentsMandateReference(mandate_details))
     } else {
         None
