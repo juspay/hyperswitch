@@ -307,7 +307,6 @@ pub struct DetailedConnectorChoice {
 
 impl common_utils::events::ApiEventMetric for DetailedConnectorChoice {}
 
-
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

@@ -11,12 +11,11 @@ use api_models::{
 use common_utils::ext_traits::{Encode, StringExt};
 #[cfg(not(feature = "business_profile_routing"))]
 use diesel_models::configs;
+use diesel_models::configs;
 #[cfg(feature = "business_profile_routing")]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::{IntoReport, ResultExt};
 use rustc_hash::FxHashSet;
-
-use diesel_models::configs;
 
 use super::payments;
 #[cfg(feature = "payouts")]
