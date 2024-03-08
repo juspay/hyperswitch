@@ -881,7 +881,7 @@ async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
         mime::APPLICATION_JSON.essence_str().into(),
     )];
 
-    if let Some(signature) = outgoing_webhooks_signature {
+    if let Some(signature) = outgoing_webhooks_signature.signature {
         W::add_webhook_header(&mut header, signature)
     }
 

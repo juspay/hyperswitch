@@ -5,13 +5,18 @@ use serde::Serialize;
 
 use crate::{core::errors, headers, services::request::Maskable, types::storage::enums};
 
+pub struct OutgoingWebhookPayloadWithSignature {
+    pub payload: masking::Secret<String>,
+    pub signature: Option<String>,
+}
+
 pub trait OutgoingWebhookType:
     Serialize + From<webhooks::OutgoingWebhook> + Sync + Send + std::fmt::Debug + 'static
 {
     fn get_outgoing_webhooks_signature(
         &self,
         payment_response_hash_key: Option<String>,
-    ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError>;
+    ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError>;
 
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String);
 }
@@ -20,13 +25,13 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     fn get_outgoing_webhooks_signature(
         &self,
         payment_response_hash_key: Option<String>,
-    ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError> {
+    ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError> {
         let webhook_signature_payload = self
             .encode_to_string_of_json()
             .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
             .attach_printable("failed encoding outgoing webhook payload")?;
 
-        Ok(payment_response_hash_key
+        let signature = payment_response_hash_key
             .map(|key| {
                 common_utils::crypto::HmacSha512::sign_message(
                     &common_utils::crypto::HmacSha512,
@@ -37,8 +42,14 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
             .transpose()
             .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
             .attach_printable("Failed to sign the message")?
-            .map(hex::encode))
+            .map(hex::encode);
+
+        Ok(OutgoingWebhookPayloadWithSignature {
+            payload: webhook_signature_payload.into(),
+            signature,
+        })
     }
+
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
         header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }

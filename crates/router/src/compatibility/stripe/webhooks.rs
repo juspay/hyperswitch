@@ -11,7 +11,10 @@ use super::{
     payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
 use crate::{
-    core::{errors, webhooks::types::OutgoingWebhookType},
+    core::{
+        errors,
+        webhooks::types::{OutgoingWebhookPayloadWithSignature, OutgoingWebhookType},
+    },
     headers,
     services::request::Maskable,
 };
@@ -31,7 +34,7 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
     fn get_outgoing_webhooks_signature(
         &self,
         payment_response_hash_key: Option<String>,
-    ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError> {
+    ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError> {
         let timestamp = self.created;
 
         let payment_response_hash_key = payment_response_hash_key
@@ -56,7 +59,12 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
         );
 
         let t = timestamp;
-        Ok(Some(format!("t={t},v1={v1}")))
+        let signature = Some(format!("t={t},v1={v1}"));
+
+        Ok(OutgoingWebhookPayloadWithSignature {
+            payload: webhook_signature_payload.into(),
+            signature,
+        })
     }
 
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
