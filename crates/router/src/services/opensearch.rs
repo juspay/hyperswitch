@@ -76,28 +76,76 @@ impl OpenSearchClient {
     }
 }
 
-impl OpensearchConfig {
-    pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearch> {
-        Ok(match self.auth {
-            Self::Kafka { kafka } => EventsHandler::Kafka(
-                KafkaProducer::create(kafka)
-                    .await
-                    .change_context(StorageError::InitializationError)?,
-            ),
-            Self::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
-        })
-    }
-
+impl OpensearchIndexes {
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        match self {
-            Self::Kafka { kafka } => kafka.validate(),
-            Self::Logs => Ok(()),
-        }
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
+        common_utils::fp_utils::when(self.payment_attempts.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Payment Attempts index must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.payment_intents.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Payment Intents index must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.refunds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        Ok(())
     }
 }
 
-impl KafkaSettings {
-    pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
+impl OpensearchAuth {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
+        match self {
+            Self::Basic { username, password } => {
+                common_utils::fp_utils::when(self.username.is_default_or_empty(), || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "Opensearch Basic auth username must not be empty".into(),
+                    ))
+                })?;
+
+                common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "Opensearch Basic auth password must not be empty".into(),
+                    ))
+                })?;
+            }
+
+            Self::Aws { region } => {
+                common_utils::fp_utils::when(self.password.is_default_or_empty(), || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "Opensearch Aws auth region must not be empty".into(),
+                    ))
+                })?;
+            }
+        };
+
+        Ok(())
+    }
+}
+
+impl OpensearchConfig {
+    pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearchClient> {
+        Ok(OpenSearchClient::create(self)
+            .await
+            .change_context(StorageError::InitializationError)?)
+    }
+
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
         use crate::core::errors::ApplicationError;
@@ -108,50 +156,9 @@ impl KafkaSettings {
             ))
         })?;
 
-        common_utils::fp_utils::when(self.intent_analytics_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Intent Analytics topic must not be empty".into(),
-            ))
-        })?;
+        self.indexes.validate()?;
 
-        common_utils::fp_utils::when(self.attempt_analytics_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Attempt Analytics topic must not be empty".into(),
-            ))
-        })?;
-
-        common_utils::fp_utils::when(self.refund_analytics_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Refund Analytics topic must not be empty".into(),
-            ))
-        })?;
-
-        common_utils::fp_utils::when(self.api_logs_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka API event Analytics topic must not be empty".into(),
-            ))
-        })?;
-
-        common_utils::fp_utils::when(self.connector_logs_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Connector Logs topic must not be empty".into(),
-            ))
-        })?;
-
-        common_utils::fp_utils::when(
-            self.outgoing_webhook_logs_topic.is_default_or_empty(),
-            || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "Kafka Outgoing Webhook Logs topic must not be empty".into(),
-                ))
-            },
-        )?;
-
-        common_utils::fp_utils::when(self.dispute_analytics_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Dispute Logs topic must not be empty".into(),
-            ))
-        })?;
+        self.auth.validate()?;
 
         Ok(())
     }
