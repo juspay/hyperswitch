@@ -13,6 +13,7 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+use router_env::instrument;
 
 use crate::{
     diesel_error_to_data_error,
@@ -21,7 +22,6 @@ use crate::{
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
-use router_env::instrument;
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {

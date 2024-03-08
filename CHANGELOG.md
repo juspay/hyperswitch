@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.08.0
+
+### Features
+
+- **router:** Add domain types, admin core changes and other prerequisites for 3ds external authentication flow ([#3962](https://github.com/juspay/hyperswitch/pull/3962)) ([`4902c40`](https://github.com/juspay/hyperswitch/commit/4902c403452500847f0395babc5fb940f4e2b755))
+
+### Bug Fixes
+
+- **deserialization:** Deserialize reward payment method data ([#4011](https://github.com/juspay/hyperswitch/pull/4011)) ([`f6b44f3`](https://github.com/juspay/hyperswitch/commit/f6b44f3860147a2ddc7b37123bfe064e50b7182a))
+- **postman:** Fix postman collections for saving cards with customer_acceptance ([#4008](https://github.com/juspay/hyperswitch/pull/4008)) ([`deac899`](https://github.com/juspay/hyperswitch/commit/deac8991f78bd29d081088b0cf75a254eb358a2e))
+- **webhooks:** Abort outgoing webhook retry task if webhook URL is not available in business profile ([#3997](https://github.com/juspay/hyperswitch/pull/3997)) ([`ce0ac3d`](https://github.com/juspay/hyperswitch/commit/ce0ac3d0297da5372772efe19167f0d2f62e82eb))
+
+### Refactors
+
+- **core:** Add OnSession as default for setup_future_usage ([#3990](https://github.com/juspay/hyperswitch/pull/3990)) ([`f9b6f5d`](https://github.com/juspay/hyperswitch/commit/f9b6f5da36c3a57da4b89db3151996403e2f3dfd))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`d36702d`](https://github.com/juspay/hyperswitch/commit/d36702d270be2b7e3816954fbac4a320d8224f31))
+
+**Full Changelog:** [`2024.03.07.1...2024.03.08.0`](https://github.com/juspay/hyperswitch/compare/2024.03.07.1...2024.03.08.0)
+
+- - -
+
+## 2024.03.07.1
+
+### Features
+
+- **users:** Add new API get the user and role details of specific user ([#3988](https://github.com/juspay/hyperswitch/pull/3988)) ([`ba42fba`](https://github.com/juspay/hyperswitch/commit/ba42fbaed0adb2a3e4d9f2d07a4f0d99ba227241))
+
+### Bug Fixes
+
+- **users:** Revert using mget in authorization ([#3999](https://github.com/juspay/hyperswitch/pull/3999)) ([`7375b86`](https://github.com/juspay/hyperswitch/commit/7375b866a2a2767df2f213bc9eb61268392fb60d))
+
+### Refactors
+
+- **router:** Store `ApplepayPaymentMethod` in `payment_method_data` column of `payment_attempt` table ([#3940](https://github.com/juspay/hyperswitch/pull/3940)) ([`6671bff`](https://github.com/juspay/hyperswitch/commit/6671bff3b11e9548a0085046d2594cad9f2571e2))
+
+**Full Changelog:** [`2024.03.07.0...2024.03.07.1`](https://github.com/juspay/hyperswitch/compare/2024.03.07.0...2024.03.07.1)
+
+- - -
+
 ## 2024.03.07.0
 
 ### Features
