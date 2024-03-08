@@ -617,7 +617,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
-                    let payment_method_id = payment_data.payment_attempt.payment_method_id.clone();
+                    let payment_method_id = router_data.payment_method_id.clone();
 
                     utils::add_apple_pay_payment_status_metrics(
                         router_data.status,
