@@ -347,6 +347,7 @@ impl KafkaProducer {
             EventType::Refund => &self.refund_analytics_topic,
             EventType::ConnectorApiLogs => &self.connector_logs_topic,
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
+            EventType::Dispute => &self.dispute_analytics_topic,
         }
     }
 }

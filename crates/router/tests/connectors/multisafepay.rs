@@ -55,6 +55,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             phone: None,
             email: None,
         }),
+        payment_method_billing: None,
     });
     Some(PaymentInfo {
         address,

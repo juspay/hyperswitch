@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
@@ -10,14 +9,12 @@ use crate::{
 };
 
 impl FileMetadataNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FileMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl FileMetadata {
-    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_file_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -32,7 +29,6 @@ impl FileMetadata {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn delete_by_merchant_id_file_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -47,7 +43,6 @@ impl FileMetadata {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,

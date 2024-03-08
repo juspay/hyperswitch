@@ -188,7 +188,7 @@ pub struct CardSource {
 pub struct WalletSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -301,7 +301,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.router_data.get_payment_method_token()? {
-                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::Token(token) => token.into(),
                             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
@@ -314,7 +314,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::Token(apple_pay_payment_token) => {
                             Ok(PaymentSource::Wallets(WalletSource {
                                 source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
+                                token: apple_pay_payment_token.into(),
                             }))
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
@@ -616,7 +616,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -668,7 +668,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_summary,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(item.response.id.clone()),
             })
         } else {
             None
@@ -1182,21 +1182,14 @@ pub struct CheckoutDisputeWebhookData {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutDisputeTransactionType,
     pub data: CheckoutDisputeWebhookData,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTransactionType {
-    AuthenticationStarted,
-    AuthenticationApproved,
-    PaymentApproved,
-    PaymentCaptured,
-    PaymentDeclined,
-    PaymentRefunded,
-    PaymentRefundDeclined,
+pub enum CheckoutDisputeTransactionType {
     DisputeReceived,
     DisputeExpired,
     DisputeAccepted,
@@ -1238,12 +1231,20 @@ impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
     }
 }
 
-impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTransactionType) -> Self {
+impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutDisputeTransactionType) -> Self {
         match code {
-            CheckoutTransactionType::DisputeArbitrationLost
-            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
-            _ => Self::Dispute,
+            CheckoutDisputeTransactionType::DisputeArbitrationLost
+            | CheckoutDisputeTransactionType::DisputeArbitrationWon => Self::PreArbitration,
+            CheckoutDisputeTransactionType::DisputeReceived
+            | CheckoutDisputeTransactionType::DisputeExpired
+            | CheckoutDisputeTransactionType::DisputeAccepted
+            | CheckoutDisputeTransactionType::DisputeCanceled
+            | CheckoutDisputeTransactionType::DisputeEvidenceSubmitted
+            | CheckoutDisputeTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutDisputeTransactionType::DisputeEvidenceRequired
+            | CheckoutDisputeTransactionType::DisputeWon
+            | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
         }
     }
 }

@@ -45,6 +45,7 @@ pub struct DashboardMetadataUpdateInternal {
     pub last_modified_at: PrimitiveDateTime,
 }
 
+#[derive(Debug)]
 pub enum DashboardMetadataUpdate {
     UpdateData {
         data_key: enums::DashboardMetadata,
