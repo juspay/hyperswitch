@@ -31,7 +31,7 @@ use masking::Secret;
 use serde::Serialize;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::{CustomerDetails, PaymentAddress};
+pub use crate::core::payments::{payment_address::PaymentAddress, CustomerDetails};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{

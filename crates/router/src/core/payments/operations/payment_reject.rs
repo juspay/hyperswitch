@@ -146,11 +146,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             customer_acceptance: None,
             token: None,
             address: PaymentAddress::new(
-                shipping_address.as_ref().map(|a| a.into()),
-                billing_address.as_ref().map(|a| a.into()),
-                payment_method_billing
-                    .as_ref()
-                    .map(|address| address.into()),
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
             ),
             confirm: None,
             payment_method_data: None,

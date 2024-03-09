@@ -33,6 +33,9 @@ pub use self::operations::{
     PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
     PaymentUpdate,
 };
+
+pub use payment_address::PaymentAddress;
+
 use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
@@ -2023,49 +2026,57 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-#[derive(Clone, Default, Debug)]
-struct Private;
+pub mod payment_address {
+    use super::*;
 
-#[derive(Clone, Default, Debug)]
-pub struct PaymentAddress {
-    shipping: Option<api::Address>,
-    billing: Option<api::Address>,
-    payment_method_billing: Option<api::Address>,
-    // To restrict direct construction of PaymentAddress
-    _private: Private,
-}
+    #[derive(Clone, Default, Debug)]
+    struct Private;
 
-impl PaymentAddress {
-    pub fn new(
+    #[derive(Clone, Default, Debug)]
+    pub struct PaymentAddress {
         shipping: Option<api::Address>,
         billing: Option<api::Address>,
         payment_method_billing: Option<api::Address>,
-    ) -> Self {
-        let payment_method_billing = match (payment_method_billing, billing.clone()) {
-            (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
-                address: payment_method_billing.address.or(order_billing.address),
-                phone: payment_method_billing.phone.or(order_billing.phone),
-                email: payment_method_billing.email.or(order_billing.email),
-            }),
-            (Some(payment_method_billing), None) => Some(payment_method_billing),
-            (None, Some(order_billing)) => Some(order_billing),
-            (None, None) => None,
-        };
+        /// To restrict direct construction of PaymentAddress
+        _private: Private,
+    }
 
-        Self {
-            shipping,
-            billing,
-            payment_method_billing,
-            _private: Private,
+    impl PaymentAddress {
+        pub fn new(
+            shipping: Option<api::Address>,
+            billing: Option<api::Address>,
+            payment_method_billing: Option<api::Address>,
+        ) -> Self {
+            let payment_method_billing = match (payment_method_billing, billing.clone()) {
+                (Some(payment_method_billing), Some(order_billing)) => Some(api::Address {
+                    address: payment_method_billing.address.or(order_billing.address),
+                    phone: payment_method_billing.phone.or(order_billing.phone),
+                    email: payment_method_billing.email.or(order_billing.email),
+                }),
+                (Some(payment_method_billing), None) => Some(payment_method_billing),
+                (None, Some(order_billing)) => Some(order_billing),
+                (None, None) => None,
+            };
+
+            Self {
+                shipping,
+                billing,
+                payment_method_billing,
+                _private: Private,
+            }
         }
-    }
 
-    pub fn get_shipping(&self) -> Option<&api::Address> {
-        self.shipping.as_ref()
-    }
+        pub fn get_shipping(&self) -> Option<&api::Address> {
+            self.shipping.as_ref()
+        }
 
-    pub fn get_billing(&self) -> Option<&api::Address> {
-        self.payment_method_billing.as_ref()
+        pub fn get_payment_method_billing(&self) -> Option<&api::Address> {
+            self.payment_method_billing.as_ref()
+        }
+
+        pub fn get_payment_billing(&self) -> Option<&api::Address> {
+            self.billing.as_ref()
+        }
     }
 }
 
@@ -2920,8 +2931,7 @@ where
         state: &state,
         country: payment_data
             .address
-            .billing
-            .as_ref()
+            .get_payment_method_billing()
             .and_then(|address| address.address.as_ref())
             .and_then(|details| details.country),
         key_store,

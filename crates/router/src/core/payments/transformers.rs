@@ -458,7 +458,7 @@ where
     let payment_method_data_response = payment_method_data.map(|payment_method_data| {
         api_models::payments::PaymentMethodDataResponseWithBilling {
             payment_method_data,
-            billing: payment_data.address.payment_method_billing,
+            billing: payment_data.address.get_payment_method_billing().cloned(),
         }
     });
 
@@ -669,8 +669,8 @@ where
                                 .or(payment_attempt.error_message),
                         )
                         .set_error_code(payment_attempt.error_code)
-                        .set_shipping(payment_data.address.shipping)
-                        .set_billing(payment_data.address.billing)
+                        .set_shipping(payment_data.address.get_shipping().cloned())
+                        .set_billing(payment_data.address.get_payment_billing().cloned())
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_cancellation_reason(payment_attempt.cancellation_reason)
@@ -758,8 +758,8 @@ where
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                 mandate_id,
-                shipping: payment_data.address.shipping,
-                billing: payment_data.address.billing,
+                shipping: payment_data.address.get_shipping().cloned(),
+                billing: payment_data.address.get_payment_billing().cloned(),
                 cancellation_reason: payment_attempt.cancellation_reason,
                 payment_token: payment_attempt.payment_token,
                 metadata: payment_intent.metadata,
@@ -1384,9 +1384,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         Ok(Self {
             amount,
             currency: payment_data.currency,
-            country: payment_data.address.billing.and_then(|billing_address| {
-                billing_address.address.and_then(|address| address.country)
-            }),
+            country: payment_data.address.get_payment_method_billing().and_then(
+                |billing_address| {
+                    billing_address
+                        .address
+                        .as_ref()
+                        .and_then(|address| address.country)
+                },
+            ),
             order_details,
             surcharge_details: payment_data.surcharge_details,
         })
