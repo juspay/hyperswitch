@@ -73,16 +73,21 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
                     timestamp: event.created_at,
                 };
 
-                webhooks_core::trigger_appropriate_webhook_and_raise_event(
+                let request_content = webhooks_core::get_outgoing_webhook_request(
+                    &merchant_account,
+                    outgoing_webhook,
+                    business_profile.payment_response_hash_key.as_deref(),
+                )
+                .unwrap();
+
+                webhooks_core::trigger_webhook_and_raise_event(
                     state.clone(),
-                    merchant_account,
                     business_profile,
                     &key_store,
-                    outgoing_webhook,
+                    event,
+                    request_content,
                     webhooks_core::types::WebhookDeliveryAttempt::AutomaticRetry,
                     content,
-                    event_id,
-                    event_type,
                     Some(process),
                 )
                 .await;

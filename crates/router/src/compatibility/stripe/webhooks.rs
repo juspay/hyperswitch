@@ -33,7 +33,7 @@ pub struct StripeOutgoingWebhook {
 impl OutgoingWebhookType for StripeOutgoingWebhook {
     fn get_outgoing_webhooks_signature(
         &self,
-        payment_response_hash_key: Option<String>,
+        payment_response_hash_key: Option<impl AsRef<[u8]>>,
     ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError> {
         let timestamp = self.created;
 
@@ -51,7 +51,7 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
         let v1 = hex::encode(
             common_utils::crypto::HmacSha256::sign_message(
                 &common_utils::crypto::HmacSha256,
-                payment_response_hash_key.as_bytes(),
+                payment_response_hash_key.as_ref(),
                 new_signature_payload.as_bytes(),
             )
             .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)

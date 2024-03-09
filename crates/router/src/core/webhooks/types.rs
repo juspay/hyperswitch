@@ -1,12 +1,13 @@
 use api_models::webhooks;
 use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
+use masking::Secret;
 use serde::Serialize;
 
 use crate::{core::errors, headers, services::request::Maskable, types::storage::enums};
 
 pub struct OutgoingWebhookPayloadWithSignature {
-    pub payload: masking::Secret<String>,
+    pub payload: Secret<String>,
     pub signature: Option<String>,
 }
 
@@ -15,7 +16,7 @@ pub trait OutgoingWebhookType:
 {
     fn get_outgoing_webhooks_signature(
         &self,
-        payment_response_hash_key: Option<String>,
+        payment_response_hash_key: Option<impl AsRef<[u8]>>,
     ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError>;
 
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String);
@@ -24,7 +25,7 @@ pub trait OutgoingWebhookType:
 impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     fn get_outgoing_webhooks_signature(
         &self,
-        payment_response_hash_key: Option<String>,
+        payment_response_hash_key: Option<impl AsRef<[u8]>>,
     ) -> errors::CustomResult<OutgoingWebhookPayloadWithSignature, errors::WebhooksFlowError> {
         let webhook_signature_payload = self
             .encode_to_string_of_json()
@@ -35,7 +36,7 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
             .map(|key| {
                 common_utils::crypto::HmacSha512::sign_message(
                     &common_utils::crypto::HmacSha512,
-                    key.as_bytes(),
+                    key.as_ref(),
                     webhook_signature_payload.as_bytes(),
                 )
             })
@@ -69,4 +70,10 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) event_class: enums::EventClass,
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct OutgoingWebhookRequestContent {
+    pub(crate) payload: Secret<String>,
+    pub(crate) headers: Vec<(String, Secret<String>)>,
 }
