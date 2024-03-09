@@ -80,7 +80,7 @@ fn test_card_expiration() {
 
     assert_eq!(*card_exp.get_month().peek(), 3);
     assert_eq!(*card_exp.get_year().peek(), curr_year);
-    assert_eq!(!card_exp.is_expired().unwrap());
+    assert!(!card_exp.is_expired().unwrap());
 
     assert!(invalid_card_exp.is_err());
 
