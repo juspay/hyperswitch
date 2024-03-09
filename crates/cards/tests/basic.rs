@@ -70,7 +70,7 @@ fn test_card_expiration_year() {
 fn test_card_expiration() {
     let curr_date = date_time::now();
     let curr_year = u16::try_from(curr_date.year()).expect("valid year");
-    let curr_month = u8::try_from(curr_date.month()).expect("valid month");
+    let curr_month = u8::from(curr_date.month());
 
     // no panic
     let card_exp = CardExpiration::try_from((curr_month, curr_year)).unwrap();
@@ -80,7 +80,7 @@ fn test_card_expiration() {
 
     assert_eq!(*card_exp.get_month().peek(), 3);
     assert_eq!(*card_exp.get_year().peek(), curr_year);
-    assert_eq!(card_exp.is_expired().unwrap(), false);
+    assert_eq!(!card_exp.is_expired().unwrap());
 
     assert!(invalid_card_exp.is_err());
 
