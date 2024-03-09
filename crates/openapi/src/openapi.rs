@@ -78,6 +78,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_list,
         routes::payments::payments_incremental_authorization,
         routes::payment_link::payment_link_retrieve,
+        routes::payments::payments_external_authentication,
 
         // Routes for refunds
         routes::refunds::refunds_create,

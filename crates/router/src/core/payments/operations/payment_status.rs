@@ -446,6 +446,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication: None,
         frm_metadata: None,
     };
 
