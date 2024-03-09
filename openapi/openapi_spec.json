@@ -2959,6 +2959,57 @@
         ]
       }
     },
+    "/payments/{payment_id}/3ds/authentication": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - External 3DS Authentication",
+        "description": "Payments - External 3DS Authentication\n\nExternal 3DS Authentication is performed and returns the AuthenticationResponse",
+        "operationId": "Initiate external authentication for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsExternalAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsExternalAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
