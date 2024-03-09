@@ -116,6 +116,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    Threedsecureio,
     Trustpay,
     // Tsys,
     Tsys,

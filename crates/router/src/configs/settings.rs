@@ -520,6 +520,7 @@ pub struct Connectors {
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
+    pub threedsecureio: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,

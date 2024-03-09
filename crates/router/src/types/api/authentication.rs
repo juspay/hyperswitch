@@ -15,7 +15,7 @@ pub struct Authentication;
 
 #[derive(Debug, Clone)]
 pub struct PostAuthentication;
-use crate::{services, types};
+use crate::{connector, services, types};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -106,12 +106,7 @@ impl AuthenticationConnectorData {
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
             enums::AuthenticationConnectors::Threedsecureio => {
-                Err(errors::ApiErrorResponse::NotImplemented {
-                    message: errors::NotImplementedMessage::Reason(
-                        "external 3ds authentication is not fully implemented".to_string(),
-                    ),
-                }
-                .into())
+                Ok(Box::new(&connector::Threedsecureio))
             }
         }
     }

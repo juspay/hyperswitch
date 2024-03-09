@@ -262,6 +262,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
+            api_enums::Connector::Threedsecureio => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "threedsecureio is not a routable connector".to_string(),
+                })
+                .into_report()?
+            }
         })
     }
 }
