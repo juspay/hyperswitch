@@ -28,14 +28,21 @@ pub struct Event {
 
 #[derive(Debug)]
 pub enum EventUpdate {
-    UpdateWebhookNotifiedSuccess,
+    UpdateResponse {
+        is_webhook_notified: bool,
+        response: OptionalEncryptableSecretString,
+    },
 }
 
 impl From<EventUpdate> for EventUpdateInternal {
     fn from(event_update: EventUpdate) -> Self {
         match event_update {
-            EventUpdate::UpdateWebhookNotifiedSuccess => Self {
-                is_webhook_notified: Some(true),
+            EventUpdate::UpdateResponse {
+                is_webhook_notified,
+                response,
+            } => Self {
+                is_webhook_notified: Some(is_webhook_notified),
+                response: response.map(Into::into),
             },
         }
     }

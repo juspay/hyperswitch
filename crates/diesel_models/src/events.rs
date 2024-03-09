@@ -25,6 +25,7 @@ pub struct EventNew {
 #[diesel(table_name = events)]
 pub struct EventUpdateInternal {
     pub is_webhook_notified: Option<bool>,
+    pub response: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]

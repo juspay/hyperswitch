@@ -157,8 +157,12 @@ impl EventInterface for MockDb {
             .ok_or(errors::StorageError::MockDbError)?;
 
         match event {
-            domain::EventUpdate::UpdateWebhookNotifiedSuccess => {
-                event_to_update.is_webhook_notified = true;
+            domain::EventUpdate::UpdateResponse {
+                is_webhook_notified,
+                response,
+            } => {
+                event_to_update.is_webhook_notified = is_webhook_notified;
+                event_to_update.response = response.map(Into::into);
             }
         }
 
@@ -241,7 +245,10 @@ mod tests {
         let updated_event = mockdb
             .update_event(
                 event_id.into(),
-                domain::EventUpdate::UpdateWebhookNotifiedSuccess,
+                domain::EventUpdate::UpdateResponse {
+                    is_webhook_notified: true,
+                    response: None,
+                },
                 &merchant_key_store,
             )
             .await
