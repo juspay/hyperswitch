@@ -783,6 +783,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub(crate) async fn trigger_webhook_and_raise_event(
     state: AppState,
     business_profile: diesel_models::business_profile::BusinessProfile,
@@ -793,6 +794,13 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     content: api::OutgoingWebhookContent,
     process_tracker: Option<storage::ProcessTracker>,
 ) {
+    logger::debug!(
+        event_id=%event.event_id,
+        idempotent_event_id=?event.idempotent_event_id,
+        initial_attempt_id=?event.initial_attempt_id,
+        "Attempting to send webhook"
+    );
+
     let merchant_id = business_profile.merchant_id.clone();
     let trigger_webhook_result = trigger_webhook_to_merchant(
         state.clone(),
