@@ -467,6 +467,6 @@ pub fn payments_incremental_authorization() {}
   ),
   tag = "Payments",
   operation_id = "Initiate external authentication for a Payment",
-  security(("api_key" = []))
+  security(("publishable_key" = []))
 )]
 pub fn payments_external_authentication() {}
