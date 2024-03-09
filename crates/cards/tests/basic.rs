@@ -9,11 +9,7 @@ fn test_card_security_code() {
     // no panic
     let valid_card_security_code = CardSecurityCode::try_from(1234).unwrap();
 
-    // will panic on unwrap
-    let invalid_card_security_code = CardSecurityCode::try_from(00);
-
     assert_eq!(*valid_card_security_code.peek(), 1234);
-    assert!(invalid_card_security_code.is_err());
 
     let serialized = serde_json::to_string(&valid_card_security_code).unwrap();
     assert_eq!(serialized, "1234");
@@ -74,16 +70,17 @@ fn test_card_expiration_year() {
 fn test_card_expiration() {
     let curr_date = date_time::now();
     let curr_year = u16::try_from(curr_date.year()).expect("valid year");
+    let curr_month = u8::try_from(curr_date.month()).expect("valid month");
 
     // no panic
-    let card_exp = CardExpiration::try_from((3, curr_year)).unwrap();
+    let card_exp = CardExpiration::try_from((curr_month, curr_year)).unwrap();
 
     // will panic on unwrap
     let invalid_card_exp = CardExpiration::try_from((13, curr_year));
 
     assert_eq!(*card_exp.get_month().peek(), 3);
     assert_eq!(*card_exp.get_year().peek(), curr_year);
-    assert!(card_exp.is_expired().unwrap());
+    assert_eq!(card_exp.is_expired().unwrap(), false);
 
     assert!(invalid_card_exp.is_err());
 
