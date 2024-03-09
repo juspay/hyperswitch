@@ -93,9 +93,7 @@ impl AuthenticationConnectorData {
         let connector_name = enums::AuthenticationConnectors::from_str(name)
             .into_report()
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-            .attach_printable_lazy(|| {
-                format!("unable to parse connector: {:?}", name.to_string())
-            })?;
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
         let connector = Self::convert_connector(connector_name)?;
         Ok(Self {
             connector,
