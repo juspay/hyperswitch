@@ -7,11 +7,13 @@ ADD CONSTRAINT event_id_unique UNIQUE (event_id);
 
 -- Adding back unused columns, and make `id` as primary key
 ALTER TABLE events
-ADD COLUMN id SERIAL PRIMARY KEY,
+    ADD COLUMN id SERIAL PRIMARY KEY,
     ADD COLUMN intent_reference_id VARCHAR(64) DEFAULT NULL;
 
 -- The following queries must be run after the older version of the application is deployed.
-ALTER TABLE events DROP COLUMN idempotent_event_id,
+ALTER TABLE events
+    DROP COLUMN primary_object_created_at,
+    DROP COLUMN idempotent_event_id,
     DROP COLUMN initial_attempt_id,
     DROP COLUMN request,
     DROP COLUMN response;

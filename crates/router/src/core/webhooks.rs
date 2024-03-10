@@ -170,6 +170,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
+                let primary_object_created_at = payments_response.created.clone();
                 create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
@@ -180,6 +181,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
                     payment_id.clone(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    primary_object_created_at,
                 )
                 .await?;
             };
@@ -286,6 +288,7 @@ pub async fn refunds_incoming_webhook_flow(
             refund_id,
             enums::EventObjectType::RefundDetails,
             api::OutgoingWebhookContent::RefundDetails(refund_response),
+            Some(updated_refund.created_at),
         )
         .await?;
     }
@@ -482,6 +485,7 @@ pub async fn mandates_incoming_webhook_flow(
                 updated_mandate.mandate_id.clone(),
                 enums::EventObjectType::MandateDetails,
                 api::OutgoingWebhookContent::MandateDetails(mandates_response),
+                Some(updated_mandate.created_at),
             )
             .await?;
         }
@@ -550,6 +554,7 @@ pub async fn disputes_incoming_webhook_flow(
             dispute_object.dispute_id.clone(),
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
+            Some(dispute_object.created_at),
         )
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -626,6 +631,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
+                let primary_object_created_at = payments_response.created.clone();
                 create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
@@ -636,6 +642,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
                     payment_id.clone(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    primary_object_created_at,
                 )
                 .await?;
             }
@@ -661,6 +668,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
+    primary_object_created_at: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = types::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
@@ -706,6 +714,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         primary_object_id,
         primary_object_type,
         created_at: now,
+        primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
         request: Some(

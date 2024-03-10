@@ -230,6 +230,7 @@ mod tests {
                     primary_object_id: "primary_object_tet".into(),
                     primary_object_type: enums::EventObjectType::PaymentDetails,
                     created_at: common_utils::date_time::now(),
+                    primary_object_created_at: Some(common_utils::date_time::now()),
                     idempotent_event_id: Some(event_id.into()),
                     initial_attempt_id: Some(event_id.into()),
                     request: None,

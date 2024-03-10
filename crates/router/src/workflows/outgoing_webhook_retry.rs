@@ -82,6 +82,7 @@ impl ProcessTrackerWorkflow<AppState> for OutgoingWebhookRetryWorkflow {
             primary_object_id: initial_event.primary_object_id,
             primary_object_type: initial_event.primary_object_type,
             created_at: now,
+            primary_object_created_at: initial_event.primary_object_created_at,
             idempotent_event_id: Some(idempotent_event_id),
             initial_attempt_id: Some(initial_event.event_id.clone()),
             request: initial_event.request,

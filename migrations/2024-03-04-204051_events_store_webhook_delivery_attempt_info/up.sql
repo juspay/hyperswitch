@@ -1,6 +1,7 @@
 -- The following queries must be run before the newer version of the application is deployed.
 ALTER TABLE events
-ADD COLUMN idempotent_event_id VARCHAR(64) DEFAULT NULL,
+    ADD COLUMN primary_object_created_at TIMESTAMP DEFAULT NULL,
+    ADD COLUMN idempotent_event_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN initial_attempt_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN request BYTEA DEFAULT NULL,
     ADD COLUMN response BYTEA DEFAULT NULL;
@@ -28,5 +29,6 @@ ADD PRIMARY KEY (event_id);
 ALTER TABLE events DROP CONSTRAINT event_id_unique;
 
 -- Dropping unused columns
-ALTER TABLE events DROP COLUMN id,
+ALTER TABLE events
+    DROP COLUMN id,
     DROP COLUMN intent_reference_id;
