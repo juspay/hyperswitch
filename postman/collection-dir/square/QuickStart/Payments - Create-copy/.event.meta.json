@@ -1,6 +1,0 @@
-{
-  "eventOrder": [
-    "event.test.js",
-    "event.prerequest.js"
-  ]
-}
