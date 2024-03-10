@@ -70,6 +70,7 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) event_class: enums::EventClass,
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
+    pub(crate) initial_attempt_id: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

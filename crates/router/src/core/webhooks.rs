@@ -771,7 +771,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 event,
                 request_content,
                 delivery_attempt,
-                content,
+                Some(content),
                 process_tracker,
             )
             .await;
@@ -791,7 +791,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     event: domain::Event,
     request_content: types::OutgoingWebhookRequestContent,
     delivery_attempt: types::WebhookDeliveryAttempt,
-    content: api::OutgoingWebhookContent,
+    content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
 ) {
     logger::debug!(
@@ -1090,7 +1090,7 @@ async fn trigger_webhook_to_merchant(
 fn raise_webhooks_analytics_event(
     state: AppState,
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
-    content: api::OutgoingWebhookContent,
+    content: Option<api::OutgoingWebhookContent>,
     merchant_id: String,
     event: domain::Event,
 ) {
@@ -1109,13 +1109,16 @@ fn raise_webhooks_analytics_event(
         None
     };
 
-    let outgoing_webhook_event_content = content.get_outgoing_webhook_event_content();
+    let outgoing_webhook_event_content = content
+        .as_ref()
+        .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content);
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
         event.event_id,
         event.event_type,
         outgoing_webhook_event_content,
         error,
+        event.initial_attempt_id,
     );
 
     match RawEvent::try_from(webhook_event.clone()) {
@@ -1650,6 +1653,7 @@ pub async fn add_outgoing_webhook_retry_task_to_process_tracker(
         event_class: event.event_class,
         primary_object_id: event.primary_object_id.clone(),
         primary_object_type: event.primary_object_type,
+        initial_attempt_id: event.initial_attempt_id.clone(),
     };
 
     let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
