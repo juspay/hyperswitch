@@ -15,6 +15,7 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
   pm.response.to.have.jsonBody();
 });
 
+
 // Set response object as internal variable
 let jsonData = {};
 try {
