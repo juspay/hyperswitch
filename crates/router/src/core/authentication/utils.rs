@@ -82,7 +82,8 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Riskified
         | api_models::enums::Connector::Cybersource
         | api_models::enums::Connector::Noon
-        | api_models::enums::Connector::Stripe => false,
+        | api_models::enums::Connector::Stripe
+        | api_models::enums::Connector::Threedsecureio => false,
         api_models::enums::Connector::Checkout => true,
     }
     #[cfg(not(feature = "dummy_connector"))]
@@ -137,7 +138,8 @@ pub fn is_separate_authn_supported_connector(connector: router_types::Connector)
         | api_models::enums::Connector::Riskified
         | api_models::enums::Connector::Cybersource
         | api_models::enums::Connector::Noon
-        | api_models::enums::Connector::Stripe => false,
+        | api_models::enums::Connector::Stripe
+        | api_models::enums::Connector::Threedsecureio => false,
         api_models::enums::Connector::Checkout => true,
     }
 }
