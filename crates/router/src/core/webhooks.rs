@@ -170,7 +170,7 @@ pub async fn payments_incoming_webhook_flow<Ctx: PaymentMethodRetrieve>(
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                let primary_object_created_at = payments_response.created.clone();
+                let primary_object_created_at = payments_response.created;
                 create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,
@@ -631,7 +631,7 @@ async fn bank_transfer_webhook_flow<Ctx: PaymentMethodRetrieve>(
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
-                let primary_object_created_at = payments_response.created.clone();
+                let primary_object_created_at = payments_response.created;
                 create_event_and_trigger_outgoing_webhook(
                     state,
                     merchant_account,

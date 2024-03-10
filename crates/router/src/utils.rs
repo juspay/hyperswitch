@@ -805,7 +805,7 @@ where
             if let Some(event_type) = event_type {
                 tokio::spawn(
                     async move {
-                        let primary_object_created_at = payments_response_json.created.clone();
+                        let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
                             merchant_account,
