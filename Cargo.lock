@@ -1687,6 +1687,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio 1.36.0",
+ "uuid",
 ]
 
 [[package]]

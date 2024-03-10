@@ -141,5 +141,5 @@ pub(crate) fn get_idempotent_event_id(
 
 #[inline]
 pub(crate) fn generate_event_id() -> String {
-    common_utils::generate_id_with_default_len("evt")
+    common_utils::generate_time_ordered_id("evt")
 }
