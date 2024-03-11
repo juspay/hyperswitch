@@ -68,22 +68,23 @@ async fn get_opensearch_client(config: OpensearchConfig) -> Result<OpenSearch, O
 }
 
 pub async fn msearch_results(
+    client: OpenSearchClient,
     req: GetGlobalSearchRequest,
     merchant_id: &String,
-    config: OpensearchConfig,
 ) -> CustomResult<Vec<GetSearchResponse>, AnalyticsError> {
-    let client = get_opensearch_client(config.clone())
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    // let client = get_opensearch_client(config.clone())
+    //     .await
+    //     .map_err(|_| AnalyticsError::UnknownError)?;
 
     let mut msearch_vector: Vec<JsonBody<Value>> = vec![];
     for index in SearchIndex::iter() {
         msearch_vector
-            .push(json!({"index": search_index_to_opensearch_index(index,&config.indexes)}).into());
+            .push(json!({"index": search_index_to_opensearch_index(index,&client.indexes)}).into());
         msearch_vector.push(json!({"query": {"bool": {"must": {"query_string": {"query": req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}).into());
     }
 
     let response = client
+        .client
         .msearch(MsearchParts::None)
         .body(msearch_vector)
         .send()
@@ -113,18 +114,18 @@ pub async fn msearch_results(
 }
 
 pub async fn search_results(
+    client: OpenSearchClient,
     req: GetSearchRequestWithIndex,
     merchant_id: &String,
-    config: OpensearchConfig,
 ) -> CustomResult<GetSearchResponse, AnalyticsError> {
     let search_req = req.search_req;
 
-    let client = get_opensearch_client(config.clone())
-        .await
-        .map_err(|_| AnalyticsError::UnknownError)?;
+    // let client = get_opensearch_client(config.clone())
+    //     .await
+    //     .map_err(|_| AnalyticsError::UnknownError)?;
 
-    let response = client
-        .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&config.indexes)]))
+    let response = client.client
+        .search(SearchParts::Index(&[&search_index_to_opensearch_index(req.index.clone(),&client.indexes)]))
         .from(search_req.offset)
         .size(search_req.count)
         .body(json!({"query": {"bool": {"must": {"query_string": {"query": search_req.query}}, "filter": {"match_phrase": {"merchant_id": merchant_id}}}}}))
