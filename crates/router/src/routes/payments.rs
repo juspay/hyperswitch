@@ -1208,6 +1208,58 @@ pub async fn payments_incremental_authorization(
     .await
 }
 
+/// Payments - External 3DS Authentication
+///
+/// External 3DS Authentication is performed and returns the AuthenticationResponse
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/3ds/authentication",
+    request_body=PaymentsExternalAuthenticationRequest,
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Authentication created"),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Initiate external authentication for a Payment",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsExternalAuthentication, payment_id))]
+pub async fn payments_external_authentication(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsExternalAuthenticationRequest>,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::PaymentsExternalAuthentication;
+    let mut payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", &payment_id);
+
+    payload.payment_id = payment_id;
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::payment_external_authentication(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -1395,6 +1447,22 @@ impl<'a> GetLockingInput for FPaymentsRejectRequest<'a> {
 }
 
 impl GetLockingInput for payment_types::PaymentsIncrementalAuthorizationRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsExternalAuthenticationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
