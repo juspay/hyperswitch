@@ -214,11 +214,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::OpenBankingAuth {
-                api_key,
-                key1,
-                ..
-            } => Ok(Self {
+            types::ConnectorAuthType::OpenBankingAuth { api_key, key1, .. } => Ok(Self {
                 client_id: api_key.to_owned(),
                 secret: key1.to_owned(),
             }),
