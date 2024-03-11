@@ -659,6 +659,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
     let event_id = format!("{primary_object_id}_{event_type}");
 
     if !state.conf.webhooks.outgoing_enabled

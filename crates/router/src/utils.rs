@@ -800,25 +800,39 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
-                tokio::spawn(
+                let webhook_task_join_handle = tokio::spawn(
                     async move {
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                            m_state,
-                            merchant_account,
-                            business_profile,
-                            event_type,
-                            diesel_models::enums::EventClass::Payments,
-                            None,
-                            payment_id,
-                            diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
-                                payments_response_json,
-                            ),
-                        ))
-                        .await
+                        let send_webhook_result =
+                            Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                                m_state,
+                                merchant_account,
+                                business_profile,
+                                event_type,
+                                diesel_models::enums::EventClass::Payments,
+                                None,
+                                payment_id,
+                                diesel_models::enums::EventObjectType::PaymentDetails,
+                                webhooks::OutgoingWebhookContent::PaymentDetails(
+                                    payments_response_json,
+                                ),
+                            ))
+                            .await;
+
+                        if let Err(send_webhook_error) = send_webhook_result {
+                            logger::error!(?send_webhook_error);
+                        }
                     }
                     .in_current_span(),
                 );
+
+                if let Err(background_thread_error) = state
+                    .background_task_awaiter
+                    .clone()
+                    .send(webhook_task_join_handle)
+                    .await
+                {
+                    logger::error!(?background_thread_error);
+                }
             } else {
                 logger::warn!(
                     "Outgoing webhook not sent because of missing event type status mapping"

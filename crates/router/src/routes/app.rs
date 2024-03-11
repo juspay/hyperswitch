@@ -71,6 +71,7 @@ pub struct AppState {
     pub request_id: Option<RequestId>,
     pub file_storage_client: Box<dyn FileStorageInterface>,
     pub encryption_client: Box<dyn EncryptionManagementInterface>,
+    pub background_task_awaiter: tokio::sync::mpsc::Sender<tokio::task::JoinHandle<()>>,
 }
 
 impl scheduler::SchedulerAppState for AppState {
@@ -146,6 +147,7 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        background_task_awaiter: tokio::sync::mpsc::Sender<tokio::task::JoinHandle<()>>,
     ) -> Self {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
@@ -221,6 +223,7 @@ impl AppState {
                 request_id: None,
                 file_storage_client,
                 encryption_client,
+                background_task_awaiter,
             }
         })
         .await
@@ -230,12 +233,14 @@ impl AppState {
         conf: settings::Settings<SecuredSecret>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        background_task_awaiter: tokio::sync::mpsc::Sender<tokio::task::JoinHandle<()>>,
     ) -> Self {
         Box::pin(Self::with_storage(
             conf,
             StorageImpl::Postgresql,
             shut_down_signal,
             api_client,
+            background_task_awaiter,
         ))
         .await
     }

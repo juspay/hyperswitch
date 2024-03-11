@@ -175,7 +175,9 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
+pub async fn start_server(
+    conf: settings::Settings<SecuredSecret>,
+) -> ApplicationResult<(Server, tokio::task::JoinHandle<()>)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
@@ -188,15 +190,45 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
             errors::ApplicationError::ApiClientError(error.current_context().clone())
         })?,
     );
-    let state = Box::pin(routes::AppState::new(conf, tx, api_client)).await;
+
+    let (join_handle_sender, join_handle_receiver) =
+        tokio::sync::mpsc::channel::<tokio::task::JoinHandle<()>>(1024);
+
+    let background_thread_handle = tokio::spawn(await_on_join_handles(join_handle_receiver));
+
+    let state = Box::pin(routes::AppState::new(
+        conf,
+        tx,
+        api_client,
+        join_handle_sender,
+    ))
+    .await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
+
     tokio::spawn(receiver_for_error(rx, server.handle()));
-    Ok(server)
+    Ok((server, background_thread_handle))
+}
+
+pub async fn await_on_join_handles(
+    mut join_handles_receiver: tokio::sync::mpsc::Receiver<tokio::task::JoinHandle<()>>,
+) {
+    logger::info!("Started join handles awaiter");
+
+    let mut interval = tokio::time::interval(std::time::Duration::from_millis(100));
+
+    loop {
+        if let Some(join_handle) = join_handles_receiver.recv().await {
+            let _res = join_handle.await.unwrap();
+        } else {
+            break;
+        }
+    }
+    logger::info!("Exited join handles awaiter");
 }
 
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {

@@ -115,15 +115,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let maybe_customer = maybe_customer.clone();
                 let merchant_account = merchant_account.clone();
                 let key_store = key_store.clone();
-                let state = state.clone();
+                let cloned_state = state.clone();
 
                 logger::info!("Initiating async call to save_payment_method in locker");
 
-                tokio::spawn(async move {
+                let save_card_join_handle = tokio::spawn(async move {
                     logger::info!("Starting async call to save_payment_method in locker");
 
                     let result = Box::pin(tokenization::save_payment_method(
-                        &state,
+                        &cloned_state,
                         &connector,
                         response,
                         &maybe_customer,
@@ -137,6 +137,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         logger::error!("Asynchronously saving card in locker failed : {:?}", err);
                     }
                 });
+
+                if let Err(background_thread_error) = state
+                    .background_task_awaiter
+                    .clone()
+                    .send(save_card_join_handle)
+                    .await
+                {
+                    logger::error!(?background_thread_error);
+                }
 
                 Ok(resp)
             }
