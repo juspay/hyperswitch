@@ -411,6 +411,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let printrequest = crate::utils::Encode::encode_to_string_of_json(&response)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
+
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -872,11 +876,17 @@ impl api::IncomingWebhook for Authorizedotnet {
                     ),
                 ))
             }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    authorizedotnet::get_trans_id(&details)?,
-                ),
-            )),
+            authorizedotnet::AuthorizedotnetWebhookEvent::AuthorizationCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | authorizedotnet::AuthorizedotnetWebhookEvent::AuthCapCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::CaptureCreated
+            | authorizedotnet::AuthorizedotnetWebhookEvent::VoidCreated => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        authorizedotnet::get_trans_id(&details)?,
+                    ),
+                ))
+            }
         }
     }
 

@@ -190,44 +190,48 @@ fn get_pm_and_subsequent_auth_detail(
                 }
             }
         }
-        _ => match item.router_data.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => {
-                Ok((
-                    PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: (*ccard.card_number).clone(),
-                        // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
-                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                        card_code: Some(ccard.card_cvc.clone()),
-                    }),
-                    Some(ProcessingOptions {
-                        is_subsequent_auth: true,
-                    }),
+        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+            match item.router_data.request.payment_method_data {
+                api::PaymentMethodData::Card(ref ccard) => {
+                    Ok((
+                        PaymentDetails::CreditCard(CreditCardDetails {
+                            card_number: (*ccard.card_number).clone(),
+                            // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                            expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                            card_code: Some(ccard.card_cvc.clone()),
+                        }),
+                        Some(ProcessingOptions {
+                            is_subsequent_auth: true,
+                        }),
+                        None,
+                    ))
+                }
+                api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
+                    get_wallet_data(
+                        wallet_data,
+                        &item.router_data.request.complete_authorize_url,
+                    )?,
                     None,
-                ))
+                    None,
+                )),
+                api::PaymentMethodData::CardRedirect(_)
+                | api::PaymentMethodData::PayLater(_)
+                | api::PaymentMethodData::BankRedirect(_)
+                | api::PaymentMethodData::BankDebit(_)
+                | api::PaymentMethodData::BankTransfer(_)
+                | api::PaymentMethodData::Crypto(_)
+                | api::PaymentMethodData::MandatePayment
+                | api::PaymentMethodData::Reward
+                | api::PaymentMethodData::Upi(_)
+                | api::PaymentMethodData::Voucher(_)
+                | api::PaymentMethodData::GiftCard(_)
+                | api::PaymentMethodData::CardToken(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                    ))?
+                }
             }
-            api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
-                get_wallet_data(
-                    wallet_data,
-                    &item.router_data.request.complete_authorize_url,
-                )?,
-                None,
-                None,
-            )),
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?,
-        },
+        }
     }
 }
 
@@ -661,7 +665,7 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                     })
                 });
                 let metadata = transaction_response
@@ -739,7 +743,7 @@ impl<F, T>
                         reason: None,
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                     })
                 });
                 let metadata = transaction_response
@@ -885,7 +889,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: Some(transaction_response.transaction_id.clone()),
             })
         });
 
@@ -994,7 +998,14 @@ impl From<SyncStatus> for enums::RefundStatus {
         match transaction_status {
             SyncStatus::RefundSettledSuccessfully => Self::Success,
             SyncStatus::RefundPendingSettlement => Self::Pending,
-            _ => Self::Failure,
+            SyncStatus::AuthorizedPendingCapture
+            | SyncStatus::CapturedPendingSettlement
+            | SyncStatus::SettledSuccessfully
+            | SyncStatus::Declined
+            | SyncStatus::Voided
+            | SyncStatus::CouldNotVoid
+            | SyncStatus::GeneralError
+            | SyncStatus::FDSPendingReview => Self::Failure,
         }
     }
 }
@@ -1111,7 +1122,10 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
     fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Self::Authorization,
-            _ => Self::Payment,
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::ManualMultiple)
+            | Some(enums::CaptureMethod::Scheduled)
+            | None => Self::Payment,
         }
     }
 }
@@ -1359,7 +1373,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCompleteAuthorizeRouterD
                 .payer_id;
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::ContinueAuthorization,
-            _ => TransactionType::ContinueCapture,
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::ManualMultiple)
+            | Some(enums::CaptureMethod::Scheduled)
+            | None => TransactionType::ContinueCapture,
         };
         let transaction_request = TransactionConfirmRequest {
             transaction_type,
