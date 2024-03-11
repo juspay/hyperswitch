@@ -1752,6 +1752,7 @@ pub fn build_redirection_form(
                     }
 
                     (PreEscaped(format!("<script>
+                                initiateLogListener();
                                 var my3DSContainer;
                                 var clientToken = \"{client_token}\";
                                 braintree.threeDSecure.create({{
@@ -1818,6 +1819,7 @@ pub fn build_redirection_form(
             order_id,
         } => {
             let public_key_val = public_key.peek();
+            let logging_template = include_str!("../core/payment_link/fe_logging.js").to_string();
             maud::html! {
                     (maud::DOCTYPE)
                     head {
@@ -1849,6 +1851,8 @@ pub fn build_redirection_form(
                         div id="threeds-wrapper" style="display: flex; width: 100%; height: 100vh; align-items: center; justify-content: center;" {""}
                     }
                     (PreEscaped(format!("<script>
+                    {logging_template}
+                    initiateLogListener();
                     const gateway = Gateway.create('{public_key_val}');
 
                     // Initialize the ThreeDSService
@@ -1972,12 +1976,18 @@ pub fn build_payment_link_html(
         }
     };
 
+
+    // Add logging for payment link
+    let logging_template = include_str!("../core/payment_link/fe_logging.js").to_string();
+
     // Add modification to js template with dynamic data
     let js_template =
         include_str!("../core/payment_link/payment_link_initiate/payment_link.js").to_string();
+
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
+    context.insert("payment_link_logging", &logging_template);
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,

@@ -165,6 +165,8 @@ function invert(color, bw) {
 // @ts-ignore
 {{ payment_details_js_script }}
 
+{{ payment_link_logging }}
+
 // @ts-ignore
 window.state = {
   prevHeight: window.innerHeight,
@@ -188,7 +190,11 @@ var hyper = null;
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
+
+
 function boot() {
+
+  initiateLogListener();
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
   var orderDetails = paymentDetails.order_details;
