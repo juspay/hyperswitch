@@ -1095,12 +1095,19 @@ mod payment_method_data_serde {
         #[serde(untagged)]
         enum __Inner {
             RewardString(String),
-            OptionalPaymentMethod(Box<PaymentMethodDataRequest>),
+            OptionalPaymentMethod(serde_json::Value),
         }
 
         let deserialize_to_inner = __Inner::deserialize(deserializer)?;
         match deserialize_to_inner {
-            __Inner::OptionalPaymentMethod(value) => Ok(Some(*value)),
+            __Inner::OptionalPaymentMethod(value) => {
+                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
+                    .map_err(|serde_json_error| {
+                        serde::de::Error::custom(serde_json_error.to_string())
+                    })?;
+
+                Ok(Some(parsed_value))
+            }
             __Inner::RewardString(inner_string) => {
                 let payment_method_data = match inner_string.as_str() {
                     "reward" => PaymentMethodData::Reward,
@@ -4054,4 +4061,74 @@ pub enum PaymentLinkStatus {
 pub enum PaymentLinkStatusWrap {
     PaymentLinkStatus(PaymentLinkStatus),
     IntentStatus(api_enums::IntentStatus),
+}
+
+#[cfg(test)]
+mod payments_request_api_contract {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::panic)]
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_successful_card_deser() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "card",
+            "payment_method_data": {
+                "card": {
+                    "card_number": "4242424242424242",
+                    "card_exp_month": "10",
+                    "card_exp_year": "25",
+                    "card_holder_name": "joseph Doe",
+                    "card_cvc": "123"
+                }
+            }
+        }
+        "#;
+
+        let expected_card_number_string = "4242424242424242";
+        let expected_card_number = CardNumber::from_str(expected_card_number_string).unwrap();
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+
+        if let PaymentMethodData::Card(card_data) = payments_request
+            .unwrap()
+            .payment_method_data
+            .unwrap()
+            .payment_method_data
+        {
+            assert_eq!(card_data.card_number, expected_card_number);
+        } else {
+            panic!("Received unexpected response")
+        }
+    }
+
+    #[test]
+    fn test_successful_payment_method_reward() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "reward",
+            "payment_method_data": "reward",
+            "payment_method_type": "evoucher"
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert_eq!(
+            payments_request
+                .unwrap()
+                .payment_method_data
+                .unwrap()
+                .payment_method_data,
+            PaymentMethodData::Reward
+        );
+    }
 }

@@ -124,6 +124,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 logger::info!("Call to save_payment_method in locker");
 
+                tokio::spawn(async move {
+                    logger::info!("Starting async call to save_payment_method in locker");
+
                 let pm = Box::pin(tokenization::save_payment_method(
                     &state,
                     &connector,

@@ -173,6 +173,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_method_status: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 

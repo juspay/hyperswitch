@@ -19,7 +19,10 @@
     },
     "raw_json_formatted": {
       "amount": 6540,
-      "currency": "USD"
+      "currency": "USD",
+      "payment_method": "reward",
+      "payment_method_type": "evoucher",
+      "payment_method_data": "reward"
     }
   },
   "url": {

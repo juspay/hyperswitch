@@ -27,6 +27,7 @@ pub trait SerializableSecret: Serialize {}
 impl SerializableSecret for Value {}
 impl SerializableSecret for u8 {}
 impl SerializableSecret for u16 {}
+impl SerializableSecret for i32 {}
 
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where

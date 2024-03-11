@@ -869,6 +869,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
+    payment_data.payment_method_status = router_data.payment_method_status;
     Ok(payment_data)
 }
 

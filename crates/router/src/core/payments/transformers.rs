@@ -5,6 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Maskable;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -467,20 +468,25 @@ where
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
-                status_code.to_string(),
+                Maskable::new_normal(status_code.to_string()),
             )]
         })
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
             "payment_confirm_source".to_string(),
-            payment_confirm_source.to_string(),
+            Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
 
     headers.extend(
         external_latency
-            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .map(|latency| {
+                vec![(
+                    X_HS_LATENCY.to_string(),
+                    Maskable::new_normal(latency.to_string()),
+                )]
+            })
             .unwrap_or_default(),
     );
 

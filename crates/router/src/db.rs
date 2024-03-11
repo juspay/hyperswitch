@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
@@ -113,6 +114,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + role::RoleInterface
+    + authentication::AuthenticationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
