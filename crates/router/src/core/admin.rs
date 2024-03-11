@@ -62,36 +62,39 @@ pub async fn create_merchant_account(
 
     let publishable_key = Some(create_merchant_publishable_key());
 
-    let primary_business_details =
-        utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
-            &req.primary_business_details.clone().unwrap_or_default(),
-        )
+    let primary_business_details = req
+        .primary_business_details
+        .clone()
+        .unwrap_or_default()
+        .encode_to_value()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "primary_business_details",
         })?;
 
-    let merchant_details: OptionalSecretValue =
-        req.merchant_details
-            .as_ref()
-            .map(|merchant_details| {
-                utils::Encode::<api::MerchantDetails>::encode_to_value(merchant_details)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "merchant_details",
-                    })
-            })
-            .transpose()?
-            .map(Into::into);
+    let merchant_details: OptionalSecretValue = req
+        .merchant_details
+        .as_ref()
+        .map(|merchant_details| {
+            merchant_details.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_details",
+                },
+            )
+        })
+        .transpose()?
+        .map(Into::into);
 
-    let webhook_details =
-        req.webhook_details
-            .as_ref()
-            .map(|webhook_details| {
-                utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details)
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "webhook details",
-                    })
-            })
-            .transpose()?;
+    let webhook_details = req
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            webhook_details.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api_models::routing::RoutingAlgorithm = routing_algorithm
@@ -134,7 +137,7 @@ pub async fn create_merchant_account(
         .metadata
         .as_ref()
         .map(|meta| {
-            utils::Encode::<admin_types::MerchantAccountMetadata>::encode_to_value(meta)
+            meta.encode_to_value()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "metadata",
                 })
@@ -433,6 +436,7 @@ pub async fn update_business_profile_cascade(
             applepay_verified_domains: None,
             payment_link_config: None,
             session_expiry: None,
+            authentication_connector_details: None,
         };
 
         let update_futures = business_profiles.iter().map(|business_profile| async {
@@ -493,12 +497,11 @@ pub async fn merchant_account_update(
         .primary_business_details
         .as_ref()
         .map(|primary_business_details| {
-            utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
-                primary_business_details,
+            primary_business_details.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "primary_business_details",
+                },
             )
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
-            })
         })
         .transpose()?;
 
@@ -548,7 +551,7 @@ pub async fn merchant_account_update(
         merchant_details: req
             .merchant_details
             .as_ref()
-            .map(utils::Encode::<api::MerchantDetails>::encode_to_value)
+            .map(utils::Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
@@ -563,7 +566,7 @@ pub async fn merchant_account_update(
         webhook_details: req
             .webhook_details
             .as_ref()
-            .map(utils::Encode::<api::WebhookDetails>::encode_to_value)
+            .map(utils::Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
@@ -779,9 +782,18 @@ pub async fn create_payment_connector(
 
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+    let authentication_connector =
+        api_enums::convert_authentication_connector(req.connector_name.to_string().as_str());
 
     if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            })
+            .into_report();
+        }
+    } else if authentication_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
             })
@@ -817,7 +829,8 @@ pub async fn create_payment_connector(
     let payment_methods_enabled = match req.payment_methods_enabled {
         Some(val) => {
             for pm in val.into_iter() {
-                let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
+                let pm_value = pm
+                    .encode_to_value()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed while encoding to serde_json::Value, PaymentMethod",
@@ -920,7 +933,7 @@ pub async fn create_payment_connector(
         disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: Some(connector_label),
+        connector_label: Some(connector_label.clone()),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label.clone(),
@@ -929,8 +942,7 @@ pub async fn create_payment_connector(
         id: None,
         connector_webhook_details: match req.connector_webhook_details {
             Some(connector_webhook_details) => {
-                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
-                    &connector_webhook_details,
+                connector_webhook_details.encode_to_value(
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", merchant_id))
@@ -945,11 +957,22 @@ pub async fn create_payment_connector(
         status: connector_status,
     };
 
-    let mut default_routing_config =
-        routing_helpers::get_merchant_default_config(&*state.store, merchant_id).await?;
+    let transaction_type = match req.connector_type {
+        #[cfg(feature = "payouts")]
+        api_enums::ConnectorType::PayoutProcessor => api_enums::TransactionType::Payout,
+        _ => api_enums::TransactionType::Payment,
+    };
 
-    let mut default_routing_config_for_profile =
-        routing_helpers::get_merchant_default_config(&*state.clone().store, &profile_id).await?;
+    let mut default_routing_config =
+        routing_helpers::get_merchant_default_config(&*state.store, merchant_id, &transaction_type)
+            .await?;
+
+    let mut default_routing_config_for_profile = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        &profile_id,
+        &transaction_type,
+    )
+    .await?;
 
     let mca = state
         .store
@@ -958,7 +981,7 @@ pub async fn create_payment_connector(
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id: profile_id.clone(),
-                connector_name: req.connector_name.to_string(),
+                connector_label,
             },
         )?;
 
@@ -979,6 +1002,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 merchant_id,
                 default_routing_config.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -988,6 +1012,7 @@ pub async fn create_payment_connector(
                 &*state.store,
                 &profile_id.clone(),
                 default_routing_config_for_profile.clone(),
+                &transaction_type,
             )
             .await?;
         }
@@ -1155,9 +1180,7 @@ pub async fn update_payment_connector(
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
             .iter()
-            .flat_map(|payment_method| {
-                utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(payment_method)
-            })
+            .flat_map(Encode::encode_to_value)
             .collect::<Vec<serde_json::Value>>()
     });
 
@@ -1172,6 +1195,7 @@ pub async fn update_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let metadata = req.metadata.clone().or(mca.metadata.clone());
     let connector_name = mca.connector_name.as_ref();
     let connector_enum = api_models::enums::Connector::from_str(connector_name)
         .into_report()
@@ -1179,27 +1203,27 @@ pub async fn update_payment_connector(
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    validate_auth_and_metadata_type(connector_enum, &auth, &req.metadata).map_err(
-        |err| match *err.current_context() {
-            errors::ConnectorError::InvalidConnectorName => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The connector name is invalid".to_string(),
-                })
-            }
-            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("The {} is invalid", field_name),
-                }),
-            errors::ConnectorError::FailedToObtainAuthType => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "The auth type is invalid for the connector".to_string(),
-                })
-            }
-            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The request body is invalid".to_string(),
+    validate_auth_and_metadata_type(connector_enum, &auth, &metadata).map_err(|err| match *err
+        .current_context()
+    {
+        errors::ConnectorError::InvalidConnectorName => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The connector name is invalid".to_string(),
+            })
+        }
+        errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("The {} is invalid", field_name),
             }),
-        },
-    )?;
+        errors::ConnectorError::FailedToObtainAuthType => {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The auth type is invalid for the connector".to_string(),
+            })
+        }
+        _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "The request body is invalid".to_string(),
+        }),
+    })?;
 
     let (connector_status, disabled) =
         validate_status_and_disabled(req.status, req.disabled, auth, mca.status)?;
@@ -1249,14 +1273,11 @@ pub async fn update_payment_connector(
         metadata: req.metadata,
         frm_configs,
         connector_webhook_details: match &req.connector_webhook_details {
-            Some(connector_webhook_details) => {
-                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
-                    connector_webhook_details,
-                )
+            Some(connector_webhook_details) => connector_webhook_details
+                .encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .map(Some)?
-                .map(masking::Secret::new)
-            }
+                .map(masking::Secret::new),
             None => None,
         },
         applepay_verified_domains: None,
@@ -1280,7 +1301,7 @@ pub async fn update_payment_connector(
         .change_context(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
                 profile_id,
-                connector_name: request_connector_label.unwrap_or_default(),
+                connector_label: request_connector_label.unwrap_or_default(),
             },
         )
         .attach_printable_lazy(|| {
@@ -1434,7 +1455,8 @@ pub fn get_frm_config_as_secret(
             let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
                 .iter()
                 .map(|config| {
-                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
+                    config
+                        .encode_to_value()
                         .change_context(errors::ApiErrorResponse::ConfigNotFound)
                         .map(masking::Secret::new)
                 })
@@ -1597,7 +1619,7 @@ pub async fn update_business_profile(
         .webhook_details
         .as_ref()
         .map(|webhook_details| {
-            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
+            webhook_details.encode_to_value().change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "webhook details",
                 },
@@ -1619,10 +1641,11 @@ pub async fn update_business_profile(
         .payment_link_config
         .as_ref()
         .map(|pl_metadata| {
-            utils::Encode::<admin_types::BusinessPaymentLinkConfig>::encode_to_value(pl_metadata)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            pl_metadata.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
-                })
+                },
+            )
         })
         .transpose()?;
 
@@ -1643,6 +1666,14 @@ pub async fn update_business_profile(
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
         session_expiry: request.session_expiry.map(i64::from),
+        authentication_connector_details: request
+            .authentication_connector_details
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "authentication_connector_details",
+            })?,
     };
 
     let updated_business_profile = db
@@ -1683,6 +1714,7 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Adyen => {
             adyen::transformers::AdyenAuthType::try_from(val)?;
+            adyen::transformers::AdyenConnectorMetadataObject::try_from(connector_meta_data)?;
             Ok(())
         }
         api_enums::Connector::Airwallex => {
@@ -1888,6 +1920,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Plaid => {
             PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Threedsecureio => {
+            threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
             Ok(())
         }
     }

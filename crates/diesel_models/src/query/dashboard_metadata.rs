@@ -1,5 +1,4 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use router_env::tracing::{self, instrument};
 
 use crate::{
     enums,
@@ -13,7 +12,6 @@ use crate::{
 };
 
 impl DashboardMetadataNew {
-    #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
         generics::generic_insert(conn, self).await
     }

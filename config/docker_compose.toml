@@ -78,7 +78,8 @@ stream_read_count = 1
 auto_pipeline = true
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
-default_command_timeout = 0
+default_command_timeout = 30
+unresponsive_timeout = 10
 max_feed_count = 200
 
 [cors]
@@ -149,6 +150,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -210,6 +212,7 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "threedsecureio",
     "trustpay",
     "tsys",
     "volt",
@@ -305,9 +308,14 @@ family_mart = {country = "JP", currency = "JPY"}
 seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
 boleto = { country = "BR", currency = "BRL" }
+ideal = { country = "NL", currency = "EUR" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
+
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -326,6 +334,12 @@ cashapp = {country = "US", currency = "USD"}
 
 [pm_filters.prophetpay]
 card_redirect = { currency = "USD" }
+
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
 
 [pm_filters.helcim]
 credit = { currency = "USD" }
@@ -359,6 +373,9 @@ bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.giropay = {connector_list = "adyen,globalpay"}
 
+[mandates.update_mandate_supported]
+card.credit ={connector_list ="cybersource"}
+card.debit = {connector_list ="cybersource"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -383,6 +400,7 @@ refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
 connector_logs_topic = "hyperswitch-connector-api-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
+dispute_analytics_topic = "hyperswitch-dispute-events"
 
 [analytics]
 source = "sqlx"
@@ -420,3 +438,6 @@ source = "logs"
 
 [file_storage]
 file_storage_backend = "file_system"
+
+[unmasked_headers]
+keys = "user-agent"

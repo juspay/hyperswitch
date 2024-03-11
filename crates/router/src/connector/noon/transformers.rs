@@ -1,6 +1,6 @@
-use common_utils::pii;
+use common_utils::{ext_traits::Encode, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +11,6 @@ use crate::{
     core::{errors, mandate::MandateBehaviour},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom, ErrorResponse},
-    utils,
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -125,7 +124,7 @@ pub struct NoonConfiguration {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonSubscription {
-    subscription_identifier: String,
+    subscription_identifier: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,9 +230,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (payment_data, currency, category) = match item.request.connector_mandate_id() {
-            Some(subscription_identifier) => (
+            Some(mandate_id) => (
                 NoonPaymentData::Subscription(NoonSubscription {
-                    subscription_identifier,
+                    subscription_identifier: Secret::new(mandate_id),
                 }),
                 None,
                 None,
@@ -271,10 +270,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                                     ),
                                 },
                             };
-                            let payment_token =
-                                utils::Encode::<NoonApplePayTokenData>::encode_to_string_of_json(
-                                    &payment_token_data,
-                                )
+                            let payment_token = payment_token_data
+                                .encode_to_string_of_json()
                                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                             Ok(NoonPaymentData::ApplePay(NoonApplePay {
@@ -515,7 +512,7 @@ impl ForeignFrom<(NoonPaymentStatus, Self)> for enums::AttemptStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonSubscriptionObject {
-    identifier: String,
+    identifier: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -569,7 +566,7 @@ impl<F, T>
                 .result
                 .subscription
                 .map(|subscription_data| types::MandateReference {
-                    connector_mandate_id: Some(subscription_data.identifier),
+                    connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                 });
         Ok(Self {
@@ -681,7 +678,7 @@ impl TryFrom<&types::MandateRevokeRouterData> for NoonRevokeMandateRequest {
         Ok(Self {
             api_operation: NoonApiOperations::CancelSubscription,
             subscription: NoonSubscriptionObject {
-                identifier: item.request.get_connector_mandate_id()?,
+                identifier: Secret::new(item.request.get_connector_mandate_id()?),
             },
         })
     }

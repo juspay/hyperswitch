@@ -1,11 +1,11 @@
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, PaymentMethodCountryCurrencyList, PaymentMethodCreate,
-    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList, PaymentMethodListRequest,
-    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
-    TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
-    TokenizedWalletValue1, TokenizedWalletValue2,
+    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, PaymentMethodCountryCurrencyList,
+    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
+    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
+    TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 

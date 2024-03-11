@@ -56,6 +56,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     number: Some(Secret::new("1234567890".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
+                email: None,
             }),
             ..Default::default()
         }),
@@ -97,6 +98,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         surcharge_details: None,
         request_incremental_authorization: false,
         metadata: None,
+        authentication_data: None,
+        customer_acceptance: None,
     })
 }
 

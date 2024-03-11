@@ -162,7 +162,7 @@ pub async fn update_connector_mandate_id(
     let connector_mandate_id = mandate_details
         .clone()
         .map(|md| {
-            Encode::<types::MandateReference>::encode_to_value(&md)
+            md.encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .map(masking::Secret::new)
         })
@@ -288,10 +288,10 @@ where
         update_history: Some(update_history),
     };
 
-    let connector_mandate_ids =
-        Encode::<types::MandateReference>::encode_to_value(&updated_mandate_ref)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .map(masking::Secret::new)?;
+    let connector_mandate_ids = updated_mandate_ref
+        .encode_to_value()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .map(masking::Secret::new)?;
 
     let _update_mandate_details = state
         .store
@@ -384,7 +384,7 @@ where
                     let mandate_ids = mandate_reference
                         .as_ref()
                         .map(|md| {
-                            Encode::<types::MandateReference>::encode_to_value(&md)
+                            md.encode_to_value()
                                 .change_context(
                                     errors::ApiErrorResponse::MandateSerializationFailed,
                                 )
@@ -495,4 +495,5 @@ pub trait MandateBehaviour {
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
+    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance>;
 }

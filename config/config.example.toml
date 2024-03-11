@@ -54,9 +54,10 @@ use_legacy_version = false        # Resp protocol for fred crate (set this to tr
 stream_read_count = 1             # Default number of entries to read from stream if not provided in stream read options
 auto_pipeline = true              # Whether or not the client should automatically pipeline commands across tasks when possible.
 disable_auto_backpressure = false # Whether or not to disable the automatic backpressure features when pipelining is enabled.
-max_in_flight_commands = 5000     # The maximum number of in-flight commands (per connection) before backpressure will be applied.
-default_command_timeout = 0       # An optional timeout to apply to all commands.
-max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
+max_in_flight_commands = 5000 # The maximum number of in-flight commands (per connection) before backpressure will be applied.
+default_command_timeout = 30  # An optional timeout to apply to all commands. In seconds
+unresponsive_timeout = 10 # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
+max_feed_count = 200       # The maximum number of frames that will be fed to a socket before flushing.
 
 # This section provides configs for currency conversion api
 [forex_api]
@@ -115,12 +116,9 @@ route_to_trace = ["*/confirm"]
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
-admin_api_key = "test_admin"             # admin API key for admin authentication. Only applicable when KMS is disabled.
-kms_encrypted_admin_api_key = ""         # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
-jwt_secret = "secret"                    # JWT secret used for user authentication. Only applicable when KMS is disabled.
-kms_encrypted_jwt_secret = ""            # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
-kms_encrypted_recon_admin_api_key = ""   # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
+admin_api_key = "test_admin"             # admin API key for admin authentication.
+jwt_secret = "secret"                    # JWT secret used for user authentication.
+recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -156,8 +154,6 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
-kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -220,6 +216,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -277,6 +274,7 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "threedsecureio",
     "worldpay",
     "zen",
 ]
@@ -321,11 +319,6 @@ paypal = { currency = "USD,INR", country = "US" }
 # ^                       ^------- comma-separated values
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
-
-# AWS KMS configuration. Only applicable when the `aws_kms` feature flag is enabled.
-[kms]
-key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
-region = "" # The AWS region used by the KMS SDK for decrypting data.
 
 [cors]
 max_age = 30 # Maximum time (in seconds) for which this CORS request may be cached.
@@ -419,6 +412,10 @@ afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_cle
 payout_eligibility = true # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
 
 [pm_filters.adyen]
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
+paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+ideal = { country = "NL", currency = "EUR" }
 online_banking_fpx = { country = "MY", currency = "MYR" }
 online_banking_thailand = { country = "TH", currency = "THB" }
 touch_n_go = { country = "MY", currency = "MYR" }
@@ -445,7 +442,7 @@ pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.volt]
-open_banking_uk = {country = "DE,GB", currency = "EUR,GBP"}
+open_banking_uk = {country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -458,6 +455,12 @@ pse = { country = "CO", currency = "COP" }
 pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }
@@ -559,6 +562,7 @@ refund_analytics_topic = "topic"      # Kafka topic to be used for Refund events
 api_logs_topic = "topic"              # Kafka topic to be used for incoming api events
 connector_logs_topic = "topic"        # Kafka topic to be used for connector api events
 outgoing_webhook_logs_topic = "topic" # Kafka topic to be used for outgoing webhook events
+dispute_analytics_topic = "topic"     # Kafka topic to be used for Dispute events
 
 # File storage configuration
 [file_storage]
@@ -567,3 +571,17 @@ file_storage_backend = "aws_s3"            # File storage backend to be used
 [file_storage.aws_s3]
 region = "us-east-1"                      # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1"                   # The AWS S3 bucket name for file storage
+
+[secrets_management]
+secrets_manager = "aws_kms"               # Secrets manager client to be used
+
+[secrets_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.
+
+[encryption_management]
+encryption_manager = "aws_kms"            # Encryption manager client to be used
+
+[encryption_management.aws_kms]
+key_id = "kms_key_id"                     # The AWS key ID used by the KMS SDK for decrypting data.
+region = "kms_region"                     # The AWS region used by the KMS SDK for decrypting data.

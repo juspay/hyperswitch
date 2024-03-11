@@ -112,6 +112,7 @@ pub struct PaymentIntentNew {
     pub authorization_count: Option<i32>,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +122,7 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<i64>,
         return_url: Option<String>,
         updated_by: String,
+        fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
     },
     MetadataUpdate {
@@ -166,6 +168,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         session_expiry: Option<PrimitiveDateTime>,
+        request_external_three_ds_authentication: Option<bool>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -232,6 +235,7 @@ pub struct PaymentIntentUpdateInternal {
     pub authorization_count: Option<i32>,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
+    pub request_external_three_ds_authentication: Option<bool>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -257,6 +261,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 fingerprint_id,
                 session_expiry,
+                request_external_three_ds_authentication,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -278,6 +283,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 fingerprint_id,
                 session_expiry,
+                request_external_three_ds_authentication,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate {
@@ -335,6 +341,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency,
                 status,
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 updated_by,
@@ -344,6 +351,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // currency: Some(currency),
                 status: Some(status),
                 amount_captured,
+                fingerprint_id,
                 // customer_id,
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),

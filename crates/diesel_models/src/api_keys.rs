@@ -138,9 +138,11 @@ mod diesel_impl {
 
 // Tracking data by process_tracker
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
-pub struct ApiKeyExpiryWorkflow {
+pub struct ApiKeyExpiryTrackingData {
     pub key_id: String,
     pub merchant_id: String,
+    pub api_key_name: String,
+    pub prefix: String,
     pub api_key_expiry: Option<PrimitiveDateTime>,
     // Days on which email reminder about api_key expiry has to be sent, prior to it's expiry.
     pub expiry_reminder_days: Vec<u8>,

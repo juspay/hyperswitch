@@ -9,7 +9,10 @@ use masking::{ExposeInterface, Secret};
 use crate::{
     core::errors::{StorageError, UserErrors, UserResult},
     routes::AppState,
-    services::authentication::{AuthToken, UserFromToken},
+    services::{
+        authentication::{AuthToken, UserFromToken},
+        authorization::roles::{self, RoleInfo},
+    },
     types::domain::{self, MerchantAccount, UserFromStorage},
 };
 
@@ -19,7 +22,10 @@ pub mod password;
 pub mod sample_data;
 
 impl UserFromToken {
-    pub async fn get_merchant_account(&self, state: AppState) -> UserResult<MerchantAccount> {
+    pub async fn get_merchant_account_from_db(
+        &self,
+        state: AppState,
+    ) -> UserResult<MerchantAccount> {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
@@ -48,13 +54,19 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user(&self, state: &AppState) -> UserResult<diesel_models::user::User> {
+    pub async fn get_user_from_db(&self, state: &AppState) -> UserResult<UserFromStorage> {
         let user = state
             .store
             .find_user_by_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
-        Ok(user)
+        Ok(user.into())
+    }
+
+    pub async fn get_role_info_from_db(&self, state: &AppState) -> UserResult<RoleInfo> {
+        roles::RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
     }
 }
 
@@ -75,7 +87,7 @@ pub async fn generate_jwt_auth_token(
 }
 
 pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: AppState,
+    state: &AppState,
     user: &UserFromStorage,
     merchant_id: String,
     org_id: String,
@@ -157,4 +169,11 @@ pub async fn get_user_from_db_by_email(
         .find_user_by_email(email.get_secret().expose().as_str())
         .await
         .map(UserFromStorage::from)
+}
+
+pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
+    match resp {
+        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
+        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
+    }
 }

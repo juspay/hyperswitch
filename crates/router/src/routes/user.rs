@@ -179,7 +179,7 @@ pub async fn get_multiple_dashboard_metadata(
     req: HttpRequest,
     query: web::Query<user_api::dashboard_metadata::GetMultipleMetaDataRequest>,
 ) -> HttpResponse {
-    let flow = Flow::GetMutltipleDashboardMetadata;
+    let flow = Flow::GetMultipleDashboardMetadata;
     let payload = match ReportSwitchExt::<_, ApiErrorResponse>::switch(parse_string_to_enums(
         query.into_inner().keys,
     )) {
@@ -291,7 +291,7 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth(Permission::PaymentWrite),
+        &auth::JWTAuth(Permission::MerchantAccountWrite),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -314,14 +314,35 @@ pub async fn list_merchant_ids_for_user(
     .await
 }
 
-pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn get_user_role_details(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<user_api::GetUserDetailsRequest>,
+) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
         &req,
+        payload.into_inner(),
+        user_core::get_user_details_in_merchant_account,
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_users_for_merchant_account(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListUsersForMerchantAccount;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
         (),
-        |state, user, _| user_core::get_users_for_merchant_account(state, user),
+        |state, user, _| user_core::list_users_for_merchant_account(state, user),
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
@@ -415,6 +436,25 @@ pub async fn resend_invite(
         payload.into_inner(),
         user_core::resend_invite,
         &auth::JWTAuth(Permission::UsersWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "email")]
+pub async fn accept_invite_from_email(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<user_api::AcceptInviteFromEmailRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInviteFromEmail;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        |state, _, request_payload| user_core::accept_invite_from_email(state, request_payload),
+        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

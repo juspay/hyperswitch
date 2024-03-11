@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
+pub mod authentication;
 pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
@@ -35,7 +36,7 @@ pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
 pub mod utils;
-#[cfg(all(feature = "olap", feature = "aws_kms"))]
+#[cfg(feature = "olap")]
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;

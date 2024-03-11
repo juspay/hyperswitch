@@ -1,11 +1,14 @@
+use api_models::enums::PayoutConnectors;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{AsyncExt, StringExt, ValueExt},
+    ext_traits::{AsyncExt, StringExt},
 };
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::logger;
 
+use super::PayoutData;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -14,11 +17,15 @@ use crate::{
             transformers::{StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
-        payments::{customers::get_connector_customer_details_if_present, CustomerDetails},
+        payments::{
+            customers::get_connector_customer_details_if_present, route_connector_v1, routing,
+            CustomerDetails,
+        },
+        routing::TransactionData,
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         api::{self, enums as api_enums},
@@ -78,9 +85,11 @@ pub async fn make_payout_method_data<'a>(
                 .attach_printable("failed to deserialize hyperswitch token data")?;
 
             let payment_token = match payment_token_data {
-                storage::PaymentTokenData::PermanentCard(storage::CardTokenData { token }) => {
-                    Some(token)
-                }
+                storage::PaymentTokenData::PermanentCard(storage::CardTokenData {
+                    locker_id,
+                    token,
+                    ..
+                }) => locker_id.or(Some(token)),
                 storage::PaymentTokenData::TemporaryGeneric(storage::GenericTokenData {
                     token,
                 }) => Some(token),
@@ -267,7 +276,7 @@ pub async fn save_payout_data_to_locker(
         state,
         &locker_req,
         &payout_attempt.customer_id,
-        api_enums::LockerChoice::Basilisk,
+        api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -364,15 +373,19 @@ pub async fn save_payout_data_to_locker(
         card_network: None,
     };
 
+    let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
     cards::create_payment_method(
         db,
         &payment_method,
         &payout_attempt.customer_id,
-        &stored_resp.card_reference,
+        &payment_method_id,
+        Some(stored_resp.card_reference),
         &merchant_account.merchant_id,
+        None,
         None,
         card_details_encrypted,
         key_store,
+        None,
     )
     .await?;
 
@@ -422,6 +435,7 @@ pub async fn get_or_create_customer_details(
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
+                default_payment_method_id: None,
             };
 
             Ok(Some(
@@ -433,119 +447,246 @@ pub async fn get_or_create_customer_details(
     }
 }
 
-pub fn decide_payout_connector(
+pub async fn decide_payout_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    request_straight_through: Option<api::PayoutStraightThroughAlgorithm>,
-    routing_data: &mut storage::PayoutRoutingData,
-) -> RouterResult<api::PayoutConnectorCallType> {
-    if let Some(ref connector_name) = routing_data.routed_through {
-        let connector_data = api::PayoutConnectorData::get_connector_by_name(
+    key_store: &domain::MerchantKeyStore,
+    request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
+    routing_data: &mut storage::RoutingData,
+    payout_data: &mut PayoutData,
+    eligible_connectors: Option<Vec<api_models::enums::RoutableConnectors>>,
+) -> RouterResult<api::ConnectorCallType> {
+    // 1. For existing attempts, use stored connector
+    let payout_attempt = &payout_data.payout_attempt;
+    if let Some(connector_name) = payout_attempt.connector.clone() {
+        // Connector was already decided previously, use the same connector
+        let connector_data = api::ConnectorData::get_payout_connector_by_name(
             &state.conf.connectors,
-            connector_name,
+            &connector_name,
             api::GetToken::Connector,
+            payout_attempt.merchant_connector_id.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
-        return Ok(api::PayoutConnectorCallType::Single(connector_data));
+        routing_data.routed_through = Some(connector_name.clone());
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
+    // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
-        let connector_name = match &routing_algorithm {
-            api::PayoutStraightThroughAlgorithm::Single(conn) => conn.to_string(),
-        };
+        let (mut connectors, check_eligibility) =
+            routing::perform_straight_through_routing(&routing_algorithm, None)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed execution of straight through routing")?;
 
-        let connector_data = api::PayoutConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in routing algorithm")?;
+        if check_eligibility {
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                state,
+                key_store,
+                merchant_account.modified_at.assume_utc().unix_timestamp(),
+                connectors,
+                &TransactionData::<()>::Payout(payout_data),
+                eligible_connectors,
+                #[cfg(feature = "business_profile_routing")]
+                Some(payout_attempt.profile_id.clone()),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
+        }
 
-        routing_data.routed_through = Some(connector_name);
-        routing_data.algorithm = Some(routing_algorithm);
-        return Ok(api::PayoutConnectorCallType::Single(connector_data));
+        let first_connector_choice = connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+            .into_report()
+            .attach_printable("Empty connector list returned")?
+            .clone();
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_payout_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    payout_attempt.merchant_connector_id.clone(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+        #[cfg(feature = "connector_choice_mca_id")]
+        {
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+        }
+        #[cfg(not(feature = "connector_choice_mca_id"))]
+        {
+            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
+        }
+        routing_data.routing_info.algorithm = Some(routing_algorithm);
+        return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
+    // 3. Check algorithm passed in routing data
     if let Some(ref routing_algorithm) = routing_data.algorithm {
-        let connector_name = match routing_algorithm {
-            api::PayoutStraightThroughAlgorithm::Single(conn) => conn.to_string(),
-        };
+        let (mut connectors, check_eligibility) =
+            routing::perform_straight_through_routing(routing_algorithm, None)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed execution of straight through routing")?;
 
-        let connector_data = api::PayoutConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in routing algorithm")?;
+        if check_eligibility {
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                state,
+                key_store,
+                merchant_account.modified_at.assume_utc().unix_timestamp(),
+                connectors,
+                &TransactionData::<()>::Payout(payout_data),
+                eligible_connectors,
+                #[cfg(feature = "business_profile_routing")]
+                Some(payout_attempt.profile_id.clone()),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
+        }
 
-        routing_data.routed_through = Some(connector_name);
-        return Ok(api::PayoutConnectorCallType::Single(connector_data));
+        let first_connector_choice = connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+            .into_report()
+            .attach_printable("Empty connector list returned")?
+            .clone();
+
+        connectors.remove(0);
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_payout_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    #[cfg(feature = "connector_choice_mca_id")]
+                    payout_attempt.merchant_connector_id.clone(),
+                    #[cfg(not(feature = "connector_choice_mca_id"))]
+                    None,
+                )
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+        #[cfg(feature = "connector_choice_mca_id")]
+        {
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+        }
+        #[cfg(not(feature = "connector_choice_mca_id"))]
+        {
+            routing_data.business_sub_label = first_connector_choice.sub_label.clone();
+        }
+        return Ok(api::ConnectorCallType::Retryable(connector_data));
     }
 
-    let routing_algorithm = merchant_account
-        .payout_routing_algorithm
-        .clone()
-        .get_required_value("PayoutRoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::PreconditionFailed {
-            message: "no routing algorithm has been configured".to_string(),
-        })?
-        .parse_value::<api::PayoutRoutingAlgorithm>("PayoutRoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
-        .attach_printable("Unable to deserialize merchant routing algorithm")?;
-
-    let connector_name = match routing_algorithm {
-        api::PayoutRoutingAlgorithm::Single(conn) => conn.to_string(),
-    };
-
-    let connector_data = api::PayoutConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector_name,
-        api::GetToken::Connector,
+    // 4. Route connector
+    route_connector_v1(
+        state,
+        merchant_account,
+        &payout_data.business_profile,
+        key_store,
+        &TransactionData::<()>::Payout(payout_data),
+        routing_data,
+        eligible_connectors,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Routing algorithm gave invalid connector")?;
-
-    routing_data.routed_through = Some(connector_name);
-
-    Ok(api::PayoutConnectorCallType::Single(connector_data))
+    .await
 }
 
 pub async fn get_default_payout_connector(
     _state: &AppState,
     request_connector: Option<serde_json::Value>,
-) -> CustomResult<api::PayoutConnectorChoice, errors::ApiErrorResponse> {
+) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
     Ok(request_connector.map_or(
-        api::PayoutConnectorChoice::Decide,
-        api::PayoutConnectorChoice::StraightThrough,
+        api::ConnectorChoice::Decide,
+        api::ConnectorChoice::StraightThrough,
     ))
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &AppState,
-    connector: &api::PayoutConnectorData,
+    connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
     connector_label: &str,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
-    let connector_needs_customer = state
-        .conf
-        .connector_customer
-        .payout_connector_list
-        .contains(&connector.connector_name);
+    match PayoutConnectors::try_from(connector.connector_name) {
+        Ok(connector) => {
+            let connector_needs_customer = state
+                .conf
+                .connector_customer
+                .payout_connector_list
+                .contains(&connector);
 
-    if connector_needs_customer {
-        let connector_customer_details = customer.as_ref().and_then(|customer| {
-            get_connector_customer_details_if_present(customer, connector_label)
-        });
-        let should_call_connector = connector_customer_details.is_none();
-        (should_call_connector, connector_customer_details)
-    } else {
-        (false, None)
+            if connector_needs_customer {
+                let connector_customer_details = customer.as_ref().and_then(|customer| {
+                    get_connector_customer_details_if_present(customer, connector_label)
+                });
+                let should_call_connector = connector_customer_details.is_none();
+                (should_call_connector, connector_customer_details)
+            } else {
+                (false, None)
+            }
+        }
+        _ => (false, None),
     }
+}
+
+pub async fn get_gsm_record(
+    state: &AppState,
+    error_code: Option<String>,
+    error_message: Option<String>,
+    connector_name: Option<String>,
+    flow: String,
+) -> Option<storage::gsm::GatewayStatusMap> {
+    let get_gsm = || async {
+        state.store.find_gsm_rule(
+                connector_name.clone().unwrap_or_default(),
+                flow.clone(),
+                "sub_flow".to_string(),
+                error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
+                error_message.clone().unwrap_or_default(),
+            )
+            .await
+            .map_err(|err| {
+                if err.current_context().is_db_not_found() {
+                    logger::warn!(
+                        "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
+                        connector_name.unwrap_or_default(),
+                        flow,
+                        error_code,
+                        error_message
+                    );
+                    metrics::AUTO_PAYOUT_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                } else {
+                    metrics::AUTO_PAYOUT_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                };
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to fetch decision from gsm")
+            })
+    };
+    get_gsm()
+        .await
+        .map_err(|err| {
+            // warn log should suffice here because we are not propagating this error
+            logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
+            err
+        })
+        .ok()
 }
 
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {

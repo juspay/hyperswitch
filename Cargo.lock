@@ -224,7 +224,7 @@ dependencies = [
  "bytes 1.5.0",
  "bytestring",
  "cfg-if 1.0.0",
- "cookie",
+ "cookie 0.16.2",
  "derive_more",
  "encoding_rs",
  "futures-core",
@@ -349,6 +349,7 @@ dependencies = [
  "error-stack",
  "external_services",
  "futures 0.3.28",
+ "hyperswitch_interfaces",
  "masking",
  "once_cell",
  "reqwest",
@@ -615,7 +616,7 @@ dependencies = [
  "base64 0.21.5",
  "bytes 1.5.0",
  "cfg-if 1.0.0",
- "cookie",
+ "cookie 0.16.2",
  "derive_more",
  "futures-core",
  "futures-util",
@@ -1763,6 +1764,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cookie"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd91cf61412820176e137621345ee43b3f4423e589e7ae4e50d601d93e35ef8"
+dependencies = [
+ "time",
+ "version_check",
+]
+
+[[package]]
 name = "cookie-factory"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2523,7 +2534,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65f0fbe245d714b596ba5802b46f937f5ce68dcae0f32f9a70b5c3b04d3c6f64"
 dependencies = [
  "base64 0.13.1",
- "cookie",
+ "cookie 0.16.2",
  "futures-core",
  "futures-util",
  "http",
@@ -2610,9 +2621,9 @@ dependencies = [
 
 [[package]]
 name = "fred"
-version = "7.1.0"
+version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9282e65613822eea90c99872c51afa1de61542215cb11f91456a93f50a5a131a"
+checksum = "b99c2b48934cd02a81032dd7428b7ae831a27794275bc94eba367418db8a9e55"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -3379,6 +3390,34 @@ dependencies = [
  "hermit-abi",
  "rustix",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "iso_country"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20633e788d3948ea7336861fdb09ec247f5dae4267e8f0743fa97de26c28624d"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
+name = "iso_currency"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f07181be95c82347a07cf4caf43d2acd8a7e8d08ef1db75e10ed5a9aec3c1b"
+dependencies = [
+ "iso_country",
+]
+
+[[package]]
+name = "isocountry"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ea1dc4bf0fb4904ba83ffdb98af3d9c325274e92e6e295e4151e86c96363e04"
+dependencies = [
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -4977,14 +5016,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.9.6"
+version = "1.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebee201405406dbf528b8b672104ae6d6d63e6d118cb10e4d51abbc7b58044ff"
+checksum = "b62dbe01f0b06f9d8dc7d49e05a0785f153b00b2c227856282f671e0318c9b15"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.3.9",
- "regex-syntax 0.7.5",
+ "regex-automata 0.4.5",
+ "regex-syntax 0.8.2",
 ]
 
 [[package]]
@@ -4998,13 +5037,13 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.3.9"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59b23e92ee4318893fa3fe3e6fb365258efbfe6ac6ab30f090cdcbb7aa37efa9"
+checksum = "5bb987efffd3c6d0d8f5f89510bb458559eab11e4f869acb20bf845e016259cd"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.7.5",
+ "regex-syntax 0.8.2",
 ]
 
 [[package]]
@@ -5030,6 +5069,12 @@ name = "regex-syntax"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
+
+[[package]]
+name = "regex-syntax"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 
 [[package]]
 name = "rend"
@@ -5184,6 +5229,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "config",
+ "cookie 0.18.0",
  "currency_conversion",
  "data_models",
  "derive_deref",
@@ -5203,6 +5249,8 @@ dependencies = [
  "hyperswitch_interfaces",
  "image",
  "infer 0.13.0",
+ "iso_currency",
+ "isocountry",
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
@@ -6356,6 +6404,7 @@ dependencies = [
  "clap",
  "masking",
  "rand 0.8.5",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
@@ -6376,7 +6425,7 @@ dependencies = [
  "async-trait",
  "base64 0.13.1",
  "chrono",
- "cookie",
+ "cookie 0.16.2",
  "fantoccini",
  "futures 0.3.28",
  "http",
@@ -7423,7 +7472,7 @@ checksum = "9973cb72c8587d5ad5efdb91e663d36177dc37725e6c90ca86c626b0cc45c93f"
 dependencies = [
  "base64 0.13.1",
  "bytes 1.5.0",
- "cookie",
+ "cookie 0.16.2",
  "http",
  "log",
  "serde",

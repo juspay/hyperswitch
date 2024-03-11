@@ -28,6 +28,10 @@ pub enum EmailBody {
         link: String,
         user_name: String,
     },
+    AcceptInviteFromEmail {
+        link: String,
+        user_name: String,
+    },
     BizEmailProd {
         user_name: String,
         poc_email: String,
@@ -43,6 +47,11 @@ pub enum EmailBody {
         merchant_id: String,
         user_name: String,
         user_email: String,
+    },
+    ApiKeyExpiryReminder {
+        expires_in: u8,
+        api_key_name: String,
+        prefix: String,
     },
 }
 
@@ -69,6 +78,14 @@ pub mod html {
                 )
             }
             EmailBody::InviteUser { link, user_name } => {
+                format!(
+                    include_str!("assets/invite.html"),
+                    username = user_name,
+                    link = link
+                )
+            }
+            // TODO: Change the linked html for accept invite from email
+            EmailBody::AcceptInviteFromEmail { link, user_name } => {
                 format!(
                     include_str!("assets/invite.html"),
                     username = user_name,
@@ -113,6 +130,16 @@ Email         : {user_email}
 
 (note: This is an auto generated email. Use merchant email for any further communications)",
             ),
+            EmailBody::ApiKeyExpiryReminder {
+                expires_in,
+                api_key_name,
+                prefix,
+            } => format!(
+                include_str!("assets/api_key_expiry_reminder.html"),
+                api_key_name = api_key_name,
+                prefix = prefix,
+                expires_in = expires_in,
+            ),
         }
     }
 }
@@ -128,7 +155,7 @@ impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
         merchant_id: Option<String>,
-        settings: &configs::settings::Settings,
+        settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
@@ -159,7 +186,7 @@ pub fn get_link_with_token(
 
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -189,7 +216,7 @@ impl EmailData for VerifyEmail {
 pub struct ResetPassword {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -219,7 +246,7 @@ impl EmailData for ResetPassword {
 pub struct MagicLink {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -249,7 +276,7 @@ impl EmailData for MagicLink {
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub merchant_id: String,
 }
@@ -268,7 +295,43 @@ impl EmailData for InviteUser {
         let invite_user_link =
             get_link_with_token(&self.settings.email.base_url, token, "set_password");
 
-        let body = html::get_html_body(EmailBody::MagicLink {
+        let body = html::get_html_body(EmailBody::InviteUser {
+            link: invite_user_link,
+            user_name: self.user_name.clone().get_secret().expose(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+pub struct InviteRegisteredUser {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: domain::UserName,
+    pub settings: std::sync::Arc<configs::Settings>,
+    pub subject: &'static str,
+    pub merchant_id: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for InviteRegisteredUser {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let token = EmailToken::new_token(
+            self.recipient_email.clone(),
+            Some(self.merchant_id.clone()),
+            &self.settings,
+        )
+        .await
+        .change_context(EmailError::TokenGenerationFailure)?;
+
+        let invite_user_link = get_link_with_token(
+            &self.settings.email.base_url,
+            token,
+            "accept_invite_from_email",
+        );
+        let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
         });
@@ -284,7 +347,7 @@ impl EmailData for InviteUser {
 pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -310,7 +373,7 @@ pub struct BizEmailProd {
     pub legal_business_name: String,
     pub business_location: String,
     pub business_website: String,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -358,7 +421,7 @@ pub struct ProFeatureRequest {
     pub feature_name: String,
     pub merchant_id: String,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::settings::Settings>,
+    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,
 }
 
@@ -376,6 +439,33 @@ impl EmailData for ProFeatureRequest {
 
         Ok(EmailContents {
             subject: self.subject.clone(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient,
+        })
+    }
+}
+
+pub struct ApiKeyExpiryReminder {
+    pub recipient_email: domain::UserEmail,
+    pub subject: &'static str,
+    pub expires_in: u8,
+    pub api_key_name: String,
+    pub prefix: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for ApiKeyExpiryReminder {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let recipient = self.recipient_email.clone().into_inner();
+
+        let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
+            expires_in: self.expires_in,
+            api_key_name: self.api_key_name.clone(),
+            prefix: self.prefix.clone(),
+        });
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient,
         })

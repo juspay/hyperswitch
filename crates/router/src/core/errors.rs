@@ -236,6 +236,8 @@ pub enum VaultError {
     FetchPaymentMethodFailed,
     #[error("Failed to save payment method in vault")]
     SavePaymentMethodFailed,
+    #[error("Failed to generate fingerprint")]
+    GenerateFingerprintFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -257,39 +259,42 @@ pub enum WebhooksFlowError {
     #[error("Webhook details for merchant not configured")]
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
-    MerchantWebhookURLNotConfigured,
-    #[error("Payments core flow failed")]
-    PaymentsCoreFailed,
-    #[error("Refunds core flow failed")]
-    RefundsCoreFailed,
-    #[error("Dispuste core flow failed")]
-    DisputeCoreFailed,
-    #[error("Webhook event creation failed")]
-    WebhookEventCreationFailed,
+    MerchantWebhookUrlNotConfigured,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
     OutgoingWebhookSigningFailed,
-    #[error("Unable to fork webhooks flow for outgoing webhooks")]
-    ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
-    #[error("Resource not found")]
-    ResourceNotFound,
-    #[error("Webhook source verification failed")]
-    WebhookSourceVerificationFailed,
-    #[error("Webhook event object creation failed")]
-    WebhookEventObjectCreationFailed,
-    #[error("Not implemented")]
-    NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    #[error("Failed to update outgoing webhook process tracker task")]
+    OutgoingWebhookProcessTrackerTaskUpdateFailed,
+    #[error("Failed to schedule retry attempt for outgoing webhook")]
+    OutgoingWebhookRetrySchedulingFailed,
+}
+
+impl WebhooksFlowError {
+    pub(crate) fn is_webhook_delivery_retryable_error(&self) -> bool {
+        match self {
+            Self::MerchantConfigNotFound
+            | Self::MerchantWebhookDetailsNotFound
+            | Self::MerchantWebhookUrlNotConfigured => false,
+
+            Self::WebhookEventUpdationFailed
+            | Self::OutgoingWebhookSigningFailed
+            | Self::CallToMerchantFailed
+            | Self::NotReceivedByMerchant
+            | Self::DisputeWebhookValidationFailed
+            | Self::OutgoingWebhookEncodingFailed
+            | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
+            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -70,6 +70,8 @@ impl CashtocodeTest {
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: None,
         })
     }
 
@@ -82,6 +84,7 @@ impl CashtocodeTest {
                         ..Default::default()
                     }),
                     phone: None,
+                    email: None,
                 }),
                 ..Default::default()
             }),

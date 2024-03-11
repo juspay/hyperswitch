@@ -7,7 +7,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{metrics, store::kv::TypedSql, KVRouterStore};
+use crate::{metrics, store::kv::TypedSql, KVRouterStore, UniqueConstraints};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -95,7 +95,7 @@ pub async fn kv_wrapper<'a, T, D, S>(
 where
     T: de::DeserializeOwned,
     D: crate::database::store::DatabaseStore,
-    S: serde::Serialize + Debug + KvStorePartition,
+    S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {
     let redis_conn = store.get_redis_conn()?;
 
@@ -147,6 +147,8 @@ where
             KvOperation::HSetNx(field, value, sql) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
+                value.check_for_constraints(&redis_conn).await?;
+
                 let result = redis_conn
                     .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(ttl))
                     .await?;
@@ -167,6 +169,8 @@ where
                 let result = redis_conn
                     .serialize_and_set_key_if_not_exist(key, value, Some(ttl.into()))
                     .await?;
+
+                value.check_for_constraints(&redis_conn).await?;
 
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
                     store
