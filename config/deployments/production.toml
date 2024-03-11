@@ -80,6 +80,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 zen.base_url = "https://api.zen.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
