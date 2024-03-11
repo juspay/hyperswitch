@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as plaid;
 
 use crate::{

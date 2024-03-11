@@ -12,7 +12,7 @@ use crate::{
     utils::ext_traits::OptionExt,
 };
 
-const PLAID_VERIFICATION_HEADER: &'static str = "Plaid-Verification";
+const PLAID_VERIFICATION_HEADER: &str = "Plaid-Verification";
 
 //TODO: Fill the struct with respective fields
 pub struct PlaidRouterData<T> {
