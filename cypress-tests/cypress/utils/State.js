@@ -3,6 +3,7 @@ class State {
   constructor(data) {
     this.data = data;
     this.data["connectorId"] = Cypress.env("CONNECTOR");
+    this.data["baseUrl"] = Cypress.env("BASEURL");
   }
 
   set(key, val) {

@@ -9,7 +9,7 @@ describe("Account Create flow test", () => {
     
     cy.task('getGlobalState').then((state) => {
       globalState = new State(state);
-      console.log("seeding globalState -> "+globalState);
+      console.log("seeding globalState -> "+JSON.stringify(globalState));
     })
   })
   after("flush global state", () => {

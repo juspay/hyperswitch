@@ -27,7 +27,7 @@
 // commands.js or your custom support file
 // import globalState from "../utils/State";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
-import { baseUrl } from "../utils/Constants";
+// import { baseUrl } from "../utils/Constants";
 import ConnectorAuthDetails from "../../../.github/secrets/creds.json";
 
 const adminApiKey = ConnectorAuthDetails.integ.ADMIN_API_KEYS ;
@@ -40,7 +40,7 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
 
   cy.request({
     method: "POST",
-    url: `${baseUrl}/accounts`,
+    url: `${globalState.get("baseUrl")}/accounts`,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -58,7 +58,7 @@ Cypress.Commands.add("merchantCreateCallTest", (merchantCreateBody, globalState)
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   cy.request({
     method: "POST",
-    url: `${baseUrl}/api_keys/${globalState.get("merchantId")}`,
+    url: `${globalState.get("baseUrl")}/api_keys/${globalState.get("merchantId")}`,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -79,9 +79,10 @@ Cypress.Commands.add("createConnectorCallTest", (createConnectorBody, globalStat
   console.log("connn ->" + globalState.get("connectorId"));
   const authDetails = getValueByKey(ConnectorAuthDetails, globalState.get("connectorId"));
   createConnectorBody.connector_account_details = authDetails;
+  console.log("connector idd->>"+globalState.get("connectorId"));
   cy.request({
     method: "POST",
-    url: `${baseUrl}/account/${merchantId}/connectors`,
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -118,7 +119,7 @@ Cypress.Commands.add("createPaymentIntentTest", (request, currency, authenticati
   globalState.set("paymentAmount", request.amount);
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments`,
+    url: `${globalState.get("baseUrl")}/payments`,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -143,7 +144,7 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/account/payment_methods?client_secret=${clientSecret}`,
+    url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("publishableKey"),
@@ -169,7 +170,7 @@ Cypress.Commands.add("confirmCallTest", (confirmBody, details, confirm, globalSt
 
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments/${paymentIntentID}/confirm`,
+    url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("publishableKey"),
@@ -254,7 +255,7 @@ Cypress.Commands.add("createConfirmPaymentTest", (createConfirmPaymentBody, deta
   createConfirmPaymentBody.capture_method = capture_method;
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments`,
+    url: `${globalState.get("baseUrl")}/payments`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -299,7 +300,7 @@ Cypress.Commands.add("captureCallTest", (requestBody, amount_to_capture, success
   console.log("amount------>" + amount);
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments/${payment_id}/capture`,
+    url: `${globalState.get("baseUrl")}/payments/${payment_id}/capture`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -319,7 +320,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, globalState) => {
   const paymentID = globalState.get("paymentID");
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments/${paymentID}/cancel`,
+    url: `${globalState.get("baseUrl")}/payments/${paymentID}/cancel`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -337,7 +338,7 @@ Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
   const paymentID = globalState.get("paymentID");
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payments/${paymentID}?force_sync=true`,
+    url: `${globalState.get("baseUrl")}/payments/${paymentID}?force_sync=true`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -355,7 +356,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, refund_amount, globalState)
   requestBody.amount = refund_amount;
   cy.request({
     method: "POST",
-    url: `${baseUrl}/refunds`,
+    url: `${globalState.get("baseUrl")}/refunds`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -374,7 +375,7 @@ Cypress.Commands.add("syncRefundCallTest", (globalState) => {
   const refundId = globalState.get("refundId");
   cy.request({
     method: "GET",
-    url: `${baseUrl}/refunds/${refundId}?force_sync=true`,
+    url: `${globalState.get("baseUrl")}/refunds/${refundId}?force_sync=true`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -397,7 +398,7 @@ Cypress.Commands.add("citForMandatesCallTest", (requestBody, details, confirm, c
   globalState.set("paymentAmount", requestBody.amount);
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments`,
+    url: `${globalState.get("baseUrl")}/payments`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -447,7 +448,7 @@ Cypress.Commands.add("mitForMandatesCallTest", (requestBody, amount, confirm, ca
   globalState.set("paymentAmount", requestBody.amount);
   cy.request({
     method: "POST",
-    url: `${baseUrl}/payments`,
+    url: `${globalState.get("baseUrl")}/payments`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
