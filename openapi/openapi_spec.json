@@ -2959,6 +2959,57 @@
         ]
       }
     },
+    "/payments/{payment_id}/3ds/authentication": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - External 3DS Authentication",
+        "description": "Payments - External 3DS Authentication\n\nExternal 3DS Authentication is performed and returns the AuthenticationResponse",
+        "operationId": "Initiate external authentication for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsExternalAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsExternalAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/cancel": {
       "post": {
         "tags": [
@@ -6824,6 +6875,7 @@
           "square",
           "stax",
           "stripe",
+          "threedsecureio",
           "trustpay",
           "tsys",
           "volt",
@@ -12231,6 +12283,14 @@
           }
         }
       },
+      "PaymentMethodStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive",
+          "processing"
+        ]
+      },
       "PaymentMethodType": {
         "type": "string",
         "description": "Indicates the sub type of payment method. Eg: 'google_pay' & 'apple_pay' for wallets.",
@@ -14222,6 +14282,19 @@
           "fingerprint": {
             "type": "string",
             "description": "Payment Fingerprint",
+            "nullable": true
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "Payment Method Id",
+            "nullable": true
+          },
+          "payment_method_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodStatus"
+              }
+            ],
             "nullable": true
           }
         }

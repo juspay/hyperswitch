@@ -1922,6 +1922,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             PlaidAuthType::foreign_try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Threedsecureio => {
+            threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
+            Ok(())
+        }
     }
 }
 

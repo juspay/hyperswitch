@@ -19,53 +19,14 @@ pm.test("[POST]::/payments - Response has JSON Body", function () {
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
-
-// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
-if (jsonData?.payment_id) {
-  pm.collectionVariables.set("payment_id", jsonData.payment_id);
-  console.log(
-    "- use {{payment_id}} as collection variable for value",
-    jsonData.payment_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.",
-  );
-}
-
-// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id
-if (jsonData?.mandate_id) {
-  pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
-  console.log(
-    "- use {{mandate_id}} as collection variable for value",
-    jsonData.mandate_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
-  );
-}
-
-// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret
-if (jsonData?.client_secret) {
-  pm.collectionVariables.set("client_secret", jsonData.client_secret);
-  console.log(
-    "- use {{client_secret}} as collection variable for value",
-    jsonData.client_secret,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.",
-  );
-}
+} catch (e) { }
 
 // Response body should have value "requires_payment_method" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'requires_payment_method'",
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
     function () {
-      pm.expect(jsonData.status).to.eql("requires_payment_method");
+      pm.expect(jsonData.status).to.eql("requires_confirmation");
     },
   );
 }
