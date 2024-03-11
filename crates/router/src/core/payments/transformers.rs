@@ -5,6 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Maskable;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -147,6 +148,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_status: payment_data.payment_method_status,
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -471,20 +473,25 @@ where
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
-                status_code.to_string(),
+                Maskable::new_normal(status_code.to_string()),
             )]
         })
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
             "payment_confirm_source".to_string(),
-            payment_confirm_source.to_string(),
+            Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
 
     headers.extend(
         external_latency
-            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .map(|latency| {
+                vec![(
+                    X_HS_LATENCY.to_string(),
+                    Maskable::new_normal(latency.to_string()),
+                )]
+            })
             .unwrap_or_default(),
     );
 
@@ -769,6 +776,8 @@ where
                         .set_request_external_3ds_authentication(
                             payment_attempt.external_three_ds_authentication_attempted,
                         )
+                        .set_payment_method_id(payment_attempt.payment_method_id)
+                        .set_payment_method_status(payment_data.payment_method_status)
                         .to_owned(),
                     headers,
                 ))

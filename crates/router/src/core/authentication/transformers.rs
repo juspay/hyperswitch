@@ -170,6 +170,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         frm_metadata: None,
         dispute_id: None,
         refund_id: None,
+        payment_method_status: None,
     })
 }
 

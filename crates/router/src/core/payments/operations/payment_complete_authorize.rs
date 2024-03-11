@@ -273,6 +273,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             multiple_capture_data: None,
             redirect_response,
             surcharge_details: None,
+            payment_method_status: None,
             frm_message: None,
             payment_link_data: None,
             incremental_authorization_details: None,
@@ -340,8 +341,9 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
-        let (op, payment_method_data) = helpers::make_pm_data(
+        let (op, payment_method_data, pm_id) = helpers::make_pm_data(
             Box::new(self),
             state,
             payment_data,
@@ -349,7 +351,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
             customer,
         )
         .await?;
-        Ok((op, payment_method_data))
+        Ok((op, payment_method_data, pm_id))
     }
 
     #[instrument(skip_all)]

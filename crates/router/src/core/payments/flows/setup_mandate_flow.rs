@@ -89,7 +89,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
-            let resp = services::execute_connector_processing_step(
+            let mut resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
                 &self,
@@ -99,7 +99,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .await
             .to_setup_mandate_failed_response()?;
 
-            let pm_id = Box::pin(tokenization::save_payment_method(
+            let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                 state,
                 connector,
                 resp.to_owned(),
@@ -109,6 +109,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 key_store,
             ))
             .await?;
+
+            resp.payment_method_id = pm_id.clone();
+            resp.payment_method_status = payment_method_status;
             mandate::mandate_procedure(
                 state,
                 resp,
@@ -221,7 +224,7 @@ impl types::SetupMandateRouterData {
                     types::SetupMandateRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let mut resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
                     self,
@@ -233,7 +236,7 @@ impl types::SetupMandateRouterData {
 
                 let payment_method_type = self.request.payment_method_type;
 
-                let pm_id = Box::pin(tokenization::save_payment_method(
+                let (pm_id, payment_method_status) = Box::pin(tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
@@ -243,6 +246,9 @@ impl types::SetupMandateRouterData {
                     key_store,
                 ))
                 .await?;
+
+                resp.payment_method_id = pm_id.clone();
+                resp.payment_method_status = payment_method_status;
 
                 Ok(mandate::mandate_procedure(
                     state,
@@ -325,7 +331,8 @@ impl types::SetupMandateRouterData {
                 self.request.payment_method_type,
                 key_store,
             ))
-            .await?;
+            .await?
+            .0;
             let mandate = state
                 .store
                 .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &mandate_id)
