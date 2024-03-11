@@ -68,6 +68,8 @@ pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
 
+pub const JWT_TOKEN_COOKIE_NAME: &str = "login_token";
+
 pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
@@ -95,6 +97,8 @@ pub const MAX_SESSION_EXPIRY: u32 = 7890000;
 pub const MIN_SESSION_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+
+pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
 // URL for checking the outgoing call
 pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";

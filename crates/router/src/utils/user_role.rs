@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
 use diesel_models::user_role::UserRole;
@@ -51,9 +53,16 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
             .attach_printable("Role groups cannot be empty");
     }
 
-    if groups.contains(&PermissionGroup::OrganizationManage) {
+    let unique_groups: HashSet<_> = groups.iter().cloned().collect();
+
+    if unique_groups.contains(&PermissionGroup::OrganizationManage) {
         return Err(UserErrors::InvalidRoleOperation.into())
             .attach_printable("Organization manage group cannot be added to role");
+    }
+
+    if unique_groups.len() != groups.len() {
+        return Err(UserErrors::InvalidRoleOperation.into())
+            .attach_printable("Duplicate permission group found");
     }
 
     Ok(())

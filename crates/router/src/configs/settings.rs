@@ -105,7 +105,7 @@ pub struct Settings<S: SecretState> {
     pub temp_locker_enable_config: TempLockerEnableConfig,
     pub payment_link: PaymentLink,
     #[cfg(feature = "olap")]
-    pub analytics: AnalyticsConfig,
+    pub analytics: SecretStateContainer<AnalyticsConfig, S>,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
     #[cfg(feature = "frm")]
@@ -520,6 +520,7 @@ pub struct Connectors {
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
+    pub threedsecureio: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,

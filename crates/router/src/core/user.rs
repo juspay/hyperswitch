@@ -93,12 +93,13 @@ pub async fn signup(
             UserStatus::Active,
         )
         .await?;
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-    ))
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn signin_without_invite_checks(
@@ -121,12 +122,12 @@ pub async fn signin_without_invite_checks(
     user_from_db.compare_password(request.password)?;
 
     let user_role = user_from_db.get_role_from_db(state.clone()).await?;
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-    ))
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn signin(
@@ -168,9 +169,9 @@ pub async fn signin(
             .await?
         };
 
-    Ok(ApplicationResponse::Json(
-        signin_strategy.get_signin_response(&state).await?,
-    ))
+    let response = signin_strategy.get_signin_response(&state).await?;
+    let token = utils::user::get_token_from_signin_response(&response);
+    auth::cookies::set_cookie_response(response, token)
 }
 
 #[cfg(feature = "email")]
@@ -271,7 +272,7 @@ pub async fn connect_account(
 
 pub async fn signout(state: AppState, user_from_token: auth::UserFromToken) -> UserResponse<()> {
     auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
-    Ok(ApplicationResponse::StatusOk)
+    auth::cookies::remove_cookie_response()
 }
 
 pub async fn change_password(
@@ -971,14 +972,14 @@ pub async fn accept_invite_from_email(
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &update_status_result)
         .await;
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(
-            &state,
-            user_from_db,
-            update_status_result,
-            token,
-        )?,
-    ))
+    let response = utils::user::get_dashboard_entry_response(
+        &state,
+        user_from_db,
+        update_status_result,
+        token.clone(),
+    )?;
+
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn create_internal_user(
@@ -1130,17 +1131,17 @@ pub async fn switch_merchant_id(
         (token, user_role.role_id.clone())
     };
 
-    Ok(ApplicationResponse::Json(
-        user_api::DashboardEntryResponse {
-            token,
-            name: user.get_name(),
-            email: user.get_email(),
-            user_id: user.get_user_id().to_string(),
-            verification_days_left: None,
-            user_role: role_id,
-            merchant_id: request.merchant_id,
-        },
-    ))
+    let response = user_api::DashboardEntryResponse {
+        token: token.clone(),
+        name: user.get_name(),
+        email: user.get_email(),
+        user_id: user.get_user_id().to_string(),
+        verification_days_left: None,
+        user_role: role_id,
+        merchant_id: request.merchant_id,
+    };
+
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn create_merchant_account(
@@ -1200,10 +1201,53 @@ pub async fn list_merchant_ids_for_user(
     ))
 }
 
-pub async fn get_users_for_merchant_account(
+pub async fn get_user_details_in_merchant_account(
     state: AppState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::GetUsersResponse> {
+    request: user_api::GetUserDetailsRequest,
+) -> UserResponse<user_api::GetUserDetailsResponse> {
+    let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let required_user_role = state
+        .store
+        .find_user_role_by_user_id_merchant_id(
+            required_user.get_user_id(),
+            &user_from_token.merchant_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)
+        .attach_printable("User not found in the merchant account")?;
+
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &required_user_role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("User role exists but the corresponding role doesn't")?;
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserDetailsResponse {
+            email: required_user.get_email(),
+            name: required_user.get_name(),
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            status: required_user_role.status.foreign_into(),
+            last_modified_at: required_user_role.last_modified,
+            groups: role_info.get_permission_groups().to_vec(),
+            role_scope: role_info.get_scope(),
+        },
+    ))
+}
+
+pub async fn list_users_for_merchant_account(
+    state: AppState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<user_api::ListUsersResponse> {
     let users_and_user_roles = state
         .store
         .find_users_and_roles_by_merchant_id(user_from_token.merchant_id.as_str())
@@ -1242,7 +1286,7 @@ pub async fn get_users_for_merchant_account(
         })
         .collect();
 
-    Ok(ApplicationResponse::Json(user_api::GetUsersResponse(
+    Ok(ApplicationResponse::Json(user_api::ListUsersResponse(
         user_details_vec,
     )))
 }
@@ -1275,9 +1319,10 @@ pub async fn verify_email_without_invite_checks(
     let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-    ))
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+
+    auth::cookies::set_cookie_response(response, token)
 }
 
 #[cfg(feature = "email")]
@@ -1330,9 +1375,9 @@ pub async fn verify_email(
         .await
         .map_err(|e| logger::error!(?e));
 
-    Ok(ApplicationResponse::Json(
-        signin_strategy.get_signin_response(&state).await?,
-    ))
+    let response = signin_strategy.get_signin_response(&state).await?;
+    let token = utils::user::get_token_from_signin_response(&response);
+    auth::cookies::set_cookie_response(response, token)
 }
 
 #[cfg(feature = "email")]
