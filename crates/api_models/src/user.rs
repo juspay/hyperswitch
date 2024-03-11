@@ -1,3 +1,4 @@
+use common_enums::{PermissionGroup, RoleScope};
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use masking::Secret;
 
@@ -141,7 +142,7 @@ pub struct UserMerchantCreate {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct GetUsersResponse(pub Vec<UserDetails>);
+pub struct ListUsersResponse(pub Vec<UserDetails>);
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserDetails {
@@ -152,6 +153,24 @@ pub struct UserDetails {
     pub status: UserStatus,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GetUserDetailsRequest {
+    pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserDetailsResponse {
+    pub email: pii::Email,
+    pub name: Secret<String>,
+    pub role_id: String,
+    pub role_name: String,
+    pub status: UserStatus,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: time::PrimitiveDateTime,
+    pub groups: Vec<PermissionGroup>,
+    pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

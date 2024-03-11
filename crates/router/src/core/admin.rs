@@ -782,9 +782,18 @@ pub async fn create_payment_connector(
 
     let pm_auth_connector =
         api_enums::convert_pm_auth_connector(req.connector_name.to_string().as_str());
+    let authentication_connector =
+        api_enums::convert_authentication_connector(req.connector_name.to_string().as_str());
 
     if pm_auth_connector.is_some() {
         if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid connector type given".to_string(),
+            })
+            .into_report();
+        }
+    } else if authentication_connector.is_some() {
+        if req.connector_type != api_enums::ConnectorType::AuthenticationProcessor {
             return Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid connector type given".to_string(),
             })
@@ -1657,7 +1666,14 @@ pub async fn update_business_profile(
         applepay_verified_domains: request.applepay_verified_domains,
         payment_link_config,
         session_expiry: request.session_expiry.map(i64::from),
-        authentication_connector_details: None,
+        authentication_connector_details: request
+            .authentication_connector_details
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "authentication_connector_details",
+            })?,
     };
 
     let updated_business_profile = db
@@ -1904,6 +1920,10 @@ pub(crate) fn validate_auth_and_metadata_type(
         }
         api_enums::Connector::Plaid => {
             PlaidAuthType::foreign_try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Threedsecureio => {
+            threedsecureio::transformers::ThreedsecureioAuthType::try_from(val)?;
             Ok(())
         }
     }
