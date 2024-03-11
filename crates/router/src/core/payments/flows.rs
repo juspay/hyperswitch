@@ -1016,7 +1016,8 @@ default_imp_for_post_processing_steps!(
     connector::Payme,
     connector::Paypal,
     connector::Stripe,
-    connector::Trustpay
+    connector::Trustpay,
+    connector::Threedsecureio
 );
 
 macro_rules! default_imp_for_payouts {
@@ -2542,5 +2543,6 @@ default_imp_for_connector_authentication!(
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
-    connector::Zen
+    connector::Zen,
+    connector::Plaid
 );

@@ -1,12 +1,18 @@
+use actix_http::header::HeaderMap;
 use common_enums::Currency;
 use error_stack::{IntoReport, ResultExt};
+use jsonwebtoken;
 use masking::{PeekInterface, Secret};
+use ring::digest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
+    utils::ext_traits::OptionExt,
 };
+
+const PLAID_VERIFICATION_HEADER: &'static str = "Plaid-Verification";
 
 //TODO: Fill the struct with respective fields
 pub struct PlaidRouterData<T> {
@@ -233,7 +239,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
 #[derive(strum::Display)]
 pub enum PlaidPaymentStatus {
     PaymentStatusInputNeeded,
-    PaymentStatusInitiatied,
+    PaymentStatusInitiated,
     PaymentStatusInsuficientFunds,
     PaymentStatusFailed,
     PaymentStatusBlcoked,
@@ -256,7 +262,7 @@ impl From<PlaidPaymentStatus> for enums::AttemptStatus {
             PlaidPaymentStatus::PaymentStatusEstablished => Self::Authorized,
             PlaidPaymentStatus::PaymentStatusExecuted => Self::Authorized,
             PlaidPaymentStatus::PaymentStatusFailed => Self::Failure,
-            PlaidPaymentStatus::PaymentStatusInitiatied => Self::AuthenticationPending,
+            PlaidPaymentStatus::PaymentStatusInitiated => Self::AuthenticationPending,
             PlaidPaymentStatus::PaymentStatusInputNeeded => Self::AuthenticationPending,
             PlaidPaymentStatus::PaymentStatusInsuficientFunds => Self::AuthorizationFailed,
             PlaidPaymentStatus::PaymentStatusRejected => Self::AuthorizationFailed,
@@ -467,7 +473,106 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PlaidPaymentsWebhookBody {
+    pub webhook_type: String,
+    pub webhook_code: String,
+    pub payment_id: String,
+    pub new_payment_status: PlaidPaymentStatus,
+    pub old_payment_status: PlaidPaymentStatus,
+    pub original_reference: String,
+    pub adjusted_reference: String,
+    pub original_start_date: String,
+    pub adjusted_start_date: String,
+    pub timestamp: String,
+    pub environment: String,
+}
+
+impl ForeignFrom<PlaidPaymentStatus> for api::IncomingWebhookEvent {
+    fn foreign_from(status: PlaidPaymentStatus) -> Self {
+        match status {
+            // Double check these with someone
+            PlaidPaymentStatus::PaymentStatusAuthorising => Self::PaymentIntentProcessing,
+            PlaidPaymentStatus::PaymentStatusBlcoked => Self::PaymentIntentAuthorizationFailure,
+            PlaidPaymentStatus::PaymentStatusCancelled => Self::PaymentIntentCancelled,
+            PlaidPaymentStatus::PaymentStatusEstablished => Self::PaymentIntentAuthorizationSuccess,
+            PlaidPaymentStatus::PaymentStatusExecuted => Self::PaymentIntentSuccess,
+            PlaidPaymentStatus::PaymentStatusFailed => Self::PaymentIntentFailure,
+            PlaidPaymentStatus::PaymentStatusInitiated => Self::PaymentIntentAuthorizationSuccess,
+            PlaidPaymentStatus::PaymentStatusInputNeeded => Self::PaymentActionRequired,
+            PlaidPaymentStatus::PaymentStatusInsuficientFunds => Self::PaymentIntentFailure,
+            PlaidPaymentStatus::PaymentStatusRejected => Self::PaymentIntentFailure,
+            PlaidPaymentStatus::PaymentStatusSettled => Self::PaymentIntentSuccess,
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PlaidWebhookVerificationRequest {
+    pub key_id: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PlaidJWK {
+    kid: String,
+    alg: String,
+    created_at: i64,
+    expired_at: Option<i64>,
+    pub x: String,
+    pub y: String,
+    #[serde(rename = "use")]
+    _use: String,
+    kty: String,
+    crv: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PlaidWebhookVerificationResponse {
+    key: PlaidJWK,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+struct PlaidJWTPayload {
+    iat: i64,
+    request_body_sha256: String,
+}
+
+impl TryFrom<&types::VerifyWebhookSourceRequestData> for PlaidWebhookVerificationRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(req: &types::VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
+        let kid = get_data_from_verification_header(&req.webhook_headers)?;
+
+        Ok(Self { key_id: kid })
+    }
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::VerifyWebhookSource,
+            PlaidWebhookVerificationResponse,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+    > for types::VerifyWebhookSourceRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::VerifyWebhookSource,
+            PlaidWebhookVerificationResponse,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::VerifyWebhookSourceResponseData {
+                verify_webhook_status: types::VerifyWebhookStatus::SourceVerified,
+            }),
+            ..item.data
+        })
+    }
+}
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct PlaidErrorResponse {
@@ -504,4 +609,70 @@ fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
     }
+}
+
+fn get_data_from_verification_header(
+    headers: &HeaderMap,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let plaid_header = headers
+        .get(PLAID_VERIFICATION_HEADER)
+        .get_required_value(PLAID_VERIFICATION_HEADER)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .to_str()
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to convert JWT token to string")?;
+
+    let jwt_header = jsonwebtoken::decode_header(plaid_header)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to get JWT Header for Plaid")?;
+
+    jwt_header
+        .kid
+        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .into_report()
+        .attach_printable("Failed to get kid from JWT Header for Plaid")
+}
+
+pub fn process_plaid_jwt_header(
+    req: &types::VerifyWebhookSourceRequestData,
+    res: &PlaidWebhookVerificationResponse,
+) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    let plaid_header = req
+        .webhook_headers
+        .get(PLAID_VERIFICATION_HEADER)
+        .get_required_value(PLAID_VERIFICATION_HEADER)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .to_str()
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to convert JWT token to string")?;
+
+    let key = jsonwebtoken::DecodingKey::from_ec_components(&res.key.x, &res.key.y)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to from Decoding key for JWT token")?;
+
+    let decoded = jsonwebtoken::decode::<PlaidJWTPayload>(
+        plaid_header,
+        &key,
+        &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::ES256),
+    )
+    .into_report()
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("Failed to validate JWT token")?;
+
+    let body_value = hex::decode(decoded.claims.request_body_sha256)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to hex-decode plaid webhook request_body_sha256")?;
+
+    let payload_digest = digest::digest(&digest::SHA256, req.webhook_body.as_slice());
+
+    if payload_digest.as_ref() != body_value.as_slice() {
+        return Err(errors::ConnectorError::WebhookSourceVerificationFailed.into());
+    }
+
+    Ok(())
 }

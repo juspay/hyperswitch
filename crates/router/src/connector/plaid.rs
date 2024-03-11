@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as plaid;
 
@@ -18,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        transformers::ForeignFrom,
         ErrorResponse, RequestContent, Response,
     },
     utils::BytesExt,
@@ -39,6 +41,7 @@ impl api::RefundExecute for Plaid {}
 impl api::RefundSync for Plaid {}
 impl api::PaymentToken for Plaid {}
 impl api::PaymentsPostProcessing for Plaid {}
+impl api::ConnectorVerifyWebhookSource for Plaid {}
 
 impl
     ConnectorIntegration<
@@ -640,26 +643,147 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,
+    > for Plaid
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/webhook_verification_key/get",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::VerifyWebhookSourceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::VerifyWebhookSourceType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::VerifyWebhookSourceType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::VerifyWebhookSourceType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<
+            api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = plaid::PlaidWebhookVerificationRequest::try_from(&req.request)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::VerifyWebhookSourceRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ConnectorError> {
+        let response: plaid::PlaidWebhookVerificationResponse = res
+            .response
+            .parse_struct("PlaidWebhookVerificationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        plaid::process_plaid_jwt_header(&data.request, &response)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Plaid {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let payload: plaid::PlaidPaymentsWebhookBody = request
+            .body
+            .parse_struct("PlaidPaymentsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        Ok(api::ObjectReferenceId::PaymentId(
+            api::PaymentIdType::ConnectorTransactionId(payload.payment_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let payload: plaid::PlaidPaymentsWebhookBody = request
+            .body
+            .parse_struct("PlaidPaymentsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        Ok(api::IncomingWebhookEvent::foreign_from(
+            payload.new_payment_status,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let payload: plaid::PlaidPaymentsWebhookBody = request
+            .body
+            .parse_struct("PlaidPaymentsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(Box::new(payload))
     }
 }
