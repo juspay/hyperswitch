@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.11.0
+
+### Features
+
+- **connector:**
+  - Add threedsecureio three_ds authentication connector ([#4004](https://github.com/juspay/hyperswitch/pull/4004)) ([`06c3096`](https://github.com/juspay/hyperswitch/commit/06c30967cf626e7406aa9be8643fb73288aae383))
+  - [Checkout] add support for external authentication for checkout connector ([#4006](https://github.com/juspay/hyperswitch/pull/4006)) ([`142a22c`](https://github.com/juspay/hyperswitch/commit/142a22c752a7c623cee62a6d552e6ffda73df777))
+- **router:** Add payments authentication api flow ([#3996](https://github.com/juspay/hyperswitch/pull/3996)) ([`41556ba`](https://github.com/juspay/hyperswitch/commit/41556baed98c59373e0a053c023c32f2f7346b51))
+
+**Full Changelog:** [`2024.03.09.0...2024.03.11.0`](https://github.com/juspay/hyperswitch/compare/2024.03.09.0...2024.03.11.0)
+
+- - -
+
+## 2024.03.09.0
+
+### Features
+
+- **core:** Add core functions for external authentication ([#3969](https://github.com/juspay/hyperswitch/pull/3969)) ([`897e264`](https://github.com/juspay/hyperswitch/commit/897e264ad9e26df9877a18eef26a24e05de78528))
+- **payment_link:** Add shimmer page before payment_link loads starts ([#4014](https://github.com/juspay/hyperswitch/pull/4014)) ([`ba9d465`](https://github.com/juspay/hyperswitch/commit/ba9d465483edcefeacc7ace0fc8efc86ca0f813c))
+
+### Bug Fixes
+
+- **deserialization:** Error message is different when invalid data is passed for payment method data ([#4022](https://github.com/juspay/hyperswitch/pull/4022)) ([`f1fe295`](https://github.com/juspay/hyperswitch/commit/f1fe295475adb0e827bd713be036687da662b361))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`a7d0487`](https://github.com/juspay/hyperswitch/commit/a7d04873d63c1f007d0081f02ba9a373e24ae882))
+
+**Full Changelog:** [`2024.03.08.0...2024.03.09.0`](https://github.com/juspay/hyperswitch/compare/2024.03.08.0...2024.03.09.0)
+
+- - -
+
 ## 2024.03.08.0
 
 ### Features
