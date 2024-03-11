@@ -1282,7 +1282,7 @@ pub async fn post_3ds_payments_authorize(
     json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(String, String, String)>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsRedirect;
+    let flow = Flow::PaymentsAuthorize;
 
     let (payment_id, merchant_id, connector) = path.into_inner();
     tracing::Span::current().record("payment_id", &payment_id);

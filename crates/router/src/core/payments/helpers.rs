@@ -896,6 +896,16 @@ pub fn create_redirect_url(
     ) + creds_identifier_path.as_ref()
 }
 
+pub fn create_authentication_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+) -> String {
+    format!(
+        "{router_base_url}/payments/{}/3ds/authentication",
+        payment_attempt.payment_id
+    )
+}
+
 pub fn create_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
