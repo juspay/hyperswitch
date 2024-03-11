@@ -659,7 +659,6 @@ fn add_connector_mandate_details_in_payment_method(
     authorized_currency: Option<storage_enums::Currency>,
     connector: &api::ConnectorData,
 ) -> Option<storage::PaymentsMandateReference> {
-    println!("{resp:?}");
     let mut mandate_details = HashMap::new();
 
     let connector_mandate_id = match resp {
