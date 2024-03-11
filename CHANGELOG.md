@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.03.01.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** [Trustpay] Add mapping to error code 100.390.105 ([#4019](https://github.com/juspay/hyperswitch/pull/4019)) ([`c7decb2`](https://github.com/juspay/hyperswitch/commit/c7decb20e6809b9ad6c09de1da163d64d3e5472b))
+
+- - -
+
 ## 2024.03.01.0-hotfix5
 
 ### Refactors
