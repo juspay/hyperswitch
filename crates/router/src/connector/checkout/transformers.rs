@@ -518,12 +518,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
             | CheckoutPaymentStatus::PartiallyRefunded
             | CheckoutPaymentStatus::Refunded => Self::Charged,
             CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -544,12 +546,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
             | CheckoutPaymentStatus::PartiallyRefunded
             | CheckoutPaymentStatus::Refunded => Self::Charged,
             CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -573,12 +577,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
             | CheckoutPaymentStatus::PartiallyRefunded
             | CheckoutPaymentStatus::Refunded => Self::Charged,
             CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Declined
+            | CheckoutPaymentStatus::Expired
+            | CheckoutPaymentStatus::Canceled => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -1283,7 +1289,7 @@ impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentRefunded => Self::RefundSuccess,
             CheckoutWebhookEventType::PaymentRefundDeclined => Self::RefundFailure,
-            CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelled,
+            CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
             CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
             CheckoutWebhookEventType::PaymentVoided => Self::PaymentIntentCancelled,
             CheckoutWebhookEventType::DisputeReceived
