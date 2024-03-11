@@ -1744,7 +1744,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
 
         (Some(_), _) => {
-            let (payment_method_data, payment_method_id) = Ctx::retrieve_payment_method(
+            let (payment_method_data, payment_token) = Ctx::retrieve_payment_method(
                 request,
                 state,
                 &payment_data.payment_intent,
@@ -1753,7 +1753,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
             )
             .await?;
 
-            payment_data.token = payment_method_id;
+            payment_data.token = payment_token;
 
             Ok((payment_method_data, None))
         }
