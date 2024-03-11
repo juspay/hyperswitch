@@ -3497,16 +3497,15 @@ pub async fn delete_payment_method(
             default_payment_method_id: Some(None),
         };
 
-        let updated_customer_details = db
-            .update_customer_by_customer_id_merchant_id(
-                key.customer_id,
-                key.merchant_id,
-                customer_update,
-                &key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the default payment method id for the customer")?;
+        db.update_customer_by_customer_id_merchant_id(
+            key.customer_id,
+            key.merchant_id,
+            customer_update,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the default payment method id for the customer")?;
     };
 
     Ok(services::ApplicationResponse::Json(
