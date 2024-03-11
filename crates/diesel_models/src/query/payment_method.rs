@@ -101,7 +101,7 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn get_count_by_customer_id_merchant_id(
+    pub async fn get_count_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,

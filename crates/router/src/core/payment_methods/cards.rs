@@ -3443,7 +3443,7 @@ pub async fn delete_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let payment_methods_count = db
-        .get_payment_method_count_by_customer_id_merchant_id(
+        .get_payment_method_count_by_customer_id_merchant_id_status(
             &key.customer_id,
             &merchant_account.merchant_id,
             api_enums::PaymentMethodStatus::Active,

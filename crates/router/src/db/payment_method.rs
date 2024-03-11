@@ -36,7 +36,7 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError>;
 
-    async fn get_payment_method_count_by_customer_id_merchant_id(
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &str,
         merchant_id: &str,
@@ -88,14 +88,14 @@ impl PaymentMethodInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn get_payment_method_count_by_customer_id_merchant_id(
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &str,
         merchant_id: &str,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentMethod::get_count_by_customer_id_merchant_id(
+        storage::PaymentMethod::get_count_by_customer_id_merchant_id_status(
             &conn,
             customer_id,
             merchant_id,
@@ -230,7 +230,7 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
-    async fn get_payment_method_count_by_customer_id_merchant_id(
+    async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &str,
         merchant_id: &str,
