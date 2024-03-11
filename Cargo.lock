@@ -7841,7 +7841,7 @@ dependencies = [
  "base64 0.13.1",
  "bytes 1.5.0",
  "cookie 0.16.2",
- "http",
+ "http 0.2.9",
  "log",
  "serde",
  "serde_derive",
