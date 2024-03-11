@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
 use api_models::payment_methods;
+use diesel_models::enums;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
 };
+
+use crate::types::api::payments;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentTokenKind {
@@ -17,6 +21,13 @@ pub struct CardTokenData {
     pub payment_method_id: Option<String>,
     pub locker_id: Option<String>,
     pub token: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
+pub struct PaymentMethodDataWithId {
+    pub payment_method: Option<enums::PaymentMethod>,
+    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
