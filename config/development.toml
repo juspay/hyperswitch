@@ -133,6 +133,7 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "threedsecureio",
     "trustpay",
     "tsys",
     "volt",
@@ -210,6 +211,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -364,6 +366,12 @@ seicomart = {country = "JP", currency = "JPY"}
 pay_easy = {country = "JP", currency = "JPY"}
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+
+[pm_filters.bankofamerica]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+apple_pay = { currency = "USD" }
+google_pay = { currency = "USD" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }

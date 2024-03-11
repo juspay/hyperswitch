@@ -913,6 +913,72 @@
         ]
       }
     },
+    "/accounts/{account_id}/kv": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - KV Status",
+        "description": "Merchant Account - KV Status\n\nToggle KV mode for the Merchant Account",
+        "operationId": "Enable/Disable KV for a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleKVRequest"
+              },
+              "examples": {
+                "Disable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "false"
+                  }
+                },
+                "Enable KV for Merchant": {
+                  "value": {
+                    "kv_enabled": "true"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "KV mode is enabled/disabled for Merchant Account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleKVResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/api_keys/{merchant_id)": {
       "post": {
         "tags": [
@@ -2887,6 +2953,57 @@
           {
             "api_key": []
           },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/payments/{payment_id}/3ds/authentication": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - External 3DS Authentication",
+        "description": "Payments - External 3DS Authentication\n\nExternal 3DS Authentication is performed and returns the AuthenticationResponse",
+        "operationId": "Initiate external authentication for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsExternalAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsExternalAuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
           {
             "publishable_key": []
           }
@@ -6758,6 +6875,7 @@
           "square",
           "stax",
           "stripe",
+          "threedsecureio",
           "trustpay",
           "tsys",
           "volt",
@@ -12658,6 +12776,14 @@
             ],
             "nullable": true
           },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
+          },
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
@@ -13011,6 +13137,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -13492,6 +13626,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -14502,6 +14644,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -16733,6 +16883,39 @@
         "properties": {
           "blocklist_guard_status": {
             "type": "string"
+          }
+        }
+      },
+      "ToggleKVRequest": {
+        "type": "object",
+        "required": [
+          "kv_enabled"
+        ],
+        "properties": {
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
+          }
+        }
+      },
+      "ToggleKVResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "kv_enabled"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "kv_enabled": {
+            "type": "boolean",
+            "description": "Status of KV for the specific merchant",
+            "example": true
           }
         }
       },

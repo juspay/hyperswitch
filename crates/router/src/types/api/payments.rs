@@ -6,11 +6,12 @@ pub use api_models::payments::{
     PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
     PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
     PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsCaptureRequest, PaymentsExternalAuthenticationRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 

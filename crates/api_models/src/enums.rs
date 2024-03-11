@@ -116,6 +116,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    Threedsecureio,
     Trustpay,
     // Tsys,
     Tsys,
@@ -242,16 +243,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-}
-
-#[cfg(feature = "frm")]
-impl From<FrmConnectors> for RoutableConnectors {
-    fn from(value: FrmConnectors) -> Self {
-        match value {
-            FrmConnectors::Signifyd => Self::Signifyd,
-            FrmConnectors::Riskified => Self::Riskified,
-        }
-    }
 }
 
 #[derive(

@@ -64,6 +64,9 @@ pub struct PaymentAttempt {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
@@ -141,6 +144,9 @@ pub struct PaymentAttemptNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: Option<i64>,
+    pub external_three_ds_authentication_attempted: Option<bool>,
+    pub authentication_connector: Option<String>,
+    pub authentication_id: Option<String>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
     pub fingerprint_id: Option<String>,
     pub payment_method_billing_address_id: Option<String>,
@@ -220,6 +226,9 @@ pub enum PaymentAttemptUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         merchant_connector_id: Option<String>,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
     },
     VoidUpdate {
@@ -316,6 +325,13 @@ pub enum PaymentAttemptUpdate {
         amount: i64,
         amount_capturable: i64,
     },
+    AuthenticationUpdate {
+        status: storage_enums::AttemptStatus,
+        external_three_ds_authentication_attempted: Option<bool>,
+        authentication_connector: Option<String>,
+        authentication_id: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -358,6 +374,9 @@ pub struct PaymentAttemptUpdateInternal {
     encoded_data: Option<String>,
     unified_code: Option<Option<String>>,
     unified_message: Option<Option<String>>,
+    external_three_ds_authentication_attempted: Option<bool>,
+    authentication_connector: Option<String>,
+    authentication_id: Option<String>,
     fingerprint_id: Option<String>,
     payment_method_billing_address_id: Option<String>,
 }
@@ -420,6 +439,9 @@ impl PaymentAttemptUpdate {
             encoded_data,
             unified_code,
             unified_message,
+            external_three_ds_authentication_attempted,
+            authentication_connector,
+            authentication_id,
             payment_method_billing_address_id,
             fingerprint_id,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
@@ -463,6 +485,10 @@ impl PaymentAttemptUpdate {
             encoded_data: encoded_data.or(source.encoded_data),
             unified_code: unified_code.unwrap_or(source.unified_code),
             unified_message: unified_message.unwrap_or(source.unified_message),
+            external_three_ds_authentication_attempted: external_three_ds_authentication_attempted
+                .or(source.external_three_ds_authentication_attempted),
+            authentication_connector: authentication_connector.or(source.authentication_connector),
+            authentication_id: authentication_id.or(source.authentication_id),
             payment_method_billing_address_id: payment_method_billing_address_id
                 .or(source.payment_method_billing_address_id),
             fingerprint_id: fingerprint_id.or(source.fingerprint_id),
@@ -543,6 +569,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
             } => Self {
@@ -567,6 +596,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id: merchant_connector_id.map(Some),
                 surcharge_amount,
                 tax_amount,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
                 payment_method_billing_address_id,
                 fingerprint_id,
                 ..Default::default()
@@ -780,6 +812,20 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 amount: Some(amount),
                 amount_capturable: Some(amount_capturable),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::AuthenticationUpdate {
+                status,
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                external_three_ds_authentication_attempted,
+                authentication_connector,
+                authentication_id,
+                updated_by,
                 ..Default::default()
             },
         }

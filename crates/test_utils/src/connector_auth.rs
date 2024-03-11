@@ -56,6 +56,7 @@ pub struct ConnectorAuthentication {
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub threedsecureio: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,

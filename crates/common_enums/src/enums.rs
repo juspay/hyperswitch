@@ -1145,8 +1145,8 @@ pub enum IntentStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FutureUsage {
-    #[default]
     OffSession,
+    #[default]
     OnSession,
 }
 
@@ -2100,6 +2100,7 @@ pub enum PaymentSource {
     Dashboard,
     Sdk,
     Webhook,
+    ExternalAuthenticator,
 }
 
 #[derive(
@@ -2329,6 +2330,7 @@ pub enum RoleScope {
     Debug,
     Eq,
     PartialEq,
+    Hash,
     serde::Serialize,
     serde::Deserialize,
     strum::Display,

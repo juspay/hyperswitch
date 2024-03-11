@@ -349,7 +349,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(Into::into);
-
+        let mandate_details_present =
+            payment_attempt.mandate_details.is_some() || request.mandate_data.is_some();
+        helpers::validate_mandate_data_and_future_usage(
+            payment_intent.setup_future_usage,
+            mandate_details_present,
+        )?;
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -363,7 +368,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
             })?;
-
+        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
@@ -379,6 +384,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_connector,
             token,
             setup_mandate,
+            customer_acceptance,
             address: PaymentAddress {
                 shipping: shipping_address.as_ref().map(|a| a.into()),
                 billing: billing_address.as_ref().map(|a| a.into()),
@@ -407,6 +413,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: request.frm_metadata.clone(),
         };
 
@@ -658,6 +665,9 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     updated_by: storage_scheme.to_string(),
                     fingerprint_id: None,
                     session_expiry,
+                    request_external_three_ds_authentication: payment_data
+                        .payment_intent
+                        .request_external_three_ds_authentication,
                 },
                 storage_scheme,
             )
