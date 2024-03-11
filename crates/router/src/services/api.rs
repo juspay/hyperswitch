@@ -90,16 +90,14 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: api_models::payments::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         // Err(errors::ConnectorError::NotSupported {
         //     message: format!("mandate payment for {}", pm_type.to_string()),
         //     connector: self.id(),
         // }
         // .into())
-        match pm_type {
-            Some(_) => Ok(()),
-            None => Ok(())
-        }
+        Ok(())
     }
 
     fn validate_psync_reference_id(

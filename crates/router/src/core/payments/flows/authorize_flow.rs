@@ -80,7 +80,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(&self.request) {
             connector
                 .connector
-                .validate_mandate_payment(self.request.payment_method_type)
+                .validate_mandate_payment( self.request.payment_method_type, self.request.payment_method_data.clone())
                 .to_payment_failed_response()?;
         }
 

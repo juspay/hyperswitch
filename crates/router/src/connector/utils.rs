@@ -1326,17 +1326,42 @@ pub fn construct_not_supported_error_report(
     .into()
 }
 
-pub fn construct_mandate_not_supported_error_report_with_pmt(
-    pm_type: types::storage::enums::PaymentMethodType,
+pub fn construct_mandate_not_implemented_error(
+    // payment_method_type: String,
+    pm_type: Option<types::storage::enums::PaymentMethodType>,
     connector_name: &'static str,
 ) -> error_stack::Report<errors::ConnectorError> {
-        errors::ConnectorError::NotImplemented(format!("{} mandate payment in {}", pm_type.to_string(), connector_name)).into()
+    match pm_type {
+        Some(pm_type) => errors::ConnectorError::NotImplemented(format!(
+            "{} mandate payment in {}",
+            pm_type.to_string(),
+            connector_name
+        ))
+        .into(),
+        None => {
+            errors::ConnectorError::NotImplemented(format!("mandate payment in {}", connector_name))
+                .into()
+        }
+    }
 }
 
-pub fn construct_mandate_not_supported_error_report(
+pub fn construct_mandate_not_supported_error(
+    // payment_method_type: String,
+    pm_type: Option<types::storage::enums::PaymentMethodType>,
     connector_name: &'static str,
 ) -> error_stack::Report<errors::ConnectorError> {
-        errors::ConnectorError::NotImplemented(format!("mandate payment in {}", connector_name)).into()
+    match pm_type {
+        Some(pm_type) => errors::ConnectorError::NotSupported {
+            message: format!("{} mandate payment", pm_type.to_string()),
+            connector: connector_name,
+        }
+        .into(),
+        None => errors::ConnectorError::NotSupported {
+            message: format!("mandate payment"),
+            connector: connector_name,
+        }
+        .into(),
+    }
 }
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
