@@ -260,6 +260,10 @@ pub enum CheckoutPaymentIntent {
 pub struct CheckoutThreeDS {
     enabled: bool,
     force_3ds: bool,
+    eci: Option<String>,
+    cryptogram: Option<String>,
+    xid: Option<String>,
+    version: Option<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
@@ -381,14 +385,24 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             )),
         }?;
 
+        let authentication_data = item.router_data.request.authentication_data.as_ref();
+
         let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
                 force_3ds: true,
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.and_then(|auth| auth.cavv.clone()),
+                xid: authentication_data.map(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.map(|auth| auth.message_version.clone()),
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
+                eci: None,
+                cryptogram: None,
+                xid: None,
+                version: None,
             },
         };
 

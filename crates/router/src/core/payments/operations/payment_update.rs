@@ -410,9 +410,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             redirect_response: None,
             surcharge_details,
             frm_message: None,
+            payment_method_status: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: request.frm_metadata.clone(),
         };
 
@@ -467,6 +469,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
