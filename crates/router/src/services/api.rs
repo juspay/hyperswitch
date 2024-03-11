@@ -379,7 +379,6 @@ where
                     };
                     let request_url = request.url.clone();
                     let request_method = request.method;
-
                     let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
                     let external_latency = current_time.elapsed().as_millis();
@@ -583,7 +582,7 @@ pub async fn send_request(
     request: Request,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::debug!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
+    logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = reqwest::Url::parse(&request.url)
         .into_report()

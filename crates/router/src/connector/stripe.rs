@@ -150,7 +150,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -280,6 +280,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::CustomerRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -412,6 +413,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::TokenRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -546,6 +548,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::CaptureRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -850,6 +853,7 @@ impl
             }
             _ => {
                 let connector_req = stripe::PaymentIntentRequest::try_from(req)?;
+                router_env::logger::info!(connector_request_body=?connector_req);
                 Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
             }
         }
@@ -1025,6 +1029,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::CancelRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -1166,6 +1171,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::SetupIntentRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -1307,6 +1313,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::RefundRequest::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -1573,6 +1580,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = transformers::construct_file_upload_request(req.clone())?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormData(connector_req))
     }
 
@@ -1818,6 +1826,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stripe::Evidence::try_from(req)?;
+        router_env::logger::info!(connector_request_body=?connector_req);
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
