@@ -1303,9 +1303,10 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_payment_method_count_by_customer_id_merchant_id(customer_id, merchant_id)
+            .get_payment_method_count_by_customer_id_merchant_id(customer_id, merchant_id, status)
             .await
     }
 

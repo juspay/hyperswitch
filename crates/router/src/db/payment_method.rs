@@ -40,6 +40,7 @@ pub trait PaymentMethodInterface {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError>;
 
     async fn insert_payment_method(
@@ -91,12 +92,14 @@ impl PaymentMethodInterface for Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PaymentMethod::get_count_by_customer_id_merchant_id(
             &conn,
             customer_id,
             merchant_id,
+            status,
         )
         .await
         .map_err(Into::into)
@@ -231,11 +234,16 @@ impl PaymentMethodInterface for MockDb {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let count = payment_methods
             .iter()
-            .filter(|pm| pm.customer_id == customer_id && pm.merchant_id == merchant_id)
+            .filter(|pm| {
+                pm.customer_id == customer_id
+                    && pm.merchant_id == merchant_id
+                    && pm.status == status
+            })
             .count();
         count
             .try_into()

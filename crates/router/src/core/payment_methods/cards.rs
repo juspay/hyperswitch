@@ -3193,7 +3193,7 @@ pub async fn set_default_payment_method(
     )?;
 
     let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
-        default_payment_method_id: Some(payment_method_id.to_owned()),
+        default_payment_method_id: Some(Some(payment_method_id.to_owned())),
     };
 
     // update the db with the default payment method id
@@ -3446,6 +3446,7 @@ pub async fn delete_payment_method(
         .get_payment_method_count_by_customer_id_merchant_id(
             &key.customer_id,
             &merchant_account.merchant_id,
+            api_enums::PaymentMethodStatus::Active,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3490,6 +3491,23 @@ pub async fn delete_payment_method(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
+        let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+            default_payment_method_id: Some(None),
+        };
+
+        let updated_customer_details = db
+            .update_customer_by_customer_id_merchant_id(
+                key.customer_id,
+                key.merchant_id,
+                customer_update,
+                &key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the default payment method id for the customer")?;
+    };
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodDeleteResponse {

@@ -105,13 +105,15 @@ impl PaymentMethod {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
+        status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
         let filter = <Self as HasTable>::table()
             .count()
             .filter(
                 dsl::customer_id
                     .eq(customer_id.to_owned())
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::status.eq(status.to_owned())),
             )
             .into_boxed();
 
