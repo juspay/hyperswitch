@@ -10,7 +10,8 @@ use masking::Secret;
 use router_derive::Setter;
 use serde::{
     de::{self, Unexpected, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
+    ser::Serializer,
+    Deserialize, Deserializer, Serialize,
 };
 use time::PrimitiveDateTime;
 use url::Url;
@@ -309,6 +310,7 @@ pub struct PaymentsRequest {
 
     /// The payment method information provided for making a payment
     #[schema(example = "bank_transfer")]
+    #[serde(with = "payment_method_data_serde", default)]
     pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method that is to be used
@@ -1056,6 +1058,100 @@ pub enum BankDebitData {
     },
 }
 
+/// Custom serializer and deserializer for PaymentMethodData
+mod payment_method_data_serde {
+
+    use super::*;
+
+    /// Deserialize `reward` payment_method as string for backwards compatibility
+    /// The api contract would be
+    /// ```json
+    /// {
+    ///   "payment_method": "reward",
+    ///   "payment_method_type": "evoucher",
+    ///   "payment_method_data": "reward",
+    /// }
+    /// ```
+    ///
+    /// For other payment methods, use the provided deserializer
+    /// ```json
+    /// "payment_method_data": {
+    ///   "card": {
+    ///     "card_number": "4242424242424242",
+    ///     "card_exp_month": "10",
+    ///     "card_exp_year": "25",
+    ///     "card_holder_name": "joseph Doe",
+    ///     "card_cvc": "123"
+    ///    }
+    /// }
+    /// ```
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<PaymentMethodDataRequest>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize, Debug)]
+        #[serde(untagged)]
+        enum __Inner {
+            RewardString(String),
+            OptionalPaymentMethod(serde_json::Value),
+        }
+
+        let deserialize_to_inner = __Inner::deserialize(deserializer)?;
+        match deserialize_to_inner {
+            __Inner::OptionalPaymentMethod(value) => {
+                let parsed_value = serde_json::from_value::<PaymentMethodDataRequest>(value)
+                    .map_err(|serde_json_error| {
+                        serde::de::Error::custom(serde_json_error.to_string())
+                    })?;
+
+                Ok(Some(parsed_value))
+            }
+            __Inner::RewardString(inner_string) => {
+                let payment_method_data = match inner_string.as_str() {
+                    "reward" => PaymentMethodData::Reward,
+                    _ => Err(serde::de::Error::custom("Invalid Variant"))?,
+                };
+
+                Ok(Some(PaymentMethodDataRequest {
+                    payment_method_data,
+                    billing: None,
+                }))
+            }
+        }
+    }
+
+    pub fn serialize<S>(
+        payment_method_data_request: &Option<PaymentMethodDataRequest>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Some(payment_method_data_request) = payment_method_data_request {
+            match payment_method_data_request.payment_method_data {
+                PaymentMethodData::Reward => serializer.serialize_str("reward"),
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::Card(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Wallet(_) => payment_method_data_request.serialize(serializer),
+            }
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct PaymentMethodDataRequest {
     #[serde(flatten)]
@@ -1121,7 +1217,7 @@ impl PaymentMethodData {
             | Self::BankTransfer(_)
             | Self::Crypto(_)
             | Self::MandatePayment
-            | Self::Reward
+            | Self::Reward {}
             | Self::Upi(_)
             | Self::Voucher(_)
             | Self::GiftCard(_)
@@ -1939,6 +2035,39 @@ pub enum VoucherData {
     PayEasy(Box<JCSVoucherData>),
 }
 
+/// Use custom serializer to provide backwards compatible response for `reward` payment_method_data
+pub fn serialize_payment_method_data_response<S>(
+    payment_method_data_response: &Option<PaymentMethodDataResponseWithBilling>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(payment_method_data_response) = payment_method_data_response {
+        match payment_method_data_response.payment_method_data {
+            PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
+            PaymentMethodDataResponse::BankDebit {}
+            | PaymentMethodDataResponse::BankRedirect {}
+            | PaymentMethodDataResponse::Card(_)
+            | PaymentMethodDataResponse::CardRedirect {}
+            | PaymentMethodDataResponse::CardToken {}
+            | PaymentMethodDataResponse::Crypto {}
+            | PaymentMethodDataResponse::MandatePayment {}
+            | PaymentMethodDataResponse::GiftCard {}
+            | PaymentMethodDataResponse::PayLater {}
+            | PaymentMethodDataResponse::Paypal {}
+            | PaymentMethodDataResponse::Upi {}
+            | PaymentMethodDataResponse::Wallet(_)
+            | PaymentMethodDataResponse::BankTransfer {}
+            | PaymentMethodDataResponse::Voucher {} => {
+                payment_method_data_response.serialize(serializer)
+            }
+        }
+    } else {
+        serializer.serialize_none()
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -1960,7 +2089,7 @@ pub enum PaymentMethodDataResponse {
     CardToken {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
     #[serde(flatten)]
@@ -2426,6 +2555,7 @@ pub struct PaymentsResponse {
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     #[auth_based]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
     /// Provide a reference to a stored payment method
@@ -3924,4 +4054,74 @@ pub enum PaymentLinkStatus {
 pub enum PaymentLinkStatusWrap {
     PaymentLinkStatus(PaymentLinkStatus),
     IntentStatus(api_enums::IntentStatus),
+}
+
+#[cfg(test)]
+mod payments_request_api_contract {
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::panic)]
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_successful_card_deser() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "card",
+            "payment_method_data": {
+                "card": {
+                    "card_number": "4242424242424242",
+                    "card_exp_month": "10",
+                    "card_exp_year": "25",
+                    "card_holder_name": "joseph Doe",
+                    "card_cvc": "123"
+                }
+            }
+        }
+        "#;
+
+        let expected_card_number_string = "4242424242424242";
+        let expected_card_number = CardNumber::from_str(expected_card_number_string).unwrap();
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+
+        if let PaymentMethodData::Card(card_data) = payments_request
+            .unwrap()
+            .payment_method_data
+            .unwrap()
+            .payment_method_data
+        {
+            assert_eq!(card_data.card_number, expected_card_number);
+        } else {
+            panic!("Received unexpected response")
+        }
+    }
+
+    #[test]
+    fn test_successful_payment_method_reward() {
+        let payments_request = r#"
+        {
+            "amount": 6540,
+            "currency": "USD",
+            "payment_method": "reward",
+            "payment_method_data": "reward",
+            "payment_method_type": "evoucher"
+        }
+        "#;
+
+        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
+        assert!(payments_request.is_ok());
+        assert_eq!(
+            payments_request
+                .unwrap()
+                .payment_method_data
+                .unwrap()
+                .payment_method_data,
+            PaymentMethodData::Reward
+        );
+    }
 }

@@ -1147,6 +1147,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
+            authentication_data: None,
             customer_acceptance: payment_data.customer_acceptance,
         })
     }
