@@ -12,7 +12,7 @@ use tracing_futures::Instrument;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        authentication,
+        authentication::{self, types},
         blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::PaymentMethodRetrieve,
@@ -888,52 +888,62 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
 
+        let default_status_result = (
+            storage_enums::IntentStatus::Processing,
+            storage_enums::AttemptStatus::Pending,
+            (None, None),
+        );
+        let status_handler_for_frm_results = |frm_suggestion: FrmSuggestion| match frm_suggestion {
+            FrmSuggestion::FrmCancelTransaction => (
+                storage_enums::IntentStatus::Failed,
+                storage_enums::AttemptStatus::Failure,
+                frm_message.map_or((None, None), |fraud_check| {
+                    (
+                        Some(Some(fraud_check.frm_status.to_string())),
+                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                    )
+                }),
+            ),
+            FrmSuggestion::FrmManualReview => (
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::AttemptStatus::Unresolved,
+                (None, None),
+            ),
+            FrmSuggestion::FrmAutoRefund => default_status_result.clone(),
+        };
+
+        let status_handler_for_authentication_results =
+            |(authentication, authentication_data): &(
+                storage::Authentication,
+                types::AuthenticationData,
+            )| {
+                if authentication.authentication_status.is_failed() {
+                    (
+                        storage_enums::IntentStatus::Failed,
+                        storage_enums::AttemptStatus::Failure,
+                        (
+                            Some(Some("EXTERNAL_AUTHENTICATION_FAILURE".to_string())),
+                            Some(Some("external authentication failure".to_string())),
+                        ),
+                    )
+                } else if authentication_data.is_separate_authn_required() {
+                    (
+                        storage_enums::IntentStatus::RequiresCustomerAction,
+                        storage_enums::AttemptStatus::AuthenticationPending,
+                        (None, None),
+                    )
+                } else {
+                    default_status_result.clone()
+                }
+            };
+
         let (intent_status, attempt_status, (error_code, error_message)) =
             match (frm_suggestion, payment_data.authentication.as_ref()) {
-                (Some(FrmSuggestion::FrmCancelTransaction), _) => (
-                    storage_enums::IntentStatus::Failed,
-                    storage_enums::AttemptStatus::Failure,
-                    frm_message.map_or((None, None), |fraud_check| {
-                        (
-                            Some(Some(fraud_check.frm_status.to_string())),
-                            Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
-                        )
-                    }),
-                ),
-                (Some(FrmSuggestion::FrmManualReview), _) => (
-                    storage_enums::IntentStatus::RequiresMerchantAction,
-                    storage_enums::AttemptStatus::Unresolved,
-                    (None, None),
-                ),
-                (_, Some((authentication, authentication_data))) => {
-                    if authentication.authentication_status.is_failed() {
-                        (
-                            storage_enums::IntentStatus::Failed,
-                            storage_enums::AttemptStatus::Failure,
-                            (
-                                Some(Some("EXTERNAL_AUTHENTICATION_FAILURE".to_string())),
-                                Some(Some("external authentication failure".to_string())),
-                            ),
-                        )
-                    } else if authentication_data.is_separate_authn_required() {
-                        (
-                            storage_enums::IntentStatus::RequiresCustomerAction,
-                            storage_enums::AttemptStatus::AuthenticationPending,
-                            (None, None),
-                        )
-                    } else {
-                        (
-                            storage_enums::IntentStatus::Processing,
-                            storage_enums::AttemptStatus::Pending,
-                            (None, None),
-                        )
-                    }
+                (Some(frm_suggestion), _) => status_handler_for_frm_results(frm_suggestion),
+                (_, Some(authentication_details)) => {
+                    status_handler_for_authentication_results(authentication_details)
                 }
-                (_, None) => (
-                    storage_enums::IntentStatus::Processing,
-                    storage_enums::AttemptStatus::Pending,
-                    (None, None),
-                ),
+                _ => default_status_result,
             };
 
         let connector = payment_data.payment_attempt.connector.clone();
