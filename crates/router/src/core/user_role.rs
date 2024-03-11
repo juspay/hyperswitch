@@ -158,12 +158,13 @@ pub async fn transfer_org_ownership(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    Ok(ApplicationResponse::Json(
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-    ))
+    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let response =
+        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+
+    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn accept_invitation(
@@ -202,12 +203,17 @@ pub async fn accept_invitation(
             .change_context(UserErrors::InternalServerError)?
             .into();
 
-        let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-        return Ok(ApplicationResponse::Json(
-            utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token)?,
-        ));
+        let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+
+        let response = utils::user::get_dashboard_entry_response(
+            &state,
+            user_from_db,
+            user_role,
+            token.clone(),
+        )?;
+        return auth::cookies::set_cookie_response(response, token);
     }
 
     Ok(ApplicationResponse::StatusOk)

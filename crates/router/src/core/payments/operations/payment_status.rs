@@ -100,6 +100,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         helpers::make_pm_data(
             Box::new(self),
@@ -440,6 +441,7 @@ async fn get_tracker_for_sync<
         card_cvc: None,
         creds_identifier,
         pm_token: None,
+        payment_method_status: None,
         connector_customer_id: None,
         recurring_mandate_payment_data: None,
         ephemeral_key: None,
@@ -450,6 +452,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response.ok(),
         incremental_authorization_details: None,
         authorizations,
+        authentication: None,
         frm_metadata: None,
     };
 

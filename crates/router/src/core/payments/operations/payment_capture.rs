@@ -219,6 +219,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,
+            payment_method_status: None,
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
@@ -231,6 +232,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             incremental_authorization_details: None,
             authorizations: vec![],
             frm_metadata: None,
+            authentication: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
