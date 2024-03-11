@@ -654,7 +654,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 mandate_id: payment_data
                                     .mandate_id
                                     .clone()
-                                    .map(|mandate| mandate.mandate_id),
+                                    .and_then(|mandate| mandate.mandate_id),
                                 connector_metadata,
                                 payment_token: None,
                                 error_code: error_status.clone(),
@@ -844,7 +844,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .or(payment_data
                 .mandate_id
                 .clone()
-                .map(|mandate_ids| mandate_ids.mandate_id));
+                .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
     let mandate_update_fut = tokio::spawn(
         async move {

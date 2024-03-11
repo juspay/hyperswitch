@@ -377,7 +377,7 @@ where
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
-                        .map(|mandate| mandate.mandate_id),
+                        .and_then(|mandate| mandate.mandate_id),
                     connector_metadata,
                     payment_token: None,
                     error_code: None,

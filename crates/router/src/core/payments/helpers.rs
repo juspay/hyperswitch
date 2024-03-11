@@ -1602,6 +1602,90 @@ pub async fn retrieve_card_with_permanent_token(
     Ok(api::PaymentMethodData::Card(api_card))
 }
 
+pub async fn retrieve_payment_method_from_db_with_token_data(
+    state: &AppState,
+    token_data: &storage::PaymentTokenData,
+) -> RouterResult<Option<storage::PaymentMethod>> {
+    match token_data {
+        storage::PaymentTokenData::PermanentCard(data) => {
+            if let Some(ref payment_method_id) = data.payment_method_id {
+                state
+                    .store
+                    .find_payment_method(payment_method_id)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("error retrieving payment method from DB")
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
+        }
+
+        storage::PaymentTokenData::WalletToken(data) => state
+            .store
+            .find_payment_method(&data.payment_method_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieveing payment method from DB")
+            .map(Some),
+
+        storage::PaymentTokenData::Temporary(_)
+        | storage::PaymentTokenData::TemporaryGeneric(_)
+        | storage::PaymentTokenData::Permanent(_)
+        | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
+    }
+}
+
+pub async fn retrieve_payment_token_data(
+    state: &AppState,
+    token: String,
+    payment_method: Option<storage_enums::PaymentMethod>,
+) -> RouterResult<storage::PaymentTokenData> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch",
+        token,
+        payment_method.get_required_value("payment_method")?
+    );
+
+    let token_data_string = redis_conn
+        .get_key::<Option<String>>(&key)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    let token_data_result = token_data_string
+        .clone()
+        .parse_struct("PaymentTokenData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize hyperswitch token data");
+
+    let token_data = match token_data_result {
+        Ok(data) => data,
+        Err(e) => {
+            // The purpose of this logic is backwards compatibility to support tokens
+            // in redis that might be following the old format.
+            if token_data_string.starts_with('{') {
+                return Err(e);
+            } else {
+                storage::PaymentTokenData::temporary_generic(token_data_string)
+            }
+        }
+    };
+
+    Ok(token_data)
+}
+
 pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
@@ -1630,72 +1714,13 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         }
     }
 
-    let token = payment_data.token.clone();
-
-    let hyperswitch_token = match payment_data.mandate_id {
-        Some(_) => token.map(storage::PaymentTokenData::temporary_generic),
-        None => {
-            if let Some(token) = token {
-                let redis_conn = state
-                    .store
-                    .get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")?;
-
-                let key = format!(
-                    "pm_token_{}_{}_hyperswitch",
-                    token,
-                    payment_data
-                        .payment_attempt
-                        .payment_method
-                        .to_owned()
-                        .get_required_value("payment_method")?,
-                );
-
-                let token_data_string = redis_conn
-                    .get_key::<Option<String>>(&key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch the token from redis")?
-                    .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity {
-                            message: "Token is invalid or expired".to_owned(),
-                        },
-                    ))?;
-
-                let token_data_result = token_data_string
-                    .clone()
-                    .parse_struct("PaymentTokenData")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to deserialize hyperswitch token data");
-
-                let token_data = match token_data_result {
-                    Ok(data) => data,
-                    Err(e) => {
-                        // The purpose of this logic is backwards compatibility to support tokens
-                        // in redis that might be following the old format.
-                        if token_data_string.starts_with('{') {
-                            return Err(e);
-                        } else {
-                            storage::PaymentTokenData::temporary_generic(token_data_string)
-                        }
-                    }
-                };
-
-                Some(token_data)
-            } else {
-                None
-            }
-        }
-    };
-
     // TODO: Handle case where payment method and token both are present in request properly.
-    let (payment_method, pm_id) = match (request, hyperswitch_token) {
+    let (payment_method, pm_id) = match (request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
             let pm_data = Ctx::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
-                &hyperswitch_token,
+                hyperswitch_token,
                 &payment_data.payment_intent,
                 card_token_data.as_ref(),
                 customer,
