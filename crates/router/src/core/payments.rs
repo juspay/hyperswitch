@@ -1743,6 +1743,7 @@ where
     Ok(router_data_and_should_continue_payment)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn complete_postprocessing_steps_if_required<F, Q, Ctx, RouterDReq>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,

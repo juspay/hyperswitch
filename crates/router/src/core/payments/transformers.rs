@@ -29,6 +29,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
@@ -855,7 +856,7 @@ where
                     payment_attempt
                         .payment_method
                         .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::BankRedirect))
-                        .map(|first_match| {
+                        .and_then(|first_match| {
                             payment_attempt
                                 .payment_method_type
                                 .map(|pmt| {
@@ -866,7 +867,6 @@ where
                                 })
                                 .map(|second_match| first_match && second_match)
                         })
-                        .flatten()
                 } else {
                     Some(false)
                 }
