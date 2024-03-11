@@ -10,7 +10,7 @@ use clap::{arg, command, Parser};
 use masking::PeekInterface;
 use regex::Regex;
 
-use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
+use crate::connector_auth::{CollectionAuthType, ConnectorAuthenticationMap};
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
@@ -118,13 +118,13 @@ pub fn generate_newman_command() -> ReturnArgs {
 
     if let Some(auth_type) = inner_map.get(connector_name) {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => {
+            CollectionAuthType::HeaderKey { api_key } => {
                 newman_command.args([
                     "--env-var",
                     &format!("connector_api_key={}", api_key.peek()),
                 ]);
             }
-            ConnectorAuthType::BodyKey { api_key, key1 } => {
+            CollectionAuthType::BodyKey { api_key, key1 } => {
                 newman_command.args([
                     "--env-var",
                     &format!("connector_api_key={}", api_key.peek()),
@@ -132,7 +132,7 @@ pub fn generate_newman_command() -> ReturnArgs {
                     &format!("connector_key1={}", key1.peek()),
                 ]);
             }
-            ConnectorAuthType::SignatureKey {
+            CollectionAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -146,7 +146,7 @@ pub fn generate_newman_command() -> ReturnArgs {
                     &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
-            ConnectorAuthType::MultiAuthKey {
+            CollectionAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 key2,
@@ -163,7 +163,21 @@ pub fn generate_newman_command() -> ReturnArgs {
                     &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
-            // Handle other ConnectorAuthType variants
+            CollectionAuthType::PayoutKeys { adyen, wise } => {
+                newman_command.args([
+                    "--env-var",
+                    &format!("adyen_api_key={}", adyen.api_key.peek()),
+                    "--env-var",
+                    &format!("adyen_key1={}", adyen.key1.peek()),
+                    "--env-var",
+                    &format!("adyen_api_secret={}", adyen.api_secret.peek()),
+                    "--env-var",
+                    &format!("wise_api_key={}", wise.api_key.peek()),
+                    "--env-var",
+                    &format!("wise_key1={}", wise.key1.peek()),
+                ]);
+            }
+            // Handle other CollectionAuthType variants
             _ => {
                 eprintln!("Invalid authentication type.");
             }

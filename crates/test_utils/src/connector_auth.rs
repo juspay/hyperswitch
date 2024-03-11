@@ -93,7 +93,7 @@ impl ConnectorAuthentication {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct ConnectorAuthenticationMap(HashMap<String, ConnectorAuthType>);
+pub struct ConnectorAuthenticationMap(HashMap<String, CollectionAuthType>);
 
 impl Default for ConnectorAuthenticationMap {
     fn default() -> Self {
@@ -104,7 +104,7 @@ impl Default for ConnectorAuthenticationMap {
 // This is a temporary solution to avoid rust compiler from complaining about unused function
 #[allow(dead_code)]
 impl ConnectorAuthenticationMap {
-    pub fn inner(&self) -> &HashMap<String, ConnectorAuthType> {
+    pub fn inner(&self) -> &HashMap<String, CollectionAuthType> {
         &self.0
     }
 
@@ -159,51 +159,101 @@ impl ConnectorAuthenticationMap {
                             table.get("key1"),
                             table.get("api_secret"),
                             table.get("key2"),
+                            table.get("adyen"),
+                            table.get("wise"),
                         ) {
-                            (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: Secret::new(
-                                    api_key.as_str().unwrap_or_default().to_string(),
-                                ),
-                            },
-                            (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
+                            (Some(api_key), None, None, None, None, None) => {
+                                CollectionAuthType::HeaderKey {
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                }
+                            }
+                            (Some(api_key), Some(key1), None, None, None, None) => {
+                                CollectionAuthType::BodyKey {
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                }
+                            }
+                            (Some(api_key), Some(key1), Some(api_secret), None, None, None) => {
+                                CollectionAuthType::SignatureKey {
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    api_secret: Secret::new(
+                                        api_secret.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                }
+                            }
+                            (
+                                Some(api_key),
+                                Some(key1),
+                                Some(api_secret),
+                                Some(key2),
+                                None,
+                                None,
+                            ) => CollectionAuthType::MultiAuthKey {
                                 api_key: Secret::new(
                                     api_key.as_str().unwrap_or_default().to_string(),
                                 ),
                                 key1: Secret::new(key1.as_str().unwrap_or_default().to_string()),
+                                api_secret: Secret::new(
+                                    api_secret.as_str().unwrap_or_default().to_string(),
+                                ),
+                                key2: Secret::new(key2.as_str().unwrap_or_default().to_string()),
                             },
-                            (Some(api_key), Some(key1), Some(api_secret), None) => {
-                                ConnectorAuthType::SignatureKey {
-                                    api_key: Secret::new(
-                                        api_key.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                }
-                            }
-                            (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
-                                ConnectorAuthType::MultiAuthKey {
-                                    api_key: Secret::new(
-                                        api_key.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key2: Secret::new(
-                                        key2.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                }
-                            }
-                            _ => ConnectorAuthType::NoKey,
+
+                            (None, None, None, None, Some(adyen), Some(wise)) => match (
+                                adyen.get("api_key"),
+                                adyen.get("key1"),
+                                adyen.get("api_secret"),
+                                wise.get("api_key"),
+                                wise.get("key1"),
+                            ) {
+                                (
+                                    Some(adyen_api_key),
+                                    Some(adyen_key1),
+                                    Some(adyen_api_secret),
+                                    Some(wise_api_key),
+                                    Some(wise_key1),
+                                ) => CollectionAuthType::PayoutKeys {
+                                    adyen: SignatureKey {
+                                        api_key: Secret::new(
+                                            adyen_api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            adyen_key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        api_secret: Secret::new(
+                                            adyen_api_secret
+                                                .as_str()
+                                                .unwrap_or_default()
+                                                .to_string(),
+                                        ),
+                                    },
+                                    wise: BodyKey {
+                                        api_key: Secret::new(
+                                            wise_api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            wise_key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    },
+                                },
+                                _ => CollectionAuthType::NoKey,
+                            },
+
+                            _ => CollectionAuthType::NoKey,
                         }
                     }
-                    _ => ConnectorAuthType::NoKey,
+                    _ => CollectionAuthType::NoKey,
                 };
                 (connector_name, auth_type)
             })
@@ -218,7 +268,7 @@ pub struct HeaderKey {
     pub api_key: Secret<String>,
 }
 
-impl From<HeaderKey> for ConnectorAuthType {
+impl From<HeaderKey> for CollectionAuthType {
     fn from(key: HeaderKey) -> Self {
         Self::HeaderKey {
             api_key: key.api_key,
@@ -232,7 +282,7 @@ pub struct BodyKey {
     pub key1: Secret<String>,
 }
 
-impl From<BodyKey> for ConnectorAuthType {
+impl From<BodyKey> for CollectionAuthType {
     fn from(key: BodyKey) -> Self {
         Self::BodyKey {
             api_key: key.api_key,
@@ -248,7 +298,7 @@ pub struct SignatureKey {
     pub api_secret: Secret<String>,
 }
 
-impl From<SignatureKey> for ConnectorAuthType {
+impl From<SignatureKey> for CollectionAuthType {
     fn from(key: SignatureKey) -> Self {
         Self::SignatureKey {
             api_key: key.api_key,
@@ -266,7 +316,7 @@ pub struct MultiAuthKey {
     pub key2: Secret<String>,
 }
 
-impl From<MultiAuthKey> for ConnectorAuthType {
+impl From<MultiAuthKey> for CollectionAuthType {
     fn from(key: MultiAuthKey) -> Self {
         Self::MultiAuthKey {
             api_key: key.api_key,
@@ -307,7 +357,7 @@ pub struct AutomationConfigs {
 
 #[derive(Default, Debug, Clone, serde::Deserialize)]
 #[serde(tag = "auth_type")]
-pub enum ConnectorAuthType {
+pub enum CollectionAuthType {
     HeaderKey {
         api_key: Secret<String>,
     },
@@ -325,6 +375,10 @@ pub enum ConnectorAuthType {
         key1: Secret<String>,
         api_secret: Secret<String>,
         key2: Secret<String>,
+    },
+    PayoutKeys {
+        adyen: SignatureKey,
+        wise: BodyKey,
     },
     #[default]
     NoKey,
