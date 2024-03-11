@@ -363,6 +363,7 @@ impl ConnectorData {
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Placetopay => Ok(Box::new(&connector::Placetopay)),
+                enums::Connector::Plaid => Ok(Box::new(&connector::Plaid)),
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Prophetpay => Ok(Box::new(&connector::Prophetpay)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
@@ -381,7 +382,6 @@ impl ConnectorData {
                 enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd
-                | enums::Connector::Plaid
                 | enums::Connector::Riskified
                 | enums::Connector::Threedsecureio => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)

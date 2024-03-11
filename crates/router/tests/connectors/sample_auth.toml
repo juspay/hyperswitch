@@ -119,38 +119,38 @@ api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
 [opayo]
-api_key="API Key"
+api_key = "API Key"
 
 [wise]
 api_key = "API Key"
 key1 = "Profile ID"
 
 [automation_configs]
-hs_base_url="http://localhost:8080"
-hs_test_browser="firefox"
-chrome_profile_path=""
-firefox_profile_path=""
-pypl_email=""
-pypl_pass=""
-gmail_email=""
-gmail_pass=""
+hs_base_url = "http://localhost:8080"
+hs_test_browser = "firefox"
+chrome_profile_path = ""
+firefox_profile_path = ""
+pypl_email = ""
+pypl_pass = ""
+gmail_email = ""
+gmail_pass = ""
 
 [payme]
 # Open api key
-api_key="seller payme id"
-key1="payme client key"
+api_key = "seller payme id"
+key1 = "payme client key"
 
 [cryptopay]
 api_key = "api_key"
 key1 = "key1"
 
 [cashtocode]
-api_key="Classic PMT API Key"
+api_key = "Classic PMT API Key"
 key1 = "Evoucher PMT API Key"
 
 
 [tsys]
-api_key="device id"
+api_key = "device id"
 key1 = "transaction key"
 api_secret = "developer id"
 
@@ -159,31 +159,31 @@ api_key = "Partner code"
 key1 = "Credential code"
 
 [powertranz]
-api_key="PowerTranz-PowerTranzPassword"
+api_key = "PowerTranz-PowerTranzPassword"
 key1 = "PowerTranz-PowerTranzId"
 
 [stax]
-api_key="API Key"
+api_key = "API Key"
 
 [boku]
-api_key="API Key"
+api_key = "API Key"
 key1 = "transaction key"
 
 [square]
-api_key="API Key"
+api_key = "API Key"
 key1 = "transaction key"
 
 [helcim]
-api_key="API Key"
+api_key = "API Key"
 
 [gocardless]
-api_key="API Key"
+api_key = "API Key"
 
 [volt]
-api_key="API Key"
+api_key = "API Key"
 
 [prophetpay]
-api_key="API Key"
+api_key = "API Key"
 
 [bankofamerica]
 api_key = "MyApiKey"
@@ -191,10 +191,12 @@ key1 = "Merchant id"
 api_secret = "Secret key"
 
 [placetopay]
-api_key= "Login"
-key1= "Trankey"
+api_key = "Login"
+key1 = "Trankey"
 
 
 [threedsecureio]
-api_key="API Key"
+api_key = "API Key"
 
+[plaid]
+api_key = "API Key"

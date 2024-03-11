@@ -163,6 +163,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Plaid,
 }
 
 impl AttemptStatus {
@@ -1345,6 +1346,7 @@ pub enum PaymentMethodType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    OpenBanking,
 }
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.

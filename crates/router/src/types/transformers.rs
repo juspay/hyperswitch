@@ -216,12 +216,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Payu => Self::Payu,
             api_models::enums::Connector::Placetopay => Self::Placetopay,
-            api_enums::Connector::Plaid => {
-                Err(common_utils::errors::ValidationError::InvalidValue {
-                    message: "plaid is not a routable connector".to_string(),
-                })
-                .into_report()?
-            }
+            api_enums::Connector::Plaid => Self::Plaid,
             api_enums::Connector::Powertranz => Self::Powertranz,
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
@@ -417,6 +412,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::OpenBankingUk
+            | api_enums::PaymentMethodType::OpenBanking
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum

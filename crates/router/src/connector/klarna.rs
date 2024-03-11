@@ -385,6 +385,7 @@ impl
                     | api_models::enums::PaymentMethodType::PagoEfectivo
                     | api_models::enums::PaymentMethodType::PermataBankTransfer
                     | api_models::enums::PaymentMethodType::OpenBankingUk
+                    | api_models::enums::PaymentMethodType::OpenBanking
                     | api_models::enums::PaymentMethodType::PayBright
                     | api_models::enums::PaymentMethodType::Paypal
                     | api_models::enums::PaymentMethodType::Pix

@@ -32,6 +32,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -50,6 +51,7 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
     }
@@ -177,6 +179,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         authorize_preprocessing_steps(state, &self, true, connector).await
+    }
+
+    async fn postprocessing_steps<'a>(
+        self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        authorize_postprocessing_steps(state, &self, true, connector).await
     }
 
     async fn create_connector_customer<'a>(
@@ -368,6 +378,58 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
     }
 }
 
+pub async fn authorize_postprocessing_steps<F: Clone>(
+    state: &AppState,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+    if confirm {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PostProcessing,
+            types::PaymentsPostProcessingData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let postprocessing_request_data =
+            types::PaymentsPostProcessingData::try_from(router_data.request.to_owned())?;
+
+        let postprocessing_response_data: Result<
+            types::PaymentsResponseData,
+            types::ErrorResponse,
+        > = Err(types::ErrorResponse::default());
+
+        let postprocessing_router_data =
+            payments::helpers::router_data_type_conversion::<_, api::PostProcessing, _, _, _, _>(
+                router_data.clone(),
+                postprocessing_request_data,
+                postprocessing_response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &postprocessing_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        let authorize_router_data =
+            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+                resp.clone(),
+                router_data.request.to_owned(),
+                resp.response,
+            );
+
+        Ok(authorize_router_data)
+    } else {
+        Ok(router_data.clone())
+    }
+}
+
 impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
     for types::ConnectorCustomerData
 {
@@ -420,6 +482,29 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             surcharge_details: data.surcharge_details,
             connector_transaction_id: None,
             redirect_response: None,
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPostProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: data.amount,
+            email: data.email,
+            currency: data.currency,
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: data.related_transaction_id,
+            customer_id: data.customer_id,
         })
     }
 }
