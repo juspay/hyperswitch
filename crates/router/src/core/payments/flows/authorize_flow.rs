@@ -100,6 +100,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         merchant_account,
                         self.request.payment_method_type,
                         key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
                     ))
                     .await?;
 
@@ -127,16 +129,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 tokio::spawn(async move {
                     logger::info!("Starting async call to save_payment_method in locker");
 
-                let pm = Box::pin(tokenization::save_payment_method(
-                    &state,
-                    &connector,
-                    response,
-                    &maybe_customer,
-                    &merchant_account,
-                    self.request.payment_method_type,
-                    &key_store,
-                ))
-                .await;
+                    let result = Box::pin(tokenization::save_payment_method(
+                        &state,
+                        &connector,
+                        response,
+                        &maybe_customer,
+                        &merchant_account,
+                        self.request.payment_method_type,
+                        &key_store,
+                        Some(resp.request.amount),
+                        Some(resp.request.currency),
+                    ))
+                    .await;
 
                 match pm {
                     Ok((payment_method_id, payment_method_status)) => {
