@@ -411,10 +411,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let printrequest = crate::utils::Encode::encode_to_string_of_json(&response)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
-
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
