@@ -214,7 +214,7 @@ impl Connector {
             Self::Checkout => true,
         }
         #[cfg(not(feature = "dummy_connector"))]
-        match connector {
+        match self {
             Self::Aci
             | Self::Adyen
             | Self::Airwallex
