@@ -463,7 +463,6 @@ pub enum CheckoutPaymentStatus {
     Refunded,
     Canceled,
     Expired,
-    Paid,
 }
 
 impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
@@ -528,7 +527,6 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
             }
             CheckoutPaymentStatus::Canceled => Self::Voided,
             CheckoutPaymentStatus::Expired => Self::Failure,
-            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }
@@ -558,7 +556,6 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
             }
             CheckoutPaymentStatus::Canceled => Self::Voided,
             CheckoutPaymentStatus::Expired => Self::Failure,
-            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }
@@ -591,7 +588,6 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
             }
             CheckoutPaymentStatus::Canceled => Self::Voided,
             CheckoutPaymentStatus::Expired => Self::Failure,
-            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }
