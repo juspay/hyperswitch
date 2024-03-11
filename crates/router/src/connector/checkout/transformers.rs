@@ -455,6 +455,15 @@ pub enum CheckoutPaymentStatus {
     Captured,
     #[serde(rename = "Retry Scheduled")]
     RetryScheduled,
+    Voided,
+    #[serde(rename = "Partially Captured")]
+    PartiallyCaptured,
+    #[serde(rename = "Partially Refunded")]
+    PartiallyRefunded,
+    Refunded,
+    Canceled,
+    Expired,
+    Paid,
 }
 
 impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
@@ -471,10 +480,10 @@ impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
             | CheckoutWebhookEventType::AuthenticationFailed
             | CheckoutWebhookEventType::PaymentAuthenticationFailed
             | CheckoutWebhookEventType::PaymentCaptureDeclined => Ok(Self::Declined),
+            CheckoutWebhookEventType::PaymentCanceled => Ok(Self::Canceled),
+            CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
             CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
-            | CheckoutWebhookEventType::PaymentCanceled
-            | CheckoutWebhookEventType::PaymentVoided
             | CheckoutWebhookEventType::DisputeReceived
             | CheckoutWebhookEventType::DisputeExpired
             | CheckoutWebhookEventType::DisputeAccepted
@@ -512,6 +521,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
+            CheckoutPaymentStatus::Voided => Self::Voided,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
+                Self::Charged
+            }
+            CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }
@@ -534,6 +551,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
+            CheckoutPaymentStatus::Voided => Self::Voided,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
+                Self::Charged
+            }
+            CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }
@@ -559,6 +584,14 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
+            CheckoutPaymentStatus::Voided => Self::Voided,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
+                Self::Charged
+            }
+            CheckoutPaymentStatus::Canceled => Self::Voided,
+            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Paid => Self::Pending,
         }
     }
 }

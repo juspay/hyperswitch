@@ -1272,8 +1272,12 @@ impl api::IncomingWebhook for Checkout {
                 refund_reference,
             ));
         }
+        let reference_id = match details.data.reference {
+            Some(reference) => api_models::payments::PaymentIdType::PaymentAttemptId(reference),
+            None => api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+        };
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+            reference_id,
         ))
     }
 
