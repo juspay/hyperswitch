@@ -2031,15 +2031,10 @@ pub mod payment_address {
     use super::*;
 
     #[derive(Clone, Default, Debug)]
-    struct Private;
-
-    #[derive(Clone, Default, Debug)]
     pub struct PaymentAddress {
         shipping: Option<api::Address>,
         billing: Option<api::Address>,
         payment_method_billing: Option<api::Address>,
-        /// To restrict direct construction of PaymentAddress
-        _private: Private,
     }
 
     impl PaymentAddress {
@@ -2063,7 +2058,6 @@ pub mod payment_address {
                 shipping,
                 billing,
                 payment_method_billing,
-                _private: Private,
             }
         }
 
