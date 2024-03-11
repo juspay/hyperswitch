@@ -654,6 +654,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::OnlineBankingPoland
             | enums::PaymentMethodType::OnlineBankingSlovakia
             | enums::PaymentMethodType::OpenBankingUk
+            | enums::PaymentMethodType::OpenBanking
             | enums::PaymentMethodType::PagoEfectivo
             | enums::PaymentMethodType::PayBright
             | enums::PaymentMethodType::Pse
@@ -952,6 +953,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodType {
             | payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
+            | payments::BankRedirectData::OpenBanking { .. }
             | payments::BankRedirectData::Trustly { .. } => {
                 Err(errors::ConnectorError::NotSupported {
                     message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),
@@ -1183,6 +1185,7 @@ impl TryFrom<(&payments::BankRedirectData, Option<bool>)> for StripeBillingAddre
             | payments::BankRedirectData::Trustly { .. }
             | payments::BankRedirectData::OnlineBankingFpx { .. }
             | payments::BankRedirectData::OnlineBankingThailand { .. }
+            | payments::BankRedirectData::OpenBanking { .. }
             | payments::BankRedirectData::OpenBankingUk { .. } => Ok(Self::default()),
         }
     }
@@ -1680,6 +1683,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             | payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | payments::BankRedirectData::OnlineBankingThailand { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
+            | payments::BankRedirectData::OpenBanking { .. }
             | payments::BankRedirectData::Trustly { .. } => {
                 Err(errors::ConnectorError::NotSupported {
                     message: connector_util::SELECTED_PAYMENT_METHOD.to_string(),

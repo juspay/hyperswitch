@@ -116,6 +116,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub connector_onboarding: SecretStateContainer<ConnectorOnboarding, S>,
     pub unmasked_headers: UnmaskedHeaders,
+    pub locker_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -511,6 +512,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub placetopay: ConnectorParams,
+    pub plaid: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
@@ -622,6 +624,11 @@ pub struct ApplePayDecryptConifg {
     pub apple_pay_ppc_key: Secret<String>,
     pub apple_pay_merchant_cert: Secret<String>,
     pub apple_pay_merchant_cert_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct LockerBasedRecipientConnectorList {
+    pub connector_list: HashSet<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

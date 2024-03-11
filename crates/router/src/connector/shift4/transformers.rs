@@ -411,6 +411,7 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             | payments::BankRedirectData::OnlineBankingPoland { .. }
             | payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | payments::BankRedirectData::OpenBankingUk { .. }
+            | payments::BankRedirectData::OpenBanking { .. }
             | payments::BankRedirectData::OnlineBankingFpx { .. }
             | payments::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

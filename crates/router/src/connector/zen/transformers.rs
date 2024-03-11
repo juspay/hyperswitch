@@ -737,6 +737,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::OpenBanking { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

@@ -49,7 +49,7 @@ use crate::{
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, MandateReference, RouterData,
+        ConnectorAuthType, ErrorResponse, MandateReference, MerchantRecipientData, RouterData,
     },
     utils::{
         self,
@@ -2027,6 +2027,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
                 | api_enums::PaymentMethodType::OpenBankingUk
+                | api_enums::PaymentMethodType::OpenBanking
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -4012,5 +4013,21 @@ pub fn validate_mandate_data_and_future_usage(
         })
     } else {
         Ok(())
+    }
+}
+
+pub fn get_recipient_id_from_open_banking_auth(
+    auth: &ConnectorAuthType,
+) -> Result<Option<String>, errors::ApiErrorResponse> {
+    match auth {
+        ConnectorAuthType::OpenBankingAuth {
+            api_key: _,
+            key1: _,
+            merchant_data,
+        } => match merchant_data {
+            MerchantRecipientData::RecipientId(id) => Ok(Some(id.peek().to_string())),
+            _ => Err(errors::ApiErrorResponse::InternalServerError),
+        },
+        _ => Ok(None),
     }
 }
