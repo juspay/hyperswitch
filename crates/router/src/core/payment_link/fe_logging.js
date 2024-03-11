@@ -27,7 +27,7 @@ function parseRoute(url) {
   }
   
   async function postLog(log) {
-    const url = "/logs/redirection";
+    const url = "https://sandbox.hyperswitch.io/logs/redirection";
     try {
       const response = await fetch(url, {
         method: "POST",
