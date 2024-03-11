@@ -9,12 +9,10 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
-#[cfg(feature = "payouts")]
-use crate::{connector::utils::AddressDetailsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
-        self, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData,
-        RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
+        PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -29,6 +27,8 @@ use crate::{
     },
     utils as crate_utils,
 };
+#[cfg(feature = "payouts")]
+use crate::{types::api::payouts, utils::OptionExt};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
