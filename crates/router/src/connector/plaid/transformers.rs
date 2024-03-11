@@ -217,7 +217,7 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
             types::ConnectorAuthType::OpenBankingAuth {
                 api_key,
                 key1,
-                merchant_data,
+                ..
             } => Ok(Self {
                 client_id: api_key.to_owned(),
                 secret: key1.to_owned(),
