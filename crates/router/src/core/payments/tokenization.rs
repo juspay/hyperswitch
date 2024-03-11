@@ -39,10 +39,11 @@ pub async fn save_payment_method<F: Clone, FData>(
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
-) -> RouterResult<Option<String>>
+) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour,
 {
+    let mut pm_status = None;
     match resp.response {
         Ok(responses) => {
             let db = &*state.store;
@@ -120,6 +121,7 @@ where
                     )
                     .await?
                 } else {
+                    pm_status = Some(common_enums::PaymentMethodStatus::from(resp.status));
                     Box::pin(save_in_locker(
                         state,
                         merchant_account,
@@ -401,9 +403,9 @@ where
             } else {
                 None
             };
-            Ok(pm_id)
+            Ok((pm_id, pm_status))
         }
-        Err(_) => Ok(None),
+        Err(_) => Ok((None, None)),
     }
 }
 

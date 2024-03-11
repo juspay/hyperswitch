@@ -261,6 +261,7 @@ where
                         None,
                     )
                     .await?;
+
                     let operation = Box::new(PaymentResponse);
 
                     connector_http_status_code = router_data.connector_http_status_code;
@@ -1927,7 +1928,7 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    let (_operation, payment_method_data) = operation
+                    let (_operation, payment_method_data, pm_id) = operation
                         .to_domain()?
                         .make_pm_data(
                             state,
@@ -1938,12 +1939,14 @@ where
                         )
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
+                    payment_data.payment_attempt.payment_method_id = pm_id;
+
                     TokenizationAction::SkipConnectorTokenization
                 }
 
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
-                    let (_operation, payment_method_data) = operation
+                    let (_operation, payment_method_data, pm_id) = operation
                         .to_domain()?
                         .make_pm_data(
                             state,
@@ -1955,6 +1958,7 @@ where
                         .await?;
 
                     payment_data.payment_method_data = payment_method_data;
+                    payment_data.payment_attempt.payment_method_id = pm_id;
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
@@ -1996,7 +2000,7 @@ where
 {
     // On confirm is false and only router related
     let payment_data = if !is_operation_confirm(operation) {
-        let (_operation, payment_method_data) = operation
+        let (_operation, payment_method_data, pm_id) = operation
             .to_domain()?
             .make_pm_data(
                 state,
@@ -2007,6 +2011,7 @@ where
             )
             .await?;
         payment_data.payment_method_data = payment_method_data;
+        payment_data.payment_attempt.payment_method_id = pm_id;
         payment_data
     } else {
         payment_data
@@ -2078,6 +2083,7 @@ where
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
     pub authentication: Option<(storage::Authentication, AuthenticationData)>,
     pub frm_metadata: Option<serde_json::Value>,
+    pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[derive(Debug, Default, Clone)]

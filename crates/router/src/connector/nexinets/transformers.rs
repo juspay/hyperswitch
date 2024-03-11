@@ -3,7 +3,7 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -86,7 +86,7 @@ pub struct CardDetails {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInstrument {
-    payment_instrument_id: Option<String>,
+    payment_instrument_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -357,7 +357,7 @@ impl<F, T>
             .payment_instrument
             .payment_instrument_id
             .map(|id| types::MandateReference {
-                connector_mandate_id: Some(id),
+                connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
             });
         Ok(Self {
@@ -641,7 +641,7 @@ fn get_card_data(
         true => {
             let card_data = match item.request.off_session {
                 Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
-                    payment_instrument_id: item.request.connector_mandate_id(),
+                    payment_instrument_id: item.request.connector_mandate_id().map(Secret::new),
                 })),
                 _ => CardDataDetails::CardDetails(Box::new(get_card_details(card)?)),
             };

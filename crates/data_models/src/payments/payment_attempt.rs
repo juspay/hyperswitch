@@ -323,6 +323,7 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<String>,
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
+        payment_method_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
