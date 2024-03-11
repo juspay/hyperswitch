@@ -514,19 +514,16 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided => Self::Voided,
-            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
-                Self::Charged
-            }
-            CheckoutPaymentStatus::Canceled => Self::Voided,
-            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
         }
     }
 }
@@ -543,19 +540,16 @@ impl ForeignFrom<(CheckoutPaymentStatus, CheckoutPaymentIntent)> for enums::Atte
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided => Self::Voided,
-            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
-                Self::Charged
-            }
-            CheckoutPaymentStatus::Canceled => Self::Voided,
-            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
         }
     }
 }
@@ -575,19 +569,16 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
                     Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => Self::Charged,
-            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Captured
+            | CheckoutPaymentStatus::PartiallyRefunded
+            | CheckoutPaymentStatus::Refunded => Self::Charged,
+            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            CheckoutPaymentStatus::Declined | CheckoutPaymentStatus::Expired => Self::Failure,
             CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
             CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
                 Self::Pending
             }
-            CheckoutPaymentStatus::Voided => Self::Voided,
-            CheckoutPaymentStatus::PartiallyCaptured => Self::PartialCharged,
-            CheckoutPaymentStatus::PartiallyRefunded | CheckoutPaymentStatus::Refunded => {
-                Self::Charged
-            }
-            CheckoutPaymentStatus::Canceled => Self::Voided,
-            CheckoutPaymentStatus::Expired => Self::Failure,
+            CheckoutPaymentStatus::Voided | CheckoutPaymentStatus::Canceled => Self::Voided,
         }
     }
 }
