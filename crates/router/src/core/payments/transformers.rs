@@ -408,6 +408,11 @@ where
         )
     };
 
+    let external_authentication_details = payment_data
+        .authentication
+        .as_ref()
+        .map(ForeignInto::foreign_into);
+
     let attempts_response = payment_data.attempts.map(|attempts| {
         attempts
             .into_iter()
@@ -518,6 +523,7 @@ where
                     || next_action_voucher.is_some()
                     || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
+                    || payment_data.authentication.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -547,7 +553,48 @@ where
                                     &payment_intent,
                                 ),
                             }
-                        }));
+                        }))
+                        .or(match payment_data.authentication.as_ref(){
+                            Some((_authentication, authentication_data)) => {
+                                if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_data.cavv.is_none() && authentication_data.is_separate_authn_required(){
+                                    // if preAuthn and separate authentication needed.
+                                    let payment_id = payment_attempt.payment_id.clone();
+                                    let base_url = server.base_url.clone();
+                                    let payment_connector_name = payment_attempt.connector
+                                        .as_ref()
+                                        .get_required_value("connector")?;
+                                    Some(api_models::payments::NextActionData::ThreeDsInvoke {
+                                        three_ds_data: api_models::payments::ThreeDsData {
+                                            three_ds_authentication_url: format!(
+                                                "{base_url}/payments/{payment_id}/3ds/authentication"
+                                            ),
+                                            three_ds_authorize_url: helpers::create_authorize_url(
+                                                &server.base_url,
+                                                &payment_attempt,
+                                                payment_connector_name,
+                                            ),
+                                            three_ds_method_details: authentication_data.three_ds_method_data.three_ds_method_url.as_ref().map(|three_ds_method_url|{
+                                                api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                    three_ds_method_data_submission: true,
+                                                    three_ds_method_data: authentication_data
+                                                        .three_ds_method_data
+                                                        .three_ds_method_data
+                                                        .clone(),
+                                                    three_ds_method_url: Some(three_ds_method_url.to_owned()),
+                                                }
+                                            }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
+                                                    three_ds_method_data_submission: false,
+                                                    three_ds_method_data: "".into(),
+                                                    three_ds_method_url: None,
+                                            }),
+                                        },
+                                    })
+                                }else{
+                                    None
+                                }
+                            },
+                            None => None
+                        });
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
@@ -714,10 +761,14 @@ where
                         .set_incremental_authorization_allowed(
                             payment_intent.incremental_authorization_allowed,
                         )
+                        .set_external_authentication_details(external_authentication_details)
                         .set_fingerprint(payment_intent.fingerprint_id)
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
+                        .set_request_external_3ds_authentication(
+                            payment_attempt.external_three_ds_authentication_attempted,
+                        )
                         .to_owned(),
                     headers,
                 ))
@@ -784,7 +835,10 @@ where
                 incremental_authorization_allowed: payment_intent.incremental_authorization_allowed,
                 authorization_count: payment_intent.authorization_count,
                 incremental_authorizations: incremental_authorizations_response,
+                external_authentication_details,
                 expires_on: payment_intent.session_expiry,
+                request_external_3ds_authentication: payment_attempt
+                    .external_three_ds_authentication_attempted,
                 ..Default::default()
             },
             headers,
@@ -1141,7 +1195,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
-            authentication_data: None,
+            authentication_data: payment_data.authentication.map(|auth| auth.1),
             customer_acceptance: payment_data.customer_acceptance,
         })
     }
