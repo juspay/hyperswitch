@@ -22,7 +22,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        cavv: Option<String>,
+        authentication_value: Option<String>,
         trans_status: api_models::payments::TransactionStatus,
     },
     PostAuthNResponse {
@@ -51,7 +51,8 @@ pub enum AuthNFlowType {
 #[derive(Clone, Default, Debug)]
 pub struct PreAuthNRequestData {
     // card number
-    pub card_holder_account_number: CardNumber,
+    #[allow(dead_code)]
+    pub(crate) card_holder_account_number: CardNumber,
 }
 
 #[derive(Clone, Debug)]

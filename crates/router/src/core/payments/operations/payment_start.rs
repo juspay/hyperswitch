@@ -172,9 +172,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             redirect_response: None,
             surcharge_details: None,
             frm_message: None,
+            payment_method_status: None,
             payment_link_data: None,
             incremental_authorization_details: None,
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 
@@ -294,6 +296,7 @@ where
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest, Ctx>,
         Option<api::PaymentMethodData>,
+        Option<String>,
     )> {
         if payment_data
             .payment_attempt
@@ -311,7 +314,7 @@ where
             )
             .await
         } else {
-            Ok((Box::new(self), None))
+            Ok((Box::new(self), None, None))
         }
     }
 

@@ -382,7 +382,8 @@ impl ConnectorData {
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
-                | enums::Connector::Riskified => {
+                | enums::Connector::Riskified
+                | enums::Connector::Threedsecureio => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
