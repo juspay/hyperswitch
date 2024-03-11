@@ -25,6 +25,7 @@ use crate::{
 };
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
