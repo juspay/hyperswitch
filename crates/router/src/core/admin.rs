@@ -2062,7 +2062,7 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
                     message: "IBAN length must be up to 34 characters".to_string(),
                 }
                 .into());
-            } else {
+            }
                 let pattern = Regex::new(r"^[A-Z0-9]*$")
                     .into_report()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2117,7 +2117,7 @@ fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult
                 }
 
                 Ok(())
-            }
+
         }
         types::MerchantAccountData::Bacs {
             account_number,
