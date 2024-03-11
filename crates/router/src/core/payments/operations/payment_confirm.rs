@@ -770,7 +770,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                     .attach_printable(
                         "Error while parsing authentication_details from merchant_account",
                     )?;
-            let authentication_connector = authentication_details
+            let authentication_connector_name = authentication_details
                 .authentication_connectors
                 .first()
                 .ok_or(errors::ApiErrorResponse::UnprocessableEntity { message: format!("No authentication_connector found for profile_id {}", business_profile.profile_id) })
@@ -783,26 +783,23 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                 .as_ref()
                 .get_required_value("profile_id")
                 .attach_printable("'profile_id' not set in payment intent")?;
-            let merchant_connector_account = helpers::get_merchant_connector_account(
+            let authentication_connector_mca = helpers::get_merchant_connector_account(
                 state,
                 &business_profile.merchant_id,
                 None,
                 key_store,
                 profile_id,
-                &authentication_connector,
+                &authentication_connector_name,
                 None,
             )
             .await?;
-            let authentication_connector_name = merchant_connector_account
-                .get_connector_name()
-                .ok_or(report!(errors::ApiErrorResponse::InternalServerError))?;
             if let Some(authentication_data) = authentication {
                 // call post authn service
                 authentication::perform_post_authentication(
                     state,
                     authentication_connector_name.clone(),
                     business_profile.clone(),
-                    merchant_connector_account,
+                    authentication_connector_mca,
                     authentication::types::PostAuthenthenticationFlowInput::PaymentAuthNFlow {
                         payment_data,
                         authentication_data,
@@ -840,7 +837,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
                             card_number,
                         },
                         business_profile,
-                        merchant_connector_account,
+                        authentication_connector_mca,
                         payment_connector_mca,
                     )
                     .await?;

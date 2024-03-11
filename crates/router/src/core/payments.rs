@@ -165,9 +165,7 @@ where
     .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
-    let is_external_authentication_requested = payment_data
-        .payment_intent
-        .request_external_three_ds_authentication;
+
     payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
         state,
         &operation,
@@ -175,7 +173,6 @@ where
         &validate_result,
         &key_store,
         &customer,
-        is_external_authentication_requested,
     )
     .await?;
 
@@ -2068,13 +2065,15 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult<'_>,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-    is_external_authentication_requested: Option<bool>,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
     Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
+    let is_external_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication;
     let payment_data =
         if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
             let (_operation, payment_method_data) = operation
