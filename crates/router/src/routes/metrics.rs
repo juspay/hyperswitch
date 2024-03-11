@@ -118,7 +118,9 @@ counter_metric!(AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_PAYOUT_COUNT, GLOBAL_METER);
 
+// Scheduler / Process Tracker related metrics
 counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process tracker
+counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
 pub mod request;

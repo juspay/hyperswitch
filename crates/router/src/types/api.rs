@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod api_keys;
+pub mod authentication;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -28,8 +29,8 @@ use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_link::*,
-    payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
+    admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
+    payment_link::*, payment_methods::*, payments::*, payouts::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -174,6 +175,7 @@ pub trait Connector:
     + ConnectorVerifyWebhookSource
     + FraudCheck
     + ConnectorMandateRevoke
+    + ExternalAuthentication
 {
 }
 
@@ -195,7 +197,8 @@ impl<
             + Payouts
             + ConnectorVerifyWebhookSource
             + FraudCheck
-            + ConnectorMandateRevoke,
+            + ConnectorMandateRevoke
+            + ExternalAuthentication,
     > Connector for T
 {
 }
@@ -379,7 +382,8 @@ impl ConnectorData {
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd
                 | enums::Connector::Plaid
-                | enums::Connector::Riskified => {
+                | enums::Connector::Riskified
+                | enums::Connector::Threedsecureio => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

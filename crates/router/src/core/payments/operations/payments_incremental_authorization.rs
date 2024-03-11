@@ -120,10 +120,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
+            customer_acceptance: None,
             token: None,
             address: PaymentAddress {
                 billing: None,
                 shipping: None,
+                payment_method_billing: None,
             },
             confirm: None,
             payment_method_data: None,
@@ -150,6 +152,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 authorization_id: None,
             }),
             authorizations: vec![],
+            authentication: None,
             frm_metadata: None,
         };
 

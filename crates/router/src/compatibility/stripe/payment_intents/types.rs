@@ -336,7 +336,10 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodDataRequest {
+                        payment_method_data: payments::PaymentMethodData::from(spmd.to_owned()),
+                        billing: pmd.billing_details.clone().map(payments::Address::from),
+                    })
             }),
             payment_method: item
                 .payment_method_data
@@ -535,7 +538,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             capture_on: resp.capture_on,
             capture_method: resp.capture_method,
             payment_method: resp.payment_method,
-            payment_method_data: resp.payment_method_data.clone(),
+            payment_method_data: resp.payment_method_data.map(|pmd| pmd.payment_method_data),
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
@@ -865,6 +868,12 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+        },
+        payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
+            redirect_to_url: RedirectUrl {
+                return_url: None,
+                url: None,
+            },
         },
     })
 }

@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod authentication;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -24,7 +25,7 @@ pub use api_models::{
 use common_enums::MandateStatus;
 pub use common_utils::request::{RequestBody, RequestContent};
 use common_utils::{pii, pii::Email};
-use data_models::mandates::MandateData;
+use data_models::mandates::{CustomerAcceptance, MandateData};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::Serialize;
@@ -35,6 +36,7 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
     core::{
+        authentication as authentication_core,
         errors::{self, RouterResult},
         payments::{types, PaymentData, RecurringMandatePaymentData},
     },
@@ -408,6 +410,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     pub setup_mandate_details: Option<MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
@@ -421,6 +424,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_id: Option<String>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub authentication_data: Option<authentication_core::types::AuthenticationData>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -584,6 +588,7 @@ pub struct SetupMandateRequestData {
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -1423,6 +1428,8 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             surcharge_details: None,
             request_incremental_authorization: data.request.request_incremental_authorization,
             metadata: None,
+            authentication_data: None,
+            customer_acceptance: data.request.customer_acceptance.clone(),
         }
     }
 }

@@ -16,23 +16,19 @@ fn main() {
     };
     let status = child.wait();
 
-    if runner.file_modified_flag {
-        let git_status = Command::new("git")
-            .args([
-                "restore",
-                format!("{}/event.prerequest.js", runner.collection_path).as_str(),
-            ])
-            .output();
+    // Filter out None values leaving behind Some(Path)
+    let paths: Vec<String> = runner.modified_file_paths.into_iter().flatten().collect();
+
+    if !paths.is_empty() {
+        let git_status = Command::new("git").arg("restore").args(&paths).output();
 
         match git_status {
-            Ok(output) => {
-                if output.status.success() {
-                    let stdout_str = String::from_utf8_lossy(&output.stdout);
-                    println!("Git command executed successfully: {stdout_str}");
-                } else {
-                    let stderr_str = String::from_utf8_lossy(&output.stderr);
-                    eprintln!("Git command failed with error: {stderr_str}");
-                }
+            Ok(output) if !output.status.success() => {
+                let stderr_str = String::from_utf8_lossy(&output.stderr);
+                eprintln!("Git command failed with error: {stderr_str}");
+            }
+            Ok(_) => {
+                println!("Git restore successful!");
             }
             Err(e) => {
                 eprintln!("Error running Git: {e}");
