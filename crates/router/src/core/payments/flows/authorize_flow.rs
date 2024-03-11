@@ -125,7 +125,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let state = state.clone();
 
                 logger::info!("Call to save_payment_method in locker");
-
                 tokio::spawn(async move {
                     logger::info!("Starting async call to save_payment_method in locker");
 
@@ -142,13 +141,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ))
                     .await;
 
-                match pm {
-                    Ok((payment_method_id, payment_method_status)) => {
-                        resp.payment_method_id = payment_method_id.clone();
-                        resp.payment_method_status = payment_method_status;
+                    if let Err(err) = result {
+                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
                     }
-                    Err(_) => logger::error!("Save pm to locker failed"),
-                }
+                });
 
                 Ok(resp)
             }
