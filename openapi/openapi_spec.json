@@ -14267,7 +14267,7 @@
             ],
             "nullable": true
           },
-          "request_external_3ds_authentication": {
+          "external_3ds_authentication_attempted": {
             "type": "boolean",
             "description": "Flag indicating if external 3ds authentication is made or not",
             "nullable": true
