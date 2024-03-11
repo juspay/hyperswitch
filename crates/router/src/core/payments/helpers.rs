@@ -1611,6 +1611,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
+    Option<String>,
 )> {
     let request = &payment_data.payment_method_data.clone();
 
@@ -1689,9 +1690,9 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     };
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let payment_method = match (request, hyperswitch_token) {
+    let (payment_method, pm_id) = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => {
-            let payment_method_details = Ctx::retrieve_payment_method_with_token(
+            let pm_data = Ctx::retrieve_payment_method_with_token(
                 state,
                 merchant_key_store,
                 &hyperswitch_token,
@@ -1699,15 +1700,20 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                 card_token_data.as_ref(),
                 customer,
             )
-            .await
-            .attach_printable("in 'make_pm_data'")?;
+            .await;
+
+            let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                if let Some((payment_method_data, payment_method)) = payment_method_details {
-                    payment_data.payment_attempt.payment_method = Some(payment_method);
-                    Some(payment_method_data)
+                if let Some(payment_method_data) = payment_method_details.payment_method_data {
+                    payment_data.payment_attempt.payment_method =
+                        payment_method_details.payment_method;
+                    (
+                        Some(payment_method_data),
+                        payment_method_details.payment_method_id,
+                    )
                 } else {
-                    None
+                    (None, payment_method_details.payment_method_id)
                 },
             )
         }
@@ -1724,12 +1730,12 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
             payment_data.token = payment_method_data.1;
 
-            Ok(payment_method_data.0)
+            Ok((payment_method_data.0, None))
         }
-        _ => Ok(None),
+        _ => Ok((None, None)),
     }?;
 
-    Ok((operation, payment_method))
+    Ok((operation, payment_method, pm_id))
 }
 
 pub async fn store_in_vault_and_generate_ppmt(
@@ -2977,7 +2983,7 @@ pub async fn get_merchant_connector_account(
 /// # Arguments
 ///
 /// * `router_data` - original router data
-/// * `request` - new request
+/// * `request` - new request core/helper
 /// * `response` - new response
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     router_data: RouterData<F1, Req1, Res1>,
@@ -3004,6 +3010,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
+        payment_method_status: router_data.payment_method_status,
         reference_id: router_data.reference_id,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
