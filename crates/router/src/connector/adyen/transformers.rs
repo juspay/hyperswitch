@@ -130,12 +130,12 @@ pub struct ShopperName {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Address {
-    city: Option<String>,
-    country: Option<api_enums::CountryAlpha2>,
-    house_number_or_name: Option<Secret<String>>,
-    postal_code: Option<Secret<String>>,
+    city: String,
+    country: api_enums::CountryAlpha2,
+    house_number_or_name: Secret<String>,
+    postal_code: Secret<String>,
     state_or_province: Option<Secret<String>>,
-    street: Option<Secret<String>>,
+    street: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -177,6 +177,7 @@ pub struct AdyenPaymentRequest<'a> {
     country_code: Option<api_enums::CountryAlpha2>,
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
+    metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1683,16 +1684,22 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
     }
 }
 
-fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<Address> {
+fn get_address_info(
+    address: Option<&api_models::payments::Address>,
+) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
-        add.address.as_ref().map(|a| Address {
-            city: a.city.clone(),
-            country: a.country,
-            house_number_or_name: a.line1.clone(),
-            postal_code: a.zip.clone(),
-            state_or_province: a.state.clone(),
-            street: a.line2.clone(),
-        })
+        add.address.as_ref().map(
+            |a| -> Result<Address, error_stack::Report<errors::ConnectorError>> {
+                Ok(Address {
+                    city: a.get_city()?.to_owned(),
+                    country: a.get_country()?.to_owned(),
+                    house_number_or_name: a.get_line1()?.to_owned(),
+                    postal_code: a.get_zip()?.to_owned(),
+                    state_or_province: a.state.clone(),
+                    street: a.get_line2()?.to_owned(),
+                })
+            },
+        )
     })
 }
 
@@ -1775,6 +1782,12 @@ fn get_social_security_number(
         | payments::VoucherData::Seicomart { .. }
         | payments::VoucherData::PayEasy { .. } => None,
     }
+}
+
+fn build_shopper_reference(customer_id: &Option<String>, merchant_id: String) -> Option<String> {
+    customer_id
+        .clone()
+        .map(|c_id| format!("{}_{}", merchant_id, c_id))
 }
 
 impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a> {
@@ -2132,15 +2145,15 @@ impl<'a>
                 };
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_reference, "customer_id")?;
-                check_required_field(country_code, "billing.country_code")?;
+                check_required_field(country_code, "billing.country")?;
 
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
             api_models::payments::PayLaterData::AffirmRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
-                check_required_field(shopper_name, "shopper_name")?;
-                check_required_field(telephone_number, "telephone_number")?;
-                check_required_field(billing_address, "billing_address")?;
+                check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
+                check_required_field(telephone_number, "billing.phone")?;
+                check_required_field(billing_address, "billing")?;
 
                 Ok(AdyenPaymentMethod::AdyenAffirm(Box::new(
                     PmdForPaymentType {
@@ -2150,9 +2163,9 @@ impl<'a>
             }
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
-                check_required_field(shopper_name, "shopper_name")?;
-                check_required_field(delivery_address, "delivery_address")?;
-                check_required_field(billing_address, "billing_address")?;
+                check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
+                check_required_field(delivery_address, "shipping")?;
+                check_required_field(billing_address, "billing")?;
 
                 if let Some(country) = country_code {
                     match country {
@@ -2171,25 +2184,25 @@ impl<'a>
                 }
             }
             api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
-                check_required_field(shopper_name, "shopper_name")?;
-                check_required_field(telephone_number, "telephone_number")?;
+                check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
+                check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
-                check_required_field(billing_address, "billing_address")?;
-                check_required_field(delivery_address, "delivery_address")?;
-                check_required_field(country_code, "country_code")?;
+                check_required_field(billing_address, "billing")?;
+                check_required_field(delivery_address, "shipping")?;
+                check_required_field(country_code, "billing.country")?;
                 Ok(AdyenPaymentMethod::PayBright)
             }
             api_models::payments::PayLaterData::WalleyRedirect { .. } => {
                 //[TODO: Line items specific sub-fields are mandatory]
-                check_required_field(telephone_number, "telephone_number")?;
+                check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
                 Ok(AdyenPaymentMethod::Walley)
             }
             api_models::payments::PayLaterData::AlmaRedirect { .. } => {
-                check_required_field(telephone_number, "telephone_number")?;
+                check_required_field(telephone_number, "billing.phone")?;
                 check_required_field(shopper_email, "email")?;
-                check_required_field(billing_address, "billing_address")?;
-                check_required_field(delivery_address, "delivery_address")?;
+                check_required_field(billing_address, "billing")?;
+                check_required_field(delivery_address, "shipping")?;
                 Ok(AdyenPaymentMethod::AlmaPayLater(Box::new(
                     PmdForPaymentType {
                         payment_type: PaymentType::Alma,
@@ -2198,9 +2211,9 @@ impl<'a>
             }
             api_models::payments::PayLaterData::AtomeRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
-                check_required_field(shopper_name, "shopper_name")?;
-                check_required_field(telephone_number, "telephone_number")?;
-                check_required_field(billing_address, "billing_address")?;
+                check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
+                check_required_field(telephone_number, "billing.phone")?;
+                check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
             payments::PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotSupported {
@@ -2573,6 +2586,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -2593,15 +2607,15 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = item
-            .router_data
-            .customer_id
-            .clone()
-            .map(|c_id| format!("{}_{}", item.router_data.merchant_id, c_id));
+        let shopper_reference = build_shopper_reference(
+            &item.router_data.customer_id,
+            item.router_data.merchant_id.clone(),
+        );
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let billing_address = get_address_info(item.router_data.address.billing.as_ref());
+        let billing_address =
+            get_address_info(item.router_data.address.billing.as_ref()).transpose()?;
         let country_code = get_country_code(item.router_data.address.billing.as_ref());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
@@ -2633,6 +2647,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -2685,6 +2700,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -2738,6 +2754,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -2787,6 +2804,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -2836,6 +2854,7 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         };
         Ok(request)
     }
@@ -2892,6 +2911,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -2988,6 +3008,7 @@ impl<'a>
             channel,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3012,19 +3033,20 @@ impl<'a>
         let additional_data = get_additional_data(item.router_data);
         let country_code = get_country_code(item.router_data.address.billing.as_ref());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = item
-            .router_data
-            .customer_id
-            .clone()
-            .map(|c_id| format!("{}_{}", item.router_data.merchant_id, c_id));
+        let shopper_reference = build_shopper_reference(
+            &item.router_data.customer_id,
+            item.router_data.merchant_id.clone(),
+        );
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_return_url()?;
         let shopper_name: Option<ShopperName> =
             get_shopper_name(item.router_data.address.billing.as_ref());
         let shopper_email = item.router_data.request.email.clone();
-        let billing_address = get_address_info(item.router_data.address.billing.as_ref());
-        let delivery_address = get_address_info(item.router_data.address.shipping.as_ref());
+        let billing_address =
+            get_address_info(item.router_data.address.billing.as_ref()).transpose()?;
+        let delivery_address =
+            get_address_info(item.router_data.address.shipping.as_ref()).transpose()?;
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((
@@ -3061,6 +3083,7 @@ impl<'a>
             channel: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -3118,6 +3141,7 @@ impl<'a>
             social_security_number: None,
             shopper_statement: item.router_data.request.statement_descriptor.clone(),
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            metadata: item.router_data.request.metadata.clone(),
         })
     }
 }
@@ -4537,7 +4561,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
                     nationality: get_country_code(item.router_data.address.billing.as_ref()),
-                    billing_address: get_address_info(item.router_data.address.billing.as_ref()),
+                    billing_address: get_address_info(item.router_data.address.billing.as_ref())
+                        .transpose()?,
                 })
             }
             PayoutMethodData::Wallet(wallet_data) => {
@@ -4576,7 +4601,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
                     nationality: get_country_code(item.router_data.address.billing.as_ref()),
-                    billing_address: get_address_info(item.router_data.address.billing.as_ref()),
+                    billing_address: get_address_info(item.router_data.address.billing.as_ref())
+                        .transpose()?,
                 })
             }
         }
@@ -4613,7 +4639,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                         currency: item.router_data.request.destination_currency,
                     },
                     card: PayoutCardDetails::try_from(&item.router_data.get_payout_method_data()?)?,
-                    billing_address: get_address_info(item.router_data.get_billing().ok()),
+                    billing_address: get_address_info(item.router_data.get_billing().ok())
+                        .transpose()?,
                     merchant_account,
                     reference: item.router_data.request.payout_id.clone(),
                     shopper_name: ShopperName {
