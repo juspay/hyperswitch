@@ -5,6 +5,7 @@ use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Maskable;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentData};
@@ -147,6 +148,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_status: payment_data.payment_method_status,
         payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
@@ -325,7 +327,9 @@ where
                 phone: customer
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
+                mandate_id: data
+                    .mandate_id
+                    .and_then(|mandate_ids| mandate_ids.mandate_id),
                 payment_method: data.payment_attempt.payment_method,
                 payment_method_data: payment_method_data_response,
                 payment_token: data.token,
@@ -466,20 +470,25 @@ where
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
-                status_code.to_string(),
+                Maskable::new_normal(status_code.to_string()),
             )]
         })
         .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
             "payment_confirm_source".to_string(),
-            payment_confirm_source.to_string(),
+            Maskable::new_normal(payment_confirm_source.to_string()),
         ))
     }
 
     headers.extend(
         external_latency
-            .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+            .map(|latency| {
+                vec![(
+                    X_HS_LATENCY.to_string(),
+                    Maskable::new_normal(latency.to_string()),
+                )]
+            })
             .unwrap_or_default(),
     );
 
@@ -718,6 +727,8 @@ where
                         .set_authorization_count(payment_intent.authorization_count)
                         .set_incremental_authorizations(incremental_authorizations_response)
                         .set_expires_on(payment_intent.session_expiry)
+                        .set_payment_method_id(payment_attempt.payment_method_id)
+                        .set_payment_method_status(payment_data.payment_method_status)
                         .to_owned(),
                     headers,
                 ))
@@ -1141,6 +1152,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: additional_data.payment_data.payment_intent.metadata,
+            authentication_data: None,
             customer_acceptance: payment_data.customer_acceptance,
         })
     }

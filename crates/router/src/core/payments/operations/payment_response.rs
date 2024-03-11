@@ -616,6 +616,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
+                    let payment_method_id = router_data.payment_method_id.clone();
+
                     utils::add_apple_pay_payment_status_metrics(
                         router_data.status,
                         router_data.apple_pay_flow.clone(),
@@ -648,11 +650,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(&payment_data, updated_attempt_status),
-                                payment_method_id: Some(router_data.payment_method_id),
+                                payment_method_id: Some(payment_method_id),
                                 mandate_id: payment_data
                                     .mandate_id
                                     .clone()
-                                    .map(|mandate| mandate.mandate_id),
+                                    .and_then(|mandate| mandate.mandate_id),
                                 connector_metadata,
                                 payment_token: None,
                                 error_code: error_status.clone(),
@@ -842,7 +844,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .or(payment_data
                 .mandate_id
                 .clone()
-                .map(|mandate_ids| mandate_ids.mandate_id));
+                .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
     let mandate_update_fut = tokio::spawn(
         async move {
@@ -865,6 +867,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )?;
 
     payment_data.payment_intent = payment_intent;
+    payment_data.payment_method_status = router_data.payment_method_status;
     Ok(payment_data)
 }
 
